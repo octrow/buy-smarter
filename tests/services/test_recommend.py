@@ -1472,3 +1472,52 @@ async def test_review_pass_naive_fallback_confirms_feature_without_llm(monkeypat
     assert top.pros == [
         "отзывы подтверждают: шумоподавление — «шумоподавление очень удобно работает»"
     ]
+
+
+# --- Defects the seller admits to in the ad text ------------------------------
+
+
+def test_a_defect_from_the_ad_text_lands_in_the_used_listing_con() -> None:
+    new_ref = _cand("kaspi", "k1", "Waterpik WP-100 ирригатор портативный", "Waterpik", 30000)
+    used = _cand("olx", "u1", "Waterpik WP-100 ирригатор", "Waterpik", 15000)
+    used.specs["description"] = "Корпус треснут, но работает"
+    clean = _cand("olx", "u2", "Waterpik WP-100 ирригатор б/у", "Waterpik", 14000)
+    clean.specs["description"] = "Без трещин, ремонта не было"
+
+    listings = match_used_listings([new_ref], [used, clean], None)
+
+    con = {listing.title: listing.con for listing in listings}
+    assert con[used.title] == "без гарантии/проверки; ⚠ трещины/сколы"
+    assert con[clean.title] == "без гарантии/проверки"
+
+
+def test_a_notable_used_listing_carries_its_defects_too() -> None:
+    book = BrandBook(tiers={"Waterpik": "A"}, aliases={})
+    used = _used_cand("olx", "u1", "Waterpik WP-660 ирригатор", 20000)
+    used.specs["description"] = "Не включается"
+
+    [listing] = notable_used_listings(
+        [used], book, budget=100000, exclude=set(), category="ирригатор"
+    )
+
+    assert listing.con.endswith("⚠ заявлена неисправность")
+
+
+async def test_collect_olx_drops_listings_sold_for_parts() -> None:
+    class _PartsOlxSource:
+        name = "olx"
+
+        async def search(self, query: str, city: str | None = None):
+            return [
+                RawProduct(source="olx", product_id="p1", title="Наушники Sony на запчасти"),
+                RawProduct(source="olx", product_id="p2", title="Наушники Sony WH-2"),
+                RawProduct(source="olx", product_id="p3", title="Наушники Sony WH-3"),
+            ]
+
+        async def specs(self, product_id: str):
+            description = "Продаю на детали" if product_id == "p3" else "Всё работает"
+            return {"condition": "б/у", "description": description}
+
+    used = await _collect_olx(_PartsOlxSource(), "наушники", None, None)
+
+    assert [c.source_product_id for c in used] == ["p2"]

@@ -925,7 +925,7 @@ wheels = [
 [[package]]
 name = "market-sources"
 version = "0.1.1"
-source = { git = "https://github.com/octrow/market-sources?branch=main#44adef9829eddf01ed9ab744bbf5052f60695c26" }
+source = { git = "https://github.com/octrow/market-sources?branch=main#af6c05e326004caa34bb796376dc8dffdd4cc134" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },

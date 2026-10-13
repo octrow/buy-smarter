@@ -102,6 +102,8 @@ OLX used section. Reports are saved to `reports/*.md` (`--no-save` turns that of
 
 Sources: **Kaspi** (JSON endpoints), **Ozon.kz** (Playwright browser session), **OLX.kz** (open REST,
 used items). Accessories and off-topic listings are dropped by a heuristic filter with an LLM fallback.
+In the used section, defects the seller admits to in the ad text (cracks, "doesn't turn on", water damage, weak
+battery, past repairs) are listed under Con, and ads sold for parts are dropped.
 Ranking also discounts reviews of unknown brands and penalizes suspiciously low prices.
 
 ## LLM: models and cache

@@ -83,6 +83,7 @@ from buysmarter.ranking.models import (
 )
 from buysmarter.ranking.review_requirements import naive_requirement_checks
 from buysmarter.ranking.review_trust import count_defect_complaints, review_trust
+from buysmarter.ranking.used_defects import find_defects, is_for_parts
 from buysmarter.ranking.velocity import review_velocity
 
 logger = logging.getLogger(__name__)
@@ -113,6 +114,7 @@ _OLX_HEAD_NOUN_MIN_LEN = 4  # shortest token treated as a searchable head noun
 # the matched new product (docs/INIT_DATA.md "Used Market").
 _USED_PRICE_RATIO = 0.7
 _USED_CON = "без гарантии/проверки"
+_DEFECT_MARK = "⚠"
 
 # Token-overlap matching (# ponytail: token overlap now, embeddings later).
 _MIN_TOKEN_LEN = 3
@@ -642,6 +644,19 @@ def dedupe_cross_source(
     return kept, notes
 
 
+def _ad_text(c: Candidate) -> str:
+    """The title plus the seller's own description: "на запчасти" often sits in the title only."""
+    return f"{c.title}\n{c.specs.get('description', '')}"
+
+
+def _used_con(c: Candidate) -> str:
+    """The standing used-market caveat plus every defect the seller admits to."""
+    defects = find_defects(_ad_text(c))
+    if not defects:
+        return _USED_CON
+    return f"{_USED_CON}; {_DEFECT_MARK} {', '.join(defects)}"
+
+
 def _brand_matches(ref: Candidate, used: Candidate, book: BrandBook | None) -> bool:
     """Brand gate for used matching: prefer BrandBook.resolve, else candidates."""
     if book is not None:
@@ -711,6 +726,7 @@ def match_used_listings(
                 matched_title=best.title,
                 city=u.specs.get("city"),
                 url=u.url,
+                con=_used_con(u),
                 canonical=canonical,
             )
         )
@@ -776,6 +792,7 @@ def notable_used_listings(
             price=u.price,
             city=u.specs.get("city"),
             url=u.url,
+            con=_used_con(u),
             standalone=True,
         )
         for _tier, u in candidates[:_NOTABLE_USED_TOP_N]
@@ -1143,7 +1160,10 @@ async def _collect_olx(
         specs, _ok = await _safe_specs(source, product.product_id)
         if not _is_used(specs.get("condition")):
             continue
-        used.append(to_candidate(product, specs, [], book))
+        candidate = to_candidate(product, specs, [], book)
+        if is_for_parts(_ad_text(candidate)):
+            continue
+        used.append(candidate)
     return used
 
 
