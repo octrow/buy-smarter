@@ -47,7 +47,9 @@ The report goes on with a review summary, alternatives (best value, best budget)
   against reviews. The quote must exist verbatim in a review and appear at least twice, or the verdict stays
   "not enough data".
 - **Brand and model knowledge.** Brand tiers and model aliases are seeded for water flossers. Any other
-  category gets them via `learn-category`, so "me 705" on OLX resolves to "Xiaomi Water Flosser 2".
+  category gets them via `learn-category`, so "me 705" on OLX resolves to "Xiaomi Water Flosser 2". Without it,
+  every brand ranks as unknown: run `learn-category "смартфон"` once before phone queries. Knowledge goes to
+  Postgres, or to `~/.config/buysmarter/knowledge/<category>.json` when Postgres is down.
 - **Phone specs from Kimovil.** For smartphone queries each model is looked up on Kimovil: its overall index
   (0–100) goes into the specs axis ("Kimovil 83/100"), and refresh rate, battery, fast charging, chipset, AnTuTu
   and IP rating are added in Kaspi's wording, so "120 Гц" or "5000 мАч" as a required feature can match. Results
@@ -91,7 +93,11 @@ uv run buysmarter recommend "ирригатор" --city Алматы --budget 40
 
 # Category knowledge: generate it (opus) or extract it from your own notes (sonnet)
 uv run buysmarter learn-category "робот-пылесос"
+uv run buysmarter learn-category "смартфон"      # brand tiers + model aliases for phones
 uv run buysmarter learn ~/notes/robot-vacuum.md --category "робот пылесос"
+
+# Smartphones: Kimovil index in the specs axis, "120 Гц" / "5000 мАч" as required features
+uv run buysmarter recommend "смартфон до 250000 тг, 120 Гц, 5000 мАч" --city Алматы
 
 # Price history: re-scan tracked categories, then look up one product
 uv run buysmarter refresh
@@ -173,6 +179,9 @@ JSON samples in `tests/samples/`. Notes from the source spikes are in [docs/spik
 - Kaspi needs a Kazakhstan residential IP or `KASPI_PROXY`.
 - Ozon may still show its anti-bot page; `ozon-setup` refreshes the saved session.
 - Review velocity is displayed but not scored until snapshots are collected on a regular schedule.
+- Kimovil: a burst of requests can get the IP challenged by Cloudflare for a while; until it clears, only cached
+  phone specs are used. A Kimovil page describes the model's base variant, so RAM and storage come from the
+  listing, and a title without "5G" may resolve to the 4G sibling.
 - The marketplace endpoints are unofficial and can change without notice.
 
 ## License
