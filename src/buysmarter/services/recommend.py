@@ -85,6 +85,7 @@ from buysmarter.ranking.review_requirements import naive_requirement_checks
 from buysmarter.ranking.review_trust import count_defect_complaints, review_trust
 from buysmarter.ranking.used_defects import find_defects, is_for_parts
 from buysmarter.ranking.velocity import review_velocity
+from buysmarter.services.phone_specs import enrich_with_kimovil, is_smartphone_category
 
 logger = logging.getLogger(__name__)
 
@@ -1727,6 +1728,9 @@ async def recommend(
             )
         used_candidates = collected.get("olx") or []
         deduped, notes = dedupe_cross_source(new_candidates, model_book)
+        if is_smartphone_category(constraints.category):
+            with _stage("kimovil"):
+                await enrich_with_kimovil(deduped)
         substances_verified = False
         if composition:
             assert ingredient_book is not None

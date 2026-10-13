@@ -87,6 +87,8 @@ def _credibility_factor(candidate: Candidate) -> float:
 # Waterproof-rating synonyms Kaspi listings use instead of the "IPX<n>" code
 # itself. Static bridge for v1 — real LLM/embedding-based feature matching is
 # a later iteration (see docs/PLAN.md).
+KIMOVIL_INDEX_MAX = 100.0
+
 _WATERPROOF_SYNONYMS = ("влагозащит", "водонепрониц", "waterproof")
 _IPX_FEATURE_RE = re.compile(r"^ipx\d$")
 
@@ -460,6 +462,10 @@ def _score_specs(
         matched = sum(1 for f in required if _feature_present(f, candidate))
         coverage = matched / len(required)
         explanation = f"{matched}/{len(required)} required features matched"
+    if candidate.kimovil_index is not None:
+        # Smartphones: how good the model is, not only whether its specs are known.
+        coverage = (coverage + candidate.kimovil_index / KIMOVIL_INDEX_MAX) / 2
+        explanation += f"; Kimovil {candidate.kimovil_index:.0f}/100"
     return AxisScore(
         name="specs", score=round(weight * coverage, 2), max_score=weight, explanation=explanation
     )

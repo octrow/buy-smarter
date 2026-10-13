@@ -73,6 +73,9 @@ class Candidate(BaseModel):
     # Asia/Almaty and fee in KZT. None == unknown (e.g. Ozon, no offers fetched).
     delivery_date: str | None = None
     delivery_cost: float | None = None
+    # Smartphones only: Kimovil's overall index (0-100) for this model, averaged into
+    # the specs axis (services.phone_specs). None == not a phone or no confident match.
+    kimovil_index: float | None = None
 
 
 class AxisScore(BaseModel):

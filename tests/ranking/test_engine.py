@@ -1336,3 +1336,23 @@ def test_concentration_feature_not_hard_filtered_when_substance_axis_active():
 
     passed, rejected = apply_hard_filters([cand], constraints)
     assert passed == [] and "0,1%" in rejected[0][1]
+
+
+# --- Kimovil index in the specs axis -------------------------------------------
+
+
+def _specs_axis(candidate: Candidate, constraints: QueryConstraints) -> AxisScore:
+    scored = score(candidate, constraints, compute_market_context([candidate]))
+    return next(a for a in scored.axes if a.name == "specs")
+
+
+def test_the_kimovil_index_is_averaged_into_the_specs_axis():
+    axis = _specs_axis(_candidate(kimovil_index=60.0), _constraints(required_features=[]))
+    assert axis.score == round(DEFAULT_WEIGHTS["specs"] * (1.0 + 0.6) / 2, 2)
+    assert "Kimovil 60/100" in axis.explanation
+
+
+def test_without_a_kimovil_index_the_specs_axis_is_unchanged():
+    axis = _specs_axis(_candidate(), _constraints(required_features=[]))
+    assert axis.score == DEFAULT_WEIGHTS["specs"]
+    assert "Kimovil" not in axis.explanation

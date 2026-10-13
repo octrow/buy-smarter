@@ -42,6 +42,18 @@ def _no_live_claude(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_live_kimovil(monkeypatch, tmp_path):
+    """Smartphone queries never reach kimovil.com: every lookup is a miss, cached in tmp."""
+    from market_sources.kimovil.source import KimovilSource
+
+    async def _miss(self, title):
+        return None
+
+    monkeypatch.setattr(KimovilSource, "lookup", _miss)
+    monkeypatch.setenv("KIMOVIL_CACHE_PATH", str(tmp_path / "kimovil.db"))
+
+
+@pytest.fixture(autouse=True)
 def _no_live_jev(monkeypatch):
     """Jev never goes over HTTP in tests: an unmocked call behaves as "no OmniRoute key".
 

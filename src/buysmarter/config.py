@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     # Mandatory local cache (sqlite, no Postgres/docker needed). Always used
     # unless a caller explicitly opts into the Postgres-backed SqlCacheStore.
     llm_cache_path: str = "~/.cache/buysmarter/llm_cache.db"
+    # Kimovil phone specs by model query (services.phone_specs).
+    kimovil_cache_path: str = "~/.cache/buysmarter/kimovil.db"
 
     # Kaspi.kz source (optional; datacenter IPs may need a residential proxy).
     kaspi_proxy: str | None = None

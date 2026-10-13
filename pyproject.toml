@@ -18,7 +18,7 @@ dependencies = [
     "fastmcp",
     "openai",
     "claude-cli",
-    "market-sources[browser,impersonate]",
+    "market-sources[browser,impersonate,kimovil]",
 ]
 
 [project.scripts]

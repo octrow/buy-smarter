@@ -48,6 +48,10 @@ The report goes on with a review summary, alternatives (best value, best budget)
   "not enough data".
 - **Brand and model knowledge.** Brand tiers and model aliases are seeded for water flossers. Any other
   category gets them via `learn-category`, so "me 705" on OLX resolves to "Xiaomi Water Flosser 2".
+- **Phone specs from Kimovil.** For smartphone queries each model is looked up on Kimovil: its overall index
+  (0–100) goes into the specs axis ("Kimovil 83/100"), and refresh rate, battery, fast charging, chipset, AnTuTu
+  and IP rating are added in Kaspi's wording, so "120 Гц" or "5000 мАч" as a required feature can match. Results
+  are cached in `~/.cache/buysmarter/kimovil.db` (30 days; misses 7 days).
 - **Price history.** `refresh` and `history` record price and review-count snapshots per product.
   Kaspi has no public Keepa-style tracker.
 
