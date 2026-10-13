@@ -1,0 +1,28 @@
+name: Bug report
+description: Something broke or ranked wrong
+labels: [bug]
+body:
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: The exact command or MCP call
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `uv run buysmarter doctor`
+      render: text
+  - type: textarea
+    id: log
+    attributes:
+      label: Relevant lines from logs/buysmarter.log
+      render: text

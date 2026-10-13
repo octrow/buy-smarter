@@ -1,0 +1,355 @@
+{
+  "card": {
+    "id": "106935673",
+    "name": "Aulandi ирригатор HF-6 импульсный, портативный",
+    "createdTime": "2022-10-21T06:27:57.749+00:00",
+    "shopLink": "/p/aulandi-irrigator-hf-6-impul-snyi-portativnyi-106935673/",
+    "maxQuantity": 6,
+    "numberOfOrders": null,
+    "unit": {
+      "code": "pieces",
+      "type": "PIECES",
+      "measurementLiteral": "шт",
+      "countingLiteral": "шт",
+      "increment": 1.0
+    },
+    "category": [
+      "Красота и здоровье",
+      "Уход за полостью рта",
+      "Ирригаторы, скалеры"
+    ],
+    "categoryId": "00724",
+    "promoConditions": {
+      "brand": "Aulandi",
+      "categoryCodes": [
+        "Water flossers",
+        "Oral care",
+        "Beauty care",
+        "Categories"
+      ],
+      "baseProductCodes": [
+        "[Master - Water flossers][aulandi]{ирригатор}{портативный}{импульсный}{HF-6}"
+      ],
+      "groups": null,
+      "productSeries": null
+    },
+    "stickers": null,
+    "refundPeriod": 365,
+    "title": "Aulandi ирригатор HF-6 импульсный, портативный"
+  },
+  "galleryImages": [
+    {
+      "small": "https://resources.cdn-kaspi.kz/img/m/p/p89/p9d/31752603.jpeg?format=gallery-small",
+      "medium": "https://resources.cdn-kaspi.kz/img/m/p/p89/p9d/31752603.jpeg?format=gallery-medium",
+      "large": "https://resources.cdn-kaspi.kz/img/m/p/p89/p9d/31752603.jpeg?format=gallery-large",
+      "location": "p89/p9d/31752603.jpeg",
+      "generated": false,
+      "visualType": null
+    },
+    {
+      "small": "https://resources.cdn-kaspi.kz/img/m/p/pf8/p04/31752604.png?format=gallery-small",
+      "medium": "https://resources.cdn-kaspi.kz/img/m/p/pf8/p04/31752604.png?format=gallery-medium",
+      "large": "https://resources.cdn-kaspi.kz/img/m/p/pf8/p04/31752604.png?format=gallery-large",
+      "location": "pf8/p04/31752604.png",
+      "generated": false,
+      "visualType": null
+    },
+    {
+      "small": "https://resources.cdn-kaspi.kz/img/m/p/pdc/p04/31752605.png?format=gallery-small",
+      "medium": "https://resources.cdn-kaspi.kz/img/m/p/pdc/p04/31752605.png?format=gallery-medium",
+      "large": "https://resources.cdn-kaspi.kz/img/m/p/pdc/p04/31752605.png?format=gallery-large",
+      "location": "pdc/p04/31752605.png",
+      "generated": false,
+      "visualType": null
+    },
+    {
+      "small": "https://resources.cdn-kaspi.kz/img/m/p/pc0/p04/31752606.png?format=gallery-small",
+      "medium": "https://resources.cdn-kaspi.kz/img/m/p/pc0/p04/31752606.png?format=gallery-medium",
+      "large": "https://resources.cdn-kaspi.kz/img/m/p/pc0/p04/31752606.png?format=gallery-large",
+      "location": "pc0/p04/31752606.png",
+      "generated": false,
+      "visualType": null
+    },
+    {
+      "small": "https://resources.cdn-kaspi.kz/img/m/p/pa4/p04/31752607.png?format=gallery-small",
+      "medium": "https://resources.cdn-kaspi.kz/img/m/p/pa4/p04/31752607.png?format=gallery-medium",
+      "large": "https://resources.cdn-kaspi.kz/img/m/p/pa4/p04/31752607.png?format=gallery-large",
+      "location": "pa4/p04/31752607.png",
+      "generated": false,
+      "visualType": null
+    }
+  ],
+  "videoId": "ThOEMsYF418",
+  "description": "<p>Ирригатор AULANDI выдаёт до 1800 импульсов в минуту при работе за счёт японской водяной помпы, обеспечивая максимально качественную очистку. Благодаря аккумулятору,&nbsp;можете использовать устройство в течение 30 дней без подзарядки. Бак на 300 мл достаточно для 5 и более обработок ротовой полости при максимальном давлении в 110 Psi. Ирригатор является эффективным способом борьбы с налётом, зубным камнем и другими проблемами зубов. Ирригатор AULANDI вернёт здоровье вашим зубам, придаст им красоты и обезопасит от походов к стоматологам. <br></p>",
+  "descriptions": [
+    {
+      "title": "Описание",
+      "text": "<p>Ирригатор AULANDI выдаёт до 1800 импульсов в минуту при работе за счёт японской водяной помпы, обеспечивая максимально качественную очистку. Благодаря аккумулятору,&nbsp;можете использовать устройство в течение 30 дней без подзарядки. Бак на 300 мл достаточно для 5 и более обработок ротовой полости при максимальном давлении в 110 Psi. Ирригатор является эффективным способом борьбы с налётом, зубным камнем и другими проблемами зубов. Ирригатор AULANDI вернёт здоровье вашим зубам, придаст им красоты и обезопасит от походов к стоматологам. <br></p>",
+      "aiGenerated": false
+    }
+  ],
+  "specifications": [
+    {
+      "code": "Water flossers*Osnovnye harakteristiki",
+      "name": "Основные характеристики",
+      "features": [
+        {
+          "code": "water flossers*type",
+          "name": "Тип",
+          "description": null,
+          "type": "ENUM",
+          "range": null,
+          "comparable": null,
+          "featureUnit": null,
+          "featureValues": [
+            {
+              "value": "ирригатор"
+            }
+          ],
+          "mandatory": true,
+          "keyAttribute": false,
+          "merchantVisible": null,
+          "position": 0,
+          "visible": true,
+          "multiValued": false,
+          "important": true,
+          "importanceScore": null
+        },
+        {
+          "code": "water flossers*operation type",
+          "name": "Принцип работы",
+          "description": null,
+          "type": "ENUM",
+          "range": null,
+          "comparable": null,
+          "featureUnit": null,
+          "featureValues": [
+            {
+              "value": "импульсный"
+            }
+          ],
+          "mandatory": true,
+          "keyAttribute": false,
+          "merchantVisible": null,
+          "position": 1,
+          "visible": true,
+          "multiValued": false,
+          "important": true,
+          "importanceScore": null
+        },
+        {
+          "code": "water flossers*power",
+          "name": "Питание",
+          "description": null,
+          "type": "ENUM",
+          "range": null,
+          "comparable": null,
+          "featureUnit": null,
+          "featureValues": [
+            {
+              "value": "от аккумулятора"
+            }
+          ],
+          "mandatory": true,
+          "keyAttribute": false,
+          "merchantVisible": null,
+          "position": 2,
+          "visible": true,
+          "multiValued": false,
+          "important": true,
+          "importanceScore": null
+        },
+        {
+          "code": "water flossers*tank capacity",
+          "name": "Емкость резервуара",
+          "description": null,
+          "type": "NUMBER",
+          "range": null,
+          "comparable": null,
+          "featureUnit": null,
+          "featureValues": [
+            {
+              "value": "300 мл"
+            }
+          ],
+          "mandatory": true,
+          "keyAttribute": false,
+          "merchantVisible": null,
+          "position": 3,
+          "visible": true,
+          "multiValued": false,
+          "important": true,
+          "importanceScore": null
+        },
+        {
+          "code": "water flossers*pressure range",
+          "name": "Давление струи",
+          "description": null,
+          "type": "STRING",
+          "range": null,
+          "comparable": null,
+          "featureUnit": null,
+          "featureValues": [
+            {
+              "value": "20-110"
+            }
+          ],
+          "mandatory": false,
+          "keyAttribute": false,
+          "merchantVisible": null,
+          "position": 4,
+          "visible": true,
+          "multiValued": false,
+          "important": false,
+          "importanceScore": null
+        }
+      ],
+      "position": 1
+    },
+    {
+      "code": "Water flossers*Dopolnitelno",
+      "name": "Дополнительно",
+      "features": [
+        {
+          "code": "water flossers*number of modes",
+          "name": "Число режимов/регулировок",
+          "description": null,
+          "type": "ENUM",
+          "range": null,
+          "comparable": null,
+          "featureUnit": null,
+          "featureValues": [
+            {
+              "value": "5"
+            }
+          ],
+          "mandatory": true,
+          "keyAttribute": false,
+          "merchantVisible": null,
+          "position": 0,
+          "visible": true,
+          "multiValued": false,
+          "important": true,
+          "importanceScore": null
+        },
+        {
+          "code": "water flossers*water pulsation",
+          "name": "Частота пульсации воды",
+          "description": null,
+          "type": "NUMBER",
+          "range": null,
+          "comparable": null,
+          "featureUnit": null,
+          "featureValues": [
+            {
+              "value": "1800 импульсов/мин"
+            }
+          ],
+          "mandatory": false,
+          "keyAttribute": false,
+          "merchantVisible": null,
+          "position": 1,
+          "visible": true,
+          "multiValued": false,
+          "important": false,
+          "importanceScore": null
+        },
+        {
+          "code": "water flossers*operating time",
+          "name": "Время непрерывной работы",
+          "description": null,
+          "type": "NUMBER",
+          "range": null,
+          "comparable": null,
+          "featureUnit": null,
+          "featureValues": [
+            {
+              "value": "30 мин"
+            }
+          ],
+          "mandatory": false,
+          "keyAttribute": false,
+          "merchantVisible": null,
+          "position": 2,
+          "visible": true,
+          "multiValued": false,
+          "important": true,
+          "importanceScore": null
+        },
+        {
+          "code": "water flossers*input power",
+          "name": "Потребляемая мощность",
+          "description": null,
+          "type": "NUMBER",
+          "range": null,
+          "comparable": null,
+          "featureUnit": null,
+          "featureValues": [
+            {
+              "value": "35 Вт"
+            }
+          ],
+          "mandatory": false,
+          "keyAttribute": false,
+          "merchantVisible": null,
+          "position": 4,
+          "visible": true,
+          "multiValued": false,
+          "important": true,
+          "importanceScore": null
+        },
+        {
+          "code": "water flossers*brush heads",
+          "name": "Насадки",
+          "description": null,
+          "type": "ENUM",
+          "range": null,
+          "comparable": null,
+          "featureUnit": null,
+          "featureValues": [
+            {
+              "value": "для чистки языка"
+            },
+            {
+              "value": "для чистки имплантов и коронок"
+            },
+            {
+              "value": "ортодонтическая (для брекетов)"
+            },
+            {
+              "value": "пародонтологическая (для десен)"
+            },
+            {
+              "value": "насадка-щетка"
+            }
+          ],
+          "mandatory": true,
+          "keyAttribute": false,
+          "merchantVisible": null,
+          "position": 5,
+          "visible": true,
+          "multiValued": true,
+          "important": true,
+          "importanceScore": 1
+        }
+      ],
+      "position": 2
+    }
+  ],
+  "weight": 0.0,
+  "masterCategoryCode": "Master - Water flossers",
+  "masterCategoryName": "Ирригаторы, скалеры",
+  "restrictedAge": 0,
+  "sizeTableCode": null,
+  "hasVariants": false,
+  "childrenContent": true,
+  "certificate": null,
+  "carParts": false,
+  "videos": [],
+  "teasers": [
+    "p15/p5f/93095912.mp4"
+  ],
+  "richContent": null,
+  "version": "V1",
+  "aiGenerated": false
+}

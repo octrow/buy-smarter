@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Saved public marketplace responses used as parser fixtures"
+paths = ['''tests/samples/''']

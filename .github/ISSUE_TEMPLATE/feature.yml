@@ -1,0 +1,10 @@
+name: Feature or category request
+description: A new source, category or ranking signal
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you want to buy or check, and what the report misses
+    validations:
+      required: true

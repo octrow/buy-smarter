@@ -1,0 +1,221 @@
+{
+  "data": [
+    {
+      "id": "8a5c5ab887bee2230188146b5f34764d",
+      "author": "Виктория",
+      "date": "13.05.2023",
+      "orderNumber": "258951071",
+      "rating": 5,
+      "comment": {
+        "minus": "",
+        "plus": "Ирригатор хороший, все свои функции выполняет на ура! Нужно только наловчиться им пользоваться, а то у меня сразу был прочищен глаз, а потом только зубы. Рекомендую к покупке!",
+        "text": ""
+      },
+      "feedback": {
+        "positive": 94,
+        "voted": false
+      },
+      "product": {
+        "id": "106935673",
+        "name": "Aulandi ирригатор HF-6 импульсный, портативный",
+        "categoryCode": "Master - Water flossers",
+        "categoryName": "Ирригаторы, скалеры",
+        "link": "https://kaspi.kz/shop/p/aulandi-irrigator-hf-6-impul-snyi-portativnyi-106935673/"
+      },
+      "merchant": null,
+      "editable": false,
+      "editedByCustomer": false,
+      "locale": null
+    },
+    {
+      "id": "8a5c296383e5b48b01841f05cd25632e",
+      "author": "Раушан",
+      "date": "28.10.2022",
+      "orderNumber": "222007565",
+      "rating": 5,
+      "comment": {
+        "minus": "",
+        "plus": "",
+        "text": "Прекрасный ирригатор! Приятно удивило разнообразие насадок. Отлично упакован, качественный бокс для хранения. Работает исправно. Напор хороший."
+      },
+      "feedback": {
+        "positive": 32,
+        "voted": false
+      },
+      "galleryImages": [
+        {
+          "id": "222007565-106935673/bc16115d-8091-47a1-af51-e9e82849fc1f.jpg",
+          "small": "https://resources.cdn-kaspi.kz/img/p/r/222007565-106935673/bc16115d-8091-47a1-af51-e9e82849fc1f.jpg?format=review_small",
+          "medium": "https://resources.cdn-kaspi.kz/img/p/r/222007565-106935673/bc16115d-8091-47a1-af51-e9e82849fc1f.jpg?format=review_medium",
+          "large": "https://resources.cdn-kaspi.kz/img/p/r/222007565-106935673/bc16115d-8091-47a1-af51-e9e82849fc1f.jpg?format=review_large"
+        },
+        {
+          "id": "222007565-106935673/83d37cac-5769-452b-83d8-49d80202fea1.jpg",
+          "small": "https://resources.cdn-kaspi.kz/img/p/r/222007565-106935673/83d37cac-5769-452b-83d8-49d80202fea1.jpg?format=review_small",
+          "medium": "https://resources.cdn-kaspi.kz/img/p/r/222007565-106935673/83d37cac-5769-452b-83d8-49d80202fea1.jpg?format=review_medium",
+          "large": "https://resources.cdn-kaspi.kz/img/p/r/222007565-106935673/83d37cac-5769-452b-83d8-49d80202fea1.jpg?format=review_large"
+        },
+        {
+          "id": "222007565-106935673/9cd108eb-0007-433d-88bd-bc1e411f54d2.jpg",
+          "small": "https://resources.cdn-kaspi.kz/img/p/r/222007565-106935673/9cd108eb-0007-433d-88bd-bc1e411f54d2.jpg?format=review_small",
+          "medium": "https://resources.cdn-kaspi.kz/img/p/r/222007565-106935673/9cd108eb-0007-433d-88bd-bc1e411f54d2.jpg?format=review_medium",
+          "large": "https://resources.cdn-kaspi.kz/img/p/r/222007565-106935673/9cd108eb-0007-433d-88bd-bc1e411f54d2.jpg?format=review_large"
+        }
+      ],
+      "product": {
+        "id": "106935673",
+        "name": "Aulandi ирригатор HF-6 импульсный, портативный",
+        "categoryCode": "Master - Water flossers",
+        "categoryName": "Ирригаторы, скалеры",
+        "link": "https://kaspi.kz/shop/p/aulandi-irrigator-hf-6-impul-snyi-portativnyi-106935673/"
+      },
+      "merchant": null,
+      "editable": false,
+      "editedByCustomer": false,
+      "locale": null
+    },
+    {
+      "id": "8a5c296383e5b48b018410319f3a223a",
+      "author": "Жанна",
+      "date": "25.10.2022",
+      "orderNumber": "221558056",
+      "rating": 5,
+      "comment": {
+        "minus": "",
+        "plus": "Отличный ирригатор. Напор мощный, прочищает хорошо. Даже на маленькой мощности справляется со своей задачей. Удобный регулятор напора воды. Большим плюсом является наличие множества насадок, можно пользоваться всей семьей.",
+        "text": "Обслужили быстро, доступно объяснили. Товар у них качественный."
+      },
+      "feedback": {
+        "positive": 30,
+        "voted": false
+      },
+      "product": {
+        "id": "106935673",
+        "name": "Aulandi ирригатор HF-6 импульсный, портативный",
+        "categoryCode": "Master - Water flossers",
+        "categoryName": "Ирригаторы, скалеры",
+        "link": "https://kaspi.kz/shop/p/aulandi-irrigator-hf-6-impul-snyi-portativnyi-106935673/"
+      },
+      "merchant": null,
+      "editable": false,
+      "editedByCustomer": false,
+      "locale": null
+    },
+    {
+      "id": "8a5c296383e5b48b018418609ebb7f59",
+      "author": "Сауле",
+      "date": "27.10.2022",
+      "orderNumber": "221884939",
+      "rating": 5,
+      "comment": {
+        "minus": "",
+        "plus": "Очень удобен в использовании и промывает всё то, что не дочистила зубной щеткой. Просто отлично очищает зубы. Всем рекомендую. Спасибо большое производителю.",
+        "text": ""
+      },
+      "feedback": {
+        "positive": 29,
+        "voted": false
+      },
+      "galleryImages": [
+        {
+          "id": "221884939-106935673/371dd477-e00e-4610-bcda-999df5fa21af.jpg",
+          "small": "https://resources.cdn-kaspi.kz/img/p/r/221884939-106935673/371dd477-e00e-4610-bcda-999df5fa21af.jpg?format=review_small",
+          "medium": "https://resources.cdn-kaspi.kz/img/p/r/221884939-106935673/371dd477-e00e-4610-bcda-999df5fa21af.jpg?format=review_medium",
+          "large": "https://resources.cdn-kaspi.kz/img/p/r/221884939-106935673/371dd477-e00e-4610-bcda-999df5fa21af.jpg?format=review_large"
+        },
+        {
+          "id": "221884939-106935673/e7ae704c-d844-4a69-af04-8594922317f6.jpg",
+          "small": "https://resources.cdn-kaspi.kz/img/p/r/221884939-106935673/e7ae704c-d844-4a69-af04-8594922317f6.jpg?format=review_small",
+          "medium": "https://resources.cdn-kaspi.kz/img/p/r/221884939-106935673/e7ae704c-d844-4a69-af04-8594922317f6.jpg?format=review_medium",
+          "large": "https://resources.cdn-kaspi.kz/img/p/r/221884939-106935673/e7ae704c-d844-4a69-af04-8594922317f6.jpg?format=review_large"
+        }
+      ],
+      "product": {
+        "id": "106935673",
+        "name": "Aulandi ирригатор HF-6 импульсный, портативный",
+        "categoryCode": "Master - Water flossers",
+        "categoryName": "Ирригаторы, скалеры",
+        "link": "https://kaspi.kz/shop/p/aulandi-irrigator-hf-6-impul-snyi-portativnyi-106935673/"
+      },
+      "merchant": null,
+      "editable": false,
+      "editedByCustomer": false,
+      "locale": null
+    },
+    {
+      "id": "8a5cdd7f89a9e9930189d2f60f5d465e",
+      "author": "Ажар",
+      "date": "22.08.2023",
+      "orderNumber": "275388094",
+      "rating": 1,
+      "comment": {
+        "minus": "",
+        "plus": "",
+        "text": "Өте нашар, 3 күні істемей қалды."
+      },
+      "feedback": {
+        "positive": 18,
+        "voted": false
+      },
+      "product": {
+        "id": "106935673",
+        "name": "Aulandi ирригатор HF-6 импульсный, портативный",
+        "categoryCode": "Master - Water flossers",
+        "categoryName": "Ирригаторы, скалеры",
+        "link": "https://kaspi.kz/shop/p/aulandi-irrigator-hf-6-impul-snyi-portativnyi-106935673/"
+      },
+      "merchant": null,
+      "editable": false,
+      "editedByCustomer": false,
+      "locale": null
+    }
+  ],
+  "summary": {
+    "global": 4.9,
+    "statistic": [
+      {
+        "rate": 5,
+        "count": 1652
+      },
+      {
+        "rate": 4,
+        "count": 64
+      },
+      {
+        "rate": 3,
+        "count": 9
+      },
+      {
+        "rate": 2,
+        "count": 3
+      },
+      {
+        "rate": 1,
+        "count": 6
+      }
+    ]
+  },
+  "groupSummary": [
+    {
+      "id": "ALL",
+      "total": 1734
+    },
+    {
+      "id": "COMMENT",
+      "total": 1372
+    },
+    {
+      "id": "PICTURE",
+      "total": 781
+    },
+    {
+      "id": "POSITIVE",
+      "total": 1356
+    },
+    {
+      "id": "NEGATIVE",
+      "total": 16
+    }
+  ],
+  "imagesSummaryCount": 1764
+}

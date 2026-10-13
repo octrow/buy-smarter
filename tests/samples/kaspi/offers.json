@@ -1,0 +1,103 @@
+{
+  "offers": [
+    {
+      "masterSku": "106935673",
+      "masterCategory": "Master - Water flossers",
+      "merchantId": "15587089",
+      "merchantName": "Aulandi",
+      "merchantSku": "Aulandi/HF/6",
+      "merchantReviewsQuantity": 1591,
+      "merchantRating": 4.9,
+      "title": "Aulandi ирригатор HF-6 белый импульсный емкость 300 мл",
+      "price": 15900.0,
+      "priceBeforeDiscount": 17800.0,
+      "discount": 11,
+      "delivery": "2026-07-19T08:00:00.000+00:00",
+      "deliveryMovedBySlot": false,
+      "deliverySteps": {},
+      "pickupSteps": {
+        "P": "2026-07-18T19:00:00.000+00:00",
+        "MA": "2026-07-18T13:10:46.541+00:00"
+      },
+      "kdPickupDate": "2026-07-19T04:55:00.000+00:00",
+      "availabilityDate": "2026-07-18T13:10:46.546+00:00",
+      "pickup": "2026-07-18T19:00:00.000+00:00",
+      "kaspiDelivery": true,
+      "kdPoints": [
+        "15587089_PP1",
+        "15587089_PP4"
+      ],
+      "pointsWithAvailability": [
+        "15587089_PP1"
+      ],
+      "preorder": 0,
+      "locatedInPoint": "15587089_PP1",
+      "deliveryType": "EXPRESS",
+      "deliveryDuration": "TOMORROW",
+      "deliveryOptions": {
+        "POSTOMAT": {
+          "delivery": "2026-07-20T18:00:00.000+00:00",
+          "deliveryDays": 1,
+          "kdPickupDate": "2026-07-19T15:00:00.000+00:00",
+          "deliveryType": "POSTOMAT",
+          "locatedInPoint": "15587089_PP1",
+          "kaspiDelivery": true,
+          "interCity": false
+        },
+        "EXPRESS": {
+          "delivery": "2026-07-19T08:00:00.000+00:00",
+          "deliveryDays": 0,
+          "kdPickupDate": "2026-07-19T04:55:00.000+00:00",
+          "deliveryType": "EXPRESS",
+          "locatedInPoint": "15587089_PP1",
+          "kaspiDelivery": true,
+          "cost": 995.0,
+          "deliveryCost": 995.0,
+          "deliveryThreshold": 999999999.0,
+          "interCity": false,
+          "description": {
+            "deliveryDurationInHours": 3,
+            "deliverySlotsExists": true,
+            "deferredExpress": true,
+            "deferredExpressDate": "2026-07-19T08:00:00Z"
+          }
+        },
+        "TO_DOOR": {
+          "delivery": "2026-07-20T18:00:00.000+00:00",
+          "deliveryDays": 1,
+          "kdPickupDate": "2026-07-19T15:00:00.000+00:00",
+          "deliveryType": "TO_DOOR",
+          "locatedInPoint": "15587089_PP1",
+          "kaspiDelivery": true,
+          "deliveryCost": 995.0,
+          "deliveryThreshold": 5000.0,
+          "interCity": false
+        },
+        "PICKUP": {
+          "delivery": "2026-07-18T19:00:00.000+00:00",
+          "deliveryDays": 0,
+          "deliveryType": "PICKUP",
+          "deliverySteps": {
+            "P": "2026-07-18T19:00:00.000+00:00",
+            "MA": "2026-07-18T13:10:46.541+00:00"
+          },
+          "interCity": false
+        }
+      },
+      "postomat": "2026-07-20T18:00:00.000+00:00"
+    }
+  ],
+  "total": 1,
+  "offersCount": 1,
+  "pcmResponsePresent": false,
+  "deliveryDurationFacetValues": {
+    "TOMORROW": 1,
+    "TILL_2_DAYS": 1,
+    "TILL_5_DAYS": 1,
+    "TILL_7_DAYS": 1,
+    "OTHER": 1
+  },
+  "highRatingPresent": true,
+  "brandOfficialPartnerPresent": false,
+  "excellentMerchantPresent": false
+}

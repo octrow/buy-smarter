@@ -1,0 +1,636 @@
+{
+  "data": [
+    {
+      "id": 397121329,
+      "url": "https://www.olx.kz/obyavlenie/rabota/promouter-ot-16-let-razdacha-podarkov-IDqShoJ.html",
+      "title": "Промоутер / от 16 лет / Раздача подарков",
+      "last_refresh_time": "2026-07-17T22:23:20+05:00",
+      "created_time": "2026-05-27T15:51:06+05:00",
+      "valid_to_time": "2026-08-02T13:16:05+05:00",
+      "pushup_time": "2026-07-17T22:23:20+05:00",
+      "omnibus_pushup_time": "2026-07-17T22:23:20+05:00",
+      "description": "Ищем промоутеры для работы в ТЦ <br />\n<br />\nПишите вотсап на указанный номер.<br />\n<br />\nЛокации:<br />\n— Атакент-Экспо (ТЦ Атакент)<br />\n— ТД Галерея <br />\n— Москва<br />\n— Глобус<br />\n<br />\nЕсли локация для вас неудобна: напишите пожалуйста какой район по ориентирам трц вам удобен, поскольку работаем во многих трц<br />\n<br />\nГрафик 4/2<br />\nС 10:00 до 22:00<br />\nГрафик: 10 часов в день<br />\nЗа смену от 10000 до 16000<br />\nОклад + премия<br />\n<br />\nПродукт: зубные щётки и ирригаторы<br />\nБренд: ZERBERG<br />\n<br />\nМеханика:<br />\n— рассказывать про бренд<br />\n— предлагать подписаться на инстаграм и заполнить анкету <br />\n— за подписку выдавать подарки <br />\n— продажа зубных щеток и консультация, за каждую продажу проценты<br />\n<br />\nПишите вотсап на указанный номер. Не звоните.",
+      "promotion": {
+        "highlighted": false,
+        "urgent": false,
+        "top_ad": false,
+        "options": [
+          "pushup"
+        ],
+        "b2c_ad_page": false,
+        "premium_ad_page": false
+      },
+      "params": [
+        {
+          "key": "salary",
+          "name": "Зарплата",
+          "type": "salary",
+          "value": {
+            "from": 300000,
+            "to": 400000,
+            "arranged": false,
+            "currency": "KZT",
+            "type": "monthly",
+            "converted_from": null,
+            "converted_to": null,
+            "converted_currency": null,
+            "gross": false
+          }
+        },
+        {
+          "key": "job_timing",
+          "name": "Тип занятости",
+          "type": "select",
+          "value": {
+            "key": "full",
+            "label": "Полная занятость"
+          }
+        },
+        {
+          "key": "job_type",
+          "name": "График работы",
+          "type": "select",
+          "value": {
+            "key": "perm",
+            "label": "Полный день"
+          }
+        },
+        {
+          "key": "company_name",
+          "name": "Название компании",
+          "type": "input",
+          "value": {
+            "key": "Zerberg производитель зубных щеток",
+            "label": "Zerberg производитель зубных щеток "
+          }
+        },
+        {
+          "key": "company_address",
+          "name": "Рабочий адрес",
+          "type": "input",
+          "value": {
+            "key": "Улица Тимирязева, 42 к3",
+            "label": "Улица Тимирязева, 42 к3 "
+          }
+        }
+      ],
+      "key_params": [],
+      "business": true,
+      "user": {
+        "id": 396968025,
+        "created": "2022-12-04T18:48:24+06:00",
+        "other_ads_enabled": true,
+        "name": "Мария",
+        "logo": null,
+        "logo_ad_page": null,
+        "social_network_account_type": null,
+        "photo": null,
+        "banner_mobile": "",
+        "banner_desktop": "",
+        "company_name": "",
+        "about": "",
+        "b2c_business_page": false,
+        "is_online": false,
+        "last_seen": "2026-06-22T15:25:55+05:00",
+        "seller_type": null,
+        "uuid": "e1cdee4d-3c15-45b5-9cd5-6e6c33555287"
+      },
+      "status": "active",
+      "contact": {
+        "name": "Мария",
+        "phone": true,
+        "chat": true,
+        "negotiation": false,
+        "courier": false
+      },
+      "map": {
+        "zoom": 9,
+        "lat": 43.21033,
+        "lon": 76.90347,
+        "radius": 3,
+        "show_detailed": false
+      },
+      "location": {
+        "city": {
+          "id": 1,
+          "name": "Алматы",
+          "normalized_name": "alma-ata"
+        },
+        "district": {
+          "id": 4,
+          "name": "Бостандыкский район"
+        },
+        "region": {
+          "id": 8,
+          "name": "Алматинская область",
+          "normalized_name": "alm"
+        }
+      },
+      "photos": [],
+      "partner": null,
+      "category": {
+        "id": 1165,
+        "type": "job"
+      },
+      "delivery": {
+        "rock": {
+          "offer_id": null,
+          "active": false,
+          "mode": null
+        }
+      },
+      "safedeal": {
+        "weight": 0,
+        "weight_grams": 0,
+        "status": "unactive",
+        "safedeal_blocked": false,
+        "allowed_quantity": []
+      },
+      "shop": {
+        "subdomain": null
+      },
+      "isGpsrAvailable": false,
+      "offer_type": "offer"
+    },
+    {
+      "id": 380868859,
+      "url": "https://www.olx.kz/d/obyavlenie/irrigator-statsionarnyy-waterpik-IDpM5o7.html",
+      "title": "Ирригатор стационарный WaterPik",
+      "last_refresh_time": "2026-06-26T01:08:02+05:00",
+      "created_time": "2025-03-03T01:21:09+05:00",
+      "valid_to_time": "2026-07-26T01:21:10+05:00",
+      "pushup_time": null,
+      "description": "Гарантия 2 года<br />\nОбъём резервуара 1000 мл<br />\nУровень шумa 71 дБ<br />\nКоличество насадок 4<br />\nДавление струи воды 70-620 кПа<br />\nКоличество пульсаций в минуту 1400<br />\nГабариты (см} Высота - 19.5, Длина - 18.5, Ширина- 11",
+      "promotion": {
+        "highlighted": false,
+        "urgent": false,
+        "top_ad": false,
+        "options": [],
+        "b2c_ad_page": false,
+        "premium_ad_page": false
+      },
+      "params": [
+        {
+          "key": "price",
+          "name": "Цена",
+          "type": "price",
+          "value": {
+            "value": 20000,
+            "type": "arranged",
+            "arranged": true,
+            "budget": false,
+            "currency": "KZT",
+            "negotiable": true,
+            "converted_value": null,
+            "previous_value": null,
+            "converted_previous_value": null,
+            "converted_currency": null,
+            "label": "20 000 тг.",
+            "previous_label": null
+          }
+        },
+        {
+          "key": "state",
+          "name": "Состояние",
+          "type": "select",
+          "value": {
+            "key": "new",
+            "label": "Новый"
+          }
+        }
+      ],
+      "key_params": [],
+      "business": false,
+      "user": {
+        "id": 351679374,
+        "created": "2022-06-29T12:47:35+06:00",
+        "other_ads_enabled": true,
+        "name": "ahmedisagyngali",
+        "logo": null,
+        "logo_ad_page": null,
+        "social_network_account_type": null,
+        "photo": null,
+        "banner_mobile": "",
+        "banner_desktop": "",
+        "company_name": "",
+        "about": "",
+        "b2c_business_page": false,
+        "is_online": false,
+        "last_seen": "2026-06-29T11:50:35+05:00",
+        "seller_type": null,
+        "uuid": "2c7843af-c7c2-433d-925b-bbe751c4344a"
+      },
+      "status": "active",
+      "contact": {
+        "name": "ahmedisagyngali",
+        "phone": true,
+        "chat": true,
+        "negotiation": true,
+        "courier": false
+      },
+      "map": {
+        "zoom": 12,
+        "lat": 43.17512,
+        "lon": 76.86561,
+        "radius": 1,
+        "show_detailed": false
+      },
+      "location": {
+        "city": {
+          "id": 1533,
+          "name": "Каргалы",
+          "normalized_name": "kargaly_1533"
+        },
+        "region": {
+          "id": 8,
+          "name": "Алматинская область",
+          "normalized_name": "alm"
+        }
+      },
+      "photos": [
+        {
+          "id": 562058844,
+          "filename": "n5z6bo48y6xi1-KZ",
+          "rotation": 0,
+          "width": 1500,
+          "height": 2000,
+          "link": "https://frankfurt.apollo.olxcdn.com:443/v1/files/n5z6bo48y6xi1-KZ/image;s={width}x{height}"
+        },
+        {
+          "id": 562058845,
+          "filename": "df3xh43006va-KZ",
+          "rotation": 0,
+          "width": 1500,
+          "height": 2000,
+          "link": "https://frankfurt.apollo.olxcdn.com:443/v1/files/df3xh43006va-KZ/image;s={width}x{height}"
+        }
+      ],
+      "partner": null,
+      "category": {
+        "id": 394,
+        "type": "electronics"
+      },
+      "delivery": {
+        "rock": {
+          "offer_id": null,
+          "active": false,
+          "mode": null
+        }
+      },
+      "safedeal": {
+        "weight": 0,
+        "weight_grams": 0,
+        "status": "unactive",
+        "safedeal_blocked": false,
+        "allowed_quantity": []
+      },
+      "shop": {
+        "subdomain": null
+      },
+      "isGpsrAvailable": false,
+      "offer_type": "offer"
+    },
+    {
+      "id": 398822791,
+      "url": "https://www.olx.kz/d/obyavlenie/irrigator-portativnyy-IDqZq1F.html",
+      "title": "Ирригатор портативный",
+      "last_refresh_time": "2026-07-16T18:42:26+05:00",
+      "created_time": "2026-07-16T18:40:07+05:00",
+      "valid_to_time": "2026-08-15T18:40:08+05:00",
+      "pushup_time": null,
+      "description": "Продаю портативный ирригатор для чистки Зубов. Подходит для тех кто ухаживает за полостью рта или носит брекеты. За счет разной скорости убирает налет, иногда снимает камни. <br />\nОчень мощный и удобный в использовании. <br />\nСамовывоз или курьер <br />\nКенесары хана 54",
+      "promotion": {
+        "highlighted": false,
+        "urgent": false,
+        "top_ad": false,
+        "options": [],
+        "b2c_ad_page": false,
+        "premium_ad_page": false
+      },
+      "params": [
+        {
+          "key": "price",
+          "name": "Цена",
+          "type": "price",
+          "value": {
+            "value": 8000,
+            "type": "price",
+            "arranged": false,
+            "budget": false,
+            "currency": "KZT",
+            "negotiable": true,
+            "converted_value": null,
+            "previous_value": null,
+            "converted_previous_value": null,
+            "converted_currency": null,
+            "label": "8 000 тг.",
+            "previous_label": null
+          }
+        },
+        {
+          "key": "state",
+          "name": "Состояние",
+          "type": "select",
+          "value": {
+            "key": "used",
+            "label": "Б/у"
+          }
+        }
+      ],
+      "key_params": [],
+      "business": false,
+      "user": {
+        "id": 402975713,
+        "created": "2022-12-31T11:35:06+06:00",
+        "other_ads_enabled": true,
+        "name": "Алтынай",
+        "logo": null,
+        "logo_ad_page": null,
+        "social_network_account_type": null,
+        "photo": null,
+        "banner_mobile": "",
+        "banner_desktop": "",
+        "company_name": "",
+        "about": "",
+        "b2c_business_page": false,
+        "is_online": false,
+        "last_seen": "2026-07-16T18:36:25+05:00",
+        "seller_type": null,
+        "uuid": "1ecff78c-e87d-469f-9fc3-5796fbfb7007"
+      },
+      "status": "active",
+      "contact": {
+        "name": "Алтынай",
+        "phone": true,
+        "chat": true,
+        "negotiation": true,
+        "courier": false
+      },
+      "map": {
+        "zoom": 9,
+        "lat": 43.18685,
+        "lon": 76.83182,
+        "radius": 5,
+        "show_detailed": false
+      },
+      "location": {
+        "city": {
+          "id": 1,
+          "name": "Алматы",
+          "normalized_name": "alma-ata"
+        },
+        "district": {
+          "id": 9,
+          "name": "Наурызбайский район"
+        },
+        "region": {
+          "id": 8,
+          "name": "Алматинская область",
+          "normalized_name": "alm"
+        }
+      },
+      "photos": [
+        {
+          "id": 623756808,
+          "filename": "ytqgrax0y74k-KZ",
+          "rotation": 0,
+          "width": 750,
+          "height": 1000,
+          "link": "https://frankfurt.apollo.olxcdn.com:443/v1/files/ytqgrax0y74k-KZ/image;s={width}x{height}"
+        },
+        {
+          "id": 623756809,
+          "filename": "z2ar1fz6jkxl-KZ",
+          "rotation": 0,
+          "width": 750,
+          "height": 1000,
+          "link": "https://frankfurt.apollo.olxcdn.com:443/v1/files/z2ar1fz6jkxl-KZ/image;s={width}x{height}"
+        }
+      ],
+      "partner": null,
+      "category": {
+        "id": 394,
+        "type": "electronics"
+      },
+      "delivery": {
+        "rock": {
+          "offer_id": null,
+          "active": false,
+          "mode": null
+        }
+      },
+      "safedeal": {
+        "weight": 0,
+        "weight_grams": 0,
+        "status": "unactive",
+        "safedeal_blocked": false,
+        "allowed_quantity": []
+      },
+      "shop": {
+        "subdomain": null
+      },
+      "isGpsrAvailable": false,
+      "offer_type": "offer"
+    },
+    {
+      "id": 395837966,
+      "url": "https://www.olx.kz/d/obyavlenie/perezaryazhaemyy-irrigator-dlya-polosti-rta-IDqMTxk.html",
+      "title": "Перезаряжаемый Ирригатор для полости рта",
+      "last_refresh_time": "2026-06-20T22:46:25+05:00",
+      "created_time": "2026-04-21T22:59:57+05:00",
+      "valid_to_time": "2026-07-20T22:59:57+05:00",
+      "pushup_time": null,
+      "description": "Перезаряжаемый ирригатор для полости рта 220 мл с 3 режимами и 4 насадками точный контроль давления вращающиеся на 360 градусов",
+      "promotion": {
+        "highlighted": false,
+        "urgent": false,
+        "top_ad": false,
+        "options": [],
+        "b2c_ad_page": false,
+        "premium_ad_page": false
+      },
+      "params": [
+        {
+          "key": "price",
+          "name": "Цена",
+          "type": "price",
+          "value": {
+            "value": 3000,
+            "type": "price",
+            "arranged": false,
+            "budget": false,
+            "currency": "KZT",
+            "negotiable": true,
+            "converted_value": null,
+            "previous_value": null,
+            "converted_previous_value": null,
+            "converted_currency": null,
+            "label": "3 000 тг.",
+            "previous_label": null
+          }
+        },
+        {
+          "key": "state",
+          "name": "Состояние",
+          "type": "select",
+          "value": {
+            "key": "new",
+            "label": "Новый"
+          }
+        }
+      ],
+      "key_params": [],
+      "business": false,
+      "user": {
+        "id": 913275864,
+        "created": "2024-05-12T22:54:24+05:00",
+        "other_ads_enabled": true,
+        "name": "tastanbekovaaruzai011",
+        "logo": null,
+        "logo_ad_page": null,
+        "social_network_account_type": null,
+        "photo": null,
+        "banner_mobile": "",
+        "banner_desktop": "",
+        "company_name": "",
+        "about": "",
+        "b2c_business_page": false,
+        "is_online": false,
+        "last_seen": "2026-02-20T18:55:37+05:00",
+        "seller_type": null,
+        "uuid": "b26f9d52-7145-4a02-8382-e878a3afd869"
+      },
+      "status": "active",
+      "contact": {
+        "name": "tastanbekovaaruzai011",
+        "phone": true,
+        "chat": true,
+        "negotiation": true,
+        "courier": false
+      },
+      "map": {
+        "zoom": 9,
+        "lat": 43.40801,
+        "lon": 77.03485,
+        "radius": 7,
+        "show_detailed": false
+      },
+      "location": {
+        "city": {
+          "id": 1,
+          "name": "Алматы",
+          "normalized_name": "alma-ata"
+        },
+        "district": {
+          "id": 7,
+          "name": "Турксибский район"
+        },
+        "region": {
+          "id": 8,
+          "name": "Алматинская область",
+          "normalized_name": "alm"
+        }
+      },
+      "photos": [
+        {
+          "id": 613586178,
+          "filename": "mdj1k4lpsby22-KZ",
+          "rotation": 0,
+          "width": 720,
+          "height": 719,
+          "link": "https://frankfurt.apollo.olxcdn.com:443/v1/files/mdj1k4lpsby22-KZ/image;s={width}x{height}"
+        },
+        {
+          "id": 613586179,
+          "filename": "rr43xz152xx72-KZ",
+          "rotation": 0,
+          "width": 720,
+          "height": 719,
+          "link": "https://frankfurt.apollo.olxcdn.com:443/v1/files/rr43xz152xx72-KZ/image;s={width}x{height}"
+        }
+      ],
+      "partner": null,
+      "category": {
+        "id": 394,
+        "type": "electronics"
+      },
+      "delivery": {
+        "rock": {
+          "offer_id": null,
+          "active": false,
+          "mode": null
+        }
+      },
+      "safedeal": {
+        "weight": 0,
+        "weight_grams": 0,
+        "status": "unactive",
+        "safedeal_blocked": false,
+        "allowed_quantity": []
+      },
+      "shop": {
+        "subdomain": null
+      },
+      "isGpsrAvailable": false,
+      "offer_type": "offer"
+    }
+  ],
+  "metadata": {
+    "total_elements": 170,
+    "visible_total_count": 170,
+    "promoted": [
+      0,
+      1
+    ],
+    "search_id": "CBF0DF5609328153AF46CB40009374D6",
+    "adverts": {
+      "places": null,
+      "config": {
+        "targeting": {
+          "env": "production",
+          "lang": "ru",
+          "account": "",
+          "segment": [],
+          "user_status": "0",
+          "cat_l0": "ads",
+          "cat_id": "0",
+          "private_business": "all",
+          "offer_seek": "all",
+          "view": "gallery",
+          "search_engine_input": "ирригатор",
+          "page": "1",
+          "app_version": ""
+        }
+      }
+    },
+    "source": {
+      "promoted": [
+        0,
+        1
+      ],
+      "organic": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ]
+    }
+  },
+  "links": {
+    "self": {
+      "href": "https://www.olx.kz/api/v1/offers?offset=0&limit=10&query=%D0%B8%D1%80%D1%80%D0%B8%D0%B3%D0%B0%D1%82%D0%BE%D1%80"
+    },
+    "next": {
+      "href": "https://www.olx.kz/api/v1/offers?offset=10&limit=10&query=%D0%B8%D1%80%D1%80%D0%B8%D0%B3%D0%B0%D1%82%D0%BE%D1%80"
+    },
+    "first": {
+      "href": "https://www.olx.kz/api/v1/offers?offset=0&limit=10&query=%D0%B8%D1%80%D1%80%D0%B8%D0%B3%D0%B0%D1%82%D0%BE%D1%80"
+    }
+  }
+}

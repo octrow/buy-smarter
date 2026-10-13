@@ -1,0 +1,1174 @@
+{
+  "data": {
+    "cards": [
+      {
+        "id": "106935673",
+        "configSku": "106935673",
+        "title": "Aulandi ирригатор HF-6 импульсный, портативный",
+        "brand": "Aulandi",
+        "categoryId": "00724",
+        "hasVariants": false,
+        "loanAvailable": true,
+        "shopLink": "/p/aulandi-irrigator-hf-6-impul-snyi-portativnyi-106935673/?c=750000000",
+        "unitPrice": 15900,
+        "unitSalePrice": 15900,
+        "unitPriceBeforeDiscount": 17800,
+        "discount": 11,
+        "priceFormatted": "15 900 ₸",
+        "createdTime": "2022-10-21T06:27:57.749Z",
+        "stickers": [],
+        "previewImages": [
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/p89/p9d/31752603.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/p89/p9d/31752603.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/p89/p9d/31752603.jpeg?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/pf8/p04/31752604.png?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/pf8/p04/31752604.png?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/pf8/p04/31752604.png?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/pdc/p04/31752605.png?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/pdc/p04/31752605.png?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/pdc/p04/31752605.png?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/pc0/p04/31752606.png?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/pc0/p04/31752606.png?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/pc0/p04/31752606.png?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/pa4/p04/31752607.png?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/pa4/p04/31752607.png?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/pa4/p04/31752607.png?format=preview-large"
+          }
+        ],
+        "teasers": [
+          "p15/p5f/93095912.mp4"
+        ],
+        "creditMonthlyPrice": 2650.0,
+        "monthlyInstallment": {
+          "id": 6,
+          "installment": true,
+          "formattedPerMonth": "2 650 ₸"
+        },
+        "reviewsLink": "/p/aulandi-irrigator-hf-6-impul-snyi-portativnyi-106935673/?c=750000000&tab=reviews",
+        "weight": 0.0,
+        "unit": {
+          "type": "PIECES",
+          "increment": 1.0,
+          "measurementLiteral": "шт",
+          "countingLiteral": "шт",
+          "code": null
+        },
+        "rating": 4.9,
+        "reviewsQuantity": 1375,
+        "stock": 1,
+        "currency": "KZT",
+        "mods": "",
+        "deliveryDuration": "TOMORROW",
+        "baseProductCodes": [
+          "[Master - Water flossers][aulandi]{ирригатор}{портативный}{импульсный}{HF-6}"
+        ],
+        "isBrandOfficialPartner": true,
+        "category": [
+          "Красота и здоровье",
+          "Уход за полостью рта",
+          "Ирригаторы, скалеры"
+        ],
+        "categoryRu": [
+          "Красота и здоровье",
+          "Уход за полостью рта",
+          "Ирригаторы, скалеры"
+        ],
+        "categoryCodes": [
+          "Water flossers",
+          "Oral care",
+          "Beauty care",
+          "Categories"
+        ],
+        "promo": [
+          {
+            "code": "0012_0312_1112_DEF",
+            "type": "LOAN",
+            "priority": 12,
+            "owner": "KASPI",
+            "bonusType": "",
+            "img": {
+              "alt": null,
+              "medium": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 40,
+                "height": 22
+              },
+              "large": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 55,
+                "height": 31
+              },
+              "small": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 40,
+                "height": 22
+              }
+            }
+          }
+        ],
+        "majorMerchants": [],
+        "bestMerchant": "15587089",
+        "deliveryZones": [
+          "750000000"
+        ]
+      },
+      {
+        "id": "150840671",
+        "configSku": "150840671",
+        "title": "EYA ирригатор E-02 импульсный, портативный",
+        "brand": "EYA",
+        "categoryId": "00724",
+        "hasVariants": false,
+        "loanAvailable": true,
+        "shopLink": "/p/eya-irrigator-e-02-impul-snyi-portativnyi-150840671/?c=750000000",
+        "unitPrice": 3999,
+        "unitSalePrice": 3999,
+        "priceFormatted": "3 999 ₸",
+        "createdTime": "2025-11-22T19:21:51.110Z",
+        "stickers": [],
+        "previewImages": [
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/pdd/pc6/82349536.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/pdd/pc6/82349536.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/pdd/pc6/82349536.jpeg?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/p66/pe0/82349541.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/p66/pe0/82349541.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/p66/pe0/82349541.jpeg?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/pfc/pdc/82349542.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/pfc/pdc/82349542.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/pfc/pdc/82349542.jpeg?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/p55/pcf/82349546.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/p55/pcf/82349546.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/p55/pcf/82349546.jpeg?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/p18/pc5/82349549.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/p18/pc5/82349549.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/p18/pc5/82349549.jpeg?format=preview-large"
+          }
+        ],
+        "teasers": [],
+        "creditMonthlyPrice": 1333.0,
+        "monthlyInstallment": {
+          "id": 3,
+          "installment": true,
+          "formattedPerMonth": "1 333 ₸"
+        },
+        "reviewsLink": "/p/eya-irrigator-e-02-impul-snyi-portativnyi-150840671/?c=750000000&tab=reviews",
+        "unit": {
+          "type": "PIECES",
+          "increment": 1.0,
+          "measurementLiteral": "шт",
+          "countingLiteral": "шт",
+          "code": null
+        },
+        "rating": 4.9,
+        "reviewsQuantity": 648,
+        "stock": 1,
+        "currency": "KZT",
+        "mods": "",
+        "deliveryDuration": "TILL_5_DAYS",
+        "baseProductCodes": [
+          "[Master - Water flossers][eya]{ирригатор}{портативный}{импульсный}{E-03}"
+        ],
+        "isBrandOfficialPartner": true,
+        "category": [
+          "Красота и здоровье",
+          "Уход за полостью рта",
+          "Ирригаторы, скалеры"
+        ],
+        "categoryRu": [
+          "Красота и здоровье",
+          "Уход за полостью рта",
+          "Ирригаторы, скалеры"
+        ],
+        "categoryCodes": [
+          "Water flossers",
+          "Oral care",
+          "Beauty care",
+          "Categories"
+        ],
+        "promo": [
+          {
+            "code": "0012_0312_1112_DEF",
+            "type": "LOAN",
+            "priority": 12,
+            "owner": "KASPI",
+            "bonusType": "",
+            "img": {
+              "alt": null,
+              "medium": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 40,
+                "height": 22
+              },
+              "large": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 55,
+                "height": 31
+              },
+              "small": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 40,
+                "height": 22
+              }
+            }
+          }
+        ],
+        "majorMerchants": [],
+        "bestMerchant": "14696015",
+        "deliveryZones": [
+          "750000000"
+        ]
+      },
+      {
+        "id": "139917232",
+        "configSku": "139917232",
+        "title": "TORBEX ирригатор P2 импульсный, портативный",
+        "brand": "TORBEX",
+        "categoryId": "00724",
+        "hasVariants": false,
+        "loanAvailable": true,
+        "shopLink": "/p/torbex-irrigator-p2-impul-snyi-portativnyi-139917232/?c=750000000",
+        "unitPrice": 12990,
+        "unitSalePrice": 12990,
+        "priceFormatted": "12 990 ₸",
+        "priceMinusBonus": 12601,
+        "createdTime": "2025-05-20T10:00:43.544Z",
+        "stickers": [],
+        "previewImages": [
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/p25/pc4/60865719.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/p25/pc4/60865719.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/p25/pc4/60865719.jpeg?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/pec/p97/73511222.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/pec/p97/73511222.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/pec/p97/73511222.jpeg?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/p98/p2c/121343471.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/p98/p2c/121343471.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/p98/p2c/121343471.jpeg?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/pce/pe8/125772671.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/pce/pe8/125772671.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/pce/pe8/125772671.jpeg?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/p38/pec/125772672.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/p38/pec/125772672.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/p38/pec/125772672.jpeg?format=preview-large"
+          }
+        ],
+        "teasers": [
+          "p75/pbe/157703524"
+        ],
+        "creditMonthlyPrice": 4330.0,
+        "monthlyInstallment": {
+          "id": 3,
+          "installment": true,
+          "formattedPerMonth": "4 330 ₸"
+        },
+        "reviewsLink": "/p/torbex-irrigator-p2-impul-snyi-portativnyi-139917232/?c=750000000&tab=reviews",
+        "weight": 0.0,
+        "unit": {
+          "type": "PIECES",
+          "increment": 1.0,
+          "measurementLiteral": "шт",
+          "countingLiteral": "шт",
+          "code": null
+        },
+        "rating": 4.9,
+        "reviewsQuantity": 485,
+        "stock": 1,
+        "currency": "KZT",
+        "mods": "",
+        "deliveryDuration": "EXPRESS",
+        "baseProductCodes": [
+          "[Master - Water flossers][torbex]{ирригатор}{портативный}{импульсный}{P2}"
+        ],
+        "isBrandOfficialPartner": true,
+        "category": [
+          "Красота и здоровье",
+          "Уход за полостью рта",
+          "Ирригаторы, скалеры"
+        ],
+        "categoryRu": [
+          "Красота и здоровье",
+          "Уход за полостью рта",
+          "Ирригаторы, скалеры"
+        ],
+        "categoryCodes": [
+          "Water flossers",
+          "Oral care",
+          "Beauty care",
+          "Categories"
+        ],
+        "promo": [
+          {
+            "code": "0012_0312_1112_DEF",
+            "type": "LOAN",
+            "priority": 12,
+            "owner": "KASPI",
+            "bonusType": "",
+            "img": {
+              "alt": null,
+              "medium": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 40,
+                "height": 22
+              },
+              "large": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 55,
+                "height": 31
+              },
+              "small": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 40,
+                "height": 22
+              }
+            }
+          },
+          {
+            "code": "DEFAULT_BONUS_BADGE_FROM_5K",
+            "type": "BONUS",
+            "priority": 3,
+            "owner": "KASPI",
+            "bonusType": "RELATIVE",
+            "bonusInCurrency": 389,
+            "displayType": "ABSOLUTE",
+            "img": {
+              "alt": null,
+              "medium": {
+                "src": "https://static.cdn-kaspi.kz/msd/goods_badge/3.png",
+                "width": 40,
+                "height": 22
+              },
+              "large": {
+                "src": "https://static.cdn-kaspi.kz/msd/goods_badge/3.png",
+                "width": 55,
+                "height": 31
+              },
+              "small": {
+                "src": "https://static.cdn-kaspi.kz/msd/goods_badge/3.png",
+                "width": 40,
+                "height": 22
+              }
+            }
+          }
+        ],
+        "majorMerchants": [],
+        "bestMerchant": "30307262",
+        "deliveryZones": [
+          "750000000"
+        ]
+      },
+      {
+        "id": "139496354",
+        "configSku": "139496354",
+        "title": "SOFART ирригатор Sofart16 импульсный, портативный",
+        "brand": "SOFART",
+        "categoryId": "00724",
+        "hasVariants": false,
+        "loanAvailable": true,
+        "shopLink": "/p/sofart-irrigator-sofart16-impul-snyi-portativnyi-139496354/?c=750000000",
+        "unitPrice": 9990,
+        "unitSalePrice": 9990,
+        "priceFormatted": "9 990 ₸",
+        "priceMinusBonus": 9691,
+        "createdTime": "2025-05-13T04:16:13.291Z",
+        "stickers": [],
+        "previewImages": [
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/pfd/pcc/131667622.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/pfd/pcc/131667622.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/pfd/pcc/131667622.jpeg?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/p54/p61/54961715.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/p54/p61/54961715.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/p54/p61/54961715.jpeg?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/pea/p5d/54961716.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/pea/p5d/54961716.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/pea/p5d/54961716.jpeg?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/p81/p5a/54961717.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/p81/p5a/54961717.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/p81/p5a/54961717.jpeg?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/p17/p57/54961718.jpeg?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/p17/p57/54961718.jpeg?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/p17/p57/54961718.jpeg?format=preview-large"
+          }
+        ],
+        "teasers": [],
+        "creditMonthlyPrice": 3330.0,
+        "monthlyInstallment": {
+          "id": 3,
+          "installment": true,
+          "formattedPerMonth": "3 330 ₸"
+        },
+        "reviewsLink": "/p/sofart-irrigator-sofart16-impul-snyi-portativnyi-139496354/?c=750000000&tab=reviews",
+        "unit": {
+          "type": "PIECES",
+          "increment": 1.0,
+          "measurementLiteral": "шт",
+          "countingLiteral": "шт",
+          "code": null
+        },
+        "rating": 4.9,
+        "reviewsQuantity": 336,
+        "stock": 1,
+        "currency": "KZT",
+        "mods": "",
+        "deliveryDuration": "OTHER",
+        "baseProductCodes": [
+          "[Master - Water flossers][sofart]{ирригатор}{портативный}{импульсный}{Sofart16}"
+        ],
+        "isBrandOfficialPartner": true,
+        "category": [
+          "Красота и здоровье",
+          "Уход за полостью рта",
+          "Ирригаторы, скалеры"
+        ],
+        "categoryRu": [
+          "Красота и здоровье",
+          "Уход за полостью рта",
+          "Ирригаторы, скалеры"
+        ],
+        "categoryCodes": [
+          "Water flossers",
+          "Oral care",
+          "Beauty care",
+          "Categories"
+        ],
+        "promo": [
+          {
+            "code": "0012_0312_1112_DEF",
+            "type": "LOAN",
+            "priority": 12,
+            "owner": "KASPI",
+            "bonusType": "",
+            "img": {
+              "alt": null,
+              "medium": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 40,
+                "height": 22
+              },
+              "large": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 55,
+                "height": 31
+              },
+              "small": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 40,
+                "height": 22
+              }
+            }
+          },
+          {
+            "code": "DEFAULT_BONUS_BADGE_FROM_5K",
+            "type": "BONUS",
+            "priority": 3,
+            "owner": "KASPI",
+            "bonusType": "RELATIVE",
+            "bonusInCurrency": 299,
+            "displayType": "ABSOLUTE",
+            "img": {
+              "alt": null,
+              "medium": {
+                "src": "https://static.cdn-kaspi.kz/msd/goods_badge/3.png",
+                "width": 40,
+                "height": 22
+              },
+              "large": {
+                "src": "https://static.cdn-kaspi.kz/msd/goods_badge/3.png",
+                "width": 55,
+                "height": 31
+              },
+              "small": {
+                "src": "https://static.cdn-kaspi.kz/msd/goods_badge/3.png",
+                "width": 40,
+                "height": 22
+              }
+            }
+          }
+        ],
+        "majorMerchants": [],
+        "bestMerchant": "30275596",
+        "deliveryZones": [
+          "750000000"
+        ]
+      },
+      {
+        "id": "131656945",
+        "configSku": "131656945",
+        "title": "Aulandi ирригатор HF-6B импульсный, портативный",
+        "brand": "Aulandi",
+        "categoryId": "00724",
+        "hasVariants": false,
+        "loanAvailable": true,
+        "shopLink": "/p/aulandi-irrigator-hf-6b-impul-snyi-portativnyi-131656945/?c=750000000",
+        "unitPrice": 17800,
+        "unitSalePrice": 17800,
+        "priceFormatted": "17 800 ₸",
+        "priceMinusBonus": 17266,
+        "createdTime": "2024-12-11T03:09:14.757Z",
+        "stickers": [],
+        "previewImages": [
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/p2d/p7f/15055868.png?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/p2d/p7f/15055868.png?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/p2d/p7f/15055868.png?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/pd1/p81/15055871.png?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/pd1/p81/15055871.png?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/pd1/p81/15055871.png?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/p09/p82/15055873.png?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/p09/p82/15055873.png?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/p09/p82/15055873.png?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/p5e/p82/15055876.png?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/p5e/p82/15055876.png?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/p5e/p82/15055876.png?format=preview-large"
+          },
+          {
+            "small": "https://resources.cdn-kaspi.kz/img/m/p/p7a/p82/15055877.png?format=preview-small",
+            "medium": "https://resources.cdn-kaspi.kz/img/m/p/p7a/p82/15055877.png?format=preview-medium",
+            "large": "https://resources.cdn-kaspi.kz/img/m/p/p7a/p82/15055877.png?format=preview-large"
+          }
+        ],
+        "teasers": [
+          "p0a/p9c/93943462.mov"
+        ],
+        "creditMonthlyPrice": 2967.0,
+        "monthlyInstallment": {
+          "id": 6,
+          "installment": true,
+          "formattedPerMonth": "2 967 ₸"
+        },
+        "reviewsLink": "/p/aulandi-irrigator-hf-6b-impul-snyi-portativnyi-131656945/?c=750000000&tab=reviews",
+        "unit": {
+          "type": "PIECES",
+          "increment": 1.0,
+          "measurementLiteral": "шт",
+          "countingLiteral": "шт",
+          "code": null
+        },
+        "rating": 4.9,
+        "reviewsQuantity": 381,
+        "stock": 1,
+        "currency": "KZT",
+        "mods": "",
+        "deliveryDuration": "TOMORROW",
+        "baseProductCodes": [
+          "[Master - Water flossers][aulandi]{ирригатор}{портативный}{импульсный}{HF-6B}"
+        ],
+        "isBrandOfficialPartner": true,
+        "category": [
+          "Красота и здоровье",
+          "Уход за полостью рта",
+          "Ирригаторы, скалеры"
+        ],
+        "categoryRu": [
+          "Красота и здоровье",
+          "Уход за полостью рта",
+          "Ирригаторы, скалеры"
+        ],
+        "categoryCodes": [
+          "Water flossers",
+          "Oral care",
+          "Beauty care",
+          "Categories"
+        ],
+        "promo": [
+          {
+            "code": "0012_0312_1112_DEF",
+            "type": "LOAN",
+            "priority": 12,
+            "owner": "KASPI",
+            "bonusType": "",
+            "img": {
+              "alt": null,
+              "medium": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 40,
+                "height": 22
+              },
+              "large": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 55,
+                "height": 31
+              },
+              "small": {
+                "src": "https://mrk.cdn-kaspi.kz/msd/Aimira/2026/FEB/YELLOW_BADGE/card_small/0012/0012_3x.png",
+                "width": 40,
+                "height": 22
+              }
+            }
+          },
+          {
+            "code": "DEFAULT_BONUS_BADGE_FROM_5K",
+            "type": "BONUS",
+            "priority": 3,
+            "owner": "KASPI",
+            "bonusType": "RELATIVE",
+            "bonusInCurrency": 534,
+            "displayType": "ABSOLUTE",
+            "img": {
+              "alt": null,
+              "medium": {
+                "src": "https://static.cdn-kaspi.kz/msd/goods_badge/3.png",
+                "width": 40,
+                "height": 22
+              },
+              "large": {
+                "src": "https://static.cdn-kaspi.kz/msd/goods_badge/3.png",
+                "width": 55,
+                "height": 31
+              },
+              "small": {
+                "src": "https://static.cdn-kaspi.kz/msd/goods_badge/3.png",
+                "width": 40,
+                "height": 22
+              }
+            }
+          }
+        ],
+        "majorMerchants": [],
+        "bestMerchant": "15587089",
+        "deliveryZones": [
+          "750000000"
+        ]
+      }
+    ],
+    "promotedCards": null,
+    "promotedItems": null,
+    "treeCategory": {
+      "items": [
+        {
+          "id": ":category:Beauty care",
+          "title": "Красота и здоровье",
+          "titleRu": "Красота и здоровье",
+          "link": "/c/beauty%20care/",
+          "active": false,
+          "count": 1275,
+          "popularity": 8318,
+          "expanded": true,
+          "items": [
+            {
+              "id": ":category:Oral care",
+              "title": "Уход за полостью рта",
+              "titleRu": "Уход за полостью рта",
+              "link": "/c/oral%20care/",
+              "active": false,
+              "count": 1275,
+              "popularity": 8318,
+              "expanded": true,
+              "items": [
+                {
+                  "id": ":category:Water flossers",
+                  "title": "Ирригаторы, скалеры",
+                  "titleRu": "Ирригаторы, скалеры",
+                  "link": "/c/water%20flossers/",
+                  "active": true,
+                  "count": 1275,
+                  "popularity": 8318,
+                  "expanded": true,
+                  "items": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "top": {
+        "id": ":category:Categories",
+        "title": "Все категории",
+        "titleRu": "Все категории",
+        "link": "/c/categories/",
+        "active": false,
+        "count": 1275,
+        "popularity": 47722,
+        "expanded": true
+      }
+    },
+    "filters": [
+      {
+        "id": "price",
+        "title": "Цена",
+        "name": "Цена",
+        "description": null,
+        "popularity": 2147483645,
+        "type": "multiselect",
+        "displayMode": "expanded",
+        "active": false,
+        "rows": [
+          {
+            "id": ":price:до 10 000 т",
+            "title": "до 10 000 т",
+            "name": "до 10 000 т",
+            "count": 380,
+            "active": false,
+            "hide": false,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": false
+          },
+          {
+            "id": ":price:10 000 - 49 999 т",
+            "title": "10 000 - 49 999 т",
+            "name": "10 000 - 49 999 т",
+            "count": 749,
+            "active": false,
+            "hide": false,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": false
+          },
+          {
+            "id": ":price:50 000 - 99 999 т",
+            "title": "50 000 - 99 999 т",
+            "name": "50 000 - 99 999 т",
+            "count": 116,
+            "active": false,
+            "hide": false,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": false
+          },
+          {
+            "id": ":price:100 000 - 149 999 т",
+            "title": "100 000 - 149 999 т",
+            "name": "100 000 - 149 999 т",
+            "count": 14,
+            "active": false,
+            "hide": false,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": false
+          },
+          {
+            "id": ":price:150 000 - 199 999 т",
+            "title": "150 000 - 199 999 т",
+            "name": "150 000 - 199 999 т",
+            "count": 4,
+            "active": false,
+            "hide": false,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": false
+          }
+        ],
+        "activeRows": [],
+        "hasNextPage": false,
+        "hasPopularValues": false,
+        "listingExpanded": false,
+        "navigationTab": false
+      },
+      {
+        "id": "manufacturerName",
+        "title": "Бренд",
+        "name": "Бренд",
+        "pluralTitle": "Бренды",
+        "description": null,
+        "popularity": 2147483644,
+        "type": "multiselect",
+        "displayMode": "expanded",
+        "active": false,
+        "spoiler": true,
+        "rows": [
+          {
+            "id": ":manufacturerName:7modernq",
+            "title": "7modernq",
+            "name": "7modernq",
+            "count": 4,
+            "active": false,
+            "hide": true,
+            "popularity": 4,
+            "locale": "ru",
+            "localized": false
+          },
+          {
+            "id": ":manufacturerName:99",
+            "title": "99",
+            "name": "99",
+            "count": 1,
+            "active": false,
+            "hide": true,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": false
+          },
+          {
+            "id": ":manufacturerName:ABIX",
+            "title": "ABIX",
+            "name": "ABIX",
+            "count": 4,
+            "active": false,
+            "hide": true,
+            "popularity": 5,
+            "locale": "ru",
+            "localized": false
+          },
+          {
+            "id": ":manufacturerName:ABS",
+            "title": "ABS",
+            "name": "ABS",
+            "count": 1,
+            "active": false,
+            "hide": true,
+            "popularity": 2,
+            "locale": "ru",
+            "localized": false
+          },
+          {
+            "id": ":manufacturerName:ACMER",
+            "title": "ACMER",
+            "name": "ACMER",
+            "count": 1,
+            "active": false,
+            "hide": true,
+            "popularity": 5,
+            "locale": "ru",
+            "localized": false
+          }
+        ],
+        "activeRows": [],
+        "hasNextPage": false,
+        "hasPopularValues": true,
+        "listingExpanded": false,
+        "navigationTab": false
+      },
+      {
+        "id": "Water flossers*Tank capacity",
+        "title": "Емкость резервуара",
+        "name": "Емкость резервуара",
+        "description": null,
+        "popularity": 650,
+        "type": "multiselect",
+        "displayMode": "expanded",
+        "active": false,
+        "spoiler": true,
+        "unit": "мл",
+        "rows": [
+          {
+            "id": ":Water flossers*Tank capacity:0.0",
+            "title": "0",
+            "name": "0",
+            "count": 2,
+            "active": false,
+            "hide": true,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": true
+          },
+          {
+            "id": ":Water flossers*Tank capacity:0.04",
+            "title": "0.04",
+            "name": "0.04",
+            "count": 1,
+            "active": false,
+            "hide": true,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": true
+          },
+          {
+            "id": ":Water flossers*Tank capacity:0.2",
+            "title": "0.2",
+            "name": "0.2",
+            "count": 2,
+            "active": false,
+            "hide": true,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": true
+          },
+          {
+            "id": ":Water flossers*Tank capacity:0.35",
+            "title": "0.35",
+            "name": "0.35",
+            "count": 1,
+            "active": false,
+            "hide": true,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": true
+          },
+          {
+            "id": ":Water flossers*Tank capacity:1.0",
+            "title": "1",
+            "name": "1",
+            "count": 25,
+            "active": false,
+            "hide": true,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": true
+          }
+        ],
+        "activeRows": [],
+        "hasNextPage": false,
+        "hasPopularValues": false,
+        "listingExpanded": false,
+        "navigationTab": false
+      },
+      {
+        "id": "Water flossers*Brush heads",
+        "title": "Насадки",
+        "name": "Насадки",
+        "description": null,
+        "popularity": 311,
+        "type": "multiselect",
+        "displayMode": "expanded",
+        "active": false,
+        "spoiler": true,
+        "rows": [
+          {
+            "id": ":Water flossers*Brush heads:для струйной чистки",
+            "title": "для струйной чистки",
+            "name": "для струйной чистки",
+            "count": 375,
+            "active": false,
+            "hide": true,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": true
+          },
+          {
+            "id": ":Water flossers*Brush heads:для чистки имплантов и коронок",
+            "title": "для чистки имплантов и коронок",
+            "name": "для чистки имплантов и коронок",
+            "count": 436,
+            "active": false,
+            "hide": false,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": true
+          },
+          {
+            "id": ":Water flossers*Brush heads:для чистки языка",
+            "title": "для чистки языка",
+            "name": "для чистки языка",
+            "count": 727,
+            "active": false,
+            "hide": false,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": true
+          },
+          {
+            "id": ":Water flossers*Brush heads:назальная",
+            "title": "назальная",
+            "name": "назальная",
+            "count": 137,
+            "active": false,
+            "hide": true,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": true
+          },
+          {
+            "id": ":Water flossers*Brush heads:насадка-щетка",
+            "title": "насадка-щетка",
+            "name": "насадка-щетка",
+            "count": 279,
+            "active": false,
+            "hide": true,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": true
+          }
+        ],
+        "activeRows": [],
+        "hasNextPage": false,
+        "hasPopularValues": false,
+        "listingExpanded": false,
+        "navigationTab": false
+      },
+      {
+        "id": "Water flossers*Power",
+        "title": "Питание",
+        "name": "Питание",
+        "description": null,
+        "popularity": 204,
+        "type": "multiselect",
+        "displayMode": "expanded",
+        "active": false,
+        "rows": [
+          {
+            "id": ":Water flossers*Power:от аккумулятора",
+            "title": "от аккумулятора",
+            "name": "от аккумулятора",
+            "count": 989,
+            "active": false,
+            "hide": false,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": true
+          },
+          {
+            "id": ":Water flossers*Power:от батареек",
+            "title": "от батареек",
+            "name": "от батареек",
+            "count": 16,
+            "active": false,
+            "hide": false,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": true
+          },
+          {
+            "id": ":Water flossers*Power:от сети",
+            "title": "от сети",
+            "name": "от сети",
+            "count": 153,
+            "active": false,
+            "hide": false,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": true
+          },
+          {
+            "id": ":Water flossers*Power:отсутствует",
+            "title": "отсутствует",
+            "name": "отсутствует",
+            "count": 117,
+            "active": false,
+            "hide": false,
+            "popularity": 0,
+            "locale": "ru",
+            "localized": true
+          }
+        ],
+        "activeRows": [],
+        "hasNextPage": false,
+        "hasPopularValues": false,
+        "listingExpanded": false,
+        "navigationTab": false
+      }
+    ],
+    "limit": 12,
+    "total": 1275,
+    "suggested": null,
+    "title": "Ирригаторы, скалеры",
+    "categoryId": "00724",
+    "invisibleFilters": "",
+    "filterCategory": ":category:Water flossers",
+    "tabs": [],
+    "navigationTags": [],
+    "sortSelector": [
+      {
+        "value": "relevance",
+        "text": "Популярные",
+        "selected": true
+      },
+      {
+        "value": "created-desc",
+        "text": "Новинки",
+        "selected": false
+      },
+      {
+        "value": "price-asc",
+        "text": "Сначала дешевые",
+        "selected": false
+      },
+      {
+        "value": "price-desc",
+        "text": "Сначала дорогие",
+        "selected": false
+      },
+      {
+        "value": "rating",
+        "text": "Высокий рейтинг",
+        "selected": false
+      }
+    ],
+    "promotedByPcm": false,
+    "filteredByCategory": false,
+    "externalSearchQueryInfo": {
+      "provider": "PCM",
+      "userToken": null,
+      "indexName": null,
+      "queryID": "f42084fdc1129ad74fe3fdea82bab902",
+      "abTestVariantID": null,
+      "executedQuery": "ирригатор",
+      "hasReplacement": false,
+      "appliedRules": null,
+      "synonyms": null,
+      "typos": null,
+      "matchOnFields": null,
+      "imageExceededThreshold": false,
+      "relevantCategory": false
+    },
+    "searchQuery": "ирригатор",
+    "completions": [
+      {
+        "token": "для зубов",
+        "isNext": true,
+        "isContent": null
+      },
+      {
+        "token": "для носа",
+        "isNext": true,
+        "isContent": null
+      },
+      {
+        "token": "для брекетов",
+        "isNext": true,
+        "isContent": null
+      },
+      {
+        "token": "xiaomi",
+        "isNext": true,
+        "isContent": null
+      },
+      {
+        "token": "для полости",
+        "isNext": true,
+        "isContent": null
+      }
+    ],
+    "filterTags": null,
+    "brandInfo": null,
+    "imageInfo": null,
+    "esearch": [
+      "106935673",
+      "150840671",
+      "139917232",
+      "139496354",
+      "131656945"
+    ]
+  },
+  "redirect": "/search/?text=%D0%B8%D1%80%D1%80%D0%B8%D0%B3%D0%B0%D1%82%D0%BE%D1%80&q=&sort=relevance&filteredByCategory=false&sc="
+}

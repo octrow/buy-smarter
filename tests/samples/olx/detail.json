@@ -1,0 +1,145 @@
+{
+  "data": {
+    "id": 380868859,
+    "url": "https://www.olx.kz/d/obyavlenie/irrigator-statsionarnyy-waterpik-IDpM5o7.html",
+    "title": "Ирригатор стационарный WaterPik",
+    "last_refresh_time": "2026-06-26T01:08:02+05:00",
+    "created_time": "2025-03-03T01:21:09+05:00",
+    "valid_to_time": "2026-07-26T01:21:10+05:00",
+    "pushup_time": null,
+    "description": "Гарантия 2 года<br />\nОбъём резервуара 1000 мл<br />\nУровень шумa 71 дБ<br />\nКоличество насадок 4<br />\nДавление струи воды 70-620 кПа<br />\nКоличество пульсаций в минуту 1400<br />\nГабариты (см} Высота - 19.5, Длина - 18.5, Ширина- 11",
+    "promotion": {
+      "highlighted": false,
+      "urgent": false,
+      "top_ad": false,
+      "options": [],
+      "b2c_ad_page": false,
+      "premium_ad_page": false
+    },
+    "params": [
+      {
+        "key": "price",
+        "name": "Цена",
+        "type": "price",
+        "value": {
+          "value": 20000,
+          "type": "arranged",
+          "arranged": true,
+          "budget": false,
+          "currency": "KZT",
+          "negotiable": true,
+          "converted_value": null,
+          "previous_value": null,
+          "converted_previous_value": null,
+          "converted_currency": null,
+          "label": "20 000 тг.",
+          "previous_label": null
+        }
+      },
+      {
+        "key": "state",
+        "name": "Состояние",
+        "type": "select",
+        "value": {
+          "key": "new",
+          "label": "Новый"
+        }
+      }
+    ],
+    "key_params": [],
+    "business": false,
+    "user": {
+      "id": 351679374,
+      "created": "2022-06-29T12:47:35+06:00",
+      "other_ads_enabled": true,
+      "name": "ahmedisagyngali",
+      "logo": null,
+      "logo_ad_page": null,
+      "social_network_account_type": null,
+      "photo": null,
+      "banner_mobile": "",
+      "banner_desktop": "",
+      "company_name": "",
+      "about": "",
+      "b2c_business_page": false,
+      "is_online": false,
+      "last_seen": "2026-06-29T11:50:35+05:00",
+      "seller_type": null,
+      "uuid": "2c7843af-c7c2-433d-925b-bbe751c4344a"
+    },
+    "status": "active",
+    "contact": {
+      "name": "ahmedisagyngali",
+      "phone": true,
+      "chat": true,
+      "negotiation": true,
+      "courier": false
+    },
+    "map": {
+      "zoom": 12,
+      "lat": 43.17512,
+      "lon": 76.86561,
+      "radius": 1,
+      "show_detailed": false
+    },
+    "location": {
+      "city": {
+        "id": 1533,
+        "name": "Каргалы",
+        "normalized_name": "kargaly_1533"
+      },
+      "region": {
+        "id": 8,
+        "name": "Алматинская область",
+        "normalized_name": "alm"
+      }
+    },
+    "photos": [
+      {
+        "id": 562058844,
+        "filename": "n5z6bo48y6xi1-KZ",
+        "rotation": 0,
+        "width": 1500,
+        "height": 2000,
+        "link": "https://frankfurt.apollo.olxcdn.com:443/v1/files/n5z6bo48y6xi1-KZ/image;s={width}x{height}"
+      },
+      {
+        "id": 562058845,
+        "filename": "df3xh43006va-KZ",
+        "rotation": 0,
+        "width": 1500,
+        "height": 2000,
+        "link": "https://frankfurt.apollo.olxcdn.com:443/v1/files/df3xh43006va-KZ/image;s={width}x{height}"
+      }
+    ],
+    "partner": null,
+    "category": {
+      "id": 394,
+      "type": "electronics"
+    },
+    "delivery": {
+      "rock": {
+        "offer_id": null,
+        "active": false,
+        "mode": null
+      }
+    },
+    "safedeal": {
+      "weight": 0,
+      "weight_grams": 0,
+      "status": "unactive",
+      "safedeal_blocked": false,
+      "allowed_quantity": []
+    },
+    "shop": {
+      "subdomain": null
+    },
+    "isGpsrAvailable": false,
+    "offer_type": "offer"
+  },
+  "links": {
+    "self": {
+      "href": "https://www.olx.kz/api/v1/offers/380868859"
+    }
+  }
+}

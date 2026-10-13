@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "buy-smarter": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "-m",
+        "buysmarter.mcp_server"
+      ]
+    }
+  }
+}

@@ -1,0 +1,69 @@
+"""Shared test fixtures."""
+
+import logging
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _isolate_file_logging(tmp_path, monkeypatch):
+    """Keep test log records out of the real logs/buysmarter.log.
+
+    Tests that exercise the CLI call setup_logging(); point it at a tmp file
+    and drop any file handlers left on the root logger afterwards.
+    """
+    from buysmarter import logsetup
+    from buysmarter.cli import main as cli_main
+
+    orig = logsetup.setup_logging
+
+    def _to_tmp(log_path=None, **kw):
+        return orig(log_path=tmp_path / "test.log", **kw)
+
+    monkeypatch.setattr(logsetup, "setup_logging", _to_tmp)
+    monkeypatch.setattr(cli_main, "setup_logging", _to_tmp)
+    yield
+    root = logging.getLogger()
+    for handler in list(root.handlers):
+        if isinstance(handler, logging.FileHandler):
+            root.removeHandler(handler)
+            handler.close()
+
+
+@pytest.fixture(autouse=True)
+def _no_live_claude(monkeypatch):
+    """A test that forgets to mock the CLI fails loudly instead of calling the live gateway."""
+    from buysmarter.llm import adapter
+
+    async def _blocked(*_args, **_kwargs):
+        raise RuntimeError("test reached the live claude CLI: mock adapter.arun_claude")
+
+    monkeypatch.setattr(adapter, "arun_claude", _blocked)
+
+
+@pytest.fixture(autouse=True)
+def _no_live_jev(monkeypatch):
+    """Jev never goes over HTTP in tests: an unmocked call behaves as "no OmniRoute key".
+
+    That is a real production state (``LlmConfigError``), so call sites take their
+    fallback — tests that stub only ``generate`` exercise the LLM fallback path.
+    """
+    from buysmarter.llm import jev
+    from buysmarter.llm.adapter import LlmConfigError
+
+    def _no_key():
+        raise LlmConfigError("Jev is off in tests: mock <module>.system_one")
+
+    monkeypatch.setattr(jev, "api_key", _no_key)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_knowledge_store(tmp_path, monkeypatch):
+    """Keep tests off the user's real knowledge (Postgres and ~/.config/buysmarter/
+    knowledge): stored categories feed slug matching and would reach the LLM."""
+
+    def _no_db(*_args, **_kwargs):
+        raise RuntimeError("DB disabled in test — use file fallback")
+
+    monkeypatch.setenv("BUYSMARTER_KNOWLEDGE_DIR", str(tmp_path / "knowledge"))
+    monkeypatch.setattr("buysmarter.knowledge.store.async_session", _no_db)
