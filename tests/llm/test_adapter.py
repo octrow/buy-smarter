@@ -123,8 +123,9 @@ def test_resolve_provider_picks_claude_cli_for_sonnet() -> None:
     assert provider.name == "claude-cli"
 
 
-def test_resolve_provider_falls_back_to_cli_without_api_key() -> None:
-    # No deepseek key set, but the `claude` binary exists on this machine.
+def test_resolve_provider_falls_back_to_cli_without_api_key(monkeypatch) -> None:
+    # No deepseek key set, but the `claude` binary exists.
+    monkeypatch.setattr(adapter, "claude_available", lambda: True)
     settings = Settings(_env_file=None, default_llm_model="deepseek-chat")
     provider = adapter._resolve_provider("deepseek-chat", settings)
     assert provider.is_cli
