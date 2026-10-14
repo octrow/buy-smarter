@@ -63,8 +63,28 @@
 
 ## Быстрый старт
 
-Нужны: [uv](https://docs.astral.sh/uv/), Python 3.12+, Docker (по желанию, для Postgres) и **казахстанский
-IP** для Kaspi: датацентровым IP он отвечает HTTP 429 (можно задать `KASPI_PROXY` с резидентным прокси).
+Для Kaspi нужен **казахстанский IP**: датацентровым IP он отвечает HTTP 429 (можно задать `KASPI_PROXY` с
+резидентным прокси).
+
+macOS / Linux:
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/octrow/buy-smarter/main/install.sh | sh
+```
+
+Windows (PowerShell):
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/octrow/buy-smarter/main/install.ps1 | iex"
+```
+
+Установщик ставит [uv](https://docs.astral.sh/uv/) (он сам принесёт Python), последнюю версию из релиза,
+предлагает браузер для Ozon и запускает `buysmarter doctor`: он скажет, чего не хватает и что от этого
+отключится. Повторный запуск обновляет, `sh -s -- --uninstall` удаляет. Хотите сначала прочитать? Скачайте
+`install.sh`, прочтите и запустите `sh install.sh`. API-ключи и прокси кладутся в `~/.config/buysmarter/.env`
+(образец в [.env.example](.env.example)).
+
+Из исходников, для истории цен в Postgres и для разработки ([uv](https://docs.astral.sh/uv/) и Docker):
 
 ```bash
 git clone https://github.com/octrow/buy-smarter && cd buy-smarter
@@ -78,32 +98,32 @@ uv run buysmarter ozon-setup             # один раз пройти анти
 cp .env.example .env                     # необязательные API-ключи и прокси
 ```
 
-Обязателен только `uv sync`: без Postgres запись пропускается, без `claude` CLI режим `--no-llm` использует
-простой парсер.
+Всё это по желанию: без Postgres запись пропускается, без `claude` CLI режим `--no-llm` использует простой
+парсер. В клоне перед командами ниже добавляйте `uv run`.
 
 ## Использование
 
 ```bash
 # LLM-парсинг запроса через библиотеку claude-cli (API-ключ не нужен)
-uv run buysmarter recommend "нужен ирригатор, портативный, IPX7, до 40000 тг, Алматы"
+buysmarter recommend "нужен ирригатор, портативный, IPX7, до 40000 тг, Алматы"
 
 # Все три площадки (по умолчанию) или выборочно; больше кандидатов; без md-отчёта
-uv run buysmarter recommend "ирригатор до 40000 тг" --sources kaspi,olx --top 10 --no-save
+buysmarter recommend "ирригатор до 40000 тг" --sources kaspi,olx --top 10 --no-save
 
 # Только проверенные бренды; без LLM (простой парсер, фичи не фильтруются)
-uv run buysmarter recommend "ирригатор" --city Алматы --budget 40000 --trusted-only --no-llm
+buysmarter recommend "ирригатор" --city Алматы --budget 40000 --trusted-only --no-llm
 
 # Знания о категории: сгенерировать (opus) или извлечь из своих заметок (sonnet)
-uv run buysmarter learn-category "робот-пылесос"
-uv run buysmarter learn-category "смартфон"      # тиры брендов и алиасы моделей для телефонов
-uv run buysmarter learn ~/notes/robot-vacuum.md --category "робот пылесос"
+buysmarter learn-category "робот-пылесос"
+buysmarter learn-category "смартфон"      # тиры брендов и алиасы моделей для телефонов
+buysmarter learn ~/notes/robot-vacuum.md --category "робот пылесос"
 
 # Смартфоны: индекс Kimovil в оси specs, «120 Гц» / «5000 мАч» как обязательные фичи
-uv run buysmarter recommend "смартфон до 250000 тг, 120 Гц, 5000 мАч" --city Алматы
+buysmarter recommend "смартфон до 250000 тг, 120 Гц, 5000 мАч" --city Алматы
 
 # История цен: обойти отслеживаемые категории, затем посмотреть один товар
-uv run buysmarter refresh
-uv run buysmarter history "F300"
+buysmarter refresh
+buysmarter history "F300"
 ```
 
 Вывод: лучший вариант со скором из 100, уверенность, раскладка по осям (бренд, цена с трендом за 30 дней,

@@ -61,8 +61,27 @@ Closest open-source projects and what was borrowed from them: [docs/analogs](doc
 
 ## Quick start
 
-Requirements: [uv](https://docs.astral.sh/uv/), Python 3.12+, Docker (optional, for Postgres), and a
-**Kazakhstan IP** for Kaspi: datacenter IPs get HTTP 429 (set `KASPI_PROXY` to a residential proxy).
+You need a **Kazakhstan IP** for Kaspi: datacenter IPs get HTTP 429 (set `KASPI_PROXY` to a residential proxy).
+
+macOS / Linux:
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/octrow/buy-smarter/main/install.sh | sh
+```
+
+Windows (PowerShell):
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/octrow/buy-smarter/main/install.ps1 | iex"
+```
+
+The installer gets [uv](https://docs.astral.sh/uv/) (it brings its own Python), installs the latest release,
+offers the browser for Ozon and runs `buysmarter doctor`, which says what is missing and what that turns off.
+Re-run it to update; `sh -s -- --uninstall` removes it. Prefer to read it first? Download `install.sh`, read it,
+then run `sh install.sh`. API keys and a proxy go in `~/.config/buysmarter/.env` (see [.env.example](.env.example)).
+
+From source, for price history in Postgres and for development
+([uv](https://docs.astral.sh/uv/) and Docker):
 
 ```bash
 git clone https://github.com/octrow/buy-smarter && cd buy-smarter
@@ -76,32 +95,32 @@ uv run buysmarter ozon-setup             # pass Ozon's anti-bot check once in a 
 cp .env.example .env                     # optional API keys and proxy
 ```
 
-Nothing above is mandatory except `uv sync`: without Postgres, writes are skipped; without the `claude`
-CLI, `--no-llm` falls back to a naive parser.
+Every piece is optional: without Postgres, writes are skipped; without the `claude` CLI, `--no-llm` falls
+back to a naive parser. In a clone, prefix the commands below with `uv run`.
 
 ## Usage
 
 ```bash
 # LLM request parsing via the claude-cli library (no API key needed)
-uv run buysmarter recommend "need a water flosser, portable, IPX7, under 40000 tg, Almaty"
+buysmarter recommend "need a water flosser, portable, IPX7, under 40000 tg, Almaty"
 
 # All three sources (default) or a subset; more candidates; no markdown report
-uv run buysmarter recommend "ирригатор до 40000 тг" --sources kaspi,olx --top 10 --no-save
+buysmarter recommend "ирригатор до 40000 тг" --sources kaspi,olx --top 10 --no-save
 
 # Trusted brands only; no LLM (naive parser, features are not filtered)
-uv run buysmarter recommend "ирригатор" --city Алматы --budget 40000 --trusted-only --no-llm
+buysmarter recommend "ирригатор" --city Алматы --budget 40000 --trusted-only --no-llm
 
 # Category knowledge: generate it (opus) or extract it from your own notes (sonnet)
-uv run buysmarter learn-category "робот-пылесос"
-uv run buysmarter learn-category "смартфон"      # brand tiers + model aliases for phones
-uv run buysmarter learn ~/notes/robot-vacuum.md --category "робот пылесос"
+buysmarter learn-category "робот-пылесос"
+buysmarter learn-category "смартфон"      # brand tiers + model aliases for phones
+buysmarter learn ~/notes/robot-vacuum.md --category "робот пылесос"
 
 # Smartphones: Kimovil index in the specs axis, "120 Гц" / "5000 мАч" as required features
-uv run buysmarter recommend "смартфон до 250000 тг, 120 Гц, 5000 мАч" --city Алматы
+buysmarter recommend "смартфон до 250000 тг, 120 Гц, 5000 мАч" --city Алматы
 
 # Price history: re-scan tracked categories, then look up one product
-uv run buysmarter refresh
-uv run buysmarter history "F300"
+buysmarter refresh
+buysmarter history "F300"
 ```
 
 Output: the best pick with a score out of 100, confidence, a per-axis breakdown (brand, price with a 30-day
