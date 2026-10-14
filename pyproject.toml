@@ -17,8 +17,8 @@ dependencies = [
     "typer",
     "fastmcp",
     "openai",
-    "claude-subprocess",
-    "market-sources[browser,impersonate,kimovil]",
+    "claude-subprocess>=0.1.1",
+    "market-sources[browser,impersonate,kimovil]>=0.2.0",
 ]
 
 [project.scripts]
