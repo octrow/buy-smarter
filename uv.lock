@@ -143,7 +143,7 @@ source = { editable = "." }
 dependencies = [
     { name = "alembic" },
     { name = "asyncpg" },
-    { name = "claude-cli" },
+    { name = "claude-subprocess" },
     { name = "fastapi" },
     { name = "fastmcp" },
     { name = "httpx" },
@@ -168,7 +168,7 @@ dev = [
 requires-dist = [
     { name = "alembic" },
     { name = "asyncpg" },
-    { name = "claude-cli", git = "https://github.com/octrow/claude-cli?branch=main" },
+    { name = "claude-subprocess", git = "https://github.com/octrow/claude-cli?branch=main" },
     { name = "fastapi" },
     { name = "fastmcp" },
     { name = "httpx" },
@@ -314,9 +314,9 @@ wheels = [
 ]
 
 [[package]]
-name = "claude-cli"
-version = "0.1.0"
-source = { git = "https://github.com/octrow/claude-cli?branch=main#a285431ba4397755cb71a484dbbed6b624d69d61" }
+name = "claude-subprocess"
+version = "0.1.1"
+source = { git = "https://github.com/octrow/claude-cli?branch=main#e0cc05b42b1b861e138af4df9bf134c49b37f63c" }
 
 [[package]]
 name = "click"

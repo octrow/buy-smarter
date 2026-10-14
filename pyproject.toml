@@ -17,7 +17,7 @@ dependencies = [
     "typer",
     "fastmcp",
     "openai",
-    "claude-cli",
+    "claude-subprocess",
     "market-sources[browser,impersonate,kimovil]",
 ]
 
@@ -55,5 +55,5 @@ markers = [
 
 [tool.uv.sources]
 # Hack on them locally with: uv pip install -e ../pylibs/<name> (reverted by the next uv sync).
-claude-cli = { git = "https://github.com/octrow/claude-cli", branch = "main" }
+claude-subprocess = { git = "https://github.com/octrow/claude-cli", branch = "main" }
 market-sources = { git = "https://github.com/octrow/market-sources", branch = "main" }
