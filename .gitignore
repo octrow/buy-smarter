@@ -12,6 +12,8 @@ venv/
 
 # Env / secrets
 .env
+.env.*
+!.env.example
 
 # Tooling caches
 .pytest_cache/
