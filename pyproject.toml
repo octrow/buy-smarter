@@ -1,7 +1,7 @@
 [project]
 name = "buysmarter"
 version = "0.1.0"
-description = "Explainable shopping assistant for Kazakhstan: searches Kaspi, Ozon and OLX and ranks offers for your budget, city and must-have features"
+description = "Explainable shopping assistant for Kazakhstan: ranks Kaspi, Ozon and OLX offers for your budget, city and must-haves"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
