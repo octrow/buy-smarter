@@ -1,6 +1,8 @@
 **[English](README.md)** | **Русский**
 
-# buy-smarter
+<p align="center">
+  <img src="./assets/readme/hero.ru.svg" width="100%" alt="buy-smarter: опишите, что нужно, и получите предложения с Kaspi, Ozon и OLX под ваш бюджет и город. Лучший вариант из реального запуска набрал 66 из 100, с полосой по каждой оси: ingredient 25/25, brand 1.5/10, price 11/25, reviews 3.4/12, specs 15/15, popularity 0.3/3, availability 10/10.">
+</p>
 
 [![CI](https://github.com/octrow/buy-smarter/actions/workflows/ci.yml/badge.svg)](https://github.com/octrow/buy-smarter/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)

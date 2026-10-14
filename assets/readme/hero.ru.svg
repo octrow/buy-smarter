@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="460" viewBox="0 0 1200 460" role="img" aria-labelledby="title desc">
+  <title id="title">buy-smarter — помощник по покупкам для Казахстана, который объясняет выбор</title>
+  <desc id="desc">Опишите, что нужно, обычными словами; buy-smarter ищет на Kaspi, Ozon и OLX и ранжирует предложения под ваш бюджет и город. Справа: лучший вариант из реального запуска, 66 из 100, с баллом по каждой оси.</desc>
+  <rect width="1200" height="460" rx="24" fill="#F6F3EC"/>
+  <g id="title-block" transform="translate(0 12)">
+    <text x="60" y="78" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" letter-spacing="2" fill="#0E7C6B">KASPI.KZ · OZON.KZ · OLX.KZ</text>
+    <text x="56" y="150" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="68" font-weight="800" fill="#16191D">buy-smarter</text>
+    <text x="60" y="200" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="27" font-weight="600" fill="#16191D">Опишите, что нужно.</text>
+    <text x="60" y="236" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="27" fill="#5F6670">Получите предложения под</text>
+    <text x="60" y="272" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="27" fill="#5F6670">ваш бюджет и город — и</text>
+    <text x="60" y="308" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="27" fill="#5F6670">причину каждого балла.</text>
+    <rect x="60" y="334" width="440" height="64" rx="12" fill="#16191D"/>
+    <text x="80" y="361" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#F6F3EC">«крем с адапаленом 0,1%,</text>
+    <text x="80" y="386" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#F6F3EC">до 10 000 тг, Алматы»</text>
+    <path d="M512 366 H600 M588 356 L602 366 L588 376" stroke="#0E7C6B" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g id="project-proof">
+    <rect x="640" y="40" width="520" height="388" rx="16" fill="#FFFFFF" stroke="#DDD6C8" stroke-width="2"/>
+    <text x="664" y="76" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" letter-spacing="1.5" fill="#5F6670">ЛУЧШИЙ ВАРИАНТ · РЕАЛЬНЫЙ ЗАПУСК</text>
+    <text x="664" y="110" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" font-weight="700" fill="#16191D">ELEGANT COSMED гель ЭЛЕКЛИН-А, 15 г</text>
+    <text x="664" y="144" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" font-weight="700" fill="#0E7C6B">66/100 · уверенность 70% · 7 700 ₸</text>
+    <text x="664" y="196" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#16191D">ingredient</text>
+    <rect x="812" y="182" width="222" height="14" rx="7" fill="#DDD6C8"/>
+    <rect x="812" y="182" width="222.0" height="14" rx="7" fill="#0E7C6B"/>
+    <text x="1136" y="196" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#5F6670">25/25</text>
+    <text x="664" y="226" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#16191D">brand</text>
+    <rect x="812" y="212" width="222" height="14" rx="7" fill="#DDD6C8"/>
+    <rect x="812" y="212" width="33.3" height="14" rx="7" fill="#C2610C"/>
+    <text x="1136" y="226" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#5F6670">1.5/10</text>
+    <text x="664" y="256" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#16191D">price</text>
+    <rect x="812" y="242" width="222" height="14" rx="7" fill="#DDD6C8"/>
+    <rect x="812" y="242" width="97.7" height="14" rx="7" fill="#C2610C"/>
+    <text x="1136" y="256" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#5F6670">11/25</text>
+    <text x="664" y="286" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#16191D">reviews</text>
+    <rect x="812" y="272" width="222" height="14" rx="7" fill="#DDD6C8"/>
+    <rect x="812" y="272" width="62.9" height="14" rx="7" fill="#C2610C"/>
+    <text x="1136" y="286" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#5F6670">3.4/12</text>
+    <text x="664" y="316" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#16191D">specs</text>
+    <rect x="812" y="302" width="222" height="14" rx="7" fill="#DDD6C8"/>
+    <rect x="812" y="302" width="222.0" height="14" rx="7" fill="#0E7C6B"/>
+    <text x="1136" y="316" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#5F6670">15/15</text>
+    <text x="664" y="346" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#16191D">popularity</text>
+    <rect x="812" y="332" width="222" height="14" rx="7" fill="#DDD6C8"/>
+    <rect x="812" y="332" width="22.2" height="14" rx="7" fill="#C2610C"/>
+    <text x="1136" y="346" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#5F6670">0.3/3</text>
+    <text x="664" y="376" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#16191D">availability</text>
+    <rect x="812" y="362" width="222" height="14" rx="7" fill="#DDD6C8"/>
+    <rect x="812" y="362" width="222.0" height="14" rx="7" fill="#0E7C6B"/>
+    <text x="1136" y="376" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" fill="#5F6670">10/10</text>
+    <text x="664" y="410" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#0E7C6B">+ то же вещество, в 2.6 раза дешевле</text>
+  </g>
+</svg>
