@@ -7,7 +7,7 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _isolate_file_logging(tmp_path, monkeypatch):
-    """Keep test log records out of the real logs/buysmarter.log.
+    """Keep test log records out of the real log file.
 
     Tests that exercise the CLI call setup_logging(); point it at a tmp file
     and drop any file handlers left on the root logger afterwards.
@@ -79,3 +79,11 @@ def _isolate_knowledge_store(tmp_path, monkeypatch):
 
     monkeypatch.setenv("BUYSMARTER_KNOWLEDGE_DIR", str(tmp_path / "knowledge"))
     monkeypatch.setattr("buysmarter.knowledge.store.async_session", _no_db)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_reports(tmp_path, monkeypatch):
+    """Reports written without an explicit path go to tmp, not the user's data dir."""
+    from buysmarter.cli import report
+
+    monkeypatch.setattr(report, "_REPORTS_DIR", tmp_path / "reports")

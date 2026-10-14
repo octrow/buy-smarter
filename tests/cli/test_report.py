@@ -211,3 +211,14 @@ def test_best_md_shows_seller_line_when_set() -> None:
 
 def test_best_md_no_seller_line_by_default() -> None:
     assert "Продавец" not in render_markdown(_result(n_ranked=1), top=8)
+
+
+def test_default_report_path_is_in_the_user_data_dir_not_the_working_dir(monkeypatch):
+    from pathlib import Path
+
+    from buysmarter.cli.report import default_report_path
+
+    monkeypatch.undo()  # conftest points reports at tmp; this only computes the path
+    path = default_report_path("ирригатор до 40000")
+    assert path.parent == Path.home() / ".local" / "share" / "buysmarter" / "reports"
+    assert path.name.endswith("-ирригатор-до-40000.md")

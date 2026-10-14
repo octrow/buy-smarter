@@ -2,7 +2,7 @@
 
 Called once at each entry point (CLI, MCP server) so the rich CLI output isn't
 polluted by INFO-level noise (LLM cache hits/misses, source fetch counts,
-filter drops) while that same noise is captured durably in ``logs/``.
+filter drops) while that same noise is captured durably in ``~/.cache/buysmarter/logs/``.
 """
 
 import contextvars
@@ -12,13 +12,13 @@ import uuid
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-_DEFAULT_LOG_PATH = Path("logs/buysmarter.log")
+_DEFAULT_LOG_PATH = Path.home() / ".cache" / "buysmarter" / "logs" / "buysmarter.log"
 _MAX_BYTES = 5 * 1024 * 1024  # 5MB
 _BACKUP_COUNT = 5
 _FORMAT = "%(asctime)s %(levelname)s [%(run_id)s] %(name)s:%(lineno)d: %(message)s"
 _DEFAULT_FILE_LEVEL = "INFO"
 _DEFAULT_CONSOLE_LEVEL = "WARNING"
-_NOISY_LOGGERS = ("httpx", "mcp")  # seen at INFO in logs/buysmarter.log
+_NOISY_LOGGERS = ("httpx", "mcp")  # seen at INFO in the log file
 _RUN_ID_LEN = 8
 
 _run_id: contextvars.ContextVar[str] = contextvars.ContextVar("run_id", default="-")

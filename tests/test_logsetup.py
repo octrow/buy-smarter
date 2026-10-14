@@ -123,3 +123,12 @@ def test_bad_env_level_falls_back_with_warning(tmp_path, monkeypatch, caplog) ->
     )
     assert fh.level == logging.INFO
     assert "BUYSMARTER_LOG_LEVEL" in caplog.text
+
+
+def test_default_log_file_lives_in_the_user_cache_dir_not_the_working_dir() -> None:
+    from pathlib import Path
+
+    from buysmarter import logsetup
+
+    expected = Path.home() / ".cache" / "buysmarter" / "logs" / "buysmarter.log"
+    assert logsetup._DEFAULT_LOG_PATH == expected

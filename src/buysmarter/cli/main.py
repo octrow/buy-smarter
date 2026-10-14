@@ -289,7 +289,7 @@ def recommend(
     no_save: bool = typer.Option(
         False,
         "--no-save",
-        help="Skip the markdown report (saved to reports/<timestamp>-<query>.md by default).",
+        help="Skip the markdown report (saved to ~/.local/share/buysmarter/reports/ by default).",
     ),
     save_path: str | None = typer.Option(
         None, "--save-path", help="Explicit report path (implies saving even with --no-save)."

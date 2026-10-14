@@ -18,7 +18,7 @@
 
 ## Как выглядит отчёт
 
-Фрагмент реального запуска (`reports/*.md`, запрос: крем с адапаленом 0,1% до 10 000 тг, Алматы):
+Фрагмент реального запуска (сохранённый отчёт, запрос: крем с адапаленом 0,1% до 10 000 тг, Алматы):
 
 ```text
 🥇 ELEGANT COSMED гель ЭЛЕКЛИН-А для лица, 15 г   [kaspi]
@@ -130,8 +130,9 @@ buysmarter history "F300"
 
 Вывод: лучший вариант со скором из 100, уверенность, раскладка по осям (бренд, цена с трендом за 30 дней,
 отзывы, спеки, популярность, наличие с датой доставки), выжимка отзывов (плюсы, минусы, частые жалобы,
-проверка требований), альтернативы, топ-N со ссылками и раздел б/у с OLX. Отчёты сохраняются в `reports/*.md`
-(`--no-save` отключает), логи — в `logs/buysmarter.log`.
+проверка требований), альтернативы, топ-N со ссылками и раздел б/у с OLX. Отчёты сохраняются в
+`~/.local/share/buysmarter/reports/` (`--no-save` отключает), логи — в `~/.cache/buysmarter/logs/buysmarter.log`
+(`BUYSMARTER_LOG_FILE` меняет путь). В папку, из которой вы запускаете, ничего не пишется.
 
 Источники: **Kaspi** (JSON-эндпоинты), **Ozon.kz** (браузерная сессия Playwright), **OLX.kz** (открытый REST,
 б/у). Аксессуары и нерелевантные объявления отсекаются эвристическим фильтром с LLM как запасным вариантом.
@@ -149,7 +150,7 @@ buysmarter history "F300"
 ```bash
 sqlite3 ~/.cache/buysmarter/llm_cache.db \
   "SELECT model, substr(cache_key,1,8), cost_usd, created_at FROM llm_cache ORDER BY created_at DESC LIMIT 10;"
-grep "llm cache" logs/buysmarter.log   # hit/miss каждого вызова
+grep "llm cache" ~/.cache/buysmarter/logs/buysmarter.log   # hit/miss каждого вызова
 ```
 
 ## MCP-сервер

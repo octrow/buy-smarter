@@ -19,7 +19,7 @@ _ROLE_LABELS = {
     "best_budget": "Best budget",
     "best_premium": "Best premium",
 }
-_REPORTS_DIR = Path("reports")
+_REPORTS_DIR = Path.home() / ".local" / "share" / "buysmarter" / "reports"
 
 # M5 (docs/PLAN.md "Ranking-фиксы"): ``Recommendation.rejected_reasons`` keys
 # are stable English prefixes (``ranking.engine._reason_key``), chosen for
@@ -246,7 +246,7 @@ def _slug(text: str) -> str:
 
 
 def default_report_path(query: str) -> Path:
-    """``reports/YYYYMMDD-HHMMSS-<query-slug>.md`` for the current time."""
+    """``~/.local/share/buysmarter/reports/YYYYMMDD-HHMMSS-<query-slug>.md`` for now."""
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     return _REPORTS_DIR / f"{stamp}-{_slug(query)}.md"
 

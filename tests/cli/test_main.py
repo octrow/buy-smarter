@@ -158,7 +158,7 @@ def _stub_recommend_pipeline(monkeypatch, result) -> None:
     monkeypatch.setattr(main, "recommend_pipeline", _fake_pipeline)
     monkeypatch.setattr(main, "_render", lambda *a, **kw: None)
     # The Typer callback wires up real logging on every invocation; keep these
-    # unit tests from touching the project's actual logs/ directory.
+    # unit tests from touching the real log file.
     monkeypatch.setattr(main, "setup_logging", lambda *a, **kw: None)
 
 

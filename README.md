@@ -18,7 +18,7 @@ limits, and tells you what it could not verify.
 
 ## What a report looks like
 
-An excerpt from a real run (`reports/*.md`, query: adapalene 0.1% cream under 10,000 ₸, Almaty):
+An excerpt from a real run (a saved report, query: adapalene 0.1% cream under 10,000 ₸, Almaty):
 
 ```text
 🥇 ELEGANT COSMED Eleklin-A gel, 15 g   [kaspi]
@@ -128,8 +128,9 @@ buysmarter history "F300"
 Output: the best pick with a score out of 100, confidence, a per-axis breakdown (brand, price with a 30-day
 trend, reviews, specs, popularity, availability with the delivery date), a review summary
 (pros, cons, frequent complaints, requirement checks), alternatives, the top N with links and the
-OLX used section. Reports are saved to `reports/*.md` (`--no-save` turns that off), logs go to
-`logs/buysmarter.log`.
+OLX used section. Reports are saved to `~/.local/share/buysmarter/reports/` (`--no-save` turns that off), logs
+go to `~/.cache/buysmarter/logs/buysmarter.log` (`BUYSMARTER_LOG_FILE` moves it). Nothing is written to the
+folder you run it from.
 
 Sources: **Kaspi** (JSON endpoints), **Ozon.kz** (Playwright browser session), **OLX.kz** (open REST,
 used items). Accessories and off-topic listings are dropped by a heuristic filter with an LLM fallback.
@@ -147,7 +148,7 @@ generating category knowledge. Every request/response pair is cached, so a repea
 ```bash
 sqlite3 ~/.cache/buysmarter/llm_cache.db \
   "SELECT model, substr(cache_key,1,8), cost_usd, created_at FROM llm_cache ORDER BY created_at DESC LIMIT 10;"
-grep "llm cache" logs/buysmarter.log   # hit/miss for every call
+grep "llm cache" ~/.cache/buysmarter/logs/buysmarter.log   # hit/miss for every call
 ```
 
 ## MCP server
