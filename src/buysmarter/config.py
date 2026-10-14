@@ -1,13 +1,18 @@
 """Application settings loaded from environment / .env."""
 
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# A uv tool install has no project folder, so keys live here; a local .env (a clone) overrides it.
+USER_ENV_FILE = Path.home() / ".config" / "buysmarter" / ".env"
 
 
 class Settings(BaseSettings):
-    """Runtime configuration. Reads from environment and .env file."""
+    """Runtime configuration. Reads from environment, then ./.env, then the user config .env."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(USER_ENV_FILE, ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
