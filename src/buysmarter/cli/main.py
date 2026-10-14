@@ -623,7 +623,7 @@ def doctor_checks() -> list[tuple[str, bool, str]]:
         (
             "Postgres",
             asyncio.run(_db_reachable(settings.database_url)),
-            "history and preferences off; run `make up && uv run alembic upgrade head`",
+            "history and preferences off; in a clone run `make up && uv run alembic upgrade head`",
         ),
         (
             "claude CLI",
@@ -633,12 +633,12 @@ def doctor_checks() -> list[tuple[str, bool, str]]:
         (
             "Playwright Chromium",
             _chromium_installed(),
-            "Ozon off; run `uv run playwright install chromium`",
+            f'Ozon off; run `"{sys.executable}" -m playwright install chromium`',
         ),
         (
             "Ozon session",
             ozon_state_path().exists(),
-            "Ozon may hit the anti-bot page; run `uv run buysmarter ozon-setup`",
+            "Ozon may hit the anti-bot page; run `buysmarter ozon-setup`",
         ),
     ]
 
