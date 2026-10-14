@@ -4,7 +4,11 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    cooldown: { default-days: 7 }   # skip releases younger than a week (hijacked-release window)
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    cooldown: { default-days: 7 }
+    groups:
+      actions: { patterns: ["*"] }
