@@ -41,7 +41,7 @@ packages = ["src/buysmarter"]
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
-extend-exclude = ["external_examples", "alembic"]
+extend-exclude = ["alembic"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

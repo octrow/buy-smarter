@@ -26,18 +26,3 @@ logs/
 
 # Generated reports
 reports/
-
-# Vendored third-party reference repos (each has its own .git); too large
-# and not ours to track — see docs for links instead.
-external_examples/
-
-# Personal working notes and the unshipped vision track: kept locally, not published.
-docs/PLAN.md
-docs/PLAN-analogs.md
-docs/CONTINUE*.md
-docs/INIT_DATA.md
-docs/data_tws.md
-docs/jev-migration.md
-docs/llm-vision/
-docs/adr/0001-taste-vision-separate-lib.md
-CONTEXT.md
