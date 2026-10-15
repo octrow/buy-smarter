@@ -1,6 +1,6 @@
 # Copy to <repo>/.github/workflows/scorecard.yml (public repos). Results land in Security → Code scanning
 # and on https://scorecard.dev; badge for the README:
-# [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/OWNER/REPO/badge)](https://scorecard.dev/viewer/?uri=github.com/OWNER/REPO)
+# [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/octrow/buy-smarter/badge)](https://scorecard.dev/viewer/?uri=github.com/octrow/buy-smarter)
 # scorecard-action rejects workflows with top-level env/defaults or extra write permissions; keep this shape.
 name: scorecard
 on:
