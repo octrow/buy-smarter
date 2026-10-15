@@ -2,6 +2,11 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] - 2026-10-15
+
+### Added
+- Published on PyPI (`uvx buysmarter`) via trusted publishing; package metadata: license, authors, project URLs.
+
 ## [0.1.1] - 2026-10-14
 
 ### Changed

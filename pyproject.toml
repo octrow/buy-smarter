@@ -1,8 +1,11 @@
 [project]
 name = "buysmarter"
-version = "0.1.1"
+version = "0.1.2"
 description = "Explainable shopping assistant for Kazakhstan: ranks Kaspi, Ozon and OLX offers for your budget, city and must-haves"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Daniil Petrov" }]
 requires-python = ">=3.12"
 dependencies = [
     "fastapi",
@@ -30,6 +33,11 @@ dev = [
     "pytest",
     "pytest-asyncio",
 ]
+
+[project.urls]
+Homepage = "https://github.com/octrow/buy-smarter"
+Issues = "https://github.com/octrow/buy-smarter/issues"
+Changelog = "https://github.com/octrow/buy-smarter/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]
