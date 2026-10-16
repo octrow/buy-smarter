@@ -2,7 +2,7 @@
   "uid": "buysmarter",
   "title": "buy-smarter",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 4,
   "editable": true,
   "time": {
     "from": "now-1h",
@@ -100,7 +100,7 @@
     {
       "id": 4,
       "type": "timeseries",
-      "title": "LLM cache hit ratio",
+      "title": "LLM calls by cache (hit / miss)",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -113,15 +113,18 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "percentunit"
+          "unit": "ops",
+          "custom": {
+            "axisSoftMax": 1
+          }
         },
         "overrides": []
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(buysmarter_llm_calls_total{cache=\"hit\"}[15m])) / sum(rate(buysmarter_llm_calls_total[15m]))",
-          "legendFormat": "hit ratio"
+          "expr": "sum by (cache) (rate(buysmarter_llm_calls_total[15m])) or label_replace(vector(0), \"cache\", \"no calls\", \"\", \"\")",
+          "legendFormat": "{{cache}}"
         }
       ]
     },
@@ -266,14 +269,17 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps"
+          "unit": "reqps",
+          "custom": {
+            "axisSoftMax": 1
+          }
         },
         "overrides": []
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(buysmarter_rate_limited_total[15m]))",
+          "expr": "sum(rate(buysmarter_rate_limited_total[15m])) or vector(0)",
           "legendFormat": "429/s"
         }
       ]

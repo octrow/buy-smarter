@@ -11,7 +11,8 @@
 Помощник по покупкам для Казахстана, который объясняет свой выбор. Вы описываете, что нужно, обычными словами
 («портативный ирригатор, IPX7, до 40 000 тг, Алматы»). buy-smarter ищет на **Kaspi.kz**, **Ozon.kz** и
 **OLX.kz** (б/у) и ранжирует предложения под ваш бюджет, город и обязательные функции. Для каждого варианта
-видно, по каким осям он набрал баллы и почему. Работает как CLI и как MCP-сервер для Claude.
+видно, по каким осям он набрал баллы и почему. Работает как CLI, как MCP-сервер для Claude и как HTTP API
+с очередью задач.
 
 Он не ищет «лучший товар вообще». Он ищет лучший для вас, сегодня, в ваших рамках, и прямо говорит, что
 проверить не удалось.
@@ -62,6 +63,40 @@
   аналога Keepa для Kaspi нет.
 
 Ближайшие open-source проекты и что из них взято: [docs/analogs](docs/analogs/README.md).
+
+## Как это работает
+
+За всеми тремя входами один и тот же пайплайн. Подбор идёт десятки секунд, поэтому HTTP API кладёт его в Redis
+Stream, выполняет воркер, а клиент опрашивает результат.
+
+```mermaid
+flowchart LR
+    client([client]) -->|"POST /recommend<br/>GET /recommend/{id}"| api[FastAPI]
+    api -->|"job, dedupe, rate limit"| redis[(Redis)]
+    redis -->|"stream, ack after the run"| worker[taskiq worker]
+    worker -->|"search, offers, reviews"| markets[Kaspi · Ozon · OLX]
+    worker -->|"price history"| pg[(Postgres)]
+    worker -->|"result"| redis
+    api -.->|"metrics, traces"| obs[Prometheus · Grafana · Jaeger]
+    worker -.-> obs
+```
+
+<p align="center">
+  <img src="./assets/readme/api-demo.gif" width="100%" alt="Терминал: POST /recommend на портативный ирригатор IPX7 до 38 000 тенге возвращает job id со статусом queued. Опрос задачи позже показывает статус done, лучший вариант Xiaomi Mijia Electric Flusher 2 MEO705 за 15 999 тенге с Kaspi с оценкой 65.78 и начало markdown-отчёта.">
+</p>
+
+`make observe` добавляет к compose-стеку Prometheus, Grafana и Jaeger. Скриншоты ниже сняты после девяти настоящих
+задач: дашборд с панелями HTTP, площадок, ранжирования и очереди и одна задача одним трейсом, от `POST /recommend`
+через воркер до запросов в Postgres и HTTP-запросов к площадкам.
+
+<p align="center">
+  <img src="./assets/readme/grafana.png" width="49%" alt="Дашборд Grafana buy-smarter за последние 30 минут: запросы по маршрутам, p95 задержки, поиски по площадкам Kaspi и OLX по исходу, вызовы LLM (в этом прогоне их нет), p95 длительности подбора около 45 секунд, около 12 кандидатов в рейтинге, ряд Queue с завершёнными задачами, p95 ожидания в очереди около 5 секунд, ноль отказов по лимиту и один живой воркер.">
+  <img src="./assets/readme/jaeger.png" width="49%" alt="Трейс Jaeger buysmarter: POST /recommend, 43,8 секунды, 426 спанов. Спан POST (202) ведёт к спану отправки taskiq и спану выполнения в воркере, внутри которого спаны подключения и SELECT к Postgres, а за ними ряд HTTP GET 200 по 350–730 миллисекунд.">
+</p>
+
+Каждый PR гоняет тесты, собирает образ (не root, healthcheck), поднимает compose-стек и ставит, тестирует и
+обновляет Helm-чарт в kind с одной задачей от начала до конца. Подробнее — в разделах [HTTP API](#http-api),
+[Kubernetes](#kubernetes) и [Наблюдаемость](#наблюдаемость).
 
 ## Быстрый старт
 

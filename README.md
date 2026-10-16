@@ -11,7 +11,8 @@
 An explainable shopping assistant for Kazakhstan. You describe what you need in plain words
 ("a portable water flosser, IPX7, under 40,000 ₸, Almaty"). buy-smarter searches **Kaspi.kz**,
 **Ozon.kz** and **OLX.kz** (used items), and ranks the offers for your budget, city and must-have features.
-For every pick it shows which axes scored it and why. It runs as a CLI and as an MCP server for Claude.
+For every pick it shows which axes scored it and why. It runs as a CLI, as an MCP server for Claude and as an HTTP API
+with a job queue.
 
 It does not hunt for "the best product in general". It looks for the best one for you, today, under your
 limits, and tells you what it could not verify.
@@ -60,6 +61,40 @@ The report goes on with a review summary, alternatives (best value, best budget)
   Kaspi has no public Keepa-style tracker.
 
 Closest open-source projects and what was borrowed from them: [docs/analogs](docs/analogs/README.md).
+
+## How it runs
+
+One pipeline sits behind all three entry points. A run takes tens of seconds, so the HTTP API puts it on a Redis
+stream, a worker runs it, and the client polls for the result.
+
+```mermaid
+flowchart LR
+    client([client]) -->|"POST /recommend<br/>GET /recommend/{id}"| api[FastAPI]
+    api -->|"job, dedupe, rate limit"| redis[(Redis)]
+    redis -->|"stream, ack after the run"| worker[taskiq worker]
+    worker -->|"search, offers, reviews"| markets[Kaspi · Ozon · OLX]
+    worker -->|"price history"| pg[(Postgres)]
+    worker -->|"result"| redis
+    api -.->|"metrics, traces"| obs[Prometheus · Grafana · Jaeger]
+    worker -.-> obs
+```
+
+<p align="center">
+  <img src="./assets/readme/api-demo.gif" width="100%" alt="Terminal: POST /recommend for a portable IPX7 water flosser under 38,000 tenge returns a job id with status queued. Polling the job later shows status done, the best pick Xiaomi Mijia Electric Flusher 2 MEO705 at 15,999 tenge from Kaspi with score 65.78, and the start of the markdown report.">
+</p>
+
+`make observe` adds Prometheus, Grafana and Jaeger to the compose stack. The screenshots below come from nine real
+jobs: the dashboard with HTTP, marketplace, ranking and queue panels, and one job as a single trace, from
+`POST /recommend` through the worker to the Postgres queries and the marketplace HTTP calls.
+
+<p align="center">
+  <img src="./assets/readme/grafana.png" width="49%" alt="Grafana dashboard buy-smarter over the last 30 minutes: requests per route, p95 latency, marketplace searches by outcome for Kaspi and OLX, LLM calls (none in this run), recommend p95 duration around 45 seconds, about 12 ranked offers per run, and a Queue row with finished jobs, about 5 seconds p95 time in queue, zero rate-limited requests and one worker up.">
+  <img src="./assets/readme/jaeger.png" width="49%" alt="Jaeger trace buysmarter: POST /recommend, 43.8 seconds, 426 spans. The POST span (202) leads to the taskiq send span and the execute span in the worker, which holds Postgres connect and SELECT spans followed by a row of HTTP GET 200 calls of 350 to 730 milliseconds each.">
+</p>
+
+Every PR runs the tests, builds the image (non-root, healthcheck), starts the compose stack and installs, tests
+and upgrades the Helm chart in kind with one job end to end. More in [HTTP API](#http-api),
+[Kubernetes](#kubernetes) and [Observability](#observability).
 
 ## Quick start
 
