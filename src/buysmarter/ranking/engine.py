@@ -11,7 +11,7 @@ import statistics
 from collections import Counter
 from datetime import date
 from math import ceil
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from buysmarter.knowledge.ingredients import composition_text, normalize_concentration
 from buysmarter.ranking.delivery import (
@@ -730,6 +730,128 @@ def _ingredient_cons(cons: list[str], candidate: Candidate, ctx: IngredientConte
     return cons
 
 
+class _PriceFlags(NamedTuple):
+    """Which counterfeit signals fire on a candidate's price."""
+
+    dup_gap: bool
+    mimic: bool
+    generic: bool
+
+    @property
+    def suspicious(self) -> bool:
+        return self.dup_gap or self.mimic or self.generic
+
+
+def _price_flags(candidate: Candidate, market: MarketContext) -> _PriceFlags:
+    # A dup-price-gap is only a counterfeit signal when this candidate is the
+    # cheap side of the market too — a normally-priced listing whose duplicate
+    # is simply overpriced (e.g. 23k vs a 62k re-lister) must not eat the hit.
+    dup_gap = candidate.dup_price_gap is not None and candidate.price < _price_reference(market)[0]
+    return _PriceFlags(
+        dup_gap=dup_gap,
+        mimic=candidate.mimic_brand is not None,
+        generic=_is_suspicious_price(candidate, market),
+    )
+
+
+def _penalize_suspicious_price(
+    price_axis: AxisScore, candidate: Candidate, flags: _PriceFlags
+) -> AxisScore:
+    # A brand-mimicry candidate's only edge is usually its cheap price — the
+    # counterfeit signal also drives the price-axis penalty, same as the
+    # dup-gap and unknown-brand-vs-median cases (docs/PLAN.md "Ranking-фиксы").
+    if not flags.suspicious:
+        return price_axis
+    if flags.dup_gap:
+        price_note = _DUP_PRICE_GAP_CON.format(gap=candidate.dup_price_gap)
+    elif flags.mimic:
+        price_note = _MIMIC_BRAND_CON.format(brand=candidate.mimic_brand)
+    else:
+        price_note = _SUSPICIOUS_PRICE_CON
+    return AxisScore(
+        name="price",
+        score=round(price_axis.score * _SUSPICIOUS_PRICE_PENALTY, 2),
+        max_score=price_axis.max_score,
+        explanation=price_axis.explanation + "; " + price_note,
+    )
+
+
+def _price_cons(candidate: Candidate, flags: _PriceFlags) -> list[str]:
+    cons: list[str] = []
+    if flags.dup_gap:
+        cons.append(_DUP_PRICE_GAP_CON.format(gap=candidate.dup_price_gap))
+    elif flags.generic:
+        cons.append(_SUSPICIOUS_PRICE_CON)
+    if flags.mimic:
+        cons.append(_MIMIC_BRAND_CON.format(brand=candidate.mimic_brand))
+    return cons
+
+
+def _score_axes(
+    candidate: Candidate,
+    constraints: QueryConstraints,
+    market: MarketContext,
+    price_axis: AxisScore,
+    weights: dict[str, float],
+    ingredient_ctx: IngredientContext | None,
+    today: date,
+) -> list[AxisScore]:
+    axes: list[AxisScore] = []
+    if ingredient_ctx is not None:
+        axes.append(
+            _score_ingredient(
+                candidate, ingredient_ctx, weights, _required_concentration(constraints)
+            )
+        )
+    return axes + [
+        _score_brand(candidate, weights),
+        price_axis,
+        _score_reviews(candidate, market, weights),
+        _score_specs(candidate, constraints, weights),
+        _score_popularity(candidate, market, weights),
+        _score_availability(candidate, weights, today),
+    ]
+
+
+def _verdict_pros_cons(
+    axes: list[AxisScore],
+    candidate: Candidate,
+    constraints: QueryConstraints,
+    flags: _PriceFlags,
+    ingredient_ctx: IngredientContext | None,
+    missed_model: str | None,
+    today: date,
+) -> tuple[list[str], list[str]]:
+    pros, cons = _pros_cons(axes)
+    # The only source of a "weak brand" con is an unknown brand (factor 0.15).
+    cons = ["неизвестный бренд" if c == "weak brand" else c for c in cons]
+    cons += _price_cons(candidate, flags)
+    verdict = _price_history_verdict(candidate)
+    if verdict is not None:
+        (pros if verdict[0] == "pro" else cons).append(verdict[1])
+    cons.extend(_unverified_feature_cons(candidate, constraints))
+    if ingredient_ctx is not None:
+        pros.extend(_equivalence_verdicts(candidate, ingredient_ctx))
+        cons = _ingredient_cons(cons, candidate, ingredient_ctx)
+    if missed_model is not None:
+        cons.append(_MODEL_MISMATCH_CON.format(token=missed_model))
+    cons.extend(spec_conflicts(candidate.title, candidate.specs))
+    note = delivery_note(candidate, today) if candidate.availability else None
+    if note is not None and is_fast_bucket(note[0]):
+        pros.append(note[1])
+    return pros, cons
+
+
+def _score_confidence(candidate: Candidate, market: MarketContext) -> float:
+    confidence = _confidence(candidate)
+    if _is_degenerate_price_reference(market):
+        # A market snapshot built on <3 tiered prices (including zero — the
+        # silent pool-median fallback) can't support full confidence — the
+        # reference itself is shaky, not just this candidate.
+        confidence = min(confidence, _DEGENERATE_CONFIDENCE_CAP)
+    return confidence
+
+
 def score(
     candidate: Candidate,
     constraints: QueryConstraints,
@@ -749,83 +871,28 @@ def score(
     ``model_tokens.extract_model_tokens``), empty means no model relevance check.
     """
     today = today or today_almaty()
-    price_axis = _apply_price_history(_score_price(candidate, market, weights), candidate)
-    # A dup-price-gap is only a counterfeit signal when this candidate is the
-    # cheap side of the market too — a normally-priced listing whose duplicate
-    # is simply overpriced (e.g. 23k vs a 62k re-lister) must not eat the hit.
-    dup_gap_suspicious = (
-        candidate.dup_price_gap is not None and candidate.price < _price_reference(market)[0]
+    flags = _price_flags(candidate, market)
+    price_axis = _penalize_suspicious_price(
+        _apply_price_history(_score_price(candidate, market, weights), candidate), candidate, flags
     )
-    mimic_suspicious = candidate.mimic_brand is not None
-    generic_suspicious = _is_suspicious_price(candidate, market)
-    # A brand-mimicry candidate's only edge is usually its cheap price — the
-    # counterfeit signal also drives the price-axis penalty, same as the
-    # dup-gap and unknown-brand-vs-median cases (docs/PLAN.md "Ranking-фиксы").
-    suspicious = generic_suspicious or dup_gap_suspicious or mimic_suspicious
-    if suspicious:
-        if dup_gap_suspicious:
-            price_note = _DUP_PRICE_GAP_CON.format(gap=candidate.dup_price_gap)
-        elif mimic_suspicious:
-            price_note = _MIMIC_BRAND_CON.format(brand=candidate.mimic_brand)
-        else:
-            price_note = _SUSPICIOUS_PRICE_CON
-        price_axis = AxisScore(
-            name="price",
-            score=round(price_axis.score * _SUSPICIOUS_PRICE_PENALTY, 2),
-            max_score=price_axis.max_score,
-            explanation=price_axis.explanation + "; " + price_note,
-        )
-    axes: list[AxisScore] = []
-    if ingredient_ctx is not None:
-        axes.append(
-            _score_ingredient(
-                candidate, ingredient_ctx, weights, _required_concentration(constraints)
-            )
-        )
-    axes += [
-        _score_brand(candidate, weights),
-        price_axis,
-        _score_reviews(candidate, market, weights),
-        _score_specs(candidate, constraints, weights),
-        _score_popularity(candidate, market, weights),
-        _score_availability(candidate, weights, today),
-    ]
+    axes = _score_axes(candidate, constraints, market, price_axis, weights, ingredient_ctx, today)
     total = round(sum(a.score for a in axes), 2)
     model_miss = bool(model_tokens) and not has_model_match(candidate, model_tokens)
     if model_miss:
         total = round(total * _MODEL_MISMATCH_FACTOR, 2)
-    pros, cons = _pros_cons(axes)
-    # The only source of a "weak brand" con is an unknown brand (factor 0.15).
-    cons = ["неизвестный бренд" if c == "weak brand" else c for c in cons]
-    if dup_gap_suspicious:
-        cons.append(_DUP_PRICE_GAP_CON.format(gap=candidate.dup_price_gap))
-    elif generic_suspicious:
-        cons.append(_SUSPICIOUS_PRICE_CON)
-    if candidate.mimic_brand is not None:
-        cons.append(_MIMIC_BRAND_CON.format(brand=candidate.mimic_brand))
-    verdict = _price_history_verdict(candidate)
-    if verdict is not None:
-        (pros if verdict[0] == "pro" else cons).append(verdict[1])
-    cons.extend(_unverified_feature_cons(candidate, constraints))
-    if ingredient_ctx is not None:
-        pros.extend(_equivalence_verdicts(candidate, ingredient_ctx))
-        cons = _ingredient_cons(cons, candidate, ingredient_ctx)
-    if model_miss:
-        cons.append(_MODEL_MISMATCH_CON.format(token=model_tokens[0]))
-    cons.extend(spec_conflicts(candidate.title, candidate.specs))
-    note = delivery_note(candidate, today) if candidate.availability else None
-    if note is not None and is_fast_bucket(note[0]):
-        pros.append(note[1])
-    confidence = _confidence(candidate)
-    if _is_degenerate_price_reference(market):
-        # A market snapshot built on <3 tiered prices (including zero — the
-        # silent pool-median fallback) can't support full confidence — the
-        # reference itself is shaky, not just this candidate.
-        confidence = min(confidence, _DEGENERATE_CONFIDENCE_CAP)
+    pros, cons = _verdict_pros_cons(
+        axes,
+        candidate,
+        constraints,
+        flags,
+        ingredient_ctx,
+        model_tokens[0] if model_miss else None,
+        today,
+    )
     return ScoredCandidate(
         candidate=candidate,
         total_score=total,
-        confidence=confidence,
+        confidence=_score_confidence(candidate, market),
         axes=axes,
         pros=pros,
         cons=cons,
