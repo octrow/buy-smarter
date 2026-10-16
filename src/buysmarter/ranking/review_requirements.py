@@ -20,7 +20,8 @@ from buysmarter.ranking.review_trust import (
 
 # ponytail: any negation word anywhere in the sentence disqualifies it ("не
 # работает", "без шумоподавления"), and so does a defect complaint. Loses some
-# true positives ("не греется, шумоподавление отличное"); no parser.
+# true positives ("не греется, шумоподавление отличное"); no parser. Scope the negation to
+# the clause naming the feature at the first confirmed feature a real run reports unconfirmed.
 _NEGATION_RE = re.compile(r"\b(не|нет|без|ни)\b")
 _SENTENCE_SPLIT_RE = re.compile(r"[.!?\n]+")
 

@@ -158,7 +158,8 @@ def _normalize(text: str) -> str:
 
 # Quote matching: edge quotes/punctuation dropped so «IPX7 держит» matches IPX7 держит.
 _EDGE_PUNCT = "«»\"'“”„.,;:!?()[]…-–— "
-# ponytail: 4-char prefix stems instead of a morphology lib; Russian endings vary.
+# ponytail: 4-char prefix stems instead of a morphology lib; Russian endings vary. Switch to
+# a lemmatizer (pymorphy3) at the first inflected feature word a real review misses.
 _STEM_LEN = 4
 _MIN_STEM_WORD_LEN = 4
 _SHORT_TOKEN_RE = re.compile(r"[a-z0-9-]{2,}")  # nfc, usb, wi-fi, 5g
@@ -275,6 +276,7 @@ def _junk_signal(
 
 
 # ponytail: has_photos is collected but unused; no photo bonus, trust stays capped at 1.0.
+# Add the bonus once 50 real runs show low-trust products carry fewer photo reviews.
 def _unverified_signal(
     reviews: list[RawReview], _stats: RawReviewStats | None
 ) -> tuple[float, str] | None:

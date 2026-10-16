@@ -119,7 +119,8 @@ _USED_PRICE_RATIO = 0.7
 _USED_CON = "без гарантии/проверки"
 _DEFECT_MARK = "⚠"
 
-# Token-overlap matching (# ponytail: token overlap now, embeddings later).
+# Token-overlap matching. # ponytail: token overlap misses reworded titles; move to embeddings
+# at the first product a real run lists twice across sources, or two products merged.
 _MIN_TOKEN_LEN = 3
 _DEDUPE_OVERLAP = 0.6  # kaspi/ozon same-product merge threshold
 _USED_MATCH_OVERLAP = 0.4  # OLX-listing ↔ new-product match threshold
@@ -782,7 +783,8 @@ def notable_used_listings(
     ``budget is None`` skips the whole section: without a budget there is no
     sane price ceiling to bound "notable" by, and a used-market floor without
     ANY price sanity check is worse than no section at all.
-    # ponytail: no budget -> no standalone used section, price-sanity floor later.
+    # ponytail: no budget -> no standalone used section. Add a price-sanity floor (a share of
+    # the new-market median) once no-budget requests reach a third of POST /recommend jobs.
     """
     if book is None or budget is None:
         return []
@@ -1408,6 +1410,7 @@ def _apply_review_trust(
         trust, note = review_trust(reviews, stats_by_id.get(key))
         updated = apply_review_trust(scored, trust, note) if trust < 1.0 else scored
         # ponytail: complaint share uses the fetched sample (~9 Kaspi reviews), not stats.total.
+        # Fetch more review pages at the first best pick decided by this penalty on < 20 reviews.
         updated = apply_defect_penalty(updated, count_defect_complaints(reviews), len(reviews))
         if updated is not scored:
             adjusted[key] = updated
