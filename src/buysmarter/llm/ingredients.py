@@ -33,7 +33,8 @@ logger = logging.getLogger(__name__)
 # free-stack combo (what the old "haiku" alias resolved to).
 EXTRACT_INGREDIENTS_MODEL = "free-stack"
 
-# ponytail: thresholds tuned on a hand-labelled acne-care set (docs/jev-migration.md §4).
+# ponytail: thresholds tuned on a hand-labelled acne-care set (docs/jev-migration.md §4);
+# retune after 50 real runs or at the first miss seen in one.
 SUBSTANCE_MIN_NOUL = 0.5
 CONCENTRATION_MIN_PROB = 0.5
 # Concentration candidates: "0,1%", "0.3 %", "5%".

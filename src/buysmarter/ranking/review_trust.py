@@ -15,7 +15,8 @@ static signals combine multiplicatively (floor 0.3):
 Five-star share prefers the source's full rating distribution when Kaspi
 supplies it; the sample is only the fallback.
 
-# ponytail: static thresholds and word lists, tune later.
+# ponytail: static thresholds and word lists, the same for every category;
+# retune after 50 real runs or at the first miss seen in one.
 """
 
 import re

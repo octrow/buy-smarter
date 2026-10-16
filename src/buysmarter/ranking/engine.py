@@ -362,7 +362,8 @@ def _score_price(
 
 # Price-trend signal (docs/PLAN.md фаза 4 "history цен"). A candidate priced
 # below its own 30-day average is a genuine dip worth a small nudge; above it, a
-# small penalty. # ponytail: simple thresholds now, discount-quality scoring later.
+# small penalty. # ponytail: simple ±7% thresholds, the quality of a discount is not scored;
+# retune after 50 real runs or at the first miss seen in one.
 _PRICE_HISTORY_LOW_RATIO = 0.93
 _PRICE_HISTORY_HIGH_RATIO = 1.07
 _PRICE_HISTORY_ADJUST = 0.10  # ±10% of the price-axis score, capped at max_score

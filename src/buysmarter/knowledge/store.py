@@ -41,7 +41,8 @@ logger = logging.getLogger(__name__)
 # is the fallback when Jev fails or is unsure.
 MATCH_CATEGORY_MODEL = "free-stack"
 # Jev answers below this confidence escalate to the LLM fallback.
-# ponytail: tuned on 13 hand-labelled queries (wrong answer 0.51, right ones >= 0.73).
+# ponytail: tuned on 13 hand-labelled queries (wrong answer 0.51, right ones >= 0.73);
+# retune after 50 real runs or at the first miss seen in one.
 MATCH_MIN_CONFIDENCE = 0.7
 # Choice option meaning "no stored category applies"; Jev caps a Choice at 255 options.
 _NO_MATCH = "none of these"

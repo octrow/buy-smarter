@@ -38,7 +38,8 @@ logger = logging.getLogger(__name__)
 CANONICALIZE_MODEL = "free-stack"
 
 # A Jev pick becomes a learned alias (persisted), so the bar is high.
-# ponytail: tuned on 13 hand-labelled irrigator titles (matches >= 0.87).
+# ponytail: tuned on 13 hand-labelled irrigator titles (matches >= 0.87);
+# retune after 50 real runs or at the first miss seen in one.
 MATCH_MIN_CONFIDENCE = 0.8
 _NO_MATCH = "none of these"
 _MAX_CHOICE_OPTIONS = 255  # Jev's Choice limit, "none of these" included
