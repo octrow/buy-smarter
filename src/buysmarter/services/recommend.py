@@ -11,6 +11,7 @@ failing (e.g. an Ozon browser hiccup) must never kill the run.
 """
 
 import asyncio
+import functools
 import inspect
 import logging
 import re
@@ -29,6 +30,7 @@ from market_sources.ozon.browser import OzonBrowser
 from market_sources.ozon.source import OzonSource
 from pydantic import BaseModel, Field
 
+from buysmarter import telemetry
 from buysmarter.config import get_settings
 from buysmarter.db.base import async_session
 from buysmarter.db.repo import (
@@ -1193,10 +1195,13 @@ async def _safe(name: str, coro):
     """Await a source coroutine, swallowing failures so one source can't kill the run."""
     try:
         with _stage(f"collect[{name}]"):
-            return await coro
+            result = await coro
     except Exception as exc:  # noqa: BLE001 - one dead source must not abort the pipeline
         logger.warning("Source %r failed, skipping it: %r", name, exc, exc_info=True)
+        telemetry.SOURCE_REQUESTS.add(1, {"source": name, "outcome": "error"})
         return None
+    telemetry.SOURCE_REQUESTS.add(1, {"source": name, "outcome": "ok"})
+    return result
 
 
 def _snapshot_values(product: RawProduct, offers: list) -> tuple[int, int] | None:
@@ -1652,6 +1657,28 @@ def _guard_substance_pool(
     raise NoSubstanceMatch(required_substances, len(candidates), top)
 
 
+def _measured(fn):
+    """Record a recommend run's duration by outcome, and the ranked pool size when it succeeds."""
+
+    @functools.wraps(fn)
+    async def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        outcome = "error"
+        try:
+            result = await fn(*args, **kwargs)
+            outcome = "ok"
+            telemetry.OFFERS_RANKED.record(len(result.recommendation.ranked))
+            return result
+        except NoSubstanceMatch:
+            outcome = "no_match"
+            raise
+        finally:
+            telemetry.RECOMMEND_DURATION.record(time.perf_counter() - start, {"outcome": outcome})
+
+    return wrapper
+
+
+@_measured
 async def recommend(
     query: str,
     *,

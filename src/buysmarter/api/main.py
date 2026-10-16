@@ -1,11 +1,12 @@
 """FastAPI application entry point."""
 
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Response, status
 
-from buysmarter import __version__, logsetup
+from buysmarter import __version__, logsetup, telemetry
 from buysmarter.config import get_settings
 from buysmarter.db.base import db_reachable
 
@@ -17,6 +18,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="buy-smarter", version=__version__, lifespan=lifespan)
+if os.environ.get("BUYSMARTER_METRICS", "1") != "0":
+    telemetry.instrument_app(app)
 
 
 @app.get("/health")

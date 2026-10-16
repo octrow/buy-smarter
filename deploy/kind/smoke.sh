@@ -33,6 +33,9 @@ for _ in $(seq 20); do curl -fsS localhost:8000/health >/dev/null 2>&1 && break;
 curl -fsS localhost:8000/health
 curl -fsS localhost:8000/ready
 echo
+curl -fsS localhost:8000/openapi.json >/dev/null
+curl -fsS localhost:8000/metrics | grep -q 'http_server_request_duration_seconds_count{.*http_route="/openapi.json"'
+echo "metrics: ok"
 
 # Upgrade: the migration hook runs again (no-op) and the pods roll.
 install --set podAnnotations.smoke=upgrade

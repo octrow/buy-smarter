@@ -30,6 +30,7 @@ from claude_cli import (
 from openai import APIError, AsyncOpenAI
 from pydantic import BaseModel, ValidationError
 
+from buysmarter import telemetry
 from buysmarter.config import Settings, get_settings
 from buysmarter.llm.cache import cache_key_for, get_cached, hash_text, store_cached
 from buysmarter.llm.models import LlmCache
@@ -230,8 +231,10 @@ async def generate(
                 )
             else:
                 logger.info("llm cache hit: %s %s", model, key[:8])
+                telemetry.LLM_CALLS.add(1, {"model": model, "cache": "hit"})
                 return hit
 
+    telemetry.LLM_CALLS.add(1, {"model": model, "cache": "miss"})
     if provider.is_cli:
         return await _generate_cli(
             prompt, response_model, model, key, use_cache, settings, cli_tools, cli_timeout

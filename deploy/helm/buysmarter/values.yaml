@@ -20,6 +20,19 @@ env:
   BUYSMARTER_LOG_FILE: "-"      # logs to stderr, not to a file in the pod
   # DEFAULT_LLM_MODEL: gpt-5-mini
 
+# Prometheus metrics on GET /metrics (port http). false sets BUYSMARTER_METRICS=0.
+metrics:
+  enabled: true
+  podAnnotations: true      # prometheus.io/scrape for annotation-based scrapers
+  serviceMonitor:           # for the Prometheus Operator (kube-prometheus-stack)
+    enabled: false
+    interval: 30s
+    labels: {}              # e.g. release: kube-prometheus-stack
+
+# Traces over OTLP/HTTP, e.g. http://otel-collector.observability:4318; empty = no traces.
+otel:
+  endpoint: ""
+
 # `alembic upgrade head` as a pre-install/pre-upgrade hook Job, once per release, never per pod.
 migrations:
   enabled: true

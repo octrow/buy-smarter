@@ -52,10 +52,17 @@ capabilities:
 {{- end }}
 
 {{- define "buysmarter.envFrom" -}}
+{{- $env := deepCopy .Values.env }}
+{{- if not .Values.metrics.enabled }}
+{{- $_ := set $env "BUYSMARTER_METRICS" "0" }}
+{{- end }}
+{{- with .Values.otel.endpoint }}
+{{- $_ := set $env "OTEL_EXPORTER_OTLP_ENDPOINT" . }}
+{{- end }}
 envFrom:
   - secretRef:
       name: {{ include "buysmarter.secretName" . }}
-{{- with .Values.env }}
+{{- with $env }}
 env:
   {{- range $k, $v := . }}
   - name: {{ $k }}

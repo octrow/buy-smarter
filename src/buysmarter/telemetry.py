@@ -1,0 +1,77 @@
+"""OpenTelemetry: the domain instruments and the API wiring (/metrics, optional OTLP traces).
+
+The instruments come from the global meter, so services record into them unconditionally: in the
+CLI and the MCP server no provider is set and the calls are no-ops; ``instrument_app`` installs the
+SDK provider for the API, and the proxy instruments start exporting from then on.
+"""
+
+import os
+
+from fastapi import FastAPI, Response
+from opentelemetry import metrics, trace
+from opentelemetry.exporter.prometheus import PrometheusMetricReader
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+from buysmarter import __version__
+
+_meter = metrics.get_meter("buysmarter", __version__)
+
+# Label values stay low-cardinality: no query text, prices or product ids.
+RECOMMEND_DURATION = _meter.create_histogram(
+    "buysmarter.recommend.duration",
+    unit="s",
+    description="Wall time of one recommend run, by outcome (ok, no_match, error)",
+)
+OFFERS_RANKED = _meter.create_histogram(
+    "buysmarter.recommend.offers_ranked",
+    description="Candidates left in the ranked pool of a successful run",
+)
+SOURCE_REQUESTS = _meter.create_counter(
+    "buysmarter.source.requests",
+    description="Marketplace searches, by source (kaspi, ozon, olx) and outcome (ok, error)",
+)
+LLM_CALLS = _meter.create_counter(
+    "buysmarter.llm.calls",
+    description="LLM generations, by model and cache (hit, miss)",
+)
+
+# Probes and the scrape itself would drown the request metrics.
+_UNTRACED_PATHS = "health,ready,metrics"
+
+
+def _metrics_endpoint() -> Response:
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+def instrument_app(app: FastAPI) -> None:
+    """Install the SDK providers, instrument FastAPI/httpx/SQLAlchemy and serve ``GET /metrics``.
+
+    Traces are exported over OTLP only when ``OTEL_EXPORTER_OTLP_ENDPOINT`` is set; the exporter
+    reads the rest of its configuration from the standard ``OTEL_*`` variables.
+    """
+    from buysmarter.db.base import engine
+
+    # Stable HTTP semconv: http_server_request_duration_seconds, labelled by http_route.
+    os.environ.setdefault("OTEL_SEMCONV_STABILITY_OPT_IN", "http")
+    resource = Resource.create({SERVICE_NAME: os.environ.get("OTEL_SERVICE_NAME", "buysmarter")})
+    metrics.set_meter_provider(
+        MeterProvider(resource=resource, metric_readers=[PrometheusMetricReader()])
+    )
+    if os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+        provider = TracerProvider(resource=resource)
+        provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+        trace.set_tracer_provider(provider)
+
+    FastAPIInstrumentor.instrument_app(app, excluded_urls=_UNTRACED_PATHS)
+    HTTPXClientInstrumentor().instrument()
+    SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
+    app.add_api_route("/metrics", _metrics_endpoint, include_in_schema=False)
