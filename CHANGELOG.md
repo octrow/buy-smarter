@@ -2,7 +2,7 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.1.3] - 2026-10-16
 
 ### Added
 - Container image: `runtime` target (API, CLI, migrations; non-root, healthcheck) and `browser` target with
