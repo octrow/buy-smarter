@@ -1694,6 +1694,82 @@ def _measured(fn):
     return wrapper
 
 
+async def _resolve_knowledge(
+    category: str, use_llm: bool
+) -> tuple[BrandBook | None, ModelBook | None, IngredientBook | None]:
+    """Brand/model books plus the ingredient book, only for composition-driven categories."""
+    with _stage("knowledge resolve"):
+        book, model_book = await resolve_books(category, use_llm=use_llm)
+        category_type, ingredient_book = await resolve_composition(category, use_llm=use_llm)
+    if book is None and model_book is None:
+        logger.info(
+            "no brand knowledge for %r — run `buysmarter learn-category %r` to generate it",
+            category,
+            category,
+        )
+    return book, model_book, ingredient_book if category_type == COMPOSITION_DRIVEN else None
+
+
+def _substance_recall(
+    ingredient_book: IngredientBook | None, constraints: QueryConstraints
+) -> tuple[list[str], list[tuple[str, list[str]]] | None]:
+    """Required substances and the extra searches that surface them.
+
+    Composition-driven recall: substance + equivalence-name searches widen the
+    Kaspi pool so the actual active-substance products surface (docs/PLAN.md).
+    """
+    if ingredient_book is None:
+        return [], None
+    required = _required_substances(ingredient_book, constraints)
+    if not required:
+        return [], None
+    return required, _substance_search_plan(ingredient_book, required)
+
+
+async def _verify_substances(
+    deduped: list[Candidate],
+    constraints: QueryConstraints,
+    ingredient_book: IngredientBook | None,
+    required_substances: list[str],
+    use_llm: bool,
+) -> bool:
+    """Extract состав into the pool; True when the substance filter may bite."""
+    if ingredient_book is None:
+        return False
+    await _extract_ingredients_into(deduped, constraints.category, ingredient_book, use_llm)
+    # A required substance is a hard filter only once extraction actually
+    # ran (use_llm) — otherwise absence is unknowable, not proven.
+    verified = use_llm and bool(required_substances)
+    if verified:
+        _guard_substance_pool(deduped, constraints, required_substances)
+    return verified
+
+
+async def _used_market(
+    recommendation: Recommendation,
+    used_candidates: list[Candidate],
+    constraints: QueryConstraints,
+    book: BrandBook | None,
+    model_book: ModelBook | None,
+    use_llm: bool,
+) -> list[UsedListing]:
+    """OLX listings matching the picks, then notable ones within budget."""
+    model_book, display_labels = await canonicalize_used_titles(
+        constraints.category, book, model_book, used_candidates, use_llm
+    )
+    used_listings = match_used_listings(
+        _reference_candidates(recommendation), used_candidates, book, model_book, display_labels
+    )
+    matched_keys = {ul.url or ul.title for ul in used_listings}
+    return used_listings + notable_used_listings(
+        used_candidates,
+        book,
+        constraints.budget_max,
+        exclude=matched_keys,
+        category=constraints.category,
+    )
+
+
 @_measured
 async def recommend(
     query: str,
@@ -1726,29 +1802,10 @@ async def recommend(
     resolved_city, city_defaulted = await _resolve_city(base_constraints.city, city)
     constraints = _apply_overrides(base_constraints, resolved_city, budget, trusted_only)
     active = _resolve_sources(sources or ["kaspi"], source, ozon_source, olx_source)
-    with _stage("knowledge resolve"):
-        book, model_book = await resolve_books(constraints.category, use_llm=use_llm)
-        category_type, ingredient_book = await resolve_composition(
-            constraints.category, use_llm=use_llm
-        )
-    composition = category_type == COMPOSITION_DRIVEN and ingredient_book is not None
-    if book is None and model_book is None:
-        logger.info(
-            "no brand knowledge for %r — run `buysmarter learn-category %r` to generate it",
-            constraints.category,
-            constraints.category,
-        )
+    book, model_book, ingredient_book = await _resolve_knowledge(constraints.category, use_llm)
+    composition = ingredient_book is not None
     city_id = _city_id(constraints.city)
-
-    # Composition-driven recall: substance + equivalence-name searches widen the
-    # Kaspi pool so the actual active-substance products surface (docs/PLAN.md).
-    required_substances: list[str] = []
-    substance_plan: list[tuple[str, list[str]]] | None = None
-    if composition:
-        assert ingredient_book is not None
-        required_substances = _required_substances(ingredient_book, constraints)
-        if required_substances:
-            substance_plan = _substance_search_plan(ingredient_book, required_substances)
+    required_substances, substance_plan = _substance_recall(ingredient_book, constraints)
 
     review_summary: ReviewSummary | None = None
     try:
@@ -1774,15 +1831,9 @@ async def recommend(
         if is_smartphone_category(constraints.category):
             with _stage("kimovil"):
                 await enrich_with_kimovil(deduped)
-        substances_verified = False
-        if composition:
-            assert ingredient_book is not None
-            await _extract_ingredients_into(deduped, constraints.category, ingredient_book, use_llm)
-            # A required substance is a hard filter only once extraction actually
-            # ran (use_llm) — otherwise absence is unknowable, not proven.
-            substances_verified = use_llm and bool(required_substances)
-        if substances_verified:
-            _guard_substance_pool(deduped, constraints, required_substances)
+        substances_verified = await _verify_substances(
+            deduped, constraints, ingredient_book, required_substances, use_llm
+        )
         with _stage("ranking"):
             recommendation = rank(
                 deduped,
@@ -1812,19 +1863,8 @@ async def recommend(
 
     _apply_cross_notes(recommendation, notes)
 
-    model_book, display_labels = await canonicalize_used_titles(
-        constraints.category, book, model_book, used_candidates, use_llm
-    )
-    used_listings = match_used_listings(
-        _reference_candidates(recommendation), used_candidates, book, model_book, display_labels
-    )
-    matched_keys = {ul.url or ul.title for ul in used_listings}
-    used_listings = used_listings + notable_used_listings(
-        used_candidates,
-        book,
-        constraints.budget_max,
-        exclude=matched_keys,
-        category=constraints.category,
+    used_listings = await _used_market(
+        recommendation, used_candidates, constraints, book, model_book, use_llm
     )
     logger.info("stage %s took %.2fs", "total", time.perf_counter() - total_start)
     return RecommendResult(
