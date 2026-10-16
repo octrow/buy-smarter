@@ -185,6 +185,17 @@ uv run python -m buysmarter.mcp_server   # блокируется на stdio; о
 | `compare` | 2–4 товара через запятую → сравнение спецификаций (Kaspi). |
 | `get_preferences` / `set_preference` | Чтение и запись предпочтений (город, бюджет…). Postgres или `~/.config/buysmarter/prefs.json`, если база недоступна. |
 
+## Docker
+
+```bash
+docker build -t buysmarter .                       # API на :8000 (/health); --target browser добавит Chromium для Ozon
+docker run --rm -p 8000:8000 -e DATABASE_URL=postgresql+asyncpg://… buysmarter
+docker run --rm -e DATABASE_URL=… buysmarter alembic upgrade head   # миграции — отдельной командой
+docker run --rm -e OPENAI_API_KEY=… buysmarter buysmarter recommend "…" --budget 30000
+```
+
+В образе нет `claude` CLI: LLM работает через API-фолбэк (`DEFAULT_LLM_MODEL` и ключ провайдера в env).
+
 ## Разработка
 
 ```bash

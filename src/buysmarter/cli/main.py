@@ -612,8 +612,14 @@ async def _db_reachable(url: str) -> bool:
 def _chromium_installed() -> bool:
     from playwright.sync_api import sync_playwright
 
-    with sync_playwright() as p:
-        return Path(p.chromium.executable_path).exists()
+    # A headless launch, not a path check: the container ships only the headless shell,
+    # and the slim image has no Playwright driver at all.
+    try:
+        with sync_playwright() as p:
+            p.chromium.launch().close()
+            return True
+    except Exception:
+        return False
 
 
 def doctor_checks() -> list[tuple[str, bool, str]]:

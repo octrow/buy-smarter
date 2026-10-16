@@ -183,6 +183,17 @@ uv run python -m buysmarter.mcp_server   # blocks on stdio; normally the client 
 | `compare` | 2–4 comma-separated products → side-by-side specs (Kaspi). |
 | `get_preferences` / `set_preference` | Read/write preferences (city, budget…). Postgres, or `~/.config/buysmarter/prefs.json` when it is down. |
 
+## Docker
+
+```bash
+docker build -t buysmarter .                       # API on :8000 (/health); add --target browser for Ozon (Chromium)
+docker run --rm -p 8000:8000 -e DATABASE_URL=postgresql+asyncpg://… buysmarter
+docker run --rm -e DATABASE_URL=… buysmarter alembic upgrade head   # migrations are a separate step
+docker run --rm -e OPENAI_API_KEY=… buysmarter buysmarter recommend "…" --budget 30000
+```
+
+The image has no `claude` CLI: LLM calls use the API fallback (`DEFAULT_LLM_MODEL` plus a provider key in env).
+
 ## Development
 
 ```bash

@@ -2,6 +2,15 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Container image: `runtime` target (API, CLI, migrations; non-root, healthcheck) and `browser` target with
+  headless Chromium for Ozon. CI builds the image and smoke-tests it.
+
+### Changed
+- `doctor` checks Chromium with a headless launch, so the headless-only shell counts as installed.
+
 ## [0.1.2] - 2026-10-15
 
 ### Added
