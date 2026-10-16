@@ -41,6 +41,7 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "fakeredis>=2.40.0",
+    "mypy==2.4.0",
 ]
 
 [project.urls]
@@ -74,3 +75,11 @@ markers = [
 # Hack on them locally with: uv pip install -e ../pylibs/<name> (reverted by the next uv sync).
 claude-subprocess = { git = "https://github.com/octrow/claude-cli", branch = "main" }
 market-sources = { git = "https://github.com/octrow/market-sources", branch = "main" }
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# Our own octrow/claude-cli ships no py.typed marker yet.
+module = ["claude_cli", "claude_cli.*"]
+ignore_missing_imports = true

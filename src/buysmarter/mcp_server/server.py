@@ -11,6 +11,7 @@ Run over stdio with ``uv run python -m buysmarter.mcp_server``.
 """
 
 import logging
+from collections.abc import Callable
 
 from fastmcp import FastMCP
 from market_sources.base import ProductSource, RawProduct
@@ -48,7 +49,7 @@ def _source_for(name: str) -> ProductSource:
     would otherwise fall back to ``KASPI_PROXY`` / ``OZON_BASE_URL``).
     """
     settings = get_settings()
-    factories = {
+    factories: dict[str, Callable[[], ProductSource]] = {
         "kaspi": lambda: KaspiSource(KaspiClient(proxy=settings.kaspi_proxy)),
         "ozon": lambda: OzonSource(OzonBrowser(base_url=settings.ozon_base_url)),
         "olx": OlxSource,

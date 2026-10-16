@@ -387,7 +387,7 @@ def _render_knowledge_summary(
     ingredient: IngredientBook | None = None,
 ) -> None:
     """Print a tiers-and-models summary table for a category's knowledge."""
-    tiers = {"A": [], "B": [], "C": []}
+    tiers: dict[str, list[str]] = {"A": [], "B": [], "C": []}
     for name, tier in brand.tiers.items():
         tiers.setdefault(tier, []).append(name)
     table = Table(title=f"Brand tiers — {category}", show_header=True, header_style="bold")

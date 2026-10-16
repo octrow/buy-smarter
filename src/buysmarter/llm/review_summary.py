@@ -11,7 +11,7 @@ repeat calls free.
 import asyncio
 import logging
 import re
-from typing import Literal, get_args
+from typing import Literal, cast, get_args
 
 from market_sources.base import RawReview
 from pydantic import BaseModel, Field
@@ -327,7 +327,7 @@ async def judge_reviews(
     counterfeit = answers["counterfeit"]["noul"] >= COUNTERFEIT_MIN_NOUL
     level = min(round(answers["reliability"]["score"]), len(_RELIABILITY_LEVELS) - 1)
     reliability = _RELIABILITY_LEVELS[max(level, 0)]
-    labelled = {feature: [] for feature in features}
+    labelled: dict[str, list[tuple[int, str, str, float]]] = {feature: [] for feature in features}
     for i, (feature, review_index, sentence) in enumerate(sentences):
         answer = answers[f"s{i}"]
         prob = answer["probabilities"][answer["choice"]]
@@ -373,11 +373,14 @@ async def summarize_reviews(
         ),
         _judge_or_none(selected, features),
     )
+    summary = cast(
+        ReviewSummary, result
+    )  # generate() returns an instance of the model it was given
     update: dict = {}
-    checks = result.requirement_checks  # type: ignore[union-attr]
+    checks = summary.requirement_checks
     if judged is not None:
         counterfeit, reliability, checks = judged
         update = {"counterfeit_suspicion": counterfeit, "reliability_concern": reliability}
     if features:
         update["requirement_checks"] = verify_checks(checks, selected, features)
-    return result.model_copy(update=update) if update else result  # type: ignore[union-attr,return-value]
+    return summary.model_copy(update=update) if update else summary

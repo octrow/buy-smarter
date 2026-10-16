@@ -17,6 +17,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from typing import cast
 
 from claude_cli import MODELS as CLAUDE_CLI_MODELS
 from claude_cli import (
@@ -28,6 +29,7 @@ from claude_cli import (
     normalize_prompt,
 )
 from openai import APIError, AsyncOpenAI
+from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel, ValidationError
 
 from buysmarter import telemetry
@@ -149,7 +151,10 @@ async def _chat(
         kwargs["response_format"] = {"type": "json_object"}
     try:
         return await client.chat.completions.create(
-            model=model, temperature=temperature, messages=messages, **kwargs
+            model=model,
+            temperature=temperature,
+            messages=cast(list[ChatCompletionMessageParam], messages),
+            **kwargs,
         )
     except APIError as exc:
         raise LlmError(f"{provider.name} API call failed: {exc}") from exc

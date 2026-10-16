@@ -20,7 +20,7 @@ from collections import Counter
 from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import NamedTuple
+from typing import NamedTuple, cast
 
 from market_sources.base import ProductSource, RawProduct, RawReview, RawReviewStats
 from market_sources.kaspi.client import KaspiClient
@@ -1826,7 +1826,7 @@ async def recommend(
             new_candidates = await _filter_relevant_candidates(
                 new_candidates, constraints.category, use_llm, protected_ids
             )
-        used_candidates = collected.get("olx") or []
+        used_candidates = cast(list[Candidate], collected.get("olx") or [])
         deduped, notes = dedupe_cross_source(new_candidates, model_book)
         if is_smartphone_category(constraints.category):
             with _stage("kimovil"):
@@ -2031,7 +2031,7 @@ def _merge_new_goods(collected: dict[str, object]) -> tuple[list[Candidate], lis
         result = collected.get(name)
         if not result:
             continue
-        source_candidates, source_rows = result  # type: ignore[misc]
+        source_candidates, source_rows = cast(tuple[list[Candidate], list[tuple]], result)
         candidates.extend(source_candidates)
         rows.extend(source_rows)
     return candidates, rows

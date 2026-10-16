@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 from functools import lru_cache
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel, Field
 from redis.asyncio import Redis
@@ -169,22 +169,25 @@ class JobStore:
             "dedupe": dedupe,
         }
         async with self.redis.pipeline(transaction=True) as pipe:
-            pipe.hset(_job_key(job_id), mapping=fields)
+            # redis-py types the mapping key invariantly; a dict[str, str] is valid at runtime.
+            pipe.hset(_job_key(job_id), mapping=fields)  # type: ignore[arg-type]
             pipe.expire(_job_key(job_id), JOB_TTL_S)
             await pipe.execute()
         return _to_job(job_id, fields)
 
     async def get(self, job_id: str) -> Job | None:
-        fields = await self.redis.hgetall(_job_key(job_id))
+        # decode_responses=True: replies are str, the stubs say bytes | str.
+        fields = cast(dict[str, str], await self.redis.hgetall(_job_key(job_id)))
         return _to_job(job_id, fields) if fields else None
 
     async def start(self, job_id: str) -> bool:
         """Mark running; False when the job is gone or already finished (a redelivered message)."""
-        status = await self.redis.hget(_job_key(job_id), "status")
+        status = cast(str | None, await self.redis.hget(_job_key(job_id), "status"))
         if status is None or JobStatus(status) in TERMINAL:
             return False
         await self.redis.hset(
-            _job_key(job_id), mapping={"status": JobStatus.RUNNING.value, "started_at": _now()}
+            _job_key(job_id),
+            mapping={"status": JobStatus.RUNNING.value, "started_at": _now()},
         )
         return True
 
@@ -201,23 +204,23 @@ class JobStore:
             fields["result"] = json.dumps(result, ensure_ascii=False)
         if error is not None:
             fields["error"] = error
-        await self.redis.hset(_job_key(job_id), mapping=fields)
+        await self.redis.hset(_job_key(job_id), mapping=fields)  # type: ignore[arg-type]
         if status is JobStatus.FAILED:
             await self._release_dedupe(job_id)
 
     async def find_dedupe(self, key: str) -> Job | None:
         """The live job for this request, if one was created within the dedupe window."""
-        job_id = await self.redis.get(_dedupe_key(key))
+        job_id = cast(str | None, await self.redis.get(_dedupe_key(key)))
         return await self.get(job_id) if job_id else None
 
     async def claim_dedupe(self, key: str, job_id: str) -> str | None:
         """Take the dedupe slot for ``job_id``; return the job already holding it, if any."""
         if await self.redis.set(_dedupe_key(key), job_id, nx=True, ex=DEDUPE_TTL_S):
             return None
-        return await self.redis.get(_dedupe_key(key))
+        return cast(str | None, await self.redis.get(_dedupe_key(key)))
 
     async def _release_dedupe(self, job_id: str) -> None:
-        dedupe = await self.redis.hget(_job_key(job_id), "dedupe")
+        dedupe = cast(str | None, await self.redis.hget(_job_key(job_id), "dedupe"))
         if dedupe and await self.redis.get(_dedupe_key(dedupe)) == job_id:
             await self.redis.delete(_dedupe_key(dedupe))
 
