@@ -46,18 +46,23 @@ LLM_CALLS = _meter.create_counter(
 _UNTRACED_PATHS = "health,ready,metrics"
 
 
-def _metrics_endpoint() -> Response:
-    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
-
-
 def instrument_app(app: FastAPI) -> None:
-    """Install the SDK providers, instrument FastAPI/httpx/SQLAlchemy and serve ``GET /metrics``.
-
-    Traces are exported over OTLP only when ``OTEL_EXPORTER_OTLP_ENDPOINT`` is set; the exporter
-    reads the rest of its configuration from the standard ``OTEL_*`` variables.
-    """
+    """Install the SDK providers, instrument FastAPI/httpx/SQLAlchemy and serve ``GET /metrics``."""
     from buysmarter.db.base import engine
 
+    _install_providers()
+    FastAPIInstrumentor.instrument_app(app, excluded_urls=_UNTRACED_PATHS)
+    HTTPXClientInstrumentor().instrument()
+    SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
+    app.add_api_route("/metrics", _metrics_endpoint, include_in_schema=False)
+
+
+def _install_providers() -> None:
+    """Global meter provider with the Prometheus reader; a tracer provider only for OTLP.
+
+    Traces are exported only when ``OTEL_EXPORTER_OTLP_ENDPOINT`` is set; the exporter reads the
+    rest of its configuration from the standard ``OTEL_*`` variables.
+    """
     # Stable HTTP semconv: http_server_request_duration_seconds, labelled by http_route.
     os.environ.setdefault("OTEL_SEMCONV_STABILITY_OPT_IN", "http")
     resource = Resource.create({SERVICE_NAME: os.environ.get("OTEL_SERVICE_NAME", "buysmarter")})
@@ -71,7 +76,6 @@ def instrument_app(app: FastAPI) -> None:
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
         trace.set_tracer_provider(provider)
 
-    FastAPIInstrumentor.instrument_app(app, excluded_urls=_UNTRACED_PATHS)
-    HTTPXClientInstrumentor().instrument()
-    SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
-    app.add_api_route("/metrics", _metrics_endpoint, include_in_schema=False)
+
+def _metrics_endpoint() -> Response:
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
