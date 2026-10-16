@@ -9,6 +9,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   headless Chromium for Ozon. CI builds the image and smoke-tests it.
 - `docker compose up -d --build` runs the whole stack: Postgres, Redis, a one-shot `migrate` and the API on :8000;
   the `browser` profile adds the Chromium image. `make up` still starts only Postgres and Redis.
+- Images on GHCR (`ghcr.io/octrow/buy-smarter`, `-browser` suffix for Chromium): `main` and `sha-…` on every commit
+  to main, `X.Y.Z`, `X.Y` and `latest` on releases; with build provenance, SBOM and a Trivy gate on critical CVEs.
 
 ### Changed
 - `doctor` checks Chromium with a headless launch, so the headless-only shell counts as installed.

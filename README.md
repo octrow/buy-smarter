@@ -192,6 +192,10 @@ docker compose --profile browser up -d --build app-browser   # with Chromium for
 docker compose down                 # add -v to drop the data
 ```
 
+Prebuilt images: `ghcr.io/octrow/buy-smarter:latest` (releases), `:main` (every commit to main), `-browser`
+suffix for Chromium. `TAG=main docker compose pull && docker compose up -d` runs them without building.
+Check where an image came from with `gh attestation verify oci://ghcr.io/octrow/buy-smarter:latest -R octrow/buy-smarter`.
+
 The image has no `claude` CLI: LLM calls use the API fallback (`DEFAULT_LLM_MODEL` plus a provider key in `.env`).
 Without compose: `docker build -t buysmarter .` (`--target browser` for Chromium), then run `alembic upgrade head`
 from the same image before the API.

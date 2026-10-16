@@ -194,6 +194,10 @@ docker compose --profile browser up -d --build app-browser   # с Chromium дл�
 docker compose down                 # с -v удалит и данные
 ```
 
+Готовые образы: `ghcr.io/octrow/buy-smarter:latest` (релизы), `:main` (каждый коммит в main), суффикс `-browser`
+для Chromium. `TAG=main docker compose pull && docker compose up -d` запускает их без сборки.
+Происхождение образа: `gh attestation verify oci://ghcr.io/octrow/buy-smarter:latest -R octrow/buy-smarter`.
+
 В образе нет `claude` CLI: LLM работает через API-фолбэк (`DEFAULT_LLM_MODEL` и ключ провайдера в `.env`).
 Без compose: `docker build -t buysmarter .` (`--target browser` для Chromium), затем `alembic upgrade head` из того же
 образа перед запуском API.
