@@ -7,9 +7,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ### Added
 - Container image: `runtime` target (API, CLI, migrations; non-root, healthcheck) and `browser` target with
   headless Chromium for Ozon. CI builds the image and smoke-tests it.
+- `docker compose up -d --build` runs the whole stack: Postgres, Redis, a one-shot `migrate` and the API on :8000;
+  the `browser` profile adds the Chromium image. `make up` still starts only Postgres and Redis.
 
 ### Changed
 - `doctor` checks Chromium with a headless launch, so the headless-only shell counts as installed.
+- Compose publishes Postgres and Redis on 127.0.0.1 only.
 
 ## [0.1.2] - 2026-10-15
 

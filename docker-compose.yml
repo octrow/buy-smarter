@@ -1,3 +1,16 @@
+# `docker compose up -d --build`: the whole stack on :8000. `make up`: only Postgres and Redis, for running from the host.
+x-app: &app
+  build:
+    context: .
+    target: runtime
+  image: ghcr.io/octrow/buy-smarter:${TAG:-latest}
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    DATABASE_URL: postgresql+asyncpg://buysmarter:buysmarter@postgres:5432/buysmarter
+    REDIS_URL: redis://redis:6379/0
+
 services:
   postgres:
     image: postgres:16
@@ -6,7 +19,7 @@ services:
       POSTGRES_PASSWORD: buysmarter
       POSTGRES_DB: buysmarter
     ports:
-      - "5434:5432"
+      - "127.0.0.1:5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -18,7 +31,7 @@ services:
   redis:
     image: redis:7
     ports:
-      - "6380:6379"
+      - "127.0.0.1:6380:6379"
     volumes:
       - redisdata:/data
     healthcheck:
@@ -27,6 +40,44 @@ services:
       timeout: 5s
       retries: 5
 
+  migrate:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app:
+    <<: *app
+    ports:
+      - "8000:8000"
+    volumes:
+      - cache:/home/app/.cache/buysmarter
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Ozon needs Chromium: `docker compose --profile browser up -d app-browser`.
+  app-browser:
+    <<: *app
+    profiles: [browser]
+    build:
+      context: .
+      target: browser
+    image: ghcr.io/octrow/buy-smarter:${TAG:-latest}-browser
+    ports:
+      - "8001:8000"
+    volumes:
+      - cache:/home/app/.cache/buysmarter
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
 volumes:
   pgdata:
   redisdata:
+  cache:

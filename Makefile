@@ -1,7 +1,7 @@
 .PHONY: up down check test
 
 up:
-	docker compose up -d
+	docker compose up -d postgres redis
 
 down:
 	docker compose down

@@ -186,13 +186,15 @@ uv run python -m buysmarter.mcp_server   # blocks on stdio; normally the client 
 ## Docker
 
 ```bash
-docker build -t buysmarter .                       # API on :8000 (/health); add --target browser for Ozon (Chromium)
-docker run --rm -p 8000:8000 -e DATABASE_URL=postgresql+asyncpg://… buysmarter
-docker run --rm -e DATABASE_URL=… buysmarter alembic upgrade head   # migrations are a separate step
-docker run --rm -e OPENAI_API_KEY=… buysmarter buysmarter recommend "…" --budget 30000
+docker compose up -d --build        # Postgres + Redis + migrations + API on :8000 (/health); keys come from .env
+docker compose run --rm app buysmarter recommend "…" --budget 30000
+docker compose --profile browser up -d --build app-browser   # with Chromium for Ozon, on :8001
+docker compose down                 # add -v to drop the data
 ```
 
-The image has no `claude` CLI: LLM calls use the API fallback (`DEFAULT_LLM_MODEL` plus a provider key in env).
+The image has no `claude` CLI: LLM calls use the API fallback (`DEFAULT_LLM_MODEL` plus a provider key in `.env`).
+Without compose: `docker build -t buysmarter .` (`--target browser` for Chromium), then run `alembic upgrade head`
+from the same image before the API.
 
 ## Development
 

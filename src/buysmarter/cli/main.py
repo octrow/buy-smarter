@@ -610,10 +610,13 @@ async def _db_reachable(url: str) -> bool:
 
 
 def _chromium_installed() -> bool:
+    import playwright
     from playwright.sync_api import sync_playwright
 
-    # A headless launch, not a path check: the container ships only the headless shell,
-    # and the slim image has no Playwright driver at all.
+    # A headless launch, not a path check: the container ships only the headless shell.
+    # The slim image has no Playwright driver at all, and launching without it logs a traceback.
+    if not (Path(playwright.__file__).parent / "driver").is_dir():
+        return False
     try:
         with sync_playwright() as p:
             p.chromium.launch().close()

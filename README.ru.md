@@ -188,13 +188,15 @@ uv run python -m buysmarter.mcp_server   # блокируется на stdio; о
 ## Docker
 
 ```bash
-docker build -t buysmarter .                       # API на :8000 (/health); --target browser добавит Chromium для Ozon
-docker run --rm -p 8000:8000 -e DATABASE_URL=postgresql+asyncpg://… buysmarter
-docker run --rm -e DATABASE_URL=… buysmarter alembic upgrade head   # миграции — отдельной командой
-docker run --rm -e OPENAI_API_KEY=… buysmarter buysmarter recommend "…" --budget 30000
+docker compose up -d --build        # Postgres + Redis + миграции + API на :8000 (/health); ключи берутся из .env
+docker compose run --rm app buysmarter recommend "…" --budget 30000
+docker compose --profile browser up -d --build app-browser   # с Chromium для Ozon, на :8001
+docker compose down                 # с -v удалит и данные
 ```
 
-В образе нет `claude` CLI: LLM работает через API-фолбэк (`DEFAULT_LLM_MODEL` и ключ провайдера в env).
+В образе нет `claude` CLI: LLM работает через API-фолбэк (`DEFAULT_LLM_MODEL` и ключ провайдера в `.env`).
+Без compose: `docker build -t buysmarter .` (`--target browser` для Chromium), затем `alembic upgrade head` из того же
+образа перед запуском API.
 
 ## Разработка
 
