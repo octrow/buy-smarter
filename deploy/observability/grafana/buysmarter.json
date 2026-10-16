@@ -2,7 +2,7 @@
   "uid": "buysmarter",
   "title": "buy-smarter",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "time": {
     "from": "now-1h",
@@ -178,6 +178,131 @@
           "refId": "A",
           "expr": "sum(rate(buysmarter_recommend_offers_ranked_sum[15m])) / sum(rate(buysmarter_recommend_offers_ranked_count[15m]))",
           "legendFormat": "offers"
+        }
+      ]
+    },
+    {
+      "id": 100,
+      "type": "row",
+      "title": "Queue",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "panels": []
+    },
+    {
+      "id": 101,
+      "type": "timeseries",
+      "title": "Finished jobs by status",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (status) (rate(buysmarter_jobs_total[15m]))",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "type": "timeseries",
+      "title": "p95 time in queue",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(buysmarter_job_wait_seconds_bucket[15m])))",
+          "legendFormat": "p95 wait"
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "type": "timeseries",
+      "title": "Rate-limited POST /recommend",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 33
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(buysmarter_rate_limited_total[15m]))",
+          "legendFormat": "429/s"
+        }
+      ]
+    },
+    {
+      "id": 104,
+      "type": "timeseries",
+      "title": "Workers up",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 33
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(up{job=\"buysmarter-worker\"})",
+          "legendFormat": "workers"
         }
       ]
     }

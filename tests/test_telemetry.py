@@ -113,3 +113,24 @@ async def test_llm_calls_are_counted_as_cache_hits_and_misses(monkeypatch) -> No
 
     assert _sample("buysmarter_llm_calls_total", model="sonnet", cache="hit") == hits + 1
     assert _sample("buysmarter_llm_calls_total", model="sonnet", cache="miss") == misses + 1
+
+
+async def test_finished_jobs_and_queue_wait_are_recorded(monkeypatch, recommend_result) -> None:
+    from fakeredis import FakeAsyncRedis
+
+    from buysmarter import worker
+    from buysmarter.jobs import JobStore, RecommendRequest
+
+    async def fake_recommend(query, **kwargs):
+        return recommend_result
+
+    monkeypatch.setattr(worker, "recommend", fake_recommend)
+    store = JobStore(FakeAsyncRedis(decode_responses=True))
+    job = await store.create(RecommendRequest(query="q", sources=["kaspi"]), dedupe="d")
+    done = _sample("buysmarter_jobs_total", status="done")
+    waits = _sample("buysmarter_job_wait_seconds_count")
+
+    await worker.run_job(store, job.id)
+
+    assert _sample("buysmarter_jobs_total", status="done") == done + 1
+    assert _sample("buysmarter_job_wait_seconds_count") == waits + 1
