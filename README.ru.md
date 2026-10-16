@@ -70,14 +70,14 @@
 Stream, выполняет воркер, а клиент опрашивает результат.
 
 ```mermaid
-flowchart LR
-    client([client]) -->|"POST /recommend<br/>GET /recommend/{id}"| api[FastAPI]
+flowchart TD
+    client([client]) -->|"POST /recommend, GET /recommend/{id}"| api[FastAPI]
     api -->|"job, dedupe, rate limit"| redis[(Redis)]
     redis -->|"stream, ack after the run"| worker[taskiq worker]
+    worker -->|result| redis
     worker -->|"search, offers, reviews"| markets[Kaspi · Ozon · OLX]
-    worker -->|"price history"| pg[(Postgres)]
-    worker -->|"result"| redis
-    api -.->|"metrics, traces"| obs[Prometheus · Grafana · Jaeger]
+    worker -->|price history| pg[(Postgres)]
+    api -.->|metrics, traces| obs[Prometheus · Grafana · Jaeger]
     worker -.-> obs
 ```
 
@@ -90,8 +90,10 @@ flowchart LR
 через воркер до запросов в Postgres и HTTP-запросов к площадкам.
 
 <p align="center">
-  <img src="./assets/readme/grafana.png" width="49%" alt="Дашборд Grafana buy-smarter за последние 30 минут: запросы по маршрутам, p95 задержки, поиски по площадкам Kaspi и OLX по исходу, вызовы LLM (в этом прогоне их нет), p95 длительности подбора около 45 секунд, около 12 кандидатов в рейтинге, ряд Queue с завершёнными задачами, p95 ожидания в очереди около 5 секунд, ноль отказов по лимиту и один живой воркер.">
-  <img src="./assets/readme/jaeger.png" width="49%" alt="Трейс Jaeger buysmarter: POST /recommend, 43,8 секунды, 426 спанов. Спан POST (202) ведёт к спану отправки taskiq и спану выполнения в воркере, внутри которого спаны подключения и SELECT к Postgres, а за ними ряд HTTP GET 200 по 350–730 миллисекунд.">
+  <img src="./assets/readme/grafana.png" width="100%" alt="Дашборд Grafana buy-smarter за последние 30 минут: запросы по маршрутам, p95 задержки, поиски по площадкам Kaspi и OLX по исходу, вызовы LLM (в этом прогоне их нет), p95 длительности подбора около 45 секунд, около 12 кандидатов в рейтинге и ряд Queue с завершёнными задачами и p95 ожидания в очереди около 5 секунд.">
+</p>
+<p align="center">
+  <img src="./assets/readme/jaeger.png" width="100%" alt="Трейс Jaeger buysmarter: POST /recommend, 43,8 секунды, 426 спанов. Спан POST (202) ведёт к спану отправки taskiq и спану выполнения в воркере, внутри которого спаны подключения и SELECT к Postgres, а за ними ряд HTTP GET 200 по 350–730 миллисекунд.">
 </p>
 
 Каждый PR гоняет тесты, собирает образ (не root, healthcheck), поднимает compose-стек и ставит, тестирует и

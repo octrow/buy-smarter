@@ -68,14 +68,14 @@ One pipeline sits behind all three entry points. A run takes tens of seconds, so
 stream, a worker runs it, and the client polls for the result.
 
 ```mermaid
-flowchart LR
-    client([client]) -->|"POST /recommend<br/>GET /recommend/{id}"| api[FastAPI]
+flowchart TD
+    client([client]) -->|"POST /recommend, GET /recommend/{id}"| api[FastAPI]
     api -->|"job, dedupe, rate limit"| redis[(Redis)]
     redis -->|"stream, ack after the run"| worker[taskiq worker]
+    worker -->|result| redis
     worker -->|"search, offers, reviews"| markets[Kaspi · Ozon · OLX]
-    worker -->|"price history"| pg[(Postgres)]
-    worker -->|"result"| redis
-    api -.->|"metrics, traces"| obs[Prometheus · Grafana · Jaeger]
+    worker -->|price history| pg[(Postgres)]
+    api -.->|metrics, traces| obs[Prometheus · Grafana · Jaeger]
     worker -.-> obs
 ```
 
@@ -88,8 +88,10 @@ jobs: the dashboard with HTTP, marketplace, ranking and queue panels, and one jo
 `POST /recommend` through the worker to the Postgres queries and the marketplace HTTP calls.
 
 <p align="center">
-  <img src="./assets/readme/grafana.png" width="49%" alt="Grafana dashboard buy-smarter over the last 30 minutes: requests per route, p95 latency, marketplace searches by outcome for Kaspi and OLX, LLM calls (none in this run), recommend p95 duration around 45 seconds, about 12 ranked offers per run, and a Queue row with finished jobs, about 5 seconds p95 time in queue, zero rate-limited requests and one worker up.">
-  <img src="./assets/readme/jaeger.png" width="49%" alt="Jaeger trace buysmarter: POST /recommend, 43.8 seconds, 426 spans. The POST span (202) leads to the taskiq send span and the execute span in the worker, which holds Postgres connect and SELECT spans followed by a row of HTTP GET 200 calls of 350 to 730 milliseconds each.">
+  <img src="./assets/readme/grafana.png" width="100%" alt="Grafana dashboard buy-smarter over the last 30 minutes: requests per route, p95 latency, marketplace searches by outcome for Kaspi and OLX, LLM calls (none in this run), recommend p95 duration around 45 seconds, about 12 ranked offers per run, and a Queue row with finished jobs and about 5 seconds p95 time in queue.">
+</p>
+<p align="center">
+  <img src="./assets/readme/jaeger.png" width="100%" alt="Jaeger trace buysmarter: POST /recommend, 43.8 seconds, 426 spans. The POST span (202) leads to the taskiq send span and the execute span in the worker, which holds Postgres connect and SELECT spans followed by a row of HTTP GET 200 calls of 350 to 730 milliseconds each.">
 </p>
 
 Every PR runs the tests, builds the image (non-root, healthcheck), starts the compose stack and installs, tests
