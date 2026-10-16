@@ -16,6 +16,7 @@ from rich.table import Table
 
 from buysmarter.cli.report import format_rejected_reasons, save_report
 from buysmarter.config import get_settings
+from buysmarter.db.base import db_reachable as _db_reachable
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.generate import (
     EXTRACT_KNOWLEDGE_MODEL,
@@ -589,24 +590,6 @@ def ozon_setup() -> None:
         console.print("[red]Не удалось получить сессию Ozon за отведённое время.[/red]")
         raise typer.Exit(code=1)
     console.print(f"[green]Сессия Ozon сохранена: {escape(str(path))}[/green]")
-
-
-_DB_TIMEOUT_S = 3
-
-
-async def _db_reachable(url: str) -> bool:
-    from sqlalchemy import text
-    from sqlalchemy.ext.asyncio import create_async_engine
-
-    engine = create_async_engine(url, connect_args={"timeout": _DB_TIMEOUT_S})
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("select 1"))
-        return True
-    except Exception:
-        return False
-    finally:
-        await engine.dispose()
 
 
 def _chromium_installed() -> bool:

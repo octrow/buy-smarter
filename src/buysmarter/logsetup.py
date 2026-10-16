@@ -20,6 +20,7 @@ _DEFAULT_FILE_LEVEL = "INFO"
 _DEFAULT_CONSOLE_LEVEL = "WARNING"
 _NOISY_LOGGERS = ("httpx", "mcp")  # seen at INFO in the log file
 _RUN_ID_LEN = 8
+_STREAM_ONLY = "-"  # BUYSMARTER_LOG_FILE value: no file, stderr only
 
 _run_id: contextvars.ContextVar[str] = contextvars.ContextVar("run_id", default="-")
 
@@ -54,8 +55,19 @@ def _env_level(var: str, default: str) -> int:
 _MARKER = "_buysmarter_logsetup"
 
 
+def _ours(handler: logging.Handler, level: int) -> logging.Handler:
+    handler.setLevel(level)
+    handler.setFormatter(logging.Formatter(_FORMAT))
+    handler.addFilter(_RunIdFilter())
+    setattr(handler, _MARKER, True)
+    return handler
+
+
 def setup_logging(log_path: Path | str | None = None) -> None:
     """Attach a rotating file handler (INFO) + console handler (WARNING) to root.
+
+    ``BUYSMARTER_LOG_FILE=-`` (the container image) drops the file: one stderr handler
+    at the file level instead, so the container runtime collects the INFO records.
 
     Safe to call more than once: any handlers this function previously added
     are removed first, so re-configuring (e.g. with a different path) doesn't
@@ -66,27 +78,21 @@ def setup_logging(log_path: Path | str | None = None) -> None:
         if getattr(handler, _MARKER, False):
             root.removeHandler(handler)
 
-    path = Path(log_path or os.environ.get("BUYSMARTER_LOG_FILE") or _DEFAULT_LOG_PATH)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    file_level = _env_level("BUYSMARTER_LOG_LEVEL", _DEFAULT_FILE_LEVEL)
+    target = str(log_path or os.environ.get("BUYSMARTER_LOG_FILE") or _DEFAULT_LOG_PATH)
+    if target == _STREAM_ONLY:
+        handlers = [_ours(logging.StreamHandler(), file_level)]
+    else:
+        path = Path(target)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = RotatingFileHandler(
+            path, maxBytes=_MAX_BYTES, backupCount=_BACKUP_COUNT, encoding="utf-8"
+        )
+        console_level = _env_level("BUYSMARTER_CONSOLE_LOG_LEVEL", _DEFAULT_CONSOLE_LEVEL)
+        handlers = [_ours(file_handler, file_level), _ours(logging.StreamHandler(), console_level)]
 
-    formatter = logging.Formatter(_FORMAT)
-
-    file_handler = RotatingFileHandler(
-        path, maxBytes=_MAX_BYTES, backupCount=_BACKUP_COUNT, encoding="utf-8"
-    )
-    file_handler.setLevel(_env_level("BUYSMARTER_LOG_LEVEL", _DEFAULT_FILE_LEVEL))
-    file_handler.setFormatter(formatter)
-    file_handler.addFilter(_RunIdFilter())
-    setattr(file_handler, _MARKER, True)
-
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(_env_level("BUYSMARTER_CONSOLE_LOG_LEVEL", _DEFAULT_CONSOLE_LEVEL))
-    console_handler.setFormatter(formatter)
-    console_handler.addFilter(_RunIdFilter())
-    setattr(console_handler, _MARKER, True)
-
-    root.setLevel(min(file_handler.level, console_handler.level))
+    root.setLevel(min(h.level for h in handlers))
     for name in _NOISY_LOGGERS:
         logging.getLogger(name).setLevel(logging.WARNING)
-    root.addHandler(file_handler)
-    root.addHandler(console_handler)
+    for handler in handlers:
+        root.addHandler(handler)

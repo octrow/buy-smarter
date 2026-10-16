@@ -132,3 +132,18 @@ def test_default_log_file_lives_in_the_user_cache_dir_not_the_working_dir() -> N
 
     expected = Path.home() / ".cache" / "buysmarter" / "logs" / "buysmarter.log"
     assert logsetup._DEFAULT_LOG_PATH == expected
+
+
+def test_log_file_dash_streams_info_to_stderr_without_a_file(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("BUYSMARTER_LOG_FILE", "-")
+
+    setup_logging()
+    logging.getLogger("buysmarter.test").info("to the container log")
+
+    root = logging.getLogger()
+    assert not [h for h in root.handlers if isinstance(h, logging.FileHandler)]
+    captured = capsys.readouterr()
+    assert "to the container log" in captured.err
+    assert "to the container log" not in captured.out
+    assert not list(tmp_path.iterdir())

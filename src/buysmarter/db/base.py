@@ -1,6 +1,6 @@
 """Async SQLAlchemy engine, session factory, and declarative base."""
 
-from sqlalchemy import NullPool
+from sqlalchemy import NullPool, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 
 from buysmarter.config import get_settings
+
+DB_TIMEOUT_S = 3
 
 
 class Base(DeclarativeBase):
@@ -29,6 +31,19 @@ def create_engine() -> AsyncEngine:
     connect cost is irrelevant.
     """
     return create_async_engine(get_settings().database_url, echo=False, poolclass=NullPool)
+
+
+async def db_reachable(url: str) -> bool:
+    """True when ``select 1`` succeeds within ``DB_TIMEOUT_S``; throwaway engine, no pool state."""
+    probe = create_async_engine(url, connect_args={"timeout": DB_TIMEOUT_S})
+    try:
+        async with probe.connect() as conn:
+            await conn.execute(text("select 1"))
+        return True
+    except Exception:
+        return False
+    finally:
+        await probe.dispose()
 
 
 engine: AsyncEngine = create_engine()
