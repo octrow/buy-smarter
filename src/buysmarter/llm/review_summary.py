@@ -204,7 +204,7 @@ def verify_checks(
 # On any Jev failure the LLM's own values stay (the previous behaviour).
 
 # ponytail: thresholds tuned on a hand-labelled Russian review set
-# (docs/jev-migration.md §3); retune on real Kaspi runs.
+# (docs/jev-migration.md §3); retune after 50 real runs or at the first miss seen in one.
 COUNTERFEIT_MIN_NOUL = 0.5
 # A sentence counts toward a verdict when Jev's pick holds at least this share.
 SENTENCE_MIN_PROB = 0.6

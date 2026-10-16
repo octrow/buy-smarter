@@ -37,7 +37,8 @@ RELEVANCE_MODEL = "free-stack"
 # Keep a title at or above this P(real product). Recall-biased on purpose: the pool
 # is fail-open (``_restore_min``), and a bare model code ("Tefal X-plorer Serie 75")
 # scores ~0.3 while accessories score <= 0.24.
-# ponytail: tuned on 26 hand-labelled titles (docs/jev-migration.md); retune on real runs.
+# ponytail: tuned on 26 hand-labelled titles (docs/jev-migration.md);
+# retune after 50 real runs or at the first miss seen in one.
 KEEP_THRESHOLD = 0.25
 
 # Noul criteria shared by every title question (Jev reads instructions literally,
