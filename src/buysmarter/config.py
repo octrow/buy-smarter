@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     rate_limit_jobs: int = Field(10, validation_alias="BUYSMARTER_RATE_LIMIT_JOBS")
     rate_limit_window_s: int = Field(600, validation_alias="BUYSMARTER_RATE_LIMIT_WINDOW_S")
     worker_metrics_port: int = Field(9000, validation_alias="BUYSMARTER_WORKER_METRICS_PORT")
+    job_timeout_s: int = Field(300, validation_alias="BUYSMARTER_JOB_TIMEOUT_S")
 
 
 def get_settings() -> Settings:

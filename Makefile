@@ -4,7 +4,7 @@ up:
 	docker compose up -d postgres redis
 
 down:
-	docker compose --profile observability --profile browser down
+	docker compose --profile observability down
 
 # The whole stack plus Prometheus, Grafana and Jaeger, with traces on.
 observe:

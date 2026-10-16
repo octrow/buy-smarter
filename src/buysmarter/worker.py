@@ -3,7 +3,7 @@
     taskiq worker buysmarter.worker:broker --ack-type when_executed --workers 1 --max-async-tasks 2
 
 ``when_executed``: a message is acknowledged only after the job ran, so the job of a worker that
-died mid-run is reclaimed by another one (``XAUTOCLAIM`` after ``_IDLE_TIMEOUT_MS``).
+died mid-run is reclaimed by another one (``XAUTOCLAIM`` after twice the job timeout).
 """
 
 import asyncio
@@ -24,9 +24,9 @@ from buysmarter.services.recommend import NoSubstanceMatch, recommend
 
 logger = logging.getLogger(__name__)
 
-JOB_TIMEOUT_S = 300
-# Longer than the job timeout: a job still within its time is never handed to a second worker.
-_IDLE_TIMEOUT_MS = 10 * 60 * 1000
+# A message unacked this long belongs to a dead worker. Twice the job timeout: a job still within
+# its time is never handed to a second worker.
+_IDLE_TIMEOUT_FACTOR = 2
 _CLAIM_LOCK_S = 60
 QUEUE = "buysmarter:recommend"
 
@@ -37,11 +37,12 @@ TaskiqInstrumentor().instrument()
 def _make_broker() -> AsyncBroker:
     if os.environ.get("BUYSMARTER_BROKER") == "memory":  # tests: in-process, no Redis
         return InMemoryBroker()
+    settings = get_settings()
     return RedisStreamBroker(
-        url=get_settings().redis_url,
+        url=settings.redis_url,
         queue_name=QUEUE,
         consumer_group_name="buysmarter-workers",
-        idle_timeout=_IDLE_TIMEOUT_MS,
+        idle_timeout=settings.job_timeout_s * _IDLE_TIMEOUT_FACTOR * 1000,
         unacknowledged_lock_timeout=_CLAIM_LOCK_S,
     )
 
@@ -50,11 +51,28 @@ broker = _make_broker()
 
 
 @broker.on_event(TaskiqEvents.WORKER_STARTUP)
-async def _startup(_: TaskiqState) -> None:
+async def _startup(state: TaskiqState) -> None:
     if not broker.is_worker_process:  # the in-memory test broker fires worker events in-process
         return
+    settings = get_settings()
     logsetup.setup_logging()
-    telemetry.instrument_worker(get_settings().worker_metrics_port)
+    telemetry.instrument_worker(settings.worker_metrics_port)
+    idle_s = settings.job_timeout_s * _IDLE_TIMEOUT_FACTOR
+    state.nudger = asyncio.create_task(_nudge_reclaim(idle_s / 2))
+
+
+# ponytail: taskiq-redis 1.2.4 runs XAUTOCLAIM only after a non-empty XREADGROUP, so on an idle
+# queue a dead worker's job waits for the next message. A periodic no-op message is that next
+# message; drop this once RedisStreamBroker.listen() reclaims on empty reads too.
+@broker.task(task_name="buysmarter.reclaim_nudge")
+async def reclaim_nudge() -> None:
+    """No-op: its delivery makes the broker look for unacknowledged jobs."""
+
+
+async def _nudge_reclaim(period_s: float) -> None:
+    while True:
+        await asyncio.sleep(period_s)
+        await reclaim_nudge.kiq()
 
 
 @broker.task(task_name="buysmarter.recommend")
@@ -77,6 +95,7 @@ async def run_job(store: JobStore, job_id: str) -> None:
 
 async def _execute(job: Job) -> tuple[JobStatus, dict[str, Any] | None, str | None]:
     req = job.request
+    timeout_s = get_settings().job_timeout_s
     try:
         result = await asyncio.wait_for(
             recommend(
@@ -87,7 +106,7 @@ async def _execute(job: Job) -> tuple[JobStatus, dict[str, Any] | None, str | No
                 trusted_only=req.trusted_only,
                 sources=req.sources,
             ),
-            JOB_TIMEOUT_S,
+            timeout_s,
         )
     except NoSubstanceMatch as exc:
         outcome = RecommendOutcome(
@@ -100,7 +119,7 @@ async def _execute(job: Job) -> tuple[JobStatus, dict[str, Any] | None, str | No
         )
         return JobStatus.NO_MATCH, outcome.model_dump(mode="json"), None
     except TimeoutError:
-        logger.warning("job %s: timed out after %ss", job.id, JOB_TIMEOUT_S)
+        logger.warning("job %s: timed out after %ss", job.id, timeout_s)
         return JobStatus.FAILED, None, "timeout"
     except Exception:
         logger.exception("job %s: pipeline failed", job.id)

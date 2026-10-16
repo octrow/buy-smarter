@@ -76,8 +76,8 @@ jobs:
           version: v3.19.5
       - name: Lint and validate against the Kubernetes schemas
         run: |
-          helm lint "$CHART" --set secret.data.DATABASE_URL=x
-          helm template t "$CHART" --set secret.data.DATABASE_URL=x \
+          helm lint "$CHART" --set secret.data.DATABASE_URL=x --set secret.data.REDIS_URL=x
+          helm template t "$CHART" --set secret.data.DATABASE_URL=x --set secret.data.REDIS_URL=x \
             --set ingress.enabled=true --set autoscaling.enabled=true --set podDisruptionBudget.enabled=true \
             --set metrics.serviceMonitor.enabled=true --set otel.endpoint=http://collector:4318 \
             | docker run -i --rm "$KUBECONFORM" -strict -summary -kubernetes-version 1.33.0 \

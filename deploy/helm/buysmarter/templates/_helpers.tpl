@@ -30,6 +30,14 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 {{- end }}
 
+{{- define "buysmarter.workerImage" -}}
+{{- if .Values.worker.browser -}}
+{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}-browser
+{{- else -}}
+{{ include "buysmarter.image" . }}
+{{- end -}}
+{{- end }}
+
 {{- define "buysmarter.secretName" -}}
 {{- .Values.secret.existing | default (include "buysmarter.fullname" .) }}
 {{- end }}
@@ -58,6 +66,10 @@ capabilities:
 {{- end }}
 {{- with .Values.otel.endpoint }}
 {{- $_ := set $env "OTEL_EXPORTER_OTLP_ENDPOINT" . }}
+{{- end }}
+{{- $_ := set $env "BUYSMARTER_WORKER_METRICS_PORT" (toString .Values.worker.metricsPort) }}
+{{- if not (hasKey $env "BUYSMARTER_SOURCES") }}
+{{- $_ := set $env "BUYSMARTER_SOURCES" (ternary "kaspi,ozon,olx" "kaspi,olx" .Values.worker.browser) }}
 {{- end }}
 envFrom:
   - secretRef:

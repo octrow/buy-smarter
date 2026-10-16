@@ -1,0 +1,21 @@
+{{- if and .Values.worker.enabled .Values.metrics.enabled .Values.metrics.serviceMonitor.enabled }}
+# The worker has no Service, so the Prometheus Operator scrapes its pods directly.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "buysmarter.fullname" . }}-worker
+  labels:
+    {{- include "buysmarter.labels" . | nindent 4 }}
+    {{- with .Values.metrics.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "buysmarter.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: {{ .Values.metrics.serviceMonitor.interval }}
+{{- end }}

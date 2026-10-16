@@ -1,4 +1,13 @@
-# `docker compose up -d --build`: the whole stack on :8000. `make up`: only Postgres and Redis, for running from the host.
+# `docker compose up -d --build`: the whole stack, API on :8000. `make up`: only Postgres and Redis, for running
+# from the host. Ozon (Chromium in the worker): add `-f docker-compose.browser.yml`.
+x-env: &env
+  DATABASE_URL: postgresql+asyncpg://buysmarter:buysmarter@postgres:5432/buysmarter
+  REDIS_URL: redis://redis:6379/0
+  BUYSMARTER_SOURCES: ${BUYSMARTER_SOURCES:-kaspi,olx}
+  BUYSMARTER_JOB_TIMEOUT_S: ${BUYSMARTER_JOB_TIMEOUT_S:-300}
+  # Traces go out only when this is set (`make observe` points it at Jaeger).
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+
 x-app: &app
   build:
     context: .
@@ -7,11 +16,7 @@ x-app: &app
   env_file:
     - path: .env
       required: false
-  environment:
-    DATABASE_URL: postgresql+asyncpg://buysmarter:buysmarter@postgres:5432/buysmarter
-    REDIS_URL: redis://redis:6379/0
-    # Traces go out only when this is set (`make observe` points it at Jaeger).
-    OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+  environment: *env
 
 services:
   postgres:
@@ -63,21 +68,37 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Ozon needs Chromium: `docker compose --profile browser up -d app-browser`.
-  app-browser:
+  # Runs the recommend jobs the API queues; metrics on :9000.
+  worker:
     <<: *app
-    profiles: [browser]
-    build:
-      context: .
-      target: browser
-    image: ghcr.io/octrow/buy-smarter:${TAG:-latest}-browser
-    ports:
-      - "8001:8000"
+    command:
+      - taskiq
+      - worker
+      - buysmarter.worker:broker
+      - --ack-type=when_executed
+      - --workers=1
+      - --max-async-tasks=2
+      - --no-configure-logging
+    environment:
+      <<: *env
+      BUYSMARTER_LOG_FILE: "-"
     volumes:
       - cache:/home/app/.cache/buysmarter
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(urllib.request.urlopen('http://127.0.0.1:9000/metrics').status != 200)"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   # `make observe`: Prometheus :9090, Grafana :3000 (dashboard "buy-smarter"), Jaeger :16686.
   prometheus:

@@ -1,6 +1,7 @@
 """run_job: replays a stored request through the pipeline and records one terminal outcome."""
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 from fakeredis import FakeAsyncRedis
@@ -109,7 +110,7 @@ async def test_a_slow_pipeline_fails_with_timeout(store, monkeypatch) -> None:
         await asyncio.sleep(5)
 
     _pipeline(monkeypatch, slow)
-    monkeypatch.setattr(worker, "JOB_TIMEOUT_S", 0.01)
+    monkeypatch.setattr(worker, "get_settings", lambda: SimpleNamespace(job_timeout_s=0.01))
     job_id = await _queued(store)
 
     await worker.run_job(store, job_id)

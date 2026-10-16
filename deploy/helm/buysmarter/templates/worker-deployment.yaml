@@ -1,0 +1,88 @@
+{{- if .Values.worker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "buysmarter.fullname" . }}-worker
+  labels:
+    {{- include "buysmarter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "buysmarter.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ .Values.secret | toJson | sha256sum }}
+        {{- if and .Values.metrics.enabled .Values.metrics.podAnnotations }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.worker.metricsPort | quote }}
+        prometheus.io/path: /metrics
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "buysmarter.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: {{ include "buysmarter.fullname" . }}
+      automountServiceAccountToken: false
+      # A running job finishes or is reclaimed by another worker after twice the job timeout.
+      terminationGracePeriodSeconds: 60
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- include "buysmarter.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: worker
+          image: {{ include "buysmarter.workerImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - taskiq
+            - worker
+            - buysmarter.worker:broker
+            - --ack-type=when_executed
+            - --workers=1
+            - --max-async-tasks={{ .Values.worker.maxAsyncTasks }}
+            - --no-configure-logging
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.worker.metricsPort }}
+          {{- include "buysmarter.envFrom" . | nindent 10 }}
+          # The metrics server lives in the worker process: it answers while the process is up.
+          livenessProbe:
+            httpGet: { path: /metrics, port: metrics }
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+          securityContext:
+            {{- include "buysmarter.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            - name: cache
+              mountPath: /home/app/.cache/buysmarter
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: cache
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

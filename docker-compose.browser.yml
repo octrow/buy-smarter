@@ -1,0 +1,12 @@
+# Ozon needs Chromium: the worker runs the browser image and the API accepts ozon.
+#   docker compose -f docker-compose.yml -f docker-compose.browser.yml up -d --build
+services:
+  worker:
+    build:
+      target: browser
+    image: ghcr.io/octrow/buy-smarter:${TAG:-latest}-browser
+    environment:
+      BUYSMARTER_SOURCES: kaspi,ozon,olx
+  app:
+    environment:
+      BUYSMARTER_SOURCES: kaspi,ozon,olx

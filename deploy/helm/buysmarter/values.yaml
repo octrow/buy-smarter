@@ -7,12 +7,14 @@ image:
   pullPolicy: IfNotPresent
 imagePullSecrets: []
 
-# Environment that carries secrets. DATABASE_URL is required (postgresql+asyncpg://…).
+# Environment that carries secrets. DATABASE_URL and REDIS_URL are required.
 # Either name a Secret you manage (its keys become env vars) or let the chart create one from `data`.
 secret:
   existing: ""
   data: {}
   #  DATABASE_URL: postgresql+asyncpg://user:pass@host:5432/buysmarter
+  #  REDIS_URL: redis://:pass@host:6379/0
+  #  BUYSMARTER_API_KEYS: key1,key2     # X-API-Key for /recommend and /history
   #  OPENAI_API_KEY: sk-…
 
 # Plain environment variables.
@@ -32,6 +34,22 @@ metrics:
 # Traces over OTLP/HTTP, e.g. http://otel-collector.observability:4318; empty = no traces.
 otel:
   endpoint: ""
+
+# The taskiq worker that runs recommend jobs off the Redis stream (same image, no Service).
+worker:
+  enabled: true
+  replicaCount: 1
+  # Chromium for Ozon: runs the <tag>-browser image and lets the API accept ozon.
+  # image.digest is not applied to the browser image.
+  browser: false
+  maxAsyncTasks: 2
+  metricsPort: 9000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
 
 # `alembic upgrade head` as a pre-install/pre-upgrade hook Job, once per release, never per pod.
 migrations:
