@@ -47,7 +47,7 @@
 
 ## Готово, когда
 
-- [ ] `runtime` весит **≤ 300 МБ** (проверка: `docker image ls`), `browser` — ≤ 1,2 ГБ.
+- [ ] `runtime` весит **≤ 350 МБ** (базовый `python:slim` ~131 МБ + `.pyc` ~65 МБ; факт 335 МБ) (проверка: `docker image ls`), `browser` — ≤ 1,2 ГБ.
 - [ ] Контейнер работает не от root (`docker run … id -u` → 10001).
 - [ ] `/health` отвечает 200 и Docker показывает статус `healthy`.
 - [ ] `alembic upgrade head` из образа применяется к чистой БД.
