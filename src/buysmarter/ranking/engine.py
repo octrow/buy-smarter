@@ -156,43 +156,54 @@ def apply_hard_filters(
     ]
     passed: list[Candidate] = []
     rejected: list[tuple[Candidate, str]] = []
-
     for candidate in candidates:
-        if constraints.budget_max is not None and candidate.price > constraints.budget_max:
-            rejected.append(
-                (
-                    candidate,
-                    f"price exceeds budget: {candidate.price} > {constraints.budget_max}",
-                )
-            )
-            continue
-        if candidate.brand and candidate.brand.lower() in excluded_brands:
-            rejected.append((candidate, f"excluded brand: '{candidate.brand}'"))
-            continue
-        if constraints.trusted_brands_only and candidate.brand_tier is None:
-            rejected.append((candidate, "unknown brand (trusted-brands-only)"))
-            continue
-        if not candidate.availability:
-            rejected.append((candidate, "not available"))
-            continue
-        # An empty specs dict means specs weren't fetched (not that the
-        # product lacks the feature) — don't reject on unverifiable data;
-        # `score()` attaches a "не удалось проверить" con instead.
-        if candidate.specs:
-            missing = [f for f in hard_features if not _feature_present(f, candidate)]
-            if missing:
-                rejected.append((candidate, f"missing required feature(s): {', '.join(missing)}"))
-                continue
-        if (
-            required_substances
-            and substances_verified
-            and _substance_proven_absent(candidate, required_substances)
-        ):
-            rejected.append((candidate, f"{NO_SUBSTANCE_REASON}: {', '.join(required_substances)}"))
-            continue
-        passed.append(candidate)
+        reason = _listing_rejection(candidate, constraints, excluded_brands) or _content_rejection(
+            candidate, hard_features, required_substances, substances_verified
+        )
+        if reason is None:
+            passed.append(candidate)
+        else:
+            rejected.append((candidate, reason))
 
     return passed, rejected
+
+
+def _listing_rejection(
+    candidate: Candidate, constraints: QueryConstraints, excluded_brands: set[str]
+) -> str | None:
+    """Reject on the listing itself: budget, excluded/unknown brand, availability."""
+    if constraints.budget_max is not None and candidate.price > constraints.budget_max:
+        return f"price exceeds budget: {candidate.price} > {constraints.budget_max}"
+    if candidate.brand and candidate.brand.lower() in excluded_brands:
+        return f"excluded brand: '{candidate.brand}'"
+    if constraints.trusted_brands_only and candidate.brand_tier is None:
+        return "unknown brand (trusted-brands-only)"
+    if not candidate.availability:
+        return "not available"
+    return None
+
+
+def _content_rejection(
+    candidate: Candidate,
+    hard_features: list[str],
+    required_substances: list[str],
+    substances_verified: bool,
+) -> str | None:
+    """Reject on what the product is: required features, required substance."""
+    # An empty specs dict means specs weren't fetched (not that the
+    # product lacks the feature) — don't reject on unverifiable data;
+    # `score()` attaches a "не удалось проверить" con instead.
+    if candidate.specs:
+        missing = [f for f in hard_features if not _feature_present(f, candidate)]
+        if missing:
+            return f"missing required feature(s): {', '.join(missing)}"
+    if (
+        required_substances
+        and substances_verified
+        and _substance_proven_absent(candidate, required_substances)
+    ):
+        return f"{NO_SUBSTANCE_REASON}: {', '.join(required_substances)}"
+    return None
 
 
 def _has_required_substance(candidate: Candidate, required_substances: list[str]) -> bool:
