@@ -1,0 +1,90 @@
+# Ledger отложенного (`ponytail:`)
+
+Срез на 2026-10-16. Каждая строка — осознанное упрощение с комментарием `ponytail:` в коде: что упрощено, где его
+предел (ceiling) и когда возвращаться (upgrade). `no-trigger` — момент возврата не назван; такие гниют первыми.
+Обновить: `/ponytail-debt` или `grep -rnE '(#|//) ?ponytail:' src`.
+
+20 markers, 11 with no trigger.
+
+## src/buysmarter/api/recommend.py
+
+- `:100`, лимит частоты считается по `client.host`. ceiling: за ingress это адрес прокси, все клиенты делят один
+  лимит. upgrade: доверять `X-Forwarded-For`, когда появится ingress.
+
+## src/buysmarter/jobs.py
+
+- `:227`, rate limit с фиксированным окном. ceiling: на стыке окон проходит до 2× лимита. upgrade: скользящее
+  окно, если начнут злоупотреблять.
+
+## src/buysmarter/worker.py
+
+- `:64`, периодическая пустая задача `reclaim_nudge`. ceiling: taskiq-redis 1.2.4 не перезабирает задачи на
+  пустой очереди. upgrade: убрать после релиза с
+  [taskiq-redis#129](https://github.com/taskiq-python/taskiq-redis/pull/129).
+
+## src/buysmarter/knowledge/store.py
+
+- `:44`, порог совпадения категории 0.7. ceiling: подобран на 13 размеченных запросах. upgrade: не указан.
+  `no-trigger`
+
+## src/buysmarter/llm/canonicalize.py
+
+- `:41`, порог совпадения модели 0.8. ceiling: подобран на 13 названиях ирригаторов. upgrade: не указан.
+  `no-trigger`
+
+## src/buysmarter/llm/ingredients.py
+
+- `:36`, пороги для вещества и концентрации. ceiling: подобраны на наборе по уходу за акне. upgrade: не указан.
+  `no-trigger`
+
+## src/buysmarter/llm/relevance.py
+
+- `:40`, `KEEP_THRESHOLD = 0.25`. ceiling: подобран на 26 размеченных названиях. upgrade: перенастроить на
+  реальных прогонах.
+
+## src/buysmarter/llm/review_summary.py
+
+- `:206`, порог признаков подделки. ceiling: подобран на размеченных русских отзывах. upgrade: перенастроить на
+  реальных прогонах Kaspi.
+
+## src/buysmarter/ranking/engine.py
+
+- `:365`, тренд цены за 30 дней через простые пороги (±7%). ceiling: качество скидки не оценивается. upgrade:
+  «скоринг качества скидки позже», без триггера. `no-trigger`
+- `:513`, скорость появления отзывов показывается, но не влияет на оценку. ceiling: снимки собираются
+  нерегулярно. upgrade: когда `refresh` будет запускаться по расписанию.
+
+## src/buysmarter/ranking/model_tokens.py
+
+- `:13`, поиск модели по подстроке. ceiling: «a54» совпадает и с «a540». upgrade: поиск по границам слов, если
+  это начнёт мешать.
+- `:29`, коды моделей только из цифр («300») отбрасываются. ceiling: такие модели не находятся. upgrade:
+  отдельная ветка, если реальному запросу она понадобится.
+
+## src/buysmarter/ranking/review_requirements.py
+
+- `:21`, любое отрицание в предложении дисквалифицирует его. ceiling: теряются верные совпадения («не греется,
+  шумоподавление отличное»). upgrade: не указан, есть только «без парсера». `no-trigger`
+
+## src/buysmarter/ranking/review_trust.py
+
+- `:18`, статические пороги и списки слов. ceiling: не адаптируются к категории. upgrade: «настроить позже».
+  `no-trigger`
+- `:160`, основа слова по первым 4 буквам вместо морфологии. ceiling: русские окончания разные. upgrade: не
+  указан. `no-trigger`
+- `:276`, `has_photos` собирается, но не используется. ceiling: бонуса за фото нет. upgrade: не указан.
+  `no-trigger`
+
+## src/buysmarter/ranking/used_defects.py
+
+- `:9`, дефекты б/у ищутся регулярками по ключевым словам. ceiling: пропуски и ложные срабатывания. upgrade:
+  классификатор на LLM, если они проявятся.
+
+## src/buysmarter/services/recommend.py
+
+- `:122`, слияние дублей по пересечению токенов. ceiling: перефразированные названия не сливаются. upgrade:
+  «эмбеддинги позже». `no-trigger`
+- `:785`, без бюджета отдельный раздел б/у не показывается. ceiling: такие запросы теряют этот раздел. upgrade:
+  «порог разумной цены позже». `no-trigger`
+- `:1410`, доля жалоб считается по выборке (~9 отзывов Kaspi), а не по `stats.total`. ceiling: шумно на малой
+  выборке. upgrade: не указан. `no-trigger`
