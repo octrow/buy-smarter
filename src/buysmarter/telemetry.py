@@ -21,6 +21,10 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest, start_http_s
 
 from buysmarter import __version__
 
+# Stable HTTP semconv: http_server_request_duration_seconds, labelled by http_route. Read once,
+# by the first instrumentor (taskiq's, at worker import), so it is set when this module loads.
+os.environ.setdefault("OTEL_SEMCONV_STABILITY_OPT_IN", "http")
+
 _meter = metrics.get_meter("buysmarter", __version__)
 
 # Label values stay low-cardinality: no query text, prices or product ids.
@@ -86,8 +90,6 @@ def _install_providers() -> None:
     Traces are exported only when ``OTEL_EXPORTER_OTLP_ENDPOINT`` is set; the exporter reads the
     rest of its configuration from the standard ``OTEL_*`` variables.
     """
-    # Stable HTTP semconv: http_server_request_duration_seconds, labelled by http_route.
-    os.environ.setdefault("OTEL_SEMCONV_STABILITY_OPT_IN", "http")
     resource = Resource.create({SERVICE_NAME: os.environ.get("OTEL_SERVICE_NAME", "buysmarter")})
     metrics.set_meter_provider(
         MeterProvider(resource=resource, metric_readers=[PrometheusMetricReader()])

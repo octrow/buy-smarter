@@ -21,6 +21,7 @@ def test_health_is_ok_without_a_database(monkeypatch) -> None:
 
 def test_ready_is_ok_when_the_database_answers(monkeypatch) -> None:
     monkeypatch.setattr(main, "db_reachable", lambda url: _done(True))
+    monkeypatch.setattr(main, "redis_reachable", lambda: _done(True))
 
     response = TestClient(main.app).get("/ready")
 
@@ -30,11 +31,22 @@ def test_ready_is_ok_when_the_database_answers(monkeypatch) -> None:
 
 def test_ready_is_503_when_the_database_is_down(monkeypatch) -> None:
     monkeypatch.setattr(main, "db_reachable", lambda url: _done(False))
+    monkeypatch.setattr(main, "redis_reachable", lambda: _done(True))
 
     response = TestClient(main.app).get("/ready")
 
     assert response.status_code == 503
     assert response.json() == {"status": "database unavailable"}
+
+
+def test_ready_is_503_when_redis_is_down(monkeypatch) -> None:
+    monkeypatch.setattr(main, "db_reachable", lambda url: _done(True))
+    monkeypatch.setattr(main, "redis_reachable", lambda: _done(False))
+
+    response = TestClient(main.app).get("/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {"status": "redis unavailable"}
 
 
 def test_openapi_reports_the_package_version() -> None:

@@ -51,6 +51,8 @@ broker = _make_broker()
 
 @broker.on_event(TaskiqEvents.WORKER_STARTUP)
 async def _startup(_: TaskiqState) -> None:
+    if not broker.is_worker_process:  # the in-memory test broker fires worker events in-process
+        return
     logsetup.setup_logging()
     telemetry.instrument_worker(get_settings().worker_metrics_port)
 

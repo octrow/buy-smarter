@@ -205,6 +205,11 @@ class JobStore:
         if status is JobStatus.FAILED:
             await self._release_dedupe(job_id)
 
+    async def find_dedupe(self, key: str) -> Job | None:
+        """The live job for this request, if one was created within the dedupe window."""
+        job_id = await self.redis.get(_dedupe_key(key))
+        return await self.get(job_id) if job_id else None
+
     async def claim_dedupe(self, key: str, job_id: str) -> str | None:
         """Take the dedupe slot for ``job_id``; return the job already holding it, if any."""
         if await self.redis.set(_dedupe_key(key), job_id, nx=True, ex=DEDUPE_TTL_S):
