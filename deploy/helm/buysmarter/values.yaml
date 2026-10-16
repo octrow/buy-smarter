@@ -1,0 +1,60 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/octrow/buy-smarter
+  tag: ""          # defaults to the chart appVersion
+  digest: ""       # sha256:…; wins over tag
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# Environment that carries secrets. DATABASE_URL is required (postgresql+asyncpg://…).
+# Either name a Secret you manage (its keys become env vars) or let the chart create one from `data`.
+secret:
+  existing: ""
+  data: {}
+  #  DATABASE_URL: postgresql+asyncpg://user:pass@host:5432/buysmarter
+  #  OPENAI_API_KEY: sk-…
+
+# Plain environment variables.
+env:
+  BUYSMARTER_LOG_FILE: "-"      # logs to stderr, not to a file in the pod
+  # DEFAULT_LLM_MODEL: gpt-5-mini
+
+# `alembic upgrade head` as a pre-install/pre-upgrade hook Job, once per release, never per pod.
+migrations:
+  enabled: true
+  backoffLimit: 2
+  activeDeadlineSeconds: 300
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: buysmarter.local
+  tls: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

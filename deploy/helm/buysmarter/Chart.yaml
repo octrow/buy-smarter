@@ -1,0 +1,9 @@
+apiVersion: v2
+name: buysmarter
+description: Explainable shopping assistant for Kazakhstan (FastAPI API + Alembic migrations)
+type: application
+version: 0.1.0
+appVersion: "0.1.3"
+home: https://github.com/octrow/buy-smarter
+sources:
+  - https://github.com/octrow/buy-smarter

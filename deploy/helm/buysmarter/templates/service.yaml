@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "buysmarter.fullname" . }}
+  labels:
+    {{- include "buysmarter.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+  selector:
+    {{- include "buysmarter.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: api

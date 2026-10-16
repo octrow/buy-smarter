@@ -202,6 +202,21 @@ docker compose down                 # с -v удалит и данные
 Без compose: `docker build -t buysmarter .` (`--target browser` для Chromium), затем `alembic upgrade head` из того же
 образа перед запуском API.
 
+## Kubernetes
+
+Helm-чарт лежит в [`deploy/helm/buysmarter`](deploy/helm/buysmarter). Postgres свой (managed или в кластере):
+
+```bash
+helm install buysmarter deploy/helm/buysmarter -n buysmarter --create-namespace \
+  --set secret.data.DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/buysmarter
+helm test buysmarter -n buysmarter
+```
+
+Миграции идут Job'ом-хуком pre-install/pre-upgrade, один раз на релиз. Пробы: `/health` (liveness, без зависимостей)
+и `/ready` (readiness, 503, пока не отвечает БД). Поды проходят Pod Security Standard `restricted`. Ключи — в
+`secret.data` или в своём Secret (`secret.existing`). CI ставит и обновляет чарт в kind на каждом PR
+([`deploy/kind/smoke.sh`](deploy/kind/smoke.sh)); к площадкам smoke-тест не обращается.
+
 ## Разработка
 
 ```bash

@@ -2,6 +2,18 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Helm chart (`deploy/helm/buysmarter`): migrations as a pre-install/pre-upgrade hook Job, Pod Security Standard
+  `restricted`, optional Ingress, HPA and PodDisruptionBudget, `helm test`. CI lints it, validates it with
+  kubeconform, then installs and upgrades it in kind.
+- `GET /ready`: 503 until the database answers; `/health` stays dependency-free.
+- `BUYSMARTER_LOG_FILE=-` sends INFO logs to stderr instead of a file (the chart sets it).
+
+### Fixed
+- The API reports the package version instead of a hardcoded 0.1.0.
+
 ## [0.1.3] - 2026-10-16
 
 ### Added

@@ -200,6 +200,21 @@ The image has no `claude` CLI: LLM calls use the API fallback (`DEFAULT_LLM_MODE
 Without compose: `docker build -t buysmarter .` (`--target browser` for Chromium), then run `alembic upgrade head`
 from the same image before the API.
 
+## Kubernetes
+
+A Helm chart lives in [`deploy/helm/buysmarter`](deploy/helm/buysmarter). Postgres is yours (managed or in-cluster):
+
+```bash
+helm install buysmarter deploy/helm/buysmarter -n buysmarter --create-namespace \
+  --set secret.data.DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/buysmarter
+helm test buysmarter -n buysmarter
+```
+
+Migrations run as a pre-install/pre-upgrade hook Job, once per release. Probes: `/health` (liveness, no
+dependencies) and `/ready` (readiness, 503 until the database answers). Pods pass the Pod Security Standard
+`restricted`. Keys go in `secret.data` or in your own Secret (`secret.existing`). CI installs and upgrades the chart in
+kind on every PR ([`deploy/kind/smoke.sh`](deploy/kind/smoke.sh)); the smoke test never calls the marketplaces.
+
 ## Development
 
 ```bash

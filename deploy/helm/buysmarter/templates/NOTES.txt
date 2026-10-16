@@ -1,0 +1,7 @@
+buy-smarter {{ .Chart.AppVersion }} is up.
+
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "buysmarter.fullname" . }} 8000:{{ .Values.service.port }}
+  curl localhost:8000/ready
+
+CLI from the same image:
+  kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "buysmarter.fullname" . }} -- buysmarter doctor
