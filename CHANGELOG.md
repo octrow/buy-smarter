@@ -2,9 +2,15 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.0] - 2026-10-16
 
 ### Added
+- HTTP API for recommendations: `POST /recommend` queues a run (202 + `status_url`), `GET /recommend/{id}` returns its
+  status and the result (the markdown report plus the best offer, alternatives and used listings), `GET /history`
+  reads price history. Jobs run in a taskiq worker on a Redis stream and survive a worker crash; the same request
+  within 15 minutes returns the same job; 10 new jobs per 10 minutes per client, then 429; optional `X-API-Key`.
+- Worker in compose (`worker`, metrics on :9000) and in the Helm chart (`worker.*`, PodMonitor); the kind smoke test
+  runs a job end to end. Queue metrics, a Queue row on the Grafana dashboard, one trace per job across API and worker.
 - Helm chart (`deploy/helm/buysmarter`): migrations as a pre-install/pre-upgrade hook Job, Pod Security Standard
   `restricted`, optional Ingress, HPA and PodDisruptionBudget, `helm test`. CI lints it, validates it with
   kubeconform, then installs and upgrades it in kind.
@@ -14,6 +20,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   marketplace searches by outcome, LLM calls by cache hit or miss); OTLP traces when `OTEL_EXPORTER_OTLP_ENDPOINT` is
   set. `make observe` adds Prometheus, Grafana with a dashboard and Jaeger to the compose stack; the chart gets scrape
   annotations, an optional ServiceMonitor and `otel.endpoint`.
+
+### Changed
+- Ozon in compose: `docker-compose.browser.yml` runs the worker on the Chromium image; the `browser` profile with
+  `app-browser` is gone. The chart requires `REDIS_URL`; `/ready` checks Redis too.
+- The runtime image is 360 MB (OpenTelemetry, taskiq).
 
 ### Fixed
 - The API reports the package version instead of a hardcoded 0.1.0.

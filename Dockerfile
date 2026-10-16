@@ -26,7 +26,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 RUN mv /app/.venv/lib/python3.12/site-packages/playwright/driver /opt/playwright-driver
 
 FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258 AS runtime
-ARG VERSION=0.1.3
+ARG VERSION=0.2.0
 LABEL org.opencontainers.image.source="https://github.com/octrow/buy-smarter" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.licenses="MIT"
