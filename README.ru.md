@@ -185,12 +185,37 @@ uv run python -m buysmarter.mcp_server   # блокируется на stdio; о
 | `compare` | 2–4 товара через запятую → сравнение спецификаций (Kaspi). |
 | `get_preferences` / `set_preference` | Чтение и запись предпочтений (город, бюджет…). Postgres или `~/.config/buysmarter/prefs.json`, если база недоступна. |
 
+## HTTP API
+
+API ставит подбор в очередь, а выполняет его воркер (taskiq поверх Redis Streams): один подбор идёт десятки секунд.
+OpenAPI — на `/docs`.
+
+```bash
+curl -s -X POST localhost:8000/recommend -H 'content-type: application/json' \
+  -d '{"query": "ирригатор до 40000", "sources": ["kaspi"]}'
+# 202 {"job_id": "…", "status": "queued", "status_url": "/recommend/…"}
+curl -s localhost:8000/recommend/<job_id>
+# {"status": "done", "result": {"report_markdown": "…", "best": {…}, "alternatives": {…}, …}}
+curl -s 'localhost:8000/history?q=wp-100'
+```
+
+- Статусы: `queued` → `running` → `done`, `no_match` (нужного вещества нет ни в одном товаре или фильтры никого не
+  пропустили) или `failed` (`timeout`, `internal`). Задачи хранятся 24 часа.
+- Тот же запрос в течение 15 минут возвращает ту же задачу (200). Клиент может запустить 10 новых задач за 10 минут,
+  дальше 429 с `Retry-After` (`BUYSMARTER_RATE_LIMIT_JOBS`, `BUYSMARTER_RATE_LIMIT_WINDOW_S`).
+- `BUYSMARTER_API_KEYS=k1,k2` требует заголовок `X-API-Key`. `BUYSMARTER_SOURCES` — какие площадки принимает API:
+  по умолчанию `kaspi,olx`, `ozon` требует воркер с Chromium.
+- Воркер, упавший посреди подбора, ничего не теряет: его задачу заберёт другой воркер через два таймаута задачи
+  (`BUYSMARTER_JOB_TIMEOUT_S`, по умолчанию 300 с).
+- С облачных IP площадки часто отказывают (Kaspi отвечает 429 адресам датацентров, см. `KASPI_PROXY`), поэтому там
+  большинство задач закончится `no_match` или `failed`.
+
 ## Docker
 
 ```bash
-docker compose up -d --build        # Postgres + Redis + миграции + API на :8000 (/health); ключи берутся из .env
+docker compose up -d --build        # Postgres, Redis, миграции, API на :8000, воркер; ключи берутся из .env
 docker compose run --rm app buysmarter recommend "…" --budget 30000
-docker compose --profile browser up -d --build app-browser   # с Chromium для Ozon, на :8001
+docker compose -f docker-compose.yml -f docker-compose.browser.yml up -d --build   # воркер с Chromium: Ozon
 docker compose down                 # с -v удалит и данные
 ```
 
@@ -204,25 +229,29 @@ docker compose down                 # с -v удалит и данные
 
 ## Kubernetes
 
-Helm-чарт лежит в [`deploy/helm/buysmarter`](deploy/helm/buysmarter). Postgres свой (managed или в кластере):
+Helm-чарт лежит в [`deploy/helm/buysmarter`](deploy/helm/buysmarter): API, воркер (`worker.browser=true` для Ozon) и
+Job миграций. Postgres и Redis свои (managed или в кластере):
 
 ```bash
 helm install buysmarter deploy/helm/buysmarter -n buysmarter --create-namespace \
-  --set secret.data.DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/buysmarter
+  --set secret.data.DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/buysmarter \
+  --set secret.data.REDIS_URL=redis://host:6379/0
 helm test buysmarter -n buysmarter
 ```
 
 Миграции идут Job'ом-хуком pre-install/pre-upgrade, один раз на релиз. Пробы: `/health` (liveness, без зависимостей)
 и `/ready` (readiness, 503, пока не отвечает БД). Поды проходят Pod Security Standard `restricted`. Ключи — в
 `secret.data` или в своём Secret (`secret.existing`). CI ставит и обновляет чарт в kind на каждом PR
-([`deploy/kind/smoke.sh`](deploy/kind/smoke.sh)); к площадкам smoke-тест не обращается.
+и прогоняет одну задачу через API → Redis → воркер ([`deploy/kind/smoke.sh`](deploy/kind/smoke.sh)); проверяется
+проводка, а не рейтинг: площадки могут не отвечать трафику из CI.
 
 ## Наблюдаемость
 
-API отдаёт метрики Prometheus на `GET /metrics` (OpenTelemetry SDK с Prometheus-экспортером): частота и задержка
+API отдаёт метрики Prometheus на `GET /metrics`, воркер — на `:9000/metrics` (OpenTelemetry SDK с Prometheus-экспортером): частота и задержка
 HTTP-запросов по маршрутам, а также `buysmarter_recommend_duration_seconds` (по исходу),
 `buysmarter_source_requests_total` (по площадке и исходу), `buysmarter_llm_calls_total` (по модели, попадание в кэш или
-промах) и `buysmarter_recommend_offers_ranked`. С `OTEL_EXPORTER_OTLP_ENDPOINT` уходят ещё и трейсы (FastAPI, httpx-запросы
+промах) и `buysmarter_recommend_offers_ranked`, а также очередь: `buysmarter_jobs_total` (по статусу),
+`buysmarter_job_wait_seconds` и `buysmarter_rate_limited_total`. Один трейс ведёт задачу от `POST /recommend` через воркер. С `OTEL_EXPORTER_OTLP_ENDPOINT` уходят ещё и трейсы (FastAPI, httpx-запросы
 к площадкам, SQL) по OTLP/HTTP; `BUYSMARTER_METRICS=0` выключает `/metrics`.
 
 ```bash

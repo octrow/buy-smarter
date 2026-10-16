@@ -83,7 +83,10 @@ async def require_api_key(x_api_key: str | None = Header(default=None)) -> str |
 
 
 ApiKey = Annotated[str | None, Depends(require_api_key)]
-router = APIRouter(dependencies=[Depends(require_api_key)])
+router = APIRouter(
+    dependencies=[Depends(require_api_key)],
+    responses={401: {"description": "BUYSMARTER_API_KEYS is set and X-API-Key is not one of them"}},
+)
 
 
 def _accepted(job: Job, response: Response) -> JobAccepted:

@@ -183,12 +183,37 @@ uv run python -m buysmarter.mcp_server   # blocks on stdio; normally the client 
 | `compare` | 2–4 comma-separated products → side-by-side specs (Kaspi). |
 | `get_preferences` / `set_preference` | Read/write preferences (city, budget…). Postgres, or `~/.config/buysmarter/prefs.json` when it is down. |
 
+## HTTP API
+
+The API queues a recommend run and a worker executes it (taskiq on a Redis stream), because one run takes tens of
+seconds. OpenAPI lives at `/docs`.
+
+```bash
+curl -s -X POST localhost:8000/recommend -H 'content-type: application/json' \
+  -d '{"query": "ирригатор до 40000", "sources": ["kaspi"]}'
+# 202 {"job_id": "…", "status": "queued", "status_url": "/recommend/…"}
+curl -s localhost:8000/recommend/<job_id>
+# {"status": "done", "result": {"report_markdown": "…", "best": {…}, "alternatives": {…}, …}}
+curl -s 'localhost:8000/history?q=wp-100'
+```
+
+- Statuses: `queued` → `running` → `done`, `no_match` (no product has the required substance, or nothing passed the
+  filters) or `failed` (`timeout`, `internal`). Jobs are kept for 24 hours.
+- The same request within 15 minutes returns the same job (200). Each client may start 10 new jobs per 10 minutes,
+  then gets 429 with `Retry-After` (`BUYSMARTER_RATE_LIMIT_JOBS`, `BUYSMARTER_RATE_LIMIT_WINDOW_S`).
+- `BUYSMARTER_API_KEYS=k1,k2` requires `X-API-Key`. `BUYSMARTER_SOURCES` lists the marketplaces the API accepts:
+  `kaspi,olx` by default, `ozon` needs the worker's Chromium image.
+- A worker that dies mid-run loses nothing: its job is picked up by another worker after twice the job timeout
+  (`BUYSMARTER_JOB_TIMEOUT_S`, 300 s by default).
+- From cloud IPs the marketplaces often refuse requests (Kaspi answers 429 to datacenter addresses; see `KASPI_PROXY`),
+  so most jobs there end as `no_match` or `failed`.
+
 ## Docker
 
 ```bash
-docker compose up -d --build        # Postgres + Redis + migrations + API on :8000 (/health); keys come from .env
+docker compose up -d --build        # Postgres, Redis, migrations, API on :8000, worker; keys come from .env
 docker compose run --rm app buysmarter recommend "…" --budget 30000
-docker compose --profile browser up -d --build app-browser   # with Chromium for Ozon, on :8001
+docker compose -f docker-compose.yml -f docker-compose.browser.yml up -d --build   # worker with Chromium: Ozon
 docker compose down                 # add -v to drop the data
 ```
 
@@ -202,25 +227,29 @@ from the same image before the API.
 
 ## Kubernetes
 
-A Helm chart lives in [`deploy/helm/buysmarter`](deploy/helm/buysmarter). Postgres is yours (managed or in-cluster):
+A Helm chart lives in [`deploy/helm/buysmarter`](deploy/helm/buysmarter): the API, the worker (`worker.browser=true`
+for Ozon) and the migration Job. Postgres and Redis are yours (managed or in-cluster):
 
 ```bash
 helm install buysmarter deploy/helm/buysmarter -n buysmarter --create-namespace \
-  --set secret.data.DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/buysmarter
+  --set secret.data.DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/buysmarter \
+  --set secret.data.REDIS_URL=redis://host:6379/0
 helm test buysmarter -n buysmarter
 ```
 
 Migrations run as a pre-install/pre-upgrade hook Job, once per release. Probes: `/health` (liveness, no
 dependencies) and `/ready` (readiness, 503 until the database answers). Pods pass the Pod Security Standard
 `restricted`. Keys go in `secret.data` or in your own Secret (`secret.existing`). CI installs and upgrades the chart in
-kind on every PR ([`deploy/kind/smoke.sh`](deploy/kind/smoke.sh)); the smoke test never calls the marketplaces.
+kind on every PR and runs one job through API → Redis → worker ([`deploy/kind/smoke.sh`](deploy/kind/smoke.sh)); it
+checks the wiring, not the ranking, since the marketplaces may refuse CI traffic.
 
 ## Observability
 
-The API serves Prometheus metrics on `GET /metrics` (OpenTelemetry SDK with the Prometheus exporter): HTTP request
+The API serves Prometheus metrics on `GET /metrics` and the worker on `:9000/metrics` (OpenTelemetry SDK with the Prometheus exporter): HTTP request
 rate and latency by route, plus `buysmarter_recommend_duration_seconds` (by outcome), `buysmarter_source_requests_total`
 (by marketplace and outcome), `buysmarter_llm_calls_total` (by model, cache hit or miss) and
-`buysmarter_recommend_offers_ranked`. Set `OTEL_EXPORTER_OTLP_ENDPOINT` to also export traces (FastAPI, httpx calls to
+`buysmarter_recommend_offers_ranked`, plus the queue: `buysmarter_jobs_total` (by status), `buysmarter_job_wait_seconds`
+and `buysmarter_rate_limited_total`. One trace follows a job from `POST /recommend` through the worker. Set `OTEL_EXPORTER_OTLP_ENDPOINT` to also export traces (FastAPI, httpx calls to
 the marketplaces, SQL) over OTLP/HTTP; `BUYSMARTER_METRICS=0` turns `/metrics` off.
 
 ```bash
