@@ -63,7 +63,8 @@ async def _startup(state: TaskiqState) -> None:
 
 # ponytail: taskiq-redis 1.2.4 runs XAUTOCLAIM only after a non-empty XREADGROUP, so on an idle
 # queue a dead worker's job waits for the next message. A periodic no-op message is that next
-# message; drop this once RedisStreamBroker.listen() reclaims on empty reads too.
+# message; drop it (and reclaim_nudge) once a release ships the time-based reclaim of
+# https://github.com/taskiq-python/taskiq-redis/pull/129.
 @broker.task(task_name="buysmarter.reclaim_nudge")
 async def reclaim_nudge() -> None:
     """No-op: its delivery makes the broker look for unacknowledged jobs."""
