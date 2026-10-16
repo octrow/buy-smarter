@@ -17,7 +17,7 @@ import logging
 import re
 import time
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import NamedTuple
@@ -128,7 +128,20 @@ _USED_MATCH_OVERLAP = 0.4  # OLX-listing ↔ new-product match threshold
 # item can't legitimately cost twice as much on another marketplace.
 _DUP_GAP_SUSPICIOUS_RATIO = 2.0
 
-_ALL_SOURCES = ("kaspi", "ozon", "olx")
+ALL_SOURCES = ("kaspi", "ozon", "olx")
+
+
+def select_sources(names: Iterable[str], allowed: Sequence[str] = ALL_SOURCES) -> list[str]:
+    """Normalize marketplace names, dedupe, keep order; an empty selection means all ``allowed``.
+
+    Raises ``ValueError`` naming every unknown or disallowed source (CLI, MCP and API share it).
+    """
+    selected = list(dict.fromkeys(n.strip().lower() for n in names if n.strip()))
+    rejected = [n for n in selected if n not in allowed]
+    if rejected:
+        raise ValueError(f"unknown source(s) {', '.join(rejected)}; use {', '.join(allowed)}")
+    return selected or list(allowed)
+
 
 # City name → Kaspi cityId. Unknown → None (KaspiClient defaults to Almaty).
 _CITY_IDS = {
@@ -2050,7 +2063,7 @@ async def refresh_category(category: str) -> CategoryRefresh:
     persistence records a new snapshot per product and compares it to the prior
     one to surface price movements.
     """
-    active = _resolve_sources(list(_ALL_SOURCES), None, None, None)
+    active = _resolve_sources(list(ALL_SOURCES), None, None, None)
     city, _ = await _resolve_city(None, None)
     city_id = _city_id(city)
     try:

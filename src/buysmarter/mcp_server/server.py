@@ -23,7 +23,7 @@ from market_sources.ozon.source import OzonSource
 from buysmarter.cli.report import render_markdown, render_no_substance_markdown
 from buysmarter.config import get_settings
 from buysmarter.memory import prefs
-from buysmarter.services.recommend import NoSubstanceMatch
+from buysmarter.services.recommend import ALL_SOURCES, NoSubstanceMatch, select_sources
 from buysmarter.services.recommend import recommend as run_recommend
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,6 @@ logger = logging.getLogger(__name__)
 mcp: FastMCP = FastMCP("buy-smarter")
 
 _DEFAULT_CITY = "Алматы"
-_ALL_SOURCES = ("kaspi", "ozon", "olx")
 # City name (RU/EN, any case) → Kaspi cityId; unknown → None (Kaspi = Almaty).
 _KASPI_CITY_IDS = {
     "алматы": "750000000",
@@ -55,7 +54,7 @@ def _source_for(name: str) -> ProductSource:
         "olx": OlxSource,
     }
     if name not in factories:
-        raise ValueError(f"unknown source {name!r}; use one of {', '.join(_ALL_SOURCES)}")
+        raise ValueError(f"unknown source {name!r}; use one of {', '.join(ALL_SOURCES)}")
     return factories[name]()
 
 
@@ -130,13 +129,10 @@ async def recommend(
             ``True`` only to force server-side LLM parsing of ``query``.
     """
     resolved_city = city or await prefs.get("city") or _DEFAULT_CITY
-    selected = [s.strip().lower() for s in sources.split(",") if s.strip()]
-    unknown = [s for s in selected if s not in _ALL_SOURCES]
-    if unknown:
-        return (
-            f"No recommendation: unknown source(s) {', '.join(unknown)}; "
-            f"use {', '.join(_ALL_SOURCES)}."
-        )
+    try:
+        selected = select_sources(sources.split(","))
+    except ValueError as exc:
+        return f"No recommendation: {exc}."
     try:
         result = await run_recommend(
             query,
@@ -144,7 +140,7 @@ async def recommend(
             budget=budget,
             use_llm=parse_with_llm,
             trusted_only=trusted_only,
-            sources=selected or list(_ALL_SOURCES),
+            sources=selected,
         )
     except NoSubstanceMatch as exc:
         return render_no_substance_markdown(exc)

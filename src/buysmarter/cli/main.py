@@ -39,11 +39,13 @@ from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.ranking.engine import is_barred
 from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
 from buysmarter.services.recommend import (
+    ALL_SOURCES,
     CategoryRefresh,
     NoSubstanceMatch,
     ProductHistory,
     RecommendResult,
     UsedListing,
+    select_sources,
 )
 from buysmarter.services.recommend import parse_request as run_parse_request
 from buysmarter.services.recommend import product_history as run_product_history
@@ -54,8 +56,6 @@ _DEFAULT_TOP = 8
 
 app = typer.Typer(help="buy-smarter: AI-powered shopping assistant.")
 console = Console()
-
-_ALL_SOURCES = ("kaspi", "ozon", "olx")
 
 
 @app.callback()
@@ -280,7 +280,7 @@ def recommend(
         False, "--trusted-only", help="Reject products from unknown/untrusted brands."
     ),
     sources: str = typer.Option(
-        ",".join(_ALL_SOURCES),
+        ",".join(ALL_SOURCES),
         "--sources",
         help="Comma-separated marketplaces to query, e.g. 'kaspi,ozon,olx' or 'kaspi'.",
     ),
@@ -330,11 +330,10 @@ def recommend(
 
 def _parse_sources(raw: str) -> list[str]:
     """Parse the ``--sources`` CSV into a validated ordered marketplace list."""
-    names = [s.strip().lower() for s in raw.split(",") if s.strip()]
-    invalid = [n for n in names if n not in _ALL_SOURCES]
-    if invalid:
-        raise typer.BadParameter(f"unknown source(s): {', '.join(invalid)}")
-    return names or list(_ALL_SOURCES)
+    try:
+        return select_sources(raw.split(","))
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 _BUDGET_PROMPT = "Бюджет в ₸ (Enter — без лимита)"
