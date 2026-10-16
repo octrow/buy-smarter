@@ -47,14 +47,14 @@
 
 ## Готово, когда
 
-- [ ] `runtime` весит **≤ 350 МБ** (базовый `python:slim` ~131 МБ + `.pyc` ~65 МБ; факт 335 МБ) (проверка: `docker image ls`), `browser` — ≤ 1,2 ГБ.
-- [ ] Контейнер работает не от root (`docker run … id -u` → 10001).
-- [ ] `/health` отвечает 200 и Docker показывает статус `healthy`.
-- [ ] `alembic upgrade head` из образа применяется к чистой БД.
-- [ ] CLI работает из образа (`buysmarter --help`).
-- [ ] Правка в `src/` не пересобирает слой зависимостей (видно по `CACHED` в выводе сборки).
-- [ ] CI-job `docker` зелёный; в образе нет `.env` и `.git` (`docker run … ls -a /app`).
-- [ ] `hadolint Dockerfile` без ошибок; `security.yml` при желании сканирует образ (Trivy) — это опционально.
+- [x] `runtime` весит **≤ 350 МБ** (базовый `python:slim` ~131 МБ + `.pyc` ~65 МБ; факт 335 МБ) (проверка: `docker image ls`), `browser` — ≤ 1,2 ГБ.
+- [x] Контейнер работает не от root (`docker run … id -u` → 10001).
+- [x] `/health` отвечает 200 и Docker показывает статус `healthy`.
+- [x] `alembic upgrade head` из образа применяется к чистой БД.
+- [x] CLI работает из образа (`buysmarter --help`).
+- [x] Правка в `src/` не пересобирает слой зависимостей (видно по `CACHED` в выводе сборки).
+- [x] CI-job `docker` зелёный; в образе нет `.env` и `.git` (`docker run … ls -a /app`).
+- [x] `hadolint Dockerfile` без ошибок; `security.yml` при желании сканирует образ (Trivy) — это опционально (Trivy пока не добавлен).
 
 ## Вне этого шага
 
