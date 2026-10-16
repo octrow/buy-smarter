@@ -27,6 +27,7 @@ from buysmarter.jobs import (
     RecommendRequest,
     dedupe_key,
     get_redis,
+    rate_limit,
 )
 from buysmarter.services.recommend import ProductHistory, product_history, select_sources
 from buysmarter.worker import recommend_job
@@ -130,7 +131,7 @@ async def create_job(
         return _accepted(existing, response)
     client = _client_id(request, api_key)
     limit, window = settings.rate_limit_jobs, settings.rate_limit_window_s
-    if retry_after := await store.rate_limit(client, limit=limit, window_s=window):
+    if retry_after := await rate_limit(store.redis, client, limit=limit, window_s=window):
         telemetry.RATE_LIMITED.add(1)
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,

@@ -65,23 +65,25 @@ _UNTRACED_PATHS = "health,ready,metrics"
 
 def instrument_app(app: FastAPI) -> None:
     """Install the SDK providers, instrument FastAPI/httpx/SQLAlchemy and serve ``GET /metrics``."""
-    from buysmarter.db.base import engine
-
     _install_providers()
     FastAPIInstrumentor.instrument_app(app, excluded_urls=_UNTRACED_PATHS)
-    HTTPXClientInstrumentor().instrument()
-    SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
+    _instrument_clients()
     app.add_api_route("/metrics", _metrics_endpoint, include_in_schema=False)
 
 
 def instrument_worker(metrics_port: int) -> None:
     """The worker's side: same providers and client instrumentation, /metrics on its own port."""
+    _install_providers()
+    _instrument_clients()
+    start_http_server(metrics_port)
+
+
+def _instrument_clients() -> None:
+    """Spans and metrics for outgoing HTTP (the marketplaces) and SQL."""
     from buysmarter.db.base import engine
 
-    _install_providers()
     HTTPXClientInstrumentor().instrument()
     SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
-    start_http_server(metrics_port)
 
 
 def _install_providers() -> None:

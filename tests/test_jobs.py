@@ -1,9 +1,9 @@
-"""JobStore: the job record, request dedupe and the per-client rate limit, all in Redis."""
+"""JobStore (the job record, request dedupe) and the per-client rate limit, all in Redis."""
 
 import pytest
 from fakeredis import FakeAsyncRedis
 
-from buysmarter.jobs import JobStatus, JobStore, RecommendRequest, dedupe_key
+from buysmarter.jobs import JobStatus, JobStore, RecommendRequest, dedupe_key, rate_limit
 
 
 @pytest.fixture
@@ -82,8 +82,8 @@ def test_dedupe_key_ignores_case_spacing_and_source_order() -> None:
 
 
 async def test_rate_limit_allows_up_to_the_limit_then_says_when_to_retry(store) -> None:
-    results = [await store.rate_limit("1.2.3.4", limit=3, window_s=600) for _ in range(4)]
+    results = [await rate_limit(store.redis, "1.2.3.4", limit=3, window_s=600) for _ in range(4)]
 
     assert results[:3] == [None, None, None]
     assert 0 < results[3] <= 600
-    assert await store.rate_limit("5.6.7.8", limit=3, window_s=600) is None
+    assert await rate_limit(store.redis, "5.6.7.8", limit=3, window_s=600) is None

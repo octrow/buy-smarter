@@ -1,4 +1,4 @@
-"""Recommend jobs in Redis: the request, the job record, request dedupe and the client rate limit.
+"""Recommend jobs in Redis: the request and outcome schemas, the job store, the client rate limit.
 
 The HTTP API creates a job and enqueues its id; the worker (``buysmarter.worker``) runs it and
 writes the outcome back. Redis is the single source of truth for a job's state.
@@ -155,7 +155,7 @@ def _when(raw: str | None) -> datetime | None:
 
 
 class JobStore:
-    """Job records (hash per job), dedupe slots and rate-limit counters on one Redis client."""
+    """Job records (a hash per job) and the dedupe slots that point at them."""
 
     def __init__(self, redis: Redis) -> None:
         self.redis = redis
@@ -216,23 +216,24 @@ class JobStore:
             return None
         return await self.redis.get(_dedupe_key(key))
 
-    async def rate_limit(self, client: str, *, limit: int, window_s: int) -> int | None:
-        """Count one job for ``client``; seconds until the window resets once over ``limit``."""
-        # ponytail: fixed window (a burst of 2x limit across a boundary); sliding window if abused.
-        window = int(time.time()) // window_s
-        key = f"{_PREFIX}:rl:{client}:{window}"
-        async with self.redis.pipeline(transaction=True) as pipe:
-            pipe.incr(key)
-            pipe.expire(key, window_s)
-            count, _ = await pipe.execute()
-        if count <= limit:
-            return None
-        return max(1, (window + 1) * window_s - int(time.time()))
-
     async def _release_dedupe(self, job_id: str) -> None:
         dedupe = await self.redis.hget(_job_key(job_id), "dedupe")
         if dedupe and await self.redis.get(_dedupe_key(dedupe)) == job_id:
             await self.redis.delete(_dedupe_key(dedupe))
+
+
+async def rate_limit(redis: Redis, client: str, *, limit: int, window_s: int) -> int | None:
+    """Count one new job for ``client``; seconds until the window resets once over ``limit``."""
+    # ponytail: fixed window (a burst of 2x limit across a boundary); sliding window if abused.
+    window = int(time.time()) // window_s
+    key = f"{_PREFIX}:rl:{client}:{window}"
+    async with redis.pipeline(transaction=True) as pipe:
+        pipe.incr(key)
+        pipe.expire(key, window_s)
+        count, _ = await pipe.execute()
+    if count <= limit:
+        return None
+    return max(1, (window + 1) * window_s - int(time.time()))
 
 
 def _job_key(job_id: str) -> str:
