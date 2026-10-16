@@ -215,6 +215,21 @@ dependencies) and `/ready` (readiness, 503 until the database answers). Pods pas
 `restricted`. Keys go in `secret.data` or in your own Secret (`secret.existing`). CI installs and upgrades the chart in
 kind on every PR ([`deploy/kind/smoke.sh`](deploy/kind/smoke.sh)); the smoke test never calls the marketplaces.
 
+## Observability
+
+The API serves Prometheus metrics on `GET /metrics` (OpenTelemetry SDK with the Prometheus exporter): HTTP request
+rate and latency by route, plus `buysmarter_recommend_duration_seconds` (by outcome), `buysmarter_source_requests_total`
+(by marketplace and outcome), `buysmarter_llm_calls_total` (by model, cache hit or miss) and
+`buysmarter_recommend_offers_ranked`. Set `OTEL_EXPORTER_OTLP_ENDPOINT` to also export traces (FastAPI, httpx calls to
+the marketplaces, SQL) over OTLP/HTTP; `BUYSMARTER_METRICS=0` turns `/metrics` off.
+
+```bash
+make observe   # the compose stack + Prometheus :9090, Grafana :3000 (dashboard "buy-smarter"), Jaeger :16686
+```
+
+The chart adds `prometheus.io/scrape` annotations, an optional `ServiceMonitor` (`metrics.serviceMonitor.enabled`) and
+`otel.endpoint` for traces.
+
 ## Development
 
 ```bash

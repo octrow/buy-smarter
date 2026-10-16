@@ -1,10 +1,14 @@
-.PHONY: up down check test
+.PHONY: up down observe check test
 
 up:
 	docker compose up -d postgres redis
 
 down:
-	docker compose down
+	docker compose --profile observability --profile browser down
+
+# The whole stack plus Prometheus, Grafana and Jaeger, with traces on.
+observe:
+	OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318 docker compose --profile observability up -d --build
 
 check:
 	uv run ruff check .

@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: buysmarter
+    folder: buy-smarter
+    type: file
+    options:
+      path: /etc/grafana/dashboards

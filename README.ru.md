@@ -217,6 +217,21 @@ helm test buysmarter -n buysmarter
 `secret.data` или в своём Secret (`secret.existing`). CI ставит и обновляет чарт в kind на каждом PR
 ([`deploy/kind/smoke.sh`](deploy/kind/smoke.sh)); к площадкам smoke-тест не обращается.
 
+## Наблюдаемость
+
+API отдаёт метрики Prometheus на `GET /metrics` (OpenTelemetry SDK с Prometheus-экспортером): частота и задержка
+HTTP-запросов по маршрутам, а также `buysmarter_recommend_duration_seconds` (по исходу),
+`buysmarter_source_requests_total` (по площадке и исходу), `buysmarter_llm_calls_total` (по модели, попадание в кэш или
+промах) и `buysmarter_recommend_offers_ranked`. С `OTEL_EXPORTER_OTLP_ENDPOINT` уходят ещё и трейсы (FastAPI, httpx-запросы
+к площадкам, SQL) по OTLP/HTTP; `BUYSMARTER_METRICS=0` выключает `/metrics`.
+
+```bash
+make observe   # compose-стек + Prometheus :9090, Grafana :3000 (дашборд «buy-smarter»), Jaeger :16686
+```
+
+В чарте — аннотации `prometheus.io/scrape`, опциональный `ServiceMonitor` (`metrics.serviceMonitor.enabled`) и
+`otel.endpoint` для трейсов.
+
 ## Разработка
 
 ```bash

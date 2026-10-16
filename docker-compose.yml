@@ -10,6 +10,8 @@ x-app: &app
   environment:
     DATABASE_URL: postgresql+asyncpg://buysmarter:buysmarter@postgres:5432/buysmarter
     REDIS_URL: redis://redis:6379/0
+    # Traces go out only when this is set (`make observe` points it at Jaeger).
+    OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
 
 services:
   postgres:
@@ -76,6 +78,36 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+
+  # `make observe`: Prometheus :9090, Grafana :3000 (dashboard "buy-smarter"), Jaeger :16686.
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    profiles: [observability]
+    volumes:
+      - ./deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "127.0.0.1:9090:9090"
+
+  grafana:
+    image: grafana/grafana:13.1.8
+    profiles: [observability]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./deploy/observability/grafana/datasources.yml:/etc/grafana/provisioning/datasources/buysmarter.yml:ro
+      - ./deploy/observability/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/buysmarter.yml:ro
+      - ./deploy/observability/grafana/buysmarter.json:/etc/grafana/dashboards/buysmarter.json:ro
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      - prometheus
+
+  jaeger:
+    image: jaegertracing/jaeger:2.21.0
+    profiles: [observability]
+    ports:
+      - "127.0.0.1:16686:16686"
 
 volumes:
   pgdata:
