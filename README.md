@@ -267,7 +267,9 @@ make test
 make up / make down
 ```
 
-Layout: `src/buysmarter/{normalize,db,llm,ranking,services,cli,knowledge,mcp_server}`. The marketplace
+Layout: `src/buysmarter/{normalize,db,llm,ranking,services,cli,knowledge,mcp_server,api}`, plus `jobs.py` (job
+store in Redis), `worker.py` (taskiq worker) and `telemetry.py`; `deploy/` holds the Helm chart, the kind smoke test
+and the observability configs. The marketplace
 adapters live in a separate library, [market-sources](https://github.com/octrow/market-sources)
 (`kaspi`/`olx`/`ozon` on top of a polite HTTP client and a Playwright session). Parser tests run on saved
 JSON samples in `tests/samples/`. Notes from the source spikes are in [docs/spikes](docs/spikes).

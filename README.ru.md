@@ -269,7 +269,9 @@ make test
 make up / make down
 ```
 
-Структура: `src/buysmarter/{normalize,db,llm,ranking,services,cli,knowledge,mcp_server}`. Адаптеры площадок
+Структура: `src/buysmarter/{normalize,db,llm,ranking,services,cli,knowledge,mcp_server,api}`, а также `jobs.py`
+(задачи в Redis), `worker.py` (воркер taskiq) и `telemetry.py`; в `deploy/` — Helm-чарт, kind-smoke и конфиги
+наблюдаемости. Адаптеры площадок
 вынесены в отдельную библиотеку [market-sources](https://github.com/octrow/market-sources)
 (`kaspi`/`olx`/`ozon` поверх вежливого HTTP-клиента и сессии Playwright). Тесты парсеров идут на сохранённых
 JSON-сэмплах в `tests/samples/`. Заметки по разведке источников — в [docs/spikes](docs/spikes).

@@ -12,7 +12,7 @@ make check   # ruff check + ruff format --check + pytest
 ```
 
 Тестам сеть не нужна. Тесты базы запускаются, когда поднят Postgres (`make up && uv run alembic upgrade head`),
-иначе пропускаются.
+иначе пропускаются. Тесты API и воркера идут на fakeredis и брокере в памяти, Redis для них не нужен.
 
 ## Pull request
 
@@ -22,5 +22,8 @@ make check   # ruff check + ruff format --check + pytest
 - Адаптеры площадок живут в [market-sources](https://github.com/octrow/market-sources); сломанный парсер
   Kaspi/Ozon/OLX обычно чинится там.
 - Изменения в `README.md` дублируются в `README.ru.md`, и наоборот.
+- Осознанное упрощение помечается комментарием `# ponytail: <предел>; <когда вернуться>` с событием на реальном
+  прогоне, после которого его пора переделать. Все такие пометки собраны в [PONYTAIL-DEBT.md](PONYTAIL-DEBT.md);
+  добавили или убрали пометку — обновите и его.
 
 Бережно относитесь к площадкам: не ускоряйте запросы и не добавляйте массовый обход.
