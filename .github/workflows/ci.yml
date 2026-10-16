@@ -59,3 +59,39 @@ jobs:
           img=ghcr.io/octrow/buy-smarter:ci
           [ "$(docker run --rm $img id -u)" = 10001 ]
           ! docker run --rm $img ls -a /app | grep -E '^\.(env|git)$'
+
+  helm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      KUBECONFORM: ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
+      CHART: deploy/helm/buysmarter
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v3.19.5
+      - name: Lint and validate against the Kubernetes schemas
+        run: |
+          helm lint "$CHART" --set secret.data.DATABASE_URL=x
+          helm template t "$CHART" --set secret.data.DATABASE_URL=x \
+            --set ingress.enabled=true --set autoscaling.enabled=true --set podDisruptionBudget.enabled=true \
+            | docker run -i --rm "$KUBECONFORM" -strict -summary -kubernetes-version 1.33.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: runtime
+          tags: ghcr.io/octrow/buy-smarter:ci
+          load: true
+          cache-from: type=gha
+      - uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          version: v0.33.0
+          cluster_name: kind
+          wait: 120s
+      # The image goes straight into the cluster, no registry: works on PRs from forks too.
+      - run: kind load docker-image ghcr.io/octrow/buy-smarter:ci
+      - run: deploy/kind/smoke.sh
