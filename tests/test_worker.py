@@ -1,0 +1,133 @@
+"""run_job: replays a stored request through the pipeline and records one terminal outcome."""
+
+import asyncio
+
+import pytest
+from fakeredis import FakeAsyncRedis
+
+from buysmarter import worker
+from buysmarter.jobs import JobStatus, JobStore, RecommendRequest
+from buysmarter.services.recommend import NoSubstanceMatch
+
+
+@pytest.fixture
+def store() -> JobStore:
+    return JobStore(FakeAsyncRedis(decode_responses=True))
+
+
+async def _queued(store: JobStore, **request) -> str:
+    job = await store.create(
+        RecommendRequest(query="ирригатор", sources=["kaspi"], **request), dedupe="d"
+    )
+    return job.id
+
+
+def _pipeline(monkeypatch, behaviour) -> list[dict]:
+    calls: list[dict] = []
+
+    async def fake_recommend(query, **kwargs):
+        calls.append({"query": query, **kwargs})
+        return await behaviour()
+
+    monkeypatch.setattr(worker, "recommend", fake_recommend)
+    return calls
+
+
+async def test_done_job_carries_the_report_and_the_best_offer(
+    store, monkeypatch, recommend_result
+) -> None:
+    async def ok():
+        return recommend_result
+
+    calls = _pipeline(monkeypatch, ok)
+    job_id = await _queued(store, budget=40000, top=3)
+
+    await worker.run_job(store, job_id)
+    job = await store.get(job_id)
+
+    assert job.status is JobStatus.DONE
+    assert job.result["report_markdown"].startswith("# buy-smarter recommendation")
+    assert job.result["best"]["title"] == "Waterpik WP-100 ирригатор"
+    assert job.result["best"]["axes"][0]["name"] == "brand"
+    assert calls == [
+        {
+            "query": "ирригатор",
+            "city": None,
+            "budget": 40000,
+            "use_llm": False,
+            "trusted_only": False,
+            "sources": ["kaspi"],
+        }
+    ]
+
+
+async def test_missing_substance_is_a_no_match_with_its_own_report(store, monkeypatch) -> None:
+    async def no_substance():
+        raise NoSubstanceMatch(["фтор"], 4, [])
+
+    _pipeline(monkeypatch, no_substance)
+    job_id = await _queued(store)
+
+    await worker.run_job(store, job_id)
+    job = await store.get(job_id)
+
+    assert job.status is JobStatus.NO_MATCH
+    assert "фтор" in job.result["reason"]
+    assert job.result["report_markdown"]
+
+
+async def test_empty_pool_after_filters_is_a_no_match(store, monkeypatch) -> None:
+    async def empty():
+        raise ValueError("no candidates passed hard filters")
+
+    _pipeline(monkeypatch, empty)
+    job_id = await _queued(store)
+
+    await worker.run_job(store, job_id)
+
+    job = await store.get(job_id)
+    assert job.status is JobStatus.NO_MATCH
+    assert job.result["reason"] == "no candidates passed hard filters"
+
+
+async def test_a_crash_is_failed_internal_without_the_traceback(store, monkeypatch, caplog) -> None:
+    async def crash():
+        raise RuntimeError("secret internals")
+
+    _pipeline(monkeypatch, crash)
+    job_id = await _queued(store)
+
+    await worker.run_job(store, job_id)
+    job = await store.get(job_id)
+
+    assert (job.status, job.error, job.result) == (JobStatus.FAILED, "internal", None)
+    assert job_id in caplog.text and "secret internals" in caplog.text
+
+
+async def test_a_slow_pipeline_fails_with_timeout(store, monkeypatch) -> None:
+    async def slow():
+        await asyncio.sleep(5)
+
+    _pipeline(monkeypatch, slow)
+    monkeypatch.setattr(worker, "JOB_TIMEOUT_S", 0.01)
+    job_id = await _queued(store)
+
+    await worker.run_job(store, job_id)
+
+    job = await store.get(job_id)
+    assert (job.status, job.error) == (JobStatus.FAILED, "timeout")
+
+
+async def test_a_redelivered_finished_job_does_not_run_again(
+    store, monkeypatch, recommend_result
+) -> None:
+    async def ok():
+        return recommend_result
+
+    calls = _pipeline(monkeypatch, ok)
+    job_id = await _queued(store)
+
+    await worker.run_job(store, job_id)
+    await worker.run_job(store, job_id)
+
+    assert len(calls) == 1

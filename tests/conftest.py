@@ -1,6 +1,10 @@
 """Shared test fixtures."""
 
 import logging
+import os
+
+# Before any test imports buysmarter.worker: an in-process broker, no Redis stream.
+os.environ.setdefault("BUYSMARTER_BROKER", "memory")
 
 import pytest
 
@@ -87,3 +91,35 @@ def _isolate_reports(tmp_path, monkeypatch):
     from buysmarter.cli import report
 
     monkeypatch.setattr(report, "_REPORTS_DIR", tmp_path / "reports")
+
+
+@pytest.fixture
+def recommend_result():
+    """A minimal finished recommend run: one Kaspi candidate, Almaty, 40 000 ₸ budget."""
+    from buysmarter.ranking.models import (
+        AxisScore,
+        Candidate,
+        QueryConstraints,
+        Recommendation,
+        ScoredCandidate,
+    )
+    from buysmarter.services.recommend import RecommendResult
+
+    cand = Candidate(
+        source="kaspi",
+        source_product_id="k1",
+        title="Waterpik WP-100 ирригатор",
+        brand="Waterpik",
+        price=30000,
+        url="https://kaspi.kz/shop/p/k1",
+    )
+    scored = ScoredCandidate(
+        candidate=cand,
+        total_score=88.0,
+        confidence=0.9,
+        axes=[AxisScore(name="brand", score=25.0, max_score=25, explanation="tier A")],
+        pros=["надёжный бренд"],
+    )
+    rec = Recommendation(best=scored, ranked=[scored])
+    constraints = QueryConstraints(category="ирригатор", city="Алматы", budget_max=40000)
+    return RecommendResult(recommendation=rec, constraints=constraints)

@@ -28,6 +28,8 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.66b1",
     "opentelemetry-instrumentation-httpx>=0.66b1",
     "opentelemetry-instrumentation-sqlalchemy>=0.66b1",
+    "taskiq[opentelemetry]>=0.13.0",
+    "taskiq-redis>=1.2.4",
 ]
 
 [project.scripts]
@@ -38,6 +40,7 @@ dev = [
     "ruff",
     "pytest",
     "pytest-asyncio",
+    "fakeredis>=2.40.0",
 ]
 
 [project.urls]

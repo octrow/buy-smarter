@@ -17,7 +17,7 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest, start_http_server
 
 from buysmarter import __version__
 
@@ -41,6 +41,19 @@ LLM_CALLS = _meter.create_counter(
     "buysmarter.llm.calls",
     description="LLM generations, by model and cache (hit, miss)",
 )
+JOBS = _meter.create_counter(
+    "buysmarter.jobs",
+    description="Finished recommend jobs, by status (done, no_match, failed)",
+)
+JOB_WAIT = _meter.create_histogram(
+    "buysmarter.job.wait",
+    unit="s",
+    description="Time a recommend job spent queued before a worker picked it up",
+)
+RATE_LIMITED = _meter.create_counter(
+    "buysmarter.rate_limited",
+    description="POST /recommend requests refused with 429",
+)
 
 # Probes and the scrape itself would drown the request metrics.
 _UNTRACED_PATHS = "health,ready,metrics"
@@ -55,6 +68,16 @@ def instrument_app(app: FastAPI) -> None:
     HTTPXClientInstrumentor().instrument()
     SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
     app.add_api_route("/metrics", _metrics_endpoint, include_in_schema=False)
+
+
+def instrument_worker(metrics_port: int) -> None:
+    """The worker's side: same providers and client instrumentation, /metrics on its own port."""
+    from buysmarter.db.base import engine
+
+    _install_providers()
+    HTTPXClientInstrumentor().instrument()
+    SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
+    start_http_server(metrics_port)
 
 
 def _install_providers() -> None:

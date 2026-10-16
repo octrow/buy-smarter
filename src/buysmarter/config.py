@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # A uv tool install has no project folder, so keys live here; a local .env (a clone) overrides it.
@@ -42,6 +43,15 @@ class Settings(BaseSettings):
 
     # Ozon.kz source (Playwright browser session).
     ozon_base_url: str = "https://www.ozon.kz"
+
+    # HTTP API and its worker. Prefixed env names: these are this app's own switches.
+    # Marketplaces the API accepts; ozon only where the worker has Chromium (the browser image).
+    api_sources: str = Field("kaspi,olx", validation_alias="BUYSMARTER_SOURCES")
+    # Comma-separated keys for X-API-Key; empty = the API is open (local, kind).
+    api_keys: str = Field("", validation_alias="BUYSMARTER_API_KEYS")
+    rate_limit_jobs: int = Field(10, validation_alias="BUYSMARTER_RATE_LIMIT_JOBS")
+    rate_limit_window_s: int = Field(600, validation_alias="BUYSMARTER_RATE_LIMIT_WINDOW_S")
+    worker_metrics_port: int = Field(9000, validation_alias="BUYSMARTER_WORKER_METRICS_PORT")
 
 
 def get_settings() -> Settings:
