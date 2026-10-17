@@ -1,6 +1,7 @@
 """ORM models for the LLM layer (mandatory response cache)."""
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import DateTime, Float, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
@@ -26,7 +27,7 @@ class LlmCache(Base):
     input_hash: Mapped[str] = mapped_column(String(64))
     cache_key: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     response_text: Mapped[str] = mapped_column(Text)
-    structured_json: Mapped[dict] = mapped_column(JSONB)
+    structured_json: Mapped[dict[str, Any]] = mapped_column(JSONB)
     prompt_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     completion_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)

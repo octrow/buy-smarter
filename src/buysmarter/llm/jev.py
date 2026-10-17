@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from typing import Any
 
 import httpx
 from claude_cli.http_api import api_key
@@ -27,7 +28,9 @@ _DEFAULT_URL = "http://localhost:20128"
 _TIMEOUT_S = 30.0
 
 
-async def system_one(state: object, questions: dict[str, dict]) -> dict[str, dict]:
+async def system_one(
+    state: object, questions: dict[str, dict[str, Any]]
+) -> dict[str, dict[str, Any]]:
     """Ask ``questions`` about ``state``; return the ``answers`` map (same keys).
 
     Raises ``LlmConfigError`` without an OmniRoute key, ``LlmError`` on any
@@ -38,7 +41,7 @@ async def system_one(state: object, questions: dict[str, dict]) -> dict[str, dic
         raise LlmConfigError("no OMNIROUTE_API_KEY for Jev")
     started = time.monotonic()
     payload = await _post(key, {"model": JEV_MODEL, "state": state, "questions": questions})
-    answers = payload["answers"]
+    answers: dict[str, dict[str, Any]] = payload["answers"]
     missing = questions.keys() - answers.keys()
     if missing:
         raise LlmError(f"Jev answers missing for {sorted(missing)}")
@@ -53,7 +56,7 @@ async def system_one(state: object, questions: dict[str, dict]) -> dict[str, dic
     return answers
 
 
-async def _post(key: str, body: dict) -> dict:
+async def _post(key: str, body: dict[str, Any]) -> dict[str, Any]:
     """POST ``body`` to OmniRoute's systemone proxy; any failure → ``LlmError``."""
     url = os.environ.get("OMNIROUTE_URL", _DEFAULT_URL) + "/v1/systemone"
     try:

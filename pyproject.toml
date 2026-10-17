@@ -81,7 +81,7 @@ plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
 # Pure ranking logic: the per-module half of --strict (`strict` itself is global-only).
-module = ["buysmarter.ranking.*"]
+module = ["buysmarter.ranking.*", "buysmarter.llm.*", "buysmarter.knowledge.*"]
 disallow_any_generics = true
 disallow_untyped_calls = true
 disallow_untyped_defs = true

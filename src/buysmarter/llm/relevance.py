@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -127,7 +128,7 @@ def accessory_reason(category: str, title: str) -> str | None:
     return marker if (starts_with_marker or category_absent) else None
 
 
-def relevance_questions(count: int) -> dict[str, dict]:
+def relevance_questions(count: int) -> dict[str, dict[str, Any]]:
     """One Noul per title, keyed ``t<i>`` and pointing at ``titles[i]`` in the state."""
     return {
         f"t{i}": {

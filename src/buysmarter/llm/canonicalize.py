@@ -24,6 +24,7 @@ treated as a match to a different, existing model.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -85,7 +86,7 @@ def canonicalize_prompt(category: str, known_models: list[str], titles: list[str
     )
 
 
-def canonicalize_questions(known_models: list[str], count: int) -> dict[str, dict]:
+def canonicalize_questions(known_models: list[str], count: int) -> dict[str, dict[str, Any]]:
     """One Jev Choice per title (``t<i>`` → ``titles[i]``) over known models + no-match."""
     criteria: dict[str, str | None] = dict.fromkeys(known_models)
     criteria[_NO_MATCH] = (

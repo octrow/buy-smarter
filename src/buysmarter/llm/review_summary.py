@@ -11,7 +11,7 @@ repeat calls free.
 import asyncio
 import logging
 import re
-from typing import Literal, cast, get_args
+from typing import Any, Literal, cast, get_args
 
 from market_sources.base import RawReview
 from pydantic import BaseModel, Field
@@ -258,7 +258,7 @@ def _feature_sentences(texts: list[str], stems: list[str]) -> list[tuple[int, st
     return found
 
 
-def _sentence_question(i: int) -> dict:
+def _sentence_question(i: int) -> dict[str, Any]:
     return {
         "type": "choice",
         "instructions": "What does `sentences[" + str(i) + "].text` say about the product "
@@ -292,7 +292,7 @@ def _verdict(feature: str, labelled: list[tuple[int, str, str, float]]) -> Requi
 
 def build_questions(
     selected: list[RawReview], features: list[str]
-) -> tuple[dict, dict[str, dict], list[tuple[str, int, str]]]:
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]], list[tuple[str, int, str]]]:
     """State, questions, and the ``(feature, review_index, sentence)`` behind each ``s<i>``.
 
     Sentences come from the bare review text (no ``[2★]`` prefix) so a quote is
@@ -376,7 +376,7 @@ async def summarize_reviews(
     summary = cast(
         ReviewSummary, result
     )  # generate() returns an instance of the model it was given
-    update: dict = {}
+    update: dict[str, Any] = {}
     checks = summary.requirement_checks
     if judged is not None:
         counterfeit, reliability, checks = judged

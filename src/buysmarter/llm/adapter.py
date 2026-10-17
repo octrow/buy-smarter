@@ -17,7 +17,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
-from typing import cast
+from typing import Any, cast
 
 from claude_cli import MODELS as CLAUDE_CLI_MODELS
 from claude_cli import (
@@ -29,7 +29,7 @@ from claude_cli import (
     normalize_prompt,
 )
 from openai import APIError, AsyncOpenAI
-from openai.types.chat import ChatCompletionMessageParam
+from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 from pydantic import BaseModel, ValidationError
 
 from buysmarter import telemetry
@@ -145,22 +145,24 @@ async def _chat(
     temperature: float,
     messages: list[dict[str, str]],
     provider: Provider,
-):
-    kwargs: dict = {}
+) -> ChatCompletion:
+    kwargs: dict[str, Any] = {}
     if provider.supports_json_mode:
         kwargs["response_format"] = {"type": "json_object"}
     try:
-        return await client.chat.completions.create(
+        # **kwargs hides `stream`, so the overloads resolve to Any; no stream here.
+        resp: ChatCompletion = await client.chat.completions.create(
             model=model,
             temperature=temperature,
             messages=cast(list[ChatCompletionMessageParam], messages),
             **kwargs,
         )
+        return resp
     except APIError as exc:
         raise LlmError(f"{provider.name} API call failed: {exc}") from exc
 
 
-def _text_of(resp) -> str:
+def _text_of(resp: ChatCompletion) -> str:
     return resp.choices[0].message.content or ""
 
 
@@ -174,7 +176,7 @@ def _build_row(
     response_model: type[BaseModel],
     text: str,
     obj: BaseModel,
-    resp,
+    resp: ChatCompletion,
     latency_ms: int,
 ) -> LlmCache:
     usage = getattr(resp, "usage", None)
@@ -339,7 +341,7 @@ async def _run_cli(
     ``NotLoggedInError``/``UsageLimitError``); every failure is re-raised as
     :class:`LlmError` so callers keep one exception type to catch.
     """
-    kwargs: dict = {"tools": tools}
+    kwargs: dict[str, Any] = {"tools": tools}
     if timeout is not None:
         kwargs["timeout"] = timeout
     try:

@@ -20,6 +20,7 @@ import os
 import re
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
 
 from pydantic import BaseModel
 
@@ -80,24 +81,25 @@ def _file(category: str) -> Path:
     return _knowledge_dir() / f"{_slug(category)}.json"
 
 
-def _read_file(category: str) -> dict | None:
+def _read_file(category: str) -> dict[str, Any] | None:
     path = _file(category)
     if not path.exists():
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+        return data
     except (OSError, json.JSONDecodeError) as exc:
         logger.warning("Knowledge file unreadable (%r); treating as missing", exc)
         return None
 
 
-def _write_file(category: str, payload: dict) -> None:
+def _write_file(category: str, payload: dict[str, Any]) -> None:
     path = _file(category)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-async def load_knowledge(category: str) -> dict | None:
+async def load_knowledge(category: str) -> dict[str, Any] | None:
     """Return the raw ``schema_json`` for a category; DB-primary, file fallback.
 
     Keyed by the category *slug* (not the raw string) in both stores, so spacing
@@ -225,7 +227,7 @@ def match_category_prompt(category: str, candidates: list[str]) -> str:
     )
 
 
-def match_category_question(category: str, candidates: list[str]) -> dict:
+def match_category_question(category: str, candidates: list[str]) -> dict[str, Any]:
     """One Jev Choice over the stored slugs plus an explicit no-match option."""
     criteria: dict[str, str | None] = {c: None for c in candidates}
     criteria[_NO_MATCH] = "No stored category covers the same products as the query"
@@ -266,7 +268,7 @@ async def _match_category_llm(category: str, candidates: list[str]) -> str | Non
     except (LlmError, LlmConfigError) as exc:
         logger.warning("category-match LLM call failed (%r); no knowledge match", exc)
         return None
-    index = result.index  # type: ignore[attr-defined]
+    index = cast(_CategoryMatch, result).index  # generate() returns the model it was given
     if index is None or index < 0 or index >= len(candidates):
         return None
     return candidates[index]

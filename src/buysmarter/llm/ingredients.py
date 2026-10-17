@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -87,14 +88,14 @@ def _percent_candidates(title: str, sostav: str) -> list[str]:
 
 def build_ingredient_questions(
     category: str, book: IngredientBook, items: list[tuple[str, str]]
-) -> tuple[dict, dict[str, dict], list[list[str]]]:
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]], list[list[str]]]:
     """State, questions, and each item's concentration candidates (behind ``c<i>``)."""
     state = {
         "category": category,
         "items": [{"title": t, "composition": s or "(none)"} for t, s in items],
         "substances": [{"name": x.canonical, "aliases": x.aliases} for x in book.substances],
     }
-    questions: dict[str, dict] = {}
+    questions: dict[str, dict[str, Any]] = {}
     percents = [_percent_candidates(t, s) for t, s in items]
     for i in range(len(items)):
         for j in range(len(book.substances)):

@@ -18,7 +18,7 @@ import hashlib
 import json
 import sqlite3
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from claude_cli import cache_key
 from pydantic import BaseModel
@@ -49,19 +49,20 @@ def cache_key_for(
     non-empty — a tools-on call (web-search-grounded) must not share a cache row
     with a tools-off call using the identical prompt.
     """
-    return cache_key(
+    key: str = cache_key(  # claude_cli ships no type hints
         model,
         prompt,
         schema=response_model.__name__,
         version=prompt_version,
         tools=cli_tools,
     )
+    return key
 
 
 class CacheStore(Protocol):
     """Minimal interface the adapter needs from a cache backend."""
 
-    async def get(self, cache_key: str) -> dict | None: ...
+    async def get(self, cache_key: str) -> dict[str, Any] | None: ...
 
     async def put(self, row: LlmCache) -> None: ...
 
@@ -69,7 +70,7 @@ class CacheStore(Protocol):
 class SqlCacheStore:
     """Default store backed by the async SQLAlchemy session factory."""
 
-    async def get(self, cache_key: str) -> dict | None:
+    async def get(self, cache_key: str) -> dict[str, Any] | None:
         async with async_session() as session:
             result = await session.execute(select(LlmCache).where(LlmCache.cache_key == cache_key))
             row = result.scalar_one_or_none()
@@ -125,7 +126,7 @@ class FileCacheStore:
             conn.execute("ALTER TABLE llm_cache ADD COLUMN prompt_text TEXT")
             conn.commit()
 
-    async def get(self, cache_key: str) -> dict | None:
+    async def get(self, cache_key: str) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute(
                 "SELECT structured_json FROM llm_cache WHERE cache_key = ?", (cache_key,)
@@ -161,7 +162,7 @@ class DictCacheStore:
     def __init__(self) -> None:
         self.rows: dict[str, LlmCache] = {}
 
-    async def get(self, cache_key: str) -> dict | None:
+    async def get(self, cache_key: str) -> dict[str, Any] | None:
         row = self.rows.get(cache_key)
         return row.structured_json if row is not None else None
 
@@ -178,7 +179,7 @@ def set_store(store: CacheStore) -> None:
     _store = store
 
 
-async def get_cached(cache_key: str) -> dict | None:
+async def get_cached(cache_key: str) -> dict[str, Any] | None:
     """Return the cached structured JSON for ``cache_key``, or ``None``."""
     return await _store.get(cache_key)
 
