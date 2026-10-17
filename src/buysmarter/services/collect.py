@@ -319,14 +319,14 @@ async def _safe_offers(source: ProductSource, product_id: str) -> list[RawOffer]
         return []
 
 
-async def _collect_kaspi(
+async def _kaspi_search_pool(
     source: ProductSource,
     category: str,
     city_id: str | None,
     book: BrandBook | None,
-    substance_plan: list[tuple[str, list[str]]] | None = None,
-) -> tuple[list[Candidate], list[ProductRow]]:
-    """Kaspi: brand/substance-targeted + main search, specs for all, offers for top N."""
+    substance_plan: list[tuple[str, list[str]]] | None,
+) -> tuple[list[RawProduct], list[RawProduct]]:
+    """Targeted (substance, then brand) hits and the rest of the main search, deduped."""
     stripped = strip_latin_tokens(category, book)
     products = await source.search(category, city=city_id)
     search_count = 1
@@ -357,12 +357,24 @@ async def _collect_kaspi(
     targeted = _dedupe_products(targeted)[:_MAX_TARGETED_CARDS]
     targeted_ids = {p.product_id for p in targeted}
     rest = [p for p in products if p.product_id not in targeted_ids]
-    top = targeted + rest[:_MAX_CARDS]
     logger.info(
         "kaspi: %d searches issued (main+stripped+substance+brand), %d candidates gathered",
         search_count,
-        len(top),
+        len(targeted) + len(rest[:_MAX_CARDS]),
     )
+    return targeted, rest
+
+
+async def _collect_kaspi(
+    source: ProductSource,
+    category: str,
+    city_id: str | None,
+    book: BrandBook | None,
+    substance_plan: list[tuple[str, list[str]]] | None = None,
+) -> tuple[list[Candidate], list[ProductRow]]:
+    """Kaspi: brand/substance-targeted + main search, specs for all, offers for top N."""
+    targeted, rest = await _kaspi_search_pool(source, category, city_id, book, substance_plan)
+    top = targeted + rest[:_MAX_CARDS]
     # Offer fetch (a real HTTP call each) is split evenly across the two
     # sub-pools instead of "first _OFFERS_FOR of the combined list": targeted
     # hits are always listed first, so an index-only cutoff always gave
