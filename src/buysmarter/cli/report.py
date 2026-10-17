@@ -12,7 +12,8 @@ from datetime import datetime
 from pathlib import Path
 
 from buysmarter.ranking.engine import is_barred
-from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult, UsedListing
+from buysmarter.services.matching import UsedListing
+from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
 
 _ROLE_LABELS = {
     "best_value": "Best value",

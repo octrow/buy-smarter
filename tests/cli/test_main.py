@@ -241,7 +241,7 @@ def test_render_top_marks_barred_candidate_with_warning() -> None:
 
 
 def test_render_used_shows_dash_for_standalone_saving() -> None:
-    from buysmarter.services.recommend import UsedListing
+    from buysmarter.services.matching import UsedListing
 
     listing = UsedListing(title="Waterpik WP-660 б/у", price=18000, standalone=True)
 

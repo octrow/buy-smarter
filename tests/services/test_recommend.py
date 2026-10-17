@@ -9,16 +9,18 @@ from market_sources.kaspi.parse import parse_offers, parse_search, parse_specs
 
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.ranking.models import Candidate
+from buysmarter.services.matching import (
+    dedupe_cross_source,
+    match_used_listings,
+    notable_used_listings,
+    strip_latin_tokens,
+)
 from buysmarter.services.recommend import (
     _brand_search_plan,
     _brand_targeted_products,
     _collect_kaspi,
     _collect_olx,
     _head_noun,
-    _strip_latin_tokens,
-    dedupe_cross_source,
-    match_used_listings,
-    notable_used_listings,
     recommend,
 )
 
@@ -842,20 +844,20 @@ async def test_review_pass_penalizes_counterfeit_and_flips_best(monkeypatch):
 
 
 def test_strip_latin_tokens_drops_jargon_acronym():
-    assert _strip_latin_tokens("TWS наушники") == "наушники"
+    assert strip_latin_tokens("TWS наушники") == "наушники"
 
 
 def test_strip_latin_tokens_no_latin_tokens_returns_none():
-    assert _strip_latin_tokens("робот-пылесос") is None
+    assert strip_latin_tokens("робот-пылесос") is None
 
 
 def test_strip_latin_tokens_digit_jargon():
-    assert _strip_latin_tokens("смартфон 5G") == "смартфон"
+    assert strip_latin_tokens("смартфон 5G") == "смартфон"
 
 
 def test_strip_latin_tokens_all_latin_category_returns_none():
     # Stripping would empty the string out entirely — nothing left to search.
-    assert _strip_latin_tokens("iphone case") is None
+    assert strip_latin_tokens("iphone case") is None
 
 
 # --- M1: a book-known brand token is kept, not stripped as jargon ----------
@@ -863,17 +865,17 @@ def test_strip_latin_tokens_all_latin_category_returns_none():
 
 def test_strip_latin_tokens_keeps_known_brand_with_book():
     book = BrandBook(tiers={"Apple": "A"}, aliases={})
-    assert _strip_latin_tokens("наушники Apple", book) is None  # nothing to strip
+    assert strip_latin_tokens("наушники Apple", book) is None  # nothing to strip
 
 
 def test_strip_latin_tokens_still_strips_unknown_jargon_with_book():
     book = BrandBook(tiers={"Apple": "A"}, aliases={})
-    assert _strip_latin_tokens("TWS наушники", book) == "наушники"  # TWS unknown to book
+    assert strip_latin_tokens("TWS наушники", book) == "наушники"  # TWS unknown to book
 
 
 def test_strip_latin_tokens_without_book_strips_every_latin_token():
     # No book -> deterministic fallback: even a real brand name gets stripped.
-    assert _strip_latin_tokens("наушники Apple") == "наушники"
+    assert strip_latin_tokens("наушники Apple") == "наушники"
 
 
 # --- Fix 1b: sub-brand alias searches + _MAX_BRAND_SEARCHES cap -------------

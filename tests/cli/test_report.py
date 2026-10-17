@@ -8,7 +8,8 @@ from buysmarter.ranking.models import (
     Recommendation,
     ScoredCandidate,
 )
-from buysmarter.services.recommend import RecommendResult, UsedListing
+from buysmarter.services.matching import UsedListing
+from buysmarter.services.recommend import RecommendResult
 
 
 def _scored(pid: str, title: str, price: int, score: float, tier: str | None) -> ScoredCandidate:

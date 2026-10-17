@@ -12,7 +12,7 @@ from buysmarter.knowledge.store import get_stored_books
 from buysmarter.llm import canonicalize as canon
 from buysmarter.llm.canonicalize import CanonicalizeResult, CanonicalMapping
 from buysmarter.ranking.models import Candidate
-from buysmarter.services.recommend import canonicalize_used_titles, match_used_listings
+from buysmarter.services.matching import canonicalize_used_titles, match_used_listings
 
 
 @pytest.fixture(autouse=True)
