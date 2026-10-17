@@ -1,3 +1,0 @@
-exempt:
-  complexity_cyclomatic: "worst three refactored 2026-10-17 (score, recommend, apply_hard_filters); the 13 left are cc 11-17, refactor one per commit when next touched"
-  complexity_cognitive: "worst three refactored 2026-10-17; dedupe_cross_source 18, _pick_alternatives 17, notable_used_listings 16 left for when next touched"

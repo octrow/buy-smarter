@@ -42,6 +42,7 @@ dev = [
     "pytest-asyncio",
     "fakeredis>=2.40.0",
     "mypy==2.4.0",
+    "complexipy==8.0.1",
 ]
 
 [project.urls]
@@ -62,7 +63,10 @@ src = ["src", "tests"]
 extend-exclude = ["alembic"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+select = ["E", "F", "I", "UP", "B", "C90"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
