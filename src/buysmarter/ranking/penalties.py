@@ -157,6 +157,22 @@ _CONFIRMED_PRO = "отзывы подтверждают: {feature} — «{quote}
 _REFUTED_CON = "по отзывам нет: {feature} — «{quote}»"
 
 
+def _requirement_notes(
+    scored: ScoredCandidate,
+    confirmed: list["RequirementCheck"],
+    refuted: list["RequirementCheck"],
+) -> tuple[list[str], list[str]]:
+    """Pros quoting confirmations (replacing their "unverified" cons), cons quoting refutations."""
+    resolved_cons = {UNVERIFIED_FEATURE_CON.format(feature=c.feature) for c in confirmed}
+    cons = [con for con in scored.cons if con not in resolved_cons]
+    cons.extend(_REFUTED_CON.format(feature=c.feature, quote=c.quote) for c in refuted)
+    pros = [
+        *scored.pros,
+        *(_CONFIRMED_PRO.format(feature=c.feature, quote=c.quote) for c in confirmed),
+    ]
+    return pros, cons
+
+
 def apply_requirement_checks(
     scored: ScoredCandidate, checks: list["RequirementCheck"]
 ) -> ScoredCandidate:
@@ -172,13 +188,7 @@ def apply_requirement_checks(
     refuted = [c for c in checks if c.verdict == "refuted"]
     if not confirmed and not refuted:
         return scored
-    resolved_cons = {UNVERIFIED_FEATURE_CON.format(feature=c.feature) for c in confirmed}
-    cons = [con for con in scored.cons if con not in resolved_cons]
-    pros = [
-        *scored.pros,
-        *(_CONFIRMED_PRO.format(feature=c.feature, quote=c.quote) for c in confirmed),
-    ]
-    cons.extend(_REFUTED_CON.format(feature=c.feature, quote=c.quote) for c in refuted)
+    pros, cons = _requirement_notes(scored, confirmed, refuted)
     new_total = scored.total_score
     if refuted:
         new_total = round(scored.total_score * _REFUTED_FACTOR ** len(refuted), 2)
