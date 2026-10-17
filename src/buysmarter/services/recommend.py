@@ -15,7 +15,8 @@ import logging
 import re
 import time
 from collections import Counter
-from typing import cast
+from collections.abc import Awaitable, Callable
+from typing import Any, cast
 
 from market_sources.base import ProductSource
 from pydantic import BaseModel, Field
@@ -236,11 +237,13 @@ def _guard_substance_pool(
     raise NoSubstanceMatch(required_substances, len(candidates), top)
 
 
-def _measured(fn):
+def _measured[**P](
+    fn: Callable[P, Awaitable[RecommendResult]],
+) -> Callable[P, Awaitable[RecommendResult]]:
     """Record a recommend run's duration by outcome, and the ranked pool size when it succeeds."""
 
     @functools.wraps(fn)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> RecommendResult:
         start = time.perf_counter()
         outcome = "error"
         try:
@@ -417,7 +420,7 @@ async def recommend(
 def _apply_overrides(
     constraints: QueryConstraints, city: str | None, budget: int | None, trusted_only: bool
 ) -> QueryConstraints:
-    updates: dict = {}
+    updates: dict[str, Any] = {}
     if city:
         updates["city"] = city
     if budget is not None:

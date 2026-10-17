@@ -7,12 +7,12 @@ import inspect
 import logging
 import re
 import time
-from collections.abc import Iterable, Sequence
+from collections.abc import Awaitable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import cast
 
-from market_sources.base import ProductSource, RawProduct
+from market_sources.base import ProductSource, RawOffer, RawProduct
 from market_sources.kaspi.client import KaspiClient
 from market_sources.kaspi.source import KaspiSource
 from market_sources.olx.source import OlxSource
@@ -49,6 +49,9 @@ from buysmarter.services.matching import (
 )
 
 logger = logging.getLogger(__name__)
+
+# A product to persist: the raw listing, its specs and its seller offers.
+ProductRow = tuple[RawProduct, dict[str, str], list[RawOffer]]
 
 
 # When a BrandBook exists, brand-targeted searches widen the pool considerably
@@ -89,7 +92,7 @@ def select_sources(names: Iterable[str], allowed: Sequence[str] = ALL_SOURCES) -
 
 
 @contextmanager
-def stage(name: str):
+def stage(name: str) -> Iterator[None]:
     """Log one INFO line with the elapsed wall time of a pipeline stage."""
     start = time.perf_counter()
     try:
@@ -284,7 +287,7 @@ def _dedupe_products(products: list[RawProduct]) -> list[RawProduct]:
     return deduped
 
 
-async def _safe_specs(source: ProductSource, product_id: str) -> tuple[dict, bool]:
+async def _safe_specs(source: ProductSource, product_id: str) -> tuple[dict[str, str], bool]:
     """Best-effort Kaspi specs fetch — one bad product id must not skip the whole source.
 
     Fashion/apparel categories can still 404 on a per-product basis even with a
@@ -303,7 +306,7 @@ async def _safe_specs(source: ProductSource, product_id: str) -> tuple[dict, boo
         return {}, False
 
 
-async def _safe_offers(source: ProductSource, product_id: str) -> list:
+async def _safe_offers(source: ProductSource, product_id: str) -> list[RawOffer]:
     """Best-effort Kaspi offers fetch — one bad product id must not skip the whole source.
 
     Logged at INFO, same reasoning as ``_safe_specs`` — a per-item failure is
@@ -322,7 +325,7 @@ async def _collect_kaspi(
     city_id: str | None,
     book: BrandBook | None,
     substance_plan: list[tuple[str, list[str]]] | None = None,
-) -> tuple[list[Candidate], list[tuple]]:
+) -> tuple[list[Candidate], list[ProductRow]]:
     """Kaspi: brand/substance-targeted + main search, specs for all, offers for top N."""
     stripped = strip_latin_tokens(category, book)
     products = await source.search(category, city=city_id)
@@ -373,7 +376,7 @@ async def _collect_kaspi(
     }
     semaphore = asyncio.Semaphore(_KASPI_DETAIL_CONCURRENCY)
 
-    async def fetch_details(product: RawProduct) -> tuple[dict, bool, list]:
+    async def fetch_details(product: RawProduct) -> tuple[dict[str, str], bool, list[RawOffer]]:
         async with semaphore:
             if product.specs_available:
                 specs, ok = await _safe_specs(source, product.product_id)
@@ -392,7 +395,7 @@ async def _collect_kaspi(
     # gather preserves input order, so candidates/rows keep the `top` order.
     details = await asyncio.gather(*(fetch_details(p) for p in top))
     candidates: list[Candidate] = []
-    rows: list[tuple] = []
+    rows: list[ProductRow] = []
     unavailable = 0
     for product, (specs, ok, offers) in zip(top, details, strict=True):
         if not ok:
@@ -406,15 +409,15 @@ async def _collect_kaspi(
 
 async def _collect_ozon(
     source: ProductSource, category: str, book: BrandBook | None
-) -> tuple[list[Candidate], list[tuple]]:
+) -> tuple[list[Candidate], list[ProductRow]]:
     """Ozon: main search only; specs (a browser nav each) for the very top few."""
     products = await source.search(category)
     top = products[:_OZON_MAX_CARDS]
     candidates: list[Candidate] = []
-    rows: list[tuple] = []
+    rows: list[ProductRow] = []
     for index, product in enumerate(top):
         # Per-item guard: one browser hiccup must not discard the whole Ozon pool.
-        specs: dict = {}
+        specs: dict[str, str] = {}
         if index < _OZON_SPECS_FOR:
             specs, _ok = await _safe_specs(source, product.product_id)
         candidates.append(to_candidate(product, specs, [], book))
@@ -455,7 +458,7 @@ def _head_noun(category: str, book: BrandBook | None = None) -> str | None:
     picking the tail.
     """
     lowered_category = category.lower().strip()
-    tokens = [
+    tokens: list[str] = [
         t for t in re.findall(r"[^\W\d_]+", lowered_category) if len(t) >= _OLX_HEAD_NOUN_MIN_LEN
     ]
     if book is not None:
@@ -548,7 +551,7 @@ def resolve_sources(
     return {name: factories[name]() for name in names if name in factories}
 
 
-async def _safe(name: str, coro):
+async def _safe[T](name: str, coro: Awaitable[T]) -> T | None:
     """Await a source coroutine, swallowing failures so one source can't kill the run."""
     try:
         with stage(f"collect[{name}]"):
@@ -561,7 +564,7 @@ async def _safe(name: str, coro):
     return result
 
 
-def snapshot_values(product: RawProduct, offers: list) -> tuple[int, int] | None:
+def snapshot_values(product: RawProduct, offers: list[RawOffer]) -> tuple[int, int] | None:
     """Min price seen + offer count for a persist row, or ``None`` if no price.
 
     Prefers the cheapest live offer, falling back to the search-card price so a
@@ -575,7 +578,7 @@ def snapshot_values(product: RawProduct, offers: list) -> tuple[int, int] | None
     return min(prices), len(offers)
 
 
-async def save_snapshots(rows: list[tuple], category: str | None = None) -> None:
+async def save_snapshots(rows: list[ProductRow], category: str | None = None) -> None:
     """Best-effort persistence; a dead DB must not break the CLI.
 
     Upserts each product, records its offers, and writes one ``PriceSnapshot``
@@ -662,7 +665,7 @@ async def gather_sources(
     substance_plan: list[tuple[str, list[str]]] | None = None,
 ) -> dict[str, object]:
     """Run every active source's collector concurrently, isolating failures."""
-    coros: dict[str, object] = {}
+    coros: dict[str, Awaitable[object]] = {}
     if "kaspi" in active:
         coros["kaspi"] = _collect_kaspi(active["kaspi"], category, city_id, book, substance_plan)
     if "ozon" in active:
@@ -692,15 +695,15 @@ def kaspi_city_id(city: str | None) -> str | None:
 # yields one (docs/INIT_DATA.md, most users are in Almaty).
 
 
-def merge_new_goods(collected: dict[str, object]) -> tuple[list[Candidate], list[tuple]]:
+def merge_new_goods(collected: dict[str, object]) -> tuple[list[Candidate], list[ProductRow]]:
     """Combine Kaspi + Ozon collector output into one ranking pool + persist rows."""
     candidates: list[Candidate] = []
-    rows: list[tuple] = []
+    rows: list[ProductRow] = []
     for name in ("kaspi", "ozon"):
         result = collected.get(name)
         if not result:
             continue
-        source_candidates, source_rows = cast(tuple[list[Candidate], list[tuple]], result)
+        source_candidates, source_rows = cast(tuple[list[Candidate], list[ProductRow]], result)
         candidates.extend(source_candidates)
         rows.extend(source_rows)
     return candidates, rows

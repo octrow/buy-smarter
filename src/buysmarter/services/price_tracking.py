@@ -19,6 +19,7 @@ from buysmarter.db.repo import (
 )
 from buysmarter.services.collect import (
     ALL_SOURCES,
+    ProductRow,
     aclose,
     gather_sources,
     kaspi_city_id,
@@ -56,7 +57,7 @@ class CategoryRefresh(BaseModel):
     drops: list[PriceChange] = Field(default_factory=list)
 
 
-async def _persist_refresh(rows: list[tuple], category: str) -> list[PriceChange]:
+async def _persist_refresh(rows: list[ProductRow], category: str) -> list[PriceChange]:
     """Persist rows + snapshots, returning the price changes vs the prior snapshot."""
     changes: list[PriceChange] = []
     async with async_session() as session:

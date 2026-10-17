@@ -49,7 +49,8 @@ async def _reviews_and_stats(
     with_stats = getattr(source, "reviews_with_stats", None)
     if with_stats is None:
         return await source.reviews(product_id), None
-    return await with_stats(product_id)
+    result: tuple[list[RawReview], RawReviewStats | None] = await with_stats(product_id)
+    return result
 
 
 async def _fetch_top_reviews(
