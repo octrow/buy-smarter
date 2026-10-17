@@ -26,3 +26,4 @@ logs/
 
 # Generated reports
 reports/
+.coverage
