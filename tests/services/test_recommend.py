@@ -721,8 +721,8 @@ def test_dedupe_cross_source_merges_via_canonical_model() -> None:
 
 
 from buysmarter.llm.review_summary import ReviewSummary  # noqa: E402
-from buysmarter.ranking.engine import assemble_recommendation  # noqa: E402
 from buysmarter.ranking.models import ScoredCandidate  # noqa: E402
+from buysmarter.ranking.selection import assemble_recommendation  # noqa: E402
 from buysmarter.services import review_pass as review_mod  # noqa: E402
 
 

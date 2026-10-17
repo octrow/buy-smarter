@@ -11,7 +11,7 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-from buysmarter.ranking.engine import is_barred
+from buysmarter.ranking.selection import is_barred
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
 

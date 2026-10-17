@@ -6,15 +6,9 @@ while a product whose состав we simply couldn't read survives (honest
 uncertainty), and that spec-driven ranking is untouched.
 """
 
-from buysmarter.ranking.engine import (
-    COMPOSITION_WEIGHTS,
-    NO_SUBSTANCE_REASON,
-    apply_hard_filters,
-    build_ingredient_context,
-    compute_market_context,
-    rank,
-    score,
-)
+from buysmarter.ranking.engine import COMPOSITION_WEIGHTS, compute_market_context, rank, score
+from buysmarter.ranking.filters import NO_SUBSTANCE_REASON, apply_hard_filters
+from buysmarter.ranking.ingredient_axis import build_ingredient_context
 from buysmarter.ranking.models import Candidate, QueryConstraints
 
 

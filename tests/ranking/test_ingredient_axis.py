@@ -6,11 +6,11 @@ Pure ranking engine — no DB, no LLM, no network.
 from buysmarter.ranking.engine import (
     COMPOSITION_WEIGHTS,
     DEFAULT_WEIGHTS,
-    build_ingredient_context,
     compute_market_context,
     rank,
     score,
 )
+from buysmarter.ranking.ingredient_axis import build_ingredient_context
 from buysmarter.ranking.models import Candidate, QueryConstraints
 
 

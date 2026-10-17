@@ -38,11 +38,8 @@ from buysmarter.llm.ingredients import extract_ingredients
 from buysmarter.llm.prompts import parse_query, parse_query_naive
 from buysmarter.llm.relevance import accessory_reason, filter_relevant
 from buysmarter.llm.review_summary import ReviewSummary
-from buysmarter.ranking.engine import (
-    NO_SUBSTANCE_REASON,
-    apply_hard_filters,
-    rank,
-)
+from buysmarter.ranking.engine import rank
+from buysmarter.ranking.filters import NO_SUBSTANCE_REASON, apply_hard_filters
 from buysmarter.ranking.models import (
     Candidate,
     QueryConstraints,

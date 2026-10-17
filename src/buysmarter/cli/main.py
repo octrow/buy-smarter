@@ -36,8 +36,8 @@ from buysmarter.knowledge.store import (
 )
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.logsetup import new_run_id, setup_logging
-from buysmarter.ranking.engine import is_barred
 from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
+from buysmarter.ranking.selection import is_barred
 from buysmarter.services.collect import ALL_SOURCES, select_sources
 from buysmarter.services.price_tracking import CategoryRefresh, ProductHistory
 from buysmarter.services.price_tracking import product_history as run_product_history

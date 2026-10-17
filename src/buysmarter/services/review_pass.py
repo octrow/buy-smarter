@@ -10,20 +10,20 @@ from market_sources.base import ProductSource, RawReview, RawReviewStats
 
 from buysmarter.llm.adapter import LlmConfigError, LlmError
 from buysmarter.llm.review_summary import RequirementCheck, ReviewSummary, summarize_reviews
-from buysmarter.ranking.engine import (
-    apply_defect_penalty,
-    apply_requirement_checks,
-    apply_review_trust,
-    apply_summary_penalty,
-    assemble_recommendation,
-    feature_present,
-)
+from buysmarter.ranking.filters import feature_present
 from buysmarter.ranking.models import (
     Recommendation,
     ScoredCandidate,
 )
+from buysmarter.ranking.penalties import (
+    apply_defect_penalty,
+    apply_requirement_checks,
+    apply_review_trust,
+    apply_summary_penalty,
+)
 from buysmarter.ranking.review_requirements import naive_requirement_checks
 from buysmarter.ranking.review_trust import count_defect_complaints, review_trust
+from buysmarter.ranking.selection import assemble_recommendation
 
 logger = logging.getLogger(__name__)
 

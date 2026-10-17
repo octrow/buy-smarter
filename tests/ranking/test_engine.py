@@ -2,20 +2,9 @@
 
 import math
 
-from buysmarter.ranking.engine import (
-    _COUNTERFEIT_CON,
-    _SUSPICIOUS_PRICE_CON,
-    DEFAULT_WEIGHTS,
-    _feature_present,
-    _pick_alternatives,
-    apply_hard_filters,
-    apply_review_trust,
-    assemble_recommendation,
-    compute_market_context,
-    is_barred,
-    rank,
-    score,
-)
+from buysmarter.ranking.engine import DEFAULT_WEIGHTS, compute_market_context, rank, score
+from buysmarter.ranking.filters import _feature_present, apply_hard_filters
+from buysmarter.ranking.flags import COUNTERFEIT_CON, SUSPICIOUS_PRICE_CON
 from buysmarter.ranking.models import (
     AxisScore,
     Candidate,
@@ -23,6 +12,8 @@ from buysmarter.ranking.models import (
     QueryConstraints,
     ScoredCandidate,
 )
+from buysmarter.ranking.penalties import apply_review_trust
+from buysmarter.ranking.selection import _pick_alternatives, assemble_recommendation, is_barred
 
 
 def _candidate(**overrides) -> Candidate:
@@ -611,7 +602,7 @@ def test_dup_price_gap_gets_price_penalty_specific_con_and_role_bar():
     assert "3.5 раза ниже другого листинга" in price_axis.explanation
     assert "подозрительно низкая цена для категории" not in price_axis.explanation
     assert any("3.5 раза ниже другого листинга" in c for c in scored.cons)
-    assert _SUSPICIOUS_PRICE_CON not in scored.cons  # specific con, not the generic one
+    assert SUSPICIOUS_PRICE_CON not in scored.cons  # specific con, not the generic one
 
     recommendation = rank([trusted_a, trusted_b, dup_gap], _constraints(required_features=[]))
     alt_ids = {a.candidate.source_product_id for a in recommendation.alternatives.values()}
@@ -752,7 +743,7 @@ def test_review_counterfeit_con_bars_candidate_from_all_roles():
         _scored(candidate=_candidate(source_product_id="2", price=1_000), total_score=95.0),
         ReviewSummary(counterfeit_suspicion=True),
     )
-    assert _COUNTERFEIT_CON in flagged.cons  # sanity: penalty applied the con
+    assert COUNTERFEIT_CON in flagged.cons  # sanity: penalty applied the con
 
     recommendation = assemble_recommendation([trusted, flagged], rejected_count=0)
 
@@ -918,7 +909,7 @@ def test_no_history_leaves_price_axis_unchanged():
 
 
 from buysmarter.llm.review_summary import ReviewSummary  # noqa: E402
-from buysmarter.ranking.engine import apply_summary_penalty  # noqa: E402
+from buysmarter.ranking.penalties import apply_summary_penalty  # noqa: E402
 
 
 def _scored(**overrides) -> ScoredCandidate:
@@ -1173,7 +1164,7 @@ def test_negative_review_count_scores_are_finite_and_non_negative():
 
 # --- flavor/color variants of the same product -------------------------------
 
-from buysmarter.ranking.engine import variant_key  # noqa: E402
+from buysmarter.ranking.selection import variant_key  # noqa: E402
 
 
 def test_variant_key_equal_for_flavor_variants_of_same_product():
@@ -1230,7 +1221,7 @@ def test_alternatives_skip_variant_of_already_assigned_role():
 
 
 def test_variant_key_milk_chocolate_matches_other_flavor() -> None:
-    from buysmarter.ranking.engine import variant_key
+    from buysmarter.ranking.selection import variant_key
 
     assert variant_key("Протеин YummyLab PhaseX молочный шоколад 950 г") == variant_key(
         "Протеин YummyLab PhaseX банан-клубника 950 г"
@@ -1240,7 +1231,7 @@ def test_variant_key_milk_chocolate_matches_other_flavor() -> None:
 # --- defect-complaint penalty ---------------------------------------------
 
 
-from buysmarter.ranking.engine import apply_defect_penalty  # noqa: E402
+from buysmarter.ranking.penalties import apply_defect_penalty  # noqa: E402
 
 
 def test_defect_penalty_below_threshold_returns_same_object() -> None:
@@ -1269,7 +1260,8 @@ def test_defect_penalty_zero_sample_is_skipped() -> None:
 # --- B5: requirement checks from review quotes ------------------------------
 
 from buysmarter.llm.review_summary import RequirementCheck  # noqa: E402
-from buysmarter.ranking.engine import apply_requirement_checks, feature_present  # noqa: E402
+from buysmarter.ranking.filters import feature_present  # noqa: E402
+from buysmarter.ranking.penalties import apply_requirement_checks  # noqa: E402
 
 
 def test_feature_present_is_public_alias_of_engine_helper() -> None:
