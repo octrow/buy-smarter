@@ -20,23 +20,30 @@ _MAX_PRICE_PREMIUM = 1.10  # seller may cost up to 10% over the cheapest offer
 
 def _pick_best_seller(offers: list[RawOffer]) -> str | None:
     """Display string for the best-rated trustworthy seller near the min price."""
-    live = [o for o in offers if o.in_stock and o.price and o.price > 0]
+    live = [o for o in offers if _is_live(o)]
     if not live:
         return None
     limit = min(o.price for o in live) * _MAX_PRICE_PREMIUM
-    ok = [
-        o
-        for o in live
-        if o.seller
-        and o.merchant_rating is not None
-        and (o.merchant_review_count or 0) >= _MIN_SELLER_REVIEWS
-        and o.price <= limit
-    ]
+    ok = [o for o in live if _is_trusted_seller(o) and o.price <= limit]
     if not ok:
         return None
     o = max(ok, key=lambda x: (x.merchant_rating, -x.price))
     price = f"{int(o.price):,}".replace(",", " ")
     return f"{o.seller} — {o.merchant_rating:.1f}★, {o.merchant_review_count} отзывов, {price} ₸"
+
+
+def _is_live(offer: RawOffer) -> bool:
+    """In stock at a positive price."""
+    return bool(offer.in_stock and offer.price and offer.price > 0)
+
+
+def _is_trusted_seller(offer: RawOffer) -> bool:
+    """A named seller with a rating and enough reviews to trust it."""
+    return bool(
+        offer.seller
+        and offer.merchant_rating is not None
+        and (offer.merchant_review_count or 0) >= _MIN_SELLER_REVIEWS
+    )
 
 
 def _brand_from_specs(specs: dict[str, str]) -> str | None:
@@ -72,6 +79,16 @@ def _resolve_brand(
     return canonical or raw_brand, tier
 
 
+def _mimic_brand(
+    book: BrandBook | None, title: str, raw_brand: str | None, brand: str | None
+) -> str | None:
+    """A brand the title (or brand field) mimics, unless it is the resolved brand itself."""
+    if book is None:
+        return None
+    mimic = book.mimicry(title) or book.mimicry(raw_brand or "")
+    return mimic if mimic is not None and mimic != brand else None
+
+
 def to_candidate(
     product: RawProduct,
     specs: dict[str, str] | None = None,
@@ -93,11 +110,7 @@ def to_candidate(
     price = _pick_price(product, offers)
     raw_brand = _brand_from_specs(specs)
     brand, brand_tier = _resolve_brand(raw_brand, product.title, book)
-    mimic_brand = None
-    if book is not None:
-        mimic = book.mimicry(product.title) or book.mimicry(raw_brand or "")
-        if mimic is not None and mimic != brand:
-            mimic_brand = mimic
+    has_price = bool(price and price > 0)
     best = _best_offer(offers)
     return Candidate(
         source=product.source,
@@ -105,15 +118,15 @@ def to_candidate(
         title=product.title,
         brand=brand,
         brand_tier=brand_tier,
-        price=int(price) if price and price > 0 else 0,
+        price=int(price) if price and has_price else 0,
         rating=product.rating,
         review_count=product.review_count,
         specs=specs,
-        availability=bool(price and price > 0),
+        availability=has_price,
         url=product.url,
         offer_count=len(offers),
         best_seller=_pick_best_seller(offers),
-        mimic_brand=mimic_brand,
+        mimic_brand=_mimic_brand(book, product.title, raw_brand, brand),
         delivery_date=best.delivery_date if best else None,
         delivery_cost=best.delivery_cost if best else None,
     )
