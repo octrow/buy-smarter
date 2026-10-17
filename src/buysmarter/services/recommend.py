@@ -23,15 +23,7 @@ from pydantic import BaseModel, Field
 from buysmarter import telemetry
 from buysmarter.db.base import async_session
 from buysmarter.db.repo import (
-    add_offers,
-    add_price_snapshot,
-    find_products,
     get_preference,
-    get_tracked_categories,
-    latest_snapshot,
-    list_snapshots,
-    track_category,
-    upsert_product,
 )
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import IngredientBook, composition_text
@@ -57,13 +49,13 @@ from buysmarter.ranking.models import (
     Recommendation,
 )
 from buysmarter.services.collect import (
-    ALL_SOURCES,
     aclose,
     attach_price_history,
     gather_sources,
+    kaspi_city_id,
+    merge_new_goods,
     resolve_sources,
     save_snapshots,
-    snapshot_values,
     stage,
     substance_search_plan,
 )
@@ -78,22 +70,6 @@ from buysmarter.services.review_pass import review_pass
 
 logger = logging.getLogger(__name__)
 
-# City name → Kaspi cityId. Unknown → None (KaspiClient defaults to Almaty).
-_CITY_IDS = {
-    "almaty": "750000000",
-    "astana": "710000000",
-    "алматы": "750000000",
-    "астана": "710000000",
-}
-
-
-def _city_id(city: str | None) -> str | None:
-    """Kaspi cityId for a city name, case/whitespace-insensitive."""
-    return _CITY_IDS.get((city or "").strip().lower())
-
-
-# Last-resort city when neither the query, --city, nor a stored preference
-# yields one (docs/INIT_DATA.md, most users are in Almaty).
 _DEFAULT_CITY = "Алматы"
 _CITY_PREFERENCE_KEY = "city"
 
@@ -141,7 +117,7 @@ async def _city_preference() -> str | None:
     return value if isinstance(value, str) and value else None
 
 
-async def _resolve_city(parsed_city: str | None, override: str | None) -> tuple[str, bool]:
+async def resolve_city(parsed_city: str | None, override: str | None) -> tuple[str, bool]:
     """City precedence: --city override > query > stored preference > "Алматы".
 
     Returns ``(city, defaulted)`` where ``defaulted`` is True whenever neither
@@ -364,12 +340,12 @@ async def recommend(
     total_start = time.perf_counter()
     with stage("query parse"):
         base_constraints = parsed if parsed is not None else await _parse(query, use_llm)
-    resolved_city, city_defaulted = await _resolve_city(base_constraints.city, city)
+    resolved_city, city_defaulted = await resolve_city(base_constraints.city, city)
     constraints = _apply_overrides(base_constraints, resolved_city, budget, trusted_only)
     active = resolve_sources(sources or ["kaspi"], source, ozon_source, olx_source)
     book, model_book, ingredient_book = await _resolve_knowledge(constraints.category, use_llm)
     composition = ingredient_book is not None
-    city_id = _city_id(constraints.city)
+    city_id = kaspi_city_id(constraints.city)
     required_substances, substance_plan = _substance_recall(ingredient_book, constraints)
 
     review_summary: ReviewSummary | None = None
@@ -378,7 +354,7 @@ async def recommend(
             collected = await gather_sources(
                 active, constraints.category, city_id, book, constraints.budget_max, substance_plan
             )
-        new_candidates, persist_rows = _merge_new_goods(collected)
+        new_candidates, persist_rows = merge_new_goods(collected)
         # Attach 30-day price history (from prior runs' snapshots) before ranking
         # so the price axis can reward a genuine dip; best-effort, no-op keyless.
         await attach_price_history(new_candidates)
@@ -586,170 +562,3 @@ async def _filter_relevant_candidates(
     pool, restored = _restore_min(kept, dropped)
     _log_drop_summary(dropped, restored, len(pool))
     return protected + pool
-
-
-def _merge_new_goods(collected: dict[str, object]) -> tuple[list[Candidate], list[tuple]]:
-    """Combine Kaspi + Ozon collector output into one ranking pool + persist rows."""
-    candidates: list[Candidate] = []
-    rows: list[tuple] = []
-    for name in ("kaspi", "ozon"):
-        result = collected.get(name)
-        if not result:
-            continue
-        source_candidates, source_rows = cast(tuple[list[Candidate], list[tuple]], result)
-        candidates.extend(source_candidates)
-        rows.extend(source_rows)
-    return candidates, rows
-
-
-# --- Price-tracking refresh (docs/PLAN.md фаза 4 "history цен") -------------
-# `refresh` re-runs the search-only slice for every tracked category and records
-# a fresh snapshot per product — no ranking, no LLM, sources scanned gently.
-
-_REFRESH_TOP_DROPS = 5  # biggest drops surfaced per category summary
-
-
-class PriceChange(BaseModel):
-    """A product whose min price moved between the previous and new snapshot."""
-
-    title: str
-    old_price: int
-    new_price: int
-    delta: int  # new - old (negative == a price drop)
-
-
-class CategoryRefresh(BaseModel):
-    """Compact per-category outcome of a ``refresh`` run."""
-
-    category: str
-    product_count: int
-    changed: int
-    drops: list[PriceChange] = Field(default_factory=list)
-
-
-async def _persist_refresh(rows: list[tuple], category: str) -> list[PriceChange]:
-    """Persist rows + snapshots, returning the price changes vs the prior snapshot."""
-    changes: list[PriceChange] = []
-    async with async_session() as session:
-        for product, specs, offers in rows:
-            db_product = await upsert_product(session, product)
-            if specs:
-                db_product.specs = specs
-                await session.commit()
-            if offers:
-                await add_offers(session, db_product.id, offers)
-            snapshot = snapshot_values(product, offers)
-            if snapshot is None:
-                continue
-            previous = await latest_snapshot(session, db_product.id)
-            new_min, offer_count = snapshot
-            await add_price_snapshot(
-                session,
-                db_product.id,
-                new_min,
-                offer_count,
-                review_count=product.review_count,
-                rating=product.rating,
-            )
-            if previous is not None and previous.min_price != new_min:
-                changes.append(
-                    PriceChange(
-                        title=product.title,
-                        old_price=previous.min_price,
-                        new_price=new_min,
-                        delta=new_min - previous.min_price,
-                    )
-                )
-        await track_category(session, category)
-    return changes
-
-
-async def refresh_category(category: str) -> CategoryRefresh:
-    """Search-only re-scan of one category: persist snapshots, report changes.
-
-    All sources, naive (no brand-targeted searches, no ranking, no LLM). The
-    persistence records a new snapshot per product and compares it to the prior
-    one to surface price movements.
-    """
-    active = resolve_sources(list(ALL_SOURCES), None, None, None)
-    city, _ = await _resolve_city(None, None)
-    city_id = _city_id(city)
-    try:
-        collected = await gather_sources(active, category, city_id, None, None)
-        _, persist_rows = _merge_new_goods(collected)
-    finally:
-        for src in active.values():
-            await aclose(src)
-    changes = await _persist_refresh(persist_rows, category) if persist_rows else []
-    drops = sorted((c for c in changes if c.delta < 0), key=lambda c: c.delta)
-    return CategoryRefresh(
-        category=category,
-        product_count=len(persist_rows),
-        changed=len(changes),
-        drops=drops[:_REFRESH_TOP_DROPS],
-    )
-
-
-async def refresh_tracked() -> list[CategoryRefresh]:
-    """Refresh every tracked category, sequentially (gentle on the sources)."""
-    async with async_session() as session:
-        categories = await get_tracked_categories(session)
-    results: list[CategoryRefresh] = []
-    for category in categories:
-        try:
-            results.append(await refresh_category(category))
-        except Exception as exc:  # noqa: BLE001 - one bad category must not abort refresh
-            logger.warning("Refresh failed for %r: %r", category, exc, exc_info=True)
-    return results
-
-
-# --- Product price history (the `history` command) -------------------------
-
-
-class SnapshotRow(BaseModel):
-    """One captured price point for a product (rendered by ``history``)."""
-
-    captured_at: str
-    min_price: int
-    offer_count: int
-
-
-class ProductHistory(BaseModel):
-    """A product and its snapshot timeline, newest first."""
-
-    title: str
-    source: str
-    url: str | None = None
-    snapshots: list[SnapshotRow] = Field(default_factory=list)
-
-
-async def product_history(term: str) -> list[ProductHistory]:
-    """Look up products by title/url substring and return their snapshot history.
-
-    Best-effort — returns ``[]`` when Postgres is unreachable.
-    """
-    try:
-        async with async_session() as session:
-            products = await find_products(session, term)
-            histories: list[ProductHistory] = []
-            for product in products:
-                snapshots = await list_snapshots(session, product.id)
-                histories.append(
-                    ProductHistory(
-                        title=product.title,
-                        source=product.source,
-                        url=product.url,
-                        snapshots=[
-                            SnapshotRow(
-                                captured_at=s.captured_at.isoformat(timespec="minutes"),
-                                min_price=s.min_price,
-                                offer_count=s.offer_count,
-                            )
-                            for s in snapshots
-                        ],
-                    )
-                )
-            return histories
-    except Exception as exc:  # noqa: BLE001 - history is a read-only nicety
-        logger.warning("Product-history lookup failed (DB unavailable?): %r", exc)
-        return []

@@ -10,6 +10,7 @@ import time
 from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from typing import cast
 
 from market_sources.base import ProductSource, RawProduct
 from market_sources.kaspi.client import KaspiClient
@@ -671,3 +672,35 @@ async def gather_sources(
     names = list(coros)
     results = await asyncio.gather(*(_safe(n, coros[n]) for n in names))
     return dict(zip(names, results, strict=True))
+
+
+# City name → Kaspi cityId. Unknown → None (KaspiClient defaults to Almaty).
+_CITY_IDS = {
+    "almaty": "750000000",
+    "astana": "710000000",
+    "алматы": "750000000",
+    "астана": "710000000",
+}
+
+
+def kaspi_city_id(city: str | None) -> str | None:
+    """Kaspi cityId for a city name, case/whitespace-insensitive."""
+    return _CITY_IDS.get((city or "").strip().lower())
+
+
+# Last-resort city when neither the query, --city, nor a stored preference
+# yields one (docs/INIT_DATA.md, most users are in Almaty).
+
+
+def merge_new_goods(collected: dict[str, object]) -> tuple[list[Candidate], list[tuple]]:
+    """Combine Kaspi + Ozon collector output into one ranking pool + persist rows."""
+    candidates: list[Candidate] = []
+    rows: list[tuple] = []
+    for name in ("kaspi", "ozon"):
+        result = collected.get(name)
+        if not result:
+            continue
+        source_candidates, source_rows = cast(tuple[list[Candidate], list[tuple]], result)
+        candidates.extend(source_candidates)
+        rows.extend(source_rows)
+    return candidates, rows

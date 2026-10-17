@@ -1363,11 +1363,11 @@ async def test_collect_olx_one_failing_specs_fetch_keeps_other_listings() -> Non
 
 
 def test_city_id_is_case_insensitive() -> None:
-    from buysmarter.services.recommend import _city_id
+    from buysmarter.services.recommend import kaspi_city_id
 
-    assert _city_id(" астана ") == "710000000"
-    assert _city_id("ASTANA") == "710000000"
-    assert _city_id(None) is None
+    assert kaspi_city_id(" астана ") == "710000000"
+    assert kaspi_city_id("ASTANA") == "710000000"
+    assert kaspi_city_id(None) is None
 
 
 # --- review stats + defect-complaint penalty in the review pass -------------

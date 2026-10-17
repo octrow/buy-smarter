@@ -30,7 +30,7 @@ from buysmarter.jobs import (
     rate_limit,
 )
 from buysmarter.services.collect import select_sources
-from buysmarter.services.recommend import ProductHistory, product_history
+from buysmarter.services.price_tracking import ProductHistory, product_history
 from buysmarter.worker import recommend_job
 
 _JOB_ID_MAX_LEN = 64
