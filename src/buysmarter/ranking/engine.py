@@ -98,6 +98,20 @@ def credibility_factor(candidate: Candidate) -> float:
 KIMOVIL_INDEX_MAX = 100.0
 
 
+def _tiered_prices(candidates: list[Candidate]) -> list[int]:
+    """Sorted valid prices of candidates with a known brand tier."""
+    return sorted(c.price for c in candidates if c.brand_tier is not None and c.price > 0)
+
+
+def _max_reviews_by_source(candidates: list[Candidate]) -> dict[str, int]:
+    """Largest review count per source, over candidates that report one."""
+    by_source: dict[str, int] = {}
+    for c in candidates:
+        if c.review_count is not None:
+            by_source[c.source] = max(by_source.get(c.source, 0), c.review_count)
+    return by_source
+
+
 def compute_market_context(candidates: list[Candidate]) -> MarketContext:
     """Aggregate pool-wide price/popularity stats for relative scoring.
 
@@ -109,19 +123,15 @@ def compute_market_context(candidates: list[Candidate]) -> MarketContext:
     # price <= 0 is an invalid listing: it must not drag min/median down.
     prices = sorted(c.price for c in candidates if c.price > 0) or [0]
     review_counts = [c.review_count for c in candidates if c.review_count is not None]
-    tiered_prices = sorted(c.price for c in candidates if c.brand_tier is not None and c.price > 0)
+    tiered_prices = _tiered_prices(candidates)
     trusted_median = int(statistics.median(tiered_prices)) if tiered_prices else None
-    by_source: dict[str, int] = {}
-    for c in candidates:
-        if c.review_count is not None:
-            by_source[c.source] = max(by_source.get(c.source, 0), c.review_count)
     return MarketContext(
         min_price=prices[0],
         median_price=statistics.median(prices),
         trusted_median_price=trusted_median,
         tiered_pool_size=len(tiered_prices),
         max_review_count=max(review_counts) if review_counts else 0,
-        max_review_count_by_source=by_source,
+        max_review_count_by_source=_max_reviews_by_source(candidates),
         pool_size=len(candidates),
     )
 
