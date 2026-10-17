@@ -1,6 +1,7 @@
 """Tests for the shared markdown report renderer + --save file writing."""
 
-from buysmarter.cli.report import render_markdown, save_report
+from buysmarter.cli.report import render_markdown, render_no_substance_markdown, save_report
+from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.ranking.models import (
     AxisScore,
     Candidate,
@@ -9,7 +10,7 @@ from buysmarter.ranking.models import (
     ScoredCandidate,
 )
 from buysmarter.services.matching import UsedListing
-from buysmarter.services.recommend import RecommendResult
+from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
 
 
 def _scored(pid: str, title: str, price: int, score: float, tier: str | None) -> ScoredCandidate:
@@ -223,3 +224,82 @@ def test_default_report_path_is_in_the_user_data_dir_not_the_working_dir(monkeyp
     path = default_report_path("ирригатор до 40000")
     assert path.parent == Path.home() / ".local" / "share" / "buysmarter" / "reports"
     assert path.name.endswith("-ирригатор-до-40000.md")
+
+
+def test_constraints_list_required_features_and_excluded_brands() -> None:
+    result = _result()
+    result.constraints.required_features = ["usb-c"]
+    result.constraints.excluded_brands = ["noname"]
+
+    md = render_markdown(result)
+
+    assert "- **Required:** usb-c" in md
+    assert "- **Excluded:** noname" in md
+
+
+def test_best_md_shows_review_penalty_and_cons() -> None:
+    result = _result()
+    best = result.recommendation.best
+    best.review_penalty = 7.0
+    best.cons = ["шумный"]
+
+    md = render_markdown(result)
+
+    assert "- **Penalty:** отзывы (−7)" in md
+    assert "**-** шумный" in md
+
+
+def test_review_summary_section_rendered_with_verdict() -> None:
+    result = _result().model_copy(
+        update={
+            "review_summary": ReviewSummary(
+                pros=["мощный"],
+                cons=["громкий"],
+                common_complaints=["течёт"],
+                red_flags=["подделка"],
+                verdict_line="Брать можно",
+            )
+        }
+    )
+
+    md = render_markdown(result)
+
+    assert "## Отзывы кратко" in md
+    for line in ("- ⚠ подделка", "- ✓ мощный", "- ✗ громкий", "- «течёт»", "**Брать можно**"):
+        assert line in md
+
+
+def test_empty_review_summary_section_is_omitted() -> None:
+    result = _result().model_copy(update={"review_summary": ReviewSummary()})
+
+    assert "## Отзывы кратко" not in render_markdown(result)
+
+
+def test_alternatives_table_lists_a_product_once_across_roles() -> None:
+    result = _result()
+    alt = result.recommendation.ranked[-1]
+    result.recommendation.alternatives = {"best_budget": alt, "best_value": alt}
+
+    md = render_markdown(result)
+
+    assert "| Best budget |" in md
+    assert "| Best value |" not in md
+
+
+def test_no_substance_markdown_lists_alternatives_with_rating() -> None:
+    rated = Candidate(source="kaspi", source_product_id="1", title="Крем А", price=5000, rating=4.5)
+    unrated = Candidate(source="kaspi", source_product_id="2", title="Крем Б", price=3000)
+    exc = NoSubstanceMatch(["ретинол"], checked=4, alternatives=[rated, unrated])
+
+    md = render_no_substance_markdown(exc)
+
+    assert "ретинол" in md
+    assert "| Product | Price | Rating |" in md
+    assert "| 4.5 |" in md
+    assert "| Крем Б |" in md and md.rstrip().endswith("| - |")
+
+
+def test_no_substance_markdown_without_alternatives_has_no_table() -> None:
+    exc = NoSubstanceMatch(["ретинол"], checked=0, alternatives=[])
+
+    assert "| Product |" not in render_no_substance_markdown(exc)
