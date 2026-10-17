@@ -691,10 +691,6 @@ def kaspi_city_id(city: str | None) -> str | None:
     return _CITY_IDS.get((city or "").strip().lower())
 
 
-# Last-resort city when neither the query, --city, nor a stored preference
-# yields one (docs/INIT_DATA.md, most users are in Almaty).
-
-
 def merge_new_goods(collected: dict[str, object]) -> tuple[list[Candidate], list[ProductRow]]:
     """Combine Kaspi + Ozon collector output into one ranking pool + persist rows."""
     candidates: list[Candidate] = []

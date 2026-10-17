@@ -68,6 +68,8 @@ from buysmarter.services.review_pass import review_pass
 
 logger = logging.getLogger(__name__)
 
+# Last-resort city when neither the query, --city, nor a stored preference
+# yields one (docs/INIT_DATA.md, most users are in Almaty).
 _DEFAULT_CITY = "Алматы"
 _CITY_PREFERENCE_KEY = "city"
 
