@@ -1,6 +1,7 @@
 """Pick the roles (best, best value, budget, premium) and the alternatives from a scored pool."""
 
 import re
+from collections.abc import Callable
 from math import ceil
 from typing import TYPE_CHECKING
 
@@ -170,7 +171,12 @@ def _pick_alternatives(
     eligible = [s for s in pool if _identity(s) not in used and not _is_barred_from_roles(s)]
     alternatives: dict[str, ScoredCandidate] = {}
 
-    def _claim(role: str, candidates: list[ScoredCandidate], key, reverse: bool) -> None:
+    def _claim(
+        role: str,
+        candidates: list[ScoredCandidate],
+        key: Callable[[ScoredCandidate], float],
+        reverse: bool,
+    ) -> None:
         remaining = [
             s
             for s in candidates

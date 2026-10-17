@@ -39,10 +39,11 @@ from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import is_barred
 from buysmarter.services.collect import ALL_SOURCES, select_sources
+from buysmarter.services.matching import UsedListing
 from buysmarter.services.price_tracking import CategoryRefresh, ProductHistory
 from buysmarter.services.price_tracking import product_history as run_product_history
 from buysmarter.services.price_tracking import refresh_tracked as run_refresh_tracked
-from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult, UsedListing
+from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
 from buysmarter.services.recommend import parse_request as run_parse_request
 from buysmarter.services.recommend import recommend as run_recommend
 
