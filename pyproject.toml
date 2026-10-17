@@ -43,6 +43,7 @@ dev = [
     "fakeredis>=2.40.0",
     "mypy==2.4.0",
     "complexipy==8.0.1",
+    "pytest-cov==7.1.0",
 ]
 
 [project.urls]
@@ -74,6 +75,23 @@ testpaths = ["tests"]
 markers = [
     "db: requires a reachable PostgreSQL (skipped when unavailable)",
 ]
+
+[tool.coverage.run]
+source = ["src/buysmarter"]
+branch = true
+# Entry point and the Postgres layer: db/ coverage depends on whether a
+# database is reachable (tests/db is skipped without one), so it would make
+# the threshold differ between local runs and CI.
+omit = [
+    "src/buysmarter/mcp_server/__main__.py",
+    "src/buysmarter/db/base.py",
+    "src/buysmarter/db/repo.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 90
 
 [tool.uv.sources]
 # Hack on them locally with: uv pip install -e ../pylibs/<name> (reverted by the next uv sync).
