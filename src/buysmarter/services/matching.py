@@ -195,6 +195,26 @@ class CrossSourceNote(NamedTuple):
     gap: float | None
 
 
+def _merge_pair(
+    cand: Candidate, dup: Candidate, prior_priciest: Candidate | None
+) -> tuple[Candidate, bool, Candidate, float | None]:
+    """Merge ``cand`` into its kept duplicate ``dup``.
+
+    Returns the survivor (a copy with ``dup_price_gap`` refreshed when it
+    changes), whether the survivor is ``cand`` rather than ``dup``, the
+    cluster's priciest loser so far, and the display gap against it.
+    """
+    cheaper, pricier = _cheaper_of(cand, dup)
+    survivor_changed = cheaper is not dup
+    if prior_priciest is None or pricier.price > prior_priciest.price:
+        prior_priciest = pricier
+    display_gap = prior_priciest.price / cheaper.price if cheaper.price > 0 else None
+    dup_price_gap = display_gap if (display_gap or 0) >= _DUP_GAP_SUSPICIOUS_RATIO else None
+    if cheaper.dup_price_gap != dup_price_gap:
+        cheaper = cheaper.model_copy(update={"dup_price_gap": dup_price_gap})
+    return cheaper, survivor_changed, prior_priciest, display_gap
+
+
 def dedupe_cross_source(
     candidates: list[Candidate], model_book: ModelBook | None = None
 ) -> tuple[list[Candidate], dict[tuple[str, str], CrossSourceNote]]:
@@ -240,17 +260,10 @@ def dedupe_cross_source(
             kept.append(cand)
             continue
         dup = kept[dup_idx]
-        cheaper, pricier = _cheaper_of(cand, dup)
-        survivor_identity_changed = cheaper is not dup
-        prior_priciest = priciest_seen.get(dup_idx)
-        if prior_priciest is None or pricier.price > prior_priciest.price:
-            priciest_seen[dup_idx] = pricier
-        priciest = priciest_seen[dup_idx]
-
-        display_gap = priciest.price / cheaper.price if cheaper.price > 0 else None
-        dup_price_gap = display_gap if (display_gap or 0) >= _DUP_GAP_SUSPICIOUS_RATIO else None
-        if cheaper.dup_price_gap != dup_price_gap:
-            cheaper = cheaper.model_copy(update={"dup_price_gap": dup_price_gap})
+        cheaper, survivor_identity_changed, priciest, display_gap = _merge_pair(
+            cand, dup, priciest_seen.get(dup_idx)
+        )
+        priciest_seen[dup_idx] = priciest
         kept[dup_idx] = cheaper
 
         if survivor_identity_changed:
@@ -298,6 +311,20 @@ def _used_ref_matches(
     )
 
 
+def _best_new_match(
+    u: Candidate, new_refs: list[Candidate], book: BrandBook | None, model_book: ModelBook | None
+) -> Candidate | None:
+    """The priciest new reference ``u`` matches while being meaningfully cheaper."""
+    matches = [
+        ref
+        for ref in new_refs
+        if ref.price > 0
+        and u.price < _USED_PRICE_RATIO * ref.price
+        and _used_ref_matches(ref, u, book, model_book)
+    ]
+    return max(matches, key=lambda r: r.price) if matches else None
+
+
 def match_used_listings(
     new_refs: list[Candidate],
     used: list[Candidate],
@@ -322,16 +349,9 @@ def match_used_listings(
     for u in used:
         if u.price <= 0:
             continue
-        matches = [
-            ref
-            for ref in new_refs
-            if ref.price > 0
-            and u.price < _USED_PRICE_RATIO * ref.price
-            and _used_ref_matches(ref, u, book, model_book)
-        ]
-        if not matches:
+        best = _best_new_match(u, new_refs, book, model_book)
+        if best is None:
             continue
-        best = max(matches, key=lambda r: r.price)
         # Label with the used item's OWN canonical resolution only — not the
         # matched ref's — so a mere brand+overlap match (e.g. a MEO701 paired
         # with a new F300) is not mislabeled as the same model.
@@ -357,6 +377,22 @@ def match_used_listings(
 # used deals to surface per run — a short, curated list, not a flood.
 _NOTABLE_USED_TOP_N = 3
 _NOTABLE_USED_TIERS = ("A", "B")
+
+
+def _notable_tier(
+    u: Candidate, book: BrandBook, budget: int, exclude: set[str], category: str
+) -> str | None:
+    """The A/B tier of a used listing that qualifies as notable, else None."""
+    if u.price <= 0 or u.price > budget:
+        return None
+    if not matches_category_or_stripped(u.title, category, book):
+        return None
+    if (u.url or u.title) in exclude:
+        return None
+    _brand, tier = book.resolve(u.title)
+    if tier not in _NOTABLE_USED_TIERS or book.mimicry(u.title) is not None:
+        return None
+    return tier
 
 
 def notable_used_listings(
@@ -391,21 +427,9 @@ def notable_used_listings(
     """
     if book is None or budget is None:
         return []
-    candidates: list[tuple[str, Candidate]] = []
-    for u in used:
-        if u.price <= 0 or u.price > budget:
-            continue
-        if not matches_category_or_stripped(u.title, category, book):
-            continue
-        key = u.url or u.title
-        if key in exclude:
-            continue
-        _brand, tier = book.resolve(u.title)
-        if tier not in _NOTABLE_USED_TIERS:
-            continue
-        if book.mimicry(u.title) is not None:
-            continue
-        candidates.append((tier, u))
+    candidates = [
+        (tier, u) for u in used if (tier := _notable_tier(u, book, budget, exclude, category))
+    ]
     candidates.sort(key=lambda pair: (pair[0] != "A", pair[1].price))
     return [
         UsedListing(
@@ -441,6 +465,35 @@ async def _persist_learned_aliases(
         logger.warning("failed to persist learned alias(es) for %r (%r)", category, exc)
 
 
+def _learn_aliases(
+    model_book: ModelBook, titles: list[str], canonicals: list[str | None]
+) -> tuple[ModelBook | None, dict[str, str]]:
+    """Learn each title mapped to an existing model as its alias; label the rest.
+
+    Returns the updated book (``None`` when nothing was learned) and display
+    labels for titles mapped to a model the book doesn't have.
+    """
+    entries_by_canonical: dict[str, ModelEntry] = {e.canonical: e for e in model_book.entries}
+    display_labels: dict[str, str] = {}
+    learned = False
+    for title, canonical in zip(titles, canonicals, strict=True):
+        if canonical is None:
+            continue
+        entry = entries_by_canonical.get(canonical)
+        if entry is None:
+            display_labels[title] = canonical  # new-model suggestion, display only
+            continue
+        if title in entry.aliases:
+            continue
+        new_aliases = [*entry.aliases, title]
+        entries_by_canonical[canonical] = entry.model_copy(update={"aliases": new_aliases})
+        learned = True
+        logger.info("learned alias: %s → %s", title, canonical)
+    if not learned:
+        return None, display_labels
+    return ModelBook(entries=list(entries_by_canonical.values())), display_labels
+
+
 async def canonicalize_used_titles(
     category: str,
     book: BrandBook | None,
@@ -467,27 +520,9 @@ async def canonicalize_used_titles(
     known_models = [e.canonical for e in model_book.entries]
     canonicals = await canonicalize_titles(category, known_models, titles)
 
-    entries_by_canonical: dict[str, ModelEntry] = {e.canonical: e for e in model_book.entries}
-    display_labels: dict[str, str] = {}
-    learned = False
-    for title, canonical in zip(titles, canonicals, strict=True):
-        if canonical is None:
-            continue
-        entry = entries_by_canonical.get(canonical)
-        if entry is None:
-            display_labels[title] = canonical  # new-model suggestion, display only
-            continue
-        if title in entry.aliases:
-            continue
-        new_aliases = [*entry.aliases, title]
-        entries_by_canonical[canonical] = entry.model_copy(update={"aliases": new_aliases})
-        learned = True
-        logger.info("learned alias: %s → %s", title, canonical)
-
-    if not learned:
+    updated_model_book, display_labels = _learn_aliases(model_book, titles, canonicals)
+    if updated_model_book is None:
         return model_book, display_labels
-
-    updated_model_book = ModelBook(entries=list(entries_by_canonical.values()))
     await _persist_learned_aliases(category, book, updated_model_book)
     return updated_model_book, display_labels
 
