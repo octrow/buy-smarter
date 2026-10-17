@@ -164,12 +164,25 @@ async def canonicalize_titles(
         logger.warning("canonicalize Jev call failed (%r); falling back to the LLM", exc)
         return await _canonicalize_llm(category, known_models, titles)
 
-    canonicals: list[str | None] = [match if sure else None for match, sure in picks]
     rest = [i for i, (match, sure) in enumerate(picks) if not (match and sure)]
     if not rest:
-        return canonicals
+        return [match if sure else None for match, sure in picks]
     suggested = await _canonicalize_llm(category, known_models, [titles[i] for i in rest])
-    for i, canonical in zip(rest, suggested, strict=True):
-        vetoed = picks[i][1] and canonical in known_models  # Jev was sure: no known match
+    return _merge_picks(picks, dict(zip(rest, suggested, strict=True)), known_models)
+
+
+def _merge_picks(
+    picks: list[tuple[str | None, bool]],
+    suggested: dict[int, str | None],
+    known_models: list[str],
+) -> list[str | None]:
+    """Jev's confident picks, the LLM's suggestion for the rest.
+
+    A title Jev was sure matches no known model keeps ``None`` when the LLM
+    names a known model anyway (Jev's veto).
+    """
+    canonicals: list[str | None] = [match if sure else None for match, sure in picks]
+    for i, canonical in suggested.items():
+        vetoed = picks[i][1] and canonical in known_models
         canonicals[i] = None if vetoed else canonical
     return canonicals
