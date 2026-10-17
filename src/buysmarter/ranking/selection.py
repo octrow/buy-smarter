@@ -247,6 +247,18 @@ def _pick_alternatives(
     return claims.alternatives
 
 
+def _pick_best(scored: list[ScoredCandidate]) -> ScoredCandidate:
+    """Top-scored unbarred, priced candidate; then any unbarred one; then the top score.
+
+    A price <= 0 listing is invalid and must not be crowned; it is a last
+    resort, like barred ones, only when nothing else exists.
+    """
+    unbarred = [s for s in scored if not _is_barred_from_roles(s)]
+    return next((s for s in unbarred if s.candidate.price > 0), None) or next(
+        iter(unbarred), scored[0]
+    )
+
+
 def assemble_recommendation(
     scored: list[ScoredCandidate],
     rejected_count: int,
@@ -268,12 +280,7 @@ def assemble_recommendation(
     changes which candidates were hard-filtered out).
     """
     scored = sorted(scored, key=lambda s: s.total_score, reverse=True)
-    # A price <= 0 listing is invalid and must not be crowned; it is a last
-    # resort, like barred ones, only when nothing else exists.
-    best = next(
-        (s for s in scored if not _is_barred_from_roles(s) and s.candidate.price > 0),
-        None,
-    ) or next((s for s in scored if not _is_barred_from_roles(s)), scored[0])
+    best = _pick_best(scored)
     pool = [s for s in scored if s is not best] or scored
     alternatives = _pick_alternatives(best, pool, scored)
     return Recommendation(
