@@ -38,14 +38,13 @@ from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.ranking.engine import is_barred
 from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
+from buysmarter.services.collect import ALL_SOURCES, select_sources
 from buysmarter.services.recommend import (
-    ALL_SOURCES,
     CategoryRefresh,
     NoSubstanceMatch,
     ProductHistory,
     RecommendResult,
     UsedListing,
-    select_sources,
 )
 from buysmarter.services.recommend import parse_request as run_parse_request
 from buysmarter.services.recommend import product_history as run_product_history

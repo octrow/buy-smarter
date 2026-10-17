@@ -4,7 +4,7 @@ import asyncio
 
 from market_sources.base import RawOffer, RawProduct
 
-from buysmarter.services.recommend import _KASPI_DETAIL_CONCURRENCY, _collect_kaspi
+from buysmarter.services.collect import _KASPI_DETAIL_CONCURRENCY, _collect_kaspi
 
 _PRODUCT_COUNT = 6
 

@@ -2,14 +2,14 @@
 
 import logging
 
-from buysmarter.services.recommend import _safe
+from buysmarter.services.collect import _safe
 
 
 async def test_source_failure_log_has_exception_type_and_traceback(caplog):
     async def boom():
         raise TimeoutError()  # empty str(exc) — the type is the only signal
 
-    with caplog.at_level(logging.INFO, logger="buysmarter.services.recommend"):
+    with caplog.at_level(logging.INFO, logger="buysmarter.services.collect"):
         result = await _safe("kaspi", boom())
 
     assert result is None

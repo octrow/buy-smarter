@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
 from buysmarter.api import main  # sets the global meter provider
+from buysmarter.services import collect
 from buysmarter.services import recommend as svc
 
 client = TestClient(main.app)
@@ -44,8 +45,8 @@ async def test_source_requests_are_counted_by_outcome() -> None:
     before_ok = _sample("buysmarter_source_requests_total", source="kaspi", outcome="ok")
     before_err = _sample("buysmarter_source_requests_total", source="ozon", outcome="error")
 
-    await svc._safe("kaspi", ok())
-    await svc._safe("ozon", boom())
+    await collect._safe("kaspi", ok())
+    await collect._safe("ozon", boom())
 
     assert (
         _sample("buysmarter_source_requests_total", source="kaspi", outcome="ok") == before_ok + 1

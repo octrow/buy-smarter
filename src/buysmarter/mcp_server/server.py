@@ -24,7 +24,8 @@ from market_sources.ozon.source import OzonSource
 from buysmarter.cli.report import render_markdown, render_no_substance_markdown
 from buysmarter.config import get_settings
 from buysmarter.memory import prefs
-from buysmarter.services.recommend import ALL_SOURCES, NoSubstanceMatch, select_sources
+from buysmarter.services.collect import ALL_SOURCES, select_sources
+from buysmarter.services.recommend import NoSubstanceMatch
 from buysmarter.services.recommend import recommend as run_recommend
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ def _kaspi_city_id(city: str | None) -> str | None:
     return _KASPI_CITY_IDS.get((city or "").strip().lower())
 
 
-async def _aclose(source: ProductSource) -> None:
+async def aclose(source: ProductSource) -> None:
     """Release a source's pool/browser, if it exposes ``aclose`` (stubs may not)."""
     closer = getattr(source, "aclose", None)
     if closer is None:
@@ -176,7 +177,7 @@ async def search_products(
         city_arg = _kaspi_city_id(city) if source == "kaspi" else None
         products = await src.search(query, city=city_arg)
     finally:
-        await _aclose(src)
+        await aclose(src)
     if not products:
         return f"No results for {query!r} on {source}."
     return _products_table(products, limit)
@@ -225,7 +226,7 @@ async def compare(product_urls_or_names: str) -> str:
                 logger.exception("specs() failed for %r", name)
                 specs_by_name[name] = {"(error)": f"specs unavailable: {type(exc).__name__}"}
     finally:
-        await _aclose(src)
+        await aclose(src)
     return _compare_table(specs_by_name)
 
 

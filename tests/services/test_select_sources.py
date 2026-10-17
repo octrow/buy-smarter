@@ -2,7 +2,7 @@
 
 import pytest
 
-from buysmarter.services.recommend import ALL_SOURCES, select_sources
+from buysmarter.services.collect import ALL_SOURCES, select_sources
 
 
 def test_names_are_normalized_and_keep_their_order() -> None:

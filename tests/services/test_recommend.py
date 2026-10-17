@@ -9,20 +9,20 @@ from market_sources.kaspi.parse import parse_offers, parse_search, parse_specs
 
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.ranking.models import Candidate
+from buysmarter.services.collect import (
+    _brand_search_plan,
+    _brand_targeted_products,
+    _collect_kaspi,
+    _collect_olx,
+    _head_noun,
+)
 from buysmarter.services.matching import (
     dedupe_cross_source,
     match_used_listings,
     notable_used_listings,
     strip_latin_tokens,
 )
-from buysmarter.services.recommend import (
-    _brand_search_plan,
-    _brand_targeted_products,
-    _collect_kaspi,
-    _collect_olx,
-    _head_noun,
-    recommend,
-)
+from buysmarter.services.recommend import recommend
 
 SAMPLES_DIR = Path(__file__).parent.parent / "samples" / "kaspi"
 
@@ -372,7 +372,7 @@ async def test_fashion_variant_candidates_skip_specs_fetch_entirely(caplog) -> N
         ],
     )
 
-    with caplog.at_level(logging.WARNING, logger="buysmarter.services.recommend"):
+    with caplog.at_level(logging.WARNING, logger="buysmarter.services.collect"):
         result = await recommend(
             "кроссовки летние",
             use_llm=False,
@@ -400,7 +400,7 @@ async def test_specs_fetch_failure_logged_at_info_not_warning(caplog) -> None:
         specs_fail_ids={"k1"},
     )
 
-    with caplog.at_level(logging.INFO, logger="buysmarter.services.recommend"):
+    with caplog.at_level(logging.INFO, logger="buysmarter.services.collect"):
         await recommend(
             "ирригатор портативный, до 40000 тг",
             use_llm=False,
@@ -1346,7 +1346,7 @@ class _FlakySpecsSource:
 
 
 async def test_collect_ozon_one_failing_specs_fetch_keeps_other_candidates() -> None:
-    from buysmarter.services.recommend import _collect_ozon
+    from buysmarter.services.collect import _collect_ozon
 
     candidates, rows = await _collect_ozon(_FlakySpecsSource("ozon", {}), "наушники", None)
 

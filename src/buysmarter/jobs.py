@@ -19,8 +19,9 @@ from redis.asyncio import Redis
 
 from buysmarter.config import get_settings
 from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
+from buysmarter.services.collect import ALL_SOURCES
 from buysmarter.services.matching import UsedListing
-from buysmarter.services.recommend import ALL_SOURCES, RecommendResult
+from buysmarter.services.recommend import RecommendResult
 
 JOB_TTL_S = 24 * 3600
 DEDUPE_TTL_S = 15 * 60  # prices do not move within 15 minutes; a retry gets the same job
