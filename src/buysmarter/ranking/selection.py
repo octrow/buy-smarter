@@ -153,6 +153,56 @@ def is_barred(scored: ScoredCandidate) -> bool:
     return _is_barred_from_roles(scored)
 
 
+class _RoleClaims:
+    """Roles claimed so far, and the products and variants they took."""
+
+    def __init__(self, best: ScoredCandidate) -> None:
+        self.alternatives: dict[str, ScoredCandidate] = {}
+        self.used = {_identity(best)}
+        # Flavor/color variants of an already-picked product never take a role.
+        self.used_variants = {variant_key(best.candidate.title)}
+
+    def is_free(self, s: ScoredCandidate) -> bool:
+        return (
+            _identity(s) not in self.used
+            and variant_key(s.candidate.title) not in self.used_variants
+        )
+
+    def claim(
+        self,
+        role: str,
+        candidates: list[ScoredCandidate],
+        key: Callable[[ScoredCandidate], float],
+        reverse: bool,
+    ) -> None:
+        remaining = [s for s in candidates if self.is_free(s)]
+        if not remaining:
+            return
+        chosen = (max if reverse else min)(remaining, key=key)
+        self.alternatives[role] = chosen
+        self.used.add(_identity(chosen))
+        self.used_variants.add(variant_key(chosen.candidate.title))
+
+
+def _premium_pool(
+    eligible: list[ScoredCandidate], full: list[ScoredCandidate]
+) -> list[ScoredCandidate]:
+    """best_premium only ever goes to a known, trusted brand (tier A/B) — an
+    unknown-brand candidate ("noname KERN") must never win this role.
+
+    Prefer a premium-tier candidate from the top quartile of the full pool;
+    fall back to any remaining premium-tier candidate if the quartile has
+    none left (e.g. because the best pick itself was the sole tier-A/B
+    member of that quartile).
+    """
+    quartile_n = max(1, ceil(len(full) * 0.25))
+    top_quartile_ids = {
+        _identity(s) for s in sorted(full, key=lambda s: s.total_score, reverse=True)[:quartile_n]
+    }
+    premium = [s for s in eligible if s.candidate.brand_tier in _PREMIUM_TIERS]
+    return [s for s in premium if _identity(s) in top_quartile_ids] or premium
+
+
 def _pick_alternatives(
     best: ScoredCandidate, pool: list[ScoredCandidate], full: list[ScoredCandidate]
 ) -> dict[str, ScoredCandidate]:
@@ -165,29 +215,8 @@ def _pick_alternatives(
     # alternative role: they remain in the ranked list/table with their con
     # visible, but must never be endorsed as "best budget/value/premium"
     # (docs/PLAN.md "Ranking-фиксы", anti-counterfeit).
-    used = {_identity(best)}
-    # Flavor/color variants of an already-picked product never take a role.
-    used_variants = {variant_key(best.candidate.title)}
-    eligible = [s for s in pool if _identity(s) not in used and not _is_barred_from_roles(s)]
-    alternatives: dict[str, ScoredCandidate] = {}
-
-    def _claim(
-        role: str,
-        candidates: list[ScoredCandidate],
-        key: Callable[[ScoredCandidate], float],
-        reverse: bool,
-    ) -> None:
-        remaining = [
-            s
-            for s in candidates
-            if _identity(s) not in used and variant_key(s.candidate.title) not in used_variants
-        ]
-        if not remaining:
-            return
-        chosen = (max if reverse else min)(remaining, key=key)
-        alternatives[role] = chosen
-        used.add(_identity(chosen))
-        used_variants.add(variant_key(chosen.candidate.title))
+    claims = _RoleClaims(best)
+    eligible = [s for s in pool if _identity(s) not in claims.used and not _is_barred_from_roles(s)]
 
     # Only candidates close to the best score qualify for "best value" — a
     # low-scoring, suspiciously cheap product must not win on score/price
@@ -196,10 +225,9 @@ def _pick_alternatives(
     # A price <= 0 is an invalid listing (see ``_score_price``): it would divide
     # by zero here and "win" best_budget as the cheapest, so it gets neither role.
     priced = [s for s in eligible if s.candidate.price > 0]
-    value_candidates = [s for s in priced if s.total_score >= threshold]
-    _claim(
+    claims.claim(
         "best_value",
-        value_candidates,
+        [s for s in priced if s.total_score >= threshold],
         key=lambda s: s.total_score / s.candidate.price,
         reverse=True,
     )
@@ -207,29 +235,16 @@ def _pick_alternatives(
     # Quality floor: a candidate scoring far below the best pick must not win
     # best_budget on price alone (e.g. a counterfeit that scores 30/100).
     budget_threshold = _BEST_BUDGET_MIN_SCORE_RATIO * best.total_score
-    budget_candidates = [s for s in priced if s.total_score >= budget_threshold]
-    _claim("best_budget", budget_candidates, key=lambda s: s.candidate.price, reverse=False)
-
-    # best_premium only ever goes to a known, trusted brand (tier A/B) — an
-    # unknown-brand candidate ("noname KERN") must never win this role.
-    # Prefer a premium-tier candidate from the top quartile of the full pool;
-    # fall back to any remaining premium-tier candidate if the quartile has
-    # none left (e.g. because the best pick itself was the sole tier-A/B
-    # member of that quartile).
-    quartile_n = max(1, ceil(len(full) * 0.25))
-    top_quartile_ids = {
-        _identity(s) for s in sorted(full, key=lambda s: s.total_score, reverse=True)[:quartile_n]
-    }
-
-    def _is_premium_tier(s: ScoredCandidate) -> bool:
-        return s.candidate.brand_tier in _PREMIUM_TIERS
-
-    premium_pool = [
-        s for s in eligible if _is_premium_tier(s) and _identity(s) in top_quartile_ids
-    ] or [s for s in eligible if _is_premium_tier(s)]
-    _claim("best_premium", premium_pool, key=lambda s: s.candidate.price, reverse=True)
-
-    return alternatives
+    claims.claim(
+        "best_budget",
+        [s for s in priced if s.total_score >= budget_threshold],
+        key=lambda s: s.candidate.price,
+        reverse=False,
+    )
+    claims.claim(
+        "best_premium", _premium_pool(eligible, full), key=lambda s: s.candidate.price, reverse=True
+    )
+    return claims.alternatives
 
 
 def assemble_recommendation(
