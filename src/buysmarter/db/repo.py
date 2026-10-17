@@ -224,7 +224,7 @@ async def set_preference(session: AsyncSession, key: str, value: Any) -> UserPre
     return pref
 
 
-async def get_category_knowledge(session: AsyncSession, category: str) -> dict | None:
+async def get_category_knowledge(session: AsyncSession, category: str) -> dict[str, Any] | None:
     """Return the stored schema JSON for ``category``, or ``None``."""
     stmt = select(CategoryKnowledge).where(CategoryKnowledge.category == category)
     row = (await session.execute(stmt)).scalar_one_or_none()
@@ -232,7 +232,7 @@ async def get_category_knowledge(session: AsyncSession, category: str) -> dict |
 
 
 async def upsert_category_knowledge(
-    session: AsyncSession, category: str, schema_json: dict
+    session: AsyncSession, category: str, schema_json: dict[str, Any]
 ) -> CategoryKnowledge:
     """Insert or update the LLM-generated schema for a category."""
     stmt = select(CategoryKnowledge).where(CategoryKnowledge.category == category)

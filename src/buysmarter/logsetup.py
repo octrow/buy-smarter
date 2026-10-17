@@ -41,12 +41,12 @@ class _RunIdFilter(logging.Filter):
 def _env_level(var: str, default: str) -> int:
     raw = os.environ.get(var)
     if raw is None:
-        return logging.getLevelName(default)
+        return logging.getLevelNamesMapping()[default]
     level = logging.getLevelName(raw.strip().upper())
     if isinstance(level, int):
         return level
     logging.getLogger(__name__).warning("Invalid %s=%r, using %s", var, raw, default)
-    return logging.getLevelName(default)
+    return logging.getLevelNamesMapping()[default]
 
 
 # Marker attribute so re-running setup_logging() (e.g. re-imported entry

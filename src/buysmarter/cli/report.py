@@ -11,6 +11,7 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
+from buysmarter.ranking.models import Candidate
 from buysmarter.ranking.selection import is_barred
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
@@ -147,7 +148,7 @@ def _alternatives_md(result: RecommendResult) -> list[str]:
     return lines
 
 
-def _tier_cell(c) -> str:
+def _tier_cell(c: Candidate) -> str:
     """Tier column: a mimic candidate flags the counterfeit signal instead of
     the (usually empty) tier — "-" alone would hide the more useful fact."""
     if c.mimic_brand is not None:

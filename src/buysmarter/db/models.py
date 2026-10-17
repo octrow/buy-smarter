@@ -6,6 +6,7 @@ preferences, and LLM-generated category schemas. The LLM response cache
 """
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
     DateTime,
@@ -39,7 +40,7 @@ class Product(Base):
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     rating: Mapped[float | None] = mapped_column(Float, nullable=True)
     review_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    specs: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    specs: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -60,7 +61,7 @@ class Offer(Base):
     merchant_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     merchant_name: Mapped[str] = mapped_column(String(256))
     price: Mapped[int] = mapped_column(Integer)
-    delivery_info: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    delivery_info: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     product: Mapped["Product"] = relationship(back_populates="offers")
@@ -95,7 +96,7 @@ class Review(Base):
     rating: Mapped[float | None] = mapped_column(Float, nullable=True)
     text: Mapped[str] = mapped_column(Text, default="")
     date: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    raw: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    raw: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     product: Mapped["Product"] = relationship(back_populates="reviews")
 
@@ -107,7 +108,7 @@ class UserPreference(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     key: Mapped[str] = mapped_column(String(128), unique=True, index=True)
-    value: Mapped[dict] = mapped_column(JSONB)
+    value: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
 
 class CategoryKnowledge(Base):
@@ -117,7 +118,7 @@ class CategoryKnowledge(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     category: Mapped[str] = mapped_column(String(128), unique=True, index=True)
-    schema_json: Mapped[dict] = mapped_column(JSONB)
+    schema_json: Mapped[dict[str, Any]] = mapped_column(JSONB)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

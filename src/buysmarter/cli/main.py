@@ -36,7 +36,7 @@ from buysmarter.knowledge.store import (
 )
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.logsetup import new_run_id, setup_logging
-from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
+from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import is_barred
 from buysmarter.services.collect import ALL_SOURCES, select_sources
 from buysmarter.services.matching import UsedListing
@@ -165,7 +165,7 @@ def _render_alternatives(alts: dict[str, ScoredCandidate]) -> None:
     console.print(table)
 
 
-def _tier_cell(c) -> str:
+def _tier_cell(c: Candidate) -> str:
     """Tier column: a mimic candidate flags the counterfeit signal instead of
     the (usually empty) tier — "-" alone would hide the more useful fact."""
     if c.mimic_brand is not None:
