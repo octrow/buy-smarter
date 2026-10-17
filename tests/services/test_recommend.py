@@ -723,7 +723,7 @@ def test_dedupe_cross_source_merges_via_canonical_model() -> None:
 from buysmarter.llm.review_summary import ReviewSummary  # noqa: E402
 from buysmarter.ranking.engine import assemble_recommendation  # noqa: E402
 from buysmarter.ranking.models import ScoredCandidate  # noqa: E402
-from buysmarter.services import recommend as rec_mod  # noqa: E402
+from buysmarter.services import review_pass as review_mod  # noqa: E402
 
 
 def _scored(pid: str, total: float) -> ScoredCandidate:
@@ -751,7 +751,7 @@ def test_summary_penalty_re_sort_changes_best_pick_when_top_counterfeit():
     assert recommendation.best.candidate.source_product_id == "k1"
 
     summaries = {("kaspi", "k1"): ReviewSummary(counterfeit_suspicion=True)}
-    out = rec_mod._apply_summary_penalties(recommendation, summaries)
+    out = review_mod._apply_summary_penalties(recommendation, summaries)
 
     # 90 * 0.6 = 54 < 80 → the clean #2 becomes the best pick.
     assert out.best.candidate.source_product_id == "k2"
@@ -764,7 +764,7 @@ def test_summary_penalty_re_sort_changes_best_pick_when_top_counterfeit():
 
 def test_summary_penalty_pass_noop_without_summaries():
     recommendation = assemble_recommendation([_scored("k1", 90.0), _scored("k2", 80.0)], 0)
-    out = rec_mod._apply_summary_penalties(recommendation, {})
+    out = review_mod._apply_summary_penalties(recommendation, {})
     assert out is recommendation
 
 
@@ -798,13 +798,13 @@ async def test_summarize_top_skips_candidates_with_too_few_reviews(monkeypatch):
         calls.append(reviews[0].product_id)
         return ReviewSummary()
 
-    monkeypatch.setattr(rec_mod, "summarize_reviews", _fake_summarize)
+    monkeypatch.setattr(review_mod, "summarize_reviews", _fake_summarize)
 
     kaspi = _MultiReviewKaspi({"k1": _reviews("k1", 6), "k2": _reviews("k2", 3)})
     recommendation = assemble_recommendation([_scored("k1", 90.0), _scored("k2", 80.0)], 0)
     reviews_by_id = {("kaspi", "k1"): _reviews("k1", 6), ("kaspi", "k2"): _reviews("k2", 3)}
 
-    summaries = await rec_mod._summarize_top(recommendation, {"kaspi": kaspi}, reviews_by_id)
+    summaries = await review_mod._summarize_top(recommendation, {"kaspi": kaspi}, reviews_by_id)
 
     assert ("kaspi", "k1") in summaries  # 6 reviews → summarized
     assert ("kaspi", "k2") not in summaries  # 3 reviews (< 5) → skipped
@@ -824,12 +824,12 @@ async def test_review_pass_penalizes_counterfeit_and_flips_best(monkeypatch):
     async def _fake_summarize(reviews, features=None):
         return _summary_for(reviews[0].product_id)
 
-    monkeypatch.setattr(rec_mod, "summarize_reviews", _fake_summarize)
+    monkeypatch.setattr(review_mod, "summarize_reviews", _fake_summarize)
 
     kaspi = _MultiReviewKaspi({"k1": _reviews("k1", 8), "k2": _reviews("k2", 8)})
     recommendation = assemble_recommendation([_scored("k1", 90.0), _scored("k2", 80.0)], 0)
 
-    out, summary = await rec_mod._review_pass(
+    out, summary = await review_mod.review_pass(
         recommendation, {"kaspi": kaspi}, use_llm=True, with_review_summary=True
     )
 
@@ -1393,7 +1393,7 @@ async def test_fetch_top_reviews_collects_stats_when_source_provides_them():
     kaspi = _StatsKaspi({"k1": _reviews("k1", 4)}, {"k1": stats})
     recommendation = assemble_recommendation([_scored("k1", 90.0)], 0)
 
-    reviews_by_id, stats_by_id = await rec_mod._fetch_top_reviews(kaspi, recommendation)
+    reviews_by_id, stats_by_id = await review_mod._fetch_top_reviews(kaspi, recommendation)
 
     assert len(reviews_by_id[("kaspi", "k1")]) == 4
     assert stats_by_id[("kaspi", "k1")] is stats
@@ -1403,7 +1403,7 @@ async def test_fetch_top_reviews_without_stats_api_yields_no_stats():
     kaspi = _MultiReviewKaspi({"k1": _reviews("k1", 4)})
     recommendation = assemble_recommendation([_scored("k1", 90.0)], 0)
 
-    reviews_by_id, stats_by_id = await rec_mod._fetch_top_reviews(kaspi, recommendation)
+    reviews_by_id, stats_by_id = await review_mod._fetch_top_reviews(kaspi, recommendation)
 
     assert len(reviews_by_id[("kaspi", "k1")]) == 4
     assert stats_by_id == {}
@@ -1418,7 +1418,7 @@ def test_apply_review_trust_penalizes_defect_complaints() -> None:
     ] + [RawReview(source="kaspi", product_id="k1", text="подробный честный отзыв номер 1")] * 6
     recommendation = assemble_recommendation([_scored("k1", 90.0)], 0)
 
-    out = rec_mod._apply_review_trust(recommendation, {("kaspi", "k1"): defective})
+    out = review_mod._apply_review_trust(recommendation, {("kaspi", "k1"): defective})
 
     assert out.best.total_score == round(90.0 * 0.9, 2)
     assert any("жалобы на брак" in con for con in out.best.cons)
@@ -1434,13 +1434,13 @@ async def test_summarize_top_passes_only_unverified_required_features(monkeypatc
         seen[reviews[0].product_id] = list(features or [])
         return ReviewSummary()
 
-    monkeypatch.setattr(rec_mod, "summarize_reviews", _fake_summarize)
+    monkeypatch.setattr(review_mod, "summarize_reviews", _fake_summarize)
 
     kaspi = _MultiReviewKaspi({"k1": _reviews("k1", 6)})
     recommendation = assemble_recommendation([_scored("k1", 90.0)], 0)
     reviews_by_id = {("kaspi", "k1"): _reviews("k1", 6)}
 
-    await rec_mod._summarize_top(
+    await review_mod._summarize_top(
         recommendation, {"kaspi": kaspi}, reviews_by_id, required_features=["IPX7", "NFC"]
     )
 
@@ -1453,7 +1453,7 @@ async def test_review_pass_naive_fallback_confirms_feature_without_llm(monkeypat
     async def _boom(*args, **kwargs):
         raise AssertionError("no LLM call when use_llm is False")
 
-    monkeypatch.setattr(rec_mod, "summarize_reviews", _boom)
+    monkeypatch.setattr(review_mod, "summarize_reviews", _boom)
     reviews = [
         RawReview(source="kaspi", product_id="k1", text="шумоподавление очень удобно работает"),
         RawReview(source="kaspi", product_id="k1", text="шумоподавление быстро включается"),
@@ -1461,7 +1461,7 @@ async def test_review_pass_naive_fallback_confirms_feature_without_llm(monkeypat
     kaspi = _MultiReviewKaspi({"k1": reviews})
     recommendation = assemble_recommendation([_scored("k1", 90.0)], 0)
 
-    out, summary = await rec_mod._review_pass(
+    out, summary = await review_mod.review_pass(
         recommendation,
         {"kaspi": kaspi},
         use_llm=False,
