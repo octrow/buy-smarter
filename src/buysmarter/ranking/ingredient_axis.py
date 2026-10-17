@@ -38,6 +38,26 @@ def required_concentration(constraints: QueryConstraints) -> str | None:
     return None
 
 
+def _equivalence_group(candidates: list[Candidate], substance: str) -> EquivalenceGroup | None:
+    """Cheapest vs priciest priced candidate sharing ``substance``; None without a price gap."""
+    members = [c for c in candidates if substance in c.detected_substances and c.price > 0]
+    if len(members) < 2:
+        return None
+    cheapest = min(members, key=lambda c: c.price)
+    priciest = max(members, key=lambda c: c.price)
+    if cheapest.price >= priciest.price:
+        return None
+    return EquivalenceGroup(
+        cheapest_id=(cheapest.source, cheapest.source_product_id),
+        cheapest_name=cheapest.title,
+        cheapest_price=cheapest.price,
+        priciest_id=(priciest.source, priciest.source_product_id),
+        priciest_name=priciest.title,
+        priciest_price=priciest.price,
+        size=len(members),
+    )
+
+
 def build_ingredient_context(
     candidates: list[Candidate], required_substances: list[str]
 ) -> IngredientContext:
@@ -50,24 +70,7 @@ def build_ingredient_context(
     """
     present = {s for c in candidates for s in c.detected_substances}
     targets = [s for s in required_substances if s in present] or sorted(present)
-    groups: dict[str, EquivalenceGroup] = {}
-    for substance in targets:
-        members = [c for c in candidates if substance in c.detected_substances and c.price > 0]
-        if len(members) < 2:
-            continue
-        cheapest = min(members, key=lambda c: c.price)
-        priciest = max(members, key=lambda c: c.price)
-        if cheapest.price >= priciest.price:
-            continue
-        groups[substance] = EquivalenceGroup(
-            cheapest_id=(cheapest.source, cheapest.source_product_id),
-            cheapest_name=cheapest.title,
-            cheapest_price=cheapest.price,
-            priciest_id=(priciest.source, priciest.source_product_id),
-            priciest_name=priciest.title,
-            priciest_price=priciest.price,
-            size=len(members),
-        )
+    groups = {s: g for s in targets if (g := _equivalence_group(candidates, s)) is not None}
     return IngredientContext(required_substances=required_substances, groups=groups)
 
 
