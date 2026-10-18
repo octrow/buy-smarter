@@ -2,33 +2,47 @@
 
 ## Context
 
-See proposal.md for the motivation. Today `db/base.py` builds one engine from `settings.database_url` (default `postgresql+asyncpg://…`). `db_reachable()` decides whether the DB-backed paths run. `memory/prefs.py` falls back to `~/.config/buysmarter/prefs.json`. The models use `JSONB` in six columns. The initial migration hard-codes `postgresql.JSONB` and `server_default=sa.text('now()')`, and SQLite rejects both. The core (`services/collect.py`, `services/recommend.py`, `llm/adapter.py`) imports `buysmarter.telemetry`, which imports `fastapi` and its OTel instrumentor at module top.
+See proposal.md for the motivation. Today:
+- `db/base.py` builds a module-level engine from `settings.database_url` (default `postgresql+asyncpg://…`, `NullPool`).
+- `memory/prefs.py` and `knowledge/store.py` are DB-primary with JSON-file fallbacks under `~/.config/buysmarter/`.
+- `JSONB` sits in the six `db/models.py` columns and in `llm/models.py`.
+- The initial migration hard-codes `postgresql.JSONB` and `server_default=sa.text('now()')`.
+- `alembic/` sits at the repo root and is not in the wheel (`packages = ["src/buysmarter"]`). `alembic/env.py` calls `asyncio.run(...)` and `fileConfig()`, and overwrites the URL from Settings.
+- `repo.py:169` uses `ilike`.
+- `telemetry.py` imports fastapi, the FastAPI instrumentor, the Prometheus reader and `prometheus_client` at module top, and the core imports `telemetry`.
+- CI greps `^Postgres +ok` in `ci.yml` and `deploy/kind/smoke.sh`.
 
 ## Goals / Non-Goals
 
-**Goals:** one schema and one `repo.py` for both dialects; zero-setup local store; a core importable without the server stack.
+**Goals:** one schema and one `repo.py` for both dialects; a zero-setup local store that works from an installed wheel; a core importable without the server stack; tests that never touch the developer's real store.
 
-**Non-Goals:** migrating data between SQLite and Postgres; concurrent multi-process writers on SQLite beyond what WAL gives; changing the API/worker behaviour.
+**Non-Goals:** moving data between SQLite and Postgres; concurrent writers beyond what WAL gives; changing how the API/worker behave or how they are deployed.
 
 ## Decisions
 
-- **Portable column types.** Use `JSON().with_variant(JSONB(), "postgresql")` in the models and in the initial migration. Postgres DDL stays byte-identical, so already-migrated Postgres databases need no new revision. Alternative: a new revision that alters the types. Rejected: Postgres would not change at all, only SQLite needs the edit.
-- **Portable timestamp default.** `server_default=sa.func.now()` renders as `now()` on Postgres and as `CURRENT_TIMESTAMP` on SQLite. Same DDL-identity argument.
-- **Default URL.** `sqlite+aiosqlite:///<user data dir>/buysmarter.db`, resolved from the XDG data dir (`~/.local/share/buysmarter`) and the platform equivalents on Windows/macOS through the stdlib (`platformdirs` is already a transitive dependency, check before adding it). The env `DATABASE_URL` overrides it.
-- **Auto-migrate.** On the first storage use per process, run alembic `upgrade head` programmatically against the configured URL (guarded by a module-level flag). `render_as_batch=True` is set in `env.py` when the dialect is SQLite, so the later `drop_column` revisions work. Alternative: `metadata.create_all`. Rejected: an older store would never get upgraded.
-- **SQLite pragmas.** `journal_mode=WAL` and `foreign_keys=ON` via a connect event. WAL lets the GUI's worker thread and an MCP process read while a write happens.
-- **Reachability probe.** `db_reachable()` passes `timeout` only for asyncpg. aiosqlite takes `timeout` too, but the meaning differs (lock wait), so branch on the dialect explicitly.
-- **Prefs.** Drop the JSON fallback. On the first store use, import `prefs.json` keys that are absent from the table, then rename the file to `prefs.json.imported`. Rename rather than delete, to avoid data loss.
-- **Telemetry split.** Move the FastAPI pieces (`FastAPIInstrumentor`, the `/metrics` route helper) into a function that imports them lazily, called only from `api/main.py`. The core keeps the OTel SDK and the httpx/sqlalchemy instrumentors, which stay in base deps (small, pure Python).
-- **Server entry points.** `api/main.py` and `worker.py` catch `ImportError` at the top and exit with "install buysmarter[server]".
+- **ORM stays SQLAlchemy 2.0.** SQLx (Rust), TypeORM and Drizzle (TypeScript) would mean rewriting the core in another language. Prisma's Python client is archived.
+- **Migrations in the package.** Move `alembic/` to `src/buysmarter/migrations/` (`env.py`, `script.py.mako`, `versions/`). `ensure_schema()` builds `alembic.config.Config()` in code with `script_location="buysmarter:migrations"`, so no ini file is needed. The root `alembic.ini` stays for developer CLI use and for Docker/Helm, with `script_location = src/buysmarter/migrations`. Check: the wheel lists `buysmarter/migrations/versions/*.py`.
+- **`env.py` hygiene.** Call `fileConfig` only when `config.config_file_name` is set. Take the URL from Settings only when the Config has none. Use a sync connection when the URL is sync (`sqlite://`), and the existing async path otherwise.
+- **`ensure_schema()` is sync and SQLite-only.** Location: `db/schema.py`. It rewrites `sqlite+aiosqlite://` to `sqlite://` (stdlib sqlite3, no event loop) and runs `upgrade head`. For any other dialect it is a no-op. It is called at the entry points before a loop exists: in the typer root callback (CLI), before `mcp.run()` (MCP), and in GUI startup before the core thread starts. Alternative: a lazy hook on first session. Rejected, because nested `asyncio.run` fails inside the running CLI, MCP and GUI loops.
+- **Migration lock.** On the migration connection, `isolation_level=None` plus a `begin` event that emits `BEGIN IMMEDIATE` (the SQLAlchemy pysqlite recipe), and `transactional_ddl=True` in `context.configure` for SQLite. A second process waits on the busy timeout, then sees head.
+- **Portable types.** `JSON().with_variant(JSONB(), "postgresql")` in the models, in `llm/models.py` and in the initial migration. Defaults use `server_default=sa.func.now()`, which renders as `now()` on Postgres and as `CURRENT_TIMESTAMP` on SQLite. Postgres DDL stays identical, so existing Postgres databases need no new revision (checked by diffing `upgrade head --sql`).
+- **UTC.** A `UTCDateTime` TypeDecorator (`impl=DateTime(timezone=True)`) is used for every timestamp column. On write it converts to UTC; on read it attaches UTC to naive values. Python-side `default=lambda: datetime.now(UTC)` sits next to `server_default` (microsecond precision on SQLite, no DDL change). `list_snapshots`/`latest_snapshot` order by `(captured_at desc, id desc)`.
+- **Cyrillic case folding.** A SQLite `connect` event registers `create_function("lower", 1, str.lower, deterministic=True)`, which overrides the ASCII built-in, so `ilike` works unchanged. The same event sets `journal_mode=WAL`, `foreign_keys=ON` and `busy_timeout`.
+- **Default URL.** `sqlite+aiosqlite:///{platformdirs.user_data_dir("buysmarter")}/buysmarter.db`. The parent dir is created on first use, and env `DATABASE_URL` overrides. `platformdirs` becomes a direct dependency.
+- **Reachability.** `db_reachable()` passes `connect_args={"timeout": …}` only for asyncpg. The `NullPool` docstring is updated (aiosqlite opens a fresh connection per session, which is fine).
+- **Legacy import.** A one-time import runs after `ensure_schema()` for both prefs and knowledge. It honours `$BUYSMARTER_PREFS_FILE` / `$BUYSMARTER_KNOWLEDGE_DIR` and imports only missing keys/slugs. On success the file is renamed to `*.imported`; corrupt or non-object JSON is renamed to `*.invalid` with a warning. A failed rename is logged and not fatal, and a re-run is safe because only missing keys are imported. The fallback code paths are deleted.
+- **Telemetry split.** Imports of fastapi, `FastAPIInstrumentor`, `PrometheusMetricReader` and `prometheus_client` move into the functions that need them (`instrument_app`, `_install_providers`, `instrument_worker`). `opentelemetry-instrumentation-fastapi`, `opentelemetry-exporter-prometheus` and `prometheus-client` go to `[server]`. The OTel SDK and the httpx/sqlalchemy instrumentors stay in base deps.
+- **Server entry points.** `api/main.py` and `worker.py` wrap their server imports and exit with "install buysmarter[server]".
+- **Tests.** At the very top of `tests/conftest.py`, next to `BUYSMARTER_BROKER`, set `DATABASE_URL=sqlite+aiosqlite:///<session tmp>/test.db` before any buysmarter import. A session fixture calls `ensure_schema()`, and a per-test fixture truncates tables. `_isolate_knowledge_store` is rewritten to use the tmp DB instead of disabling it. `tests/db` runs on SQLite with no skip. Server tests carry `pytest.mark.server` (their conftest does `pytest.importorskip("fastapi")`). `db/base.py` and `db/repo.py` leave the coverage `omit` list.
+- **CI.** The `server` job runs `uv sync --locked --extra server` with a Postgres service, then alembic upgrade, ruff, mypy, complexipy and the full pytest with `--cov-fail-under=90`. The `core` job runs `uv sync --locked` with no extra, then `pytest -m "not server"` (no threshold) and `python -c "import buysmarter.cli.main, buysmarter.mcp_server.server"`.
 
 ## Risks / Trade-offs
 
-- [Risk] Editing an applied migration file → Postgres DDL is unchanged by construction. Verify with `alembic upgrade head --sql` diffed before and after on the Postgres dialect.
-- [Risk] SQLite JSON has no JSONB operators → `rg 'astext|\[.*\]\.as' src` before the change. `repo.py` currently only uses `avg`/`min`/`count`.
-- [Risk] Timezone-aware `DateTime` on SQLite comes back naive → normalize to UTC in `repo.py` reads where history compares dates. A test covers it.
-- [Risk] The test suite assumes Postgres in places → the default suite runs on a tmp SQLite. The Postgres run stays as a separate CI job with the server extra.
+- [Risk] Editing an applied migration file → Postgres DDL is unchanged by construction; verified by the `--sql` diff (task 1.3).
+- [Risk] Overriding `lower` changes behaviour for non-search uses → the code only calls `lower` through `ilike`; a grep check in task 2.3 confirms this.
+- [Risk] The truncate-per-test fixture slows the suite → SQLite on tmpfs is fast; measure it and fall back to transaction rollback if the suite gets more than 10% slower.
+- [Risk] Moving `alembic/` breaks Docker/Helm → those paths are updated in the same change and verified by the docker and kind CI jobs.
 
 ## Migration Plan
 
-Users upgrade, the store is created on first run, and `prefs.json` is imported. Existing Postgres users already set `DATABASE_URL` (compose does), so nothing changes for them. Rollback is to reinstall the previous version: its JSON prefs file is still there as `prefs.json.imported`, so renaming it back restores the old behaviour.
+Users upgrade, the store is created at first start, and the JSON prefs/knowledge are imported and renamed to `.imported`. Postgres deployments already set `DATABASE_URL` and run the migrate step, and only the alembic path changes for them. Rollback is to reinstall the previous version and rename `*.imported` back. This goes in one CHANGELOG line.
