@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 from buysmarter.ranking.models import Candidate
-from buysmarter.ranking.selection import is_barred
+from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
 
@@ -157,7 +157,7 @@ def _tier_cell(c: Candidate) -> str:
 
 
 def _top_md(result: RecommendResult, top: int) -> list[str]:
-    ranked = result.recommendation.ranked[:top]
+    ranked = distinct_variants(result.recommendation.ranked, top)
     if not ranked:
         return []
     lines = [

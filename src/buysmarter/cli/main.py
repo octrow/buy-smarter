@@ -37,7 +37,7 @@ from buysmarter.knowledge.store import (
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
-from buysmarter.ranking.selection import is_barred
+from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.collect import ALL_SOURCES, select_sources
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.price_tracking import CategoryRefresh, ProductHistory
@@ -174,7 +174,7 @@ def _tier_cell(c: Candidate) -> str:
 
 
 def _render_top(scored: list[ScoredCandidate], top: int) -> None:
-    ranked = scored[:top]
+    ranked = distinct_variants(scored, top)
     if not ranked:
         return
     title = f"Top candidates (top {len(ranked)})"

@@ -57,6 +57,10 @@ _VARIANT_PREFIXES = (
     "розов",
     "зелен",
     "зелён",
+    "бежев",
+    "коричнев",
+    "фиолетов",
+    "оранжев",
     "chocolate",
     "vanill",
     "strawberr",
@@ -119,6 +123,22 @@ def variant_key(title: str) -> str:
     banana-strawberry). Volume/weight tokens are kept: 930 г vs 2 кг differ."""
     tokens = re.sub(r"[^\w\s]", " ", title.lower()).split()
     return " ".join(t for t in tokens if not _is_variant_token(t))
+
+
+def distinct_variants(scored: list[ScoredCandidate], n: int) -> list[ScoredCandidate]:
+    """First ``n`` of ``scored`` with later color/flavor variants of an earlier
+    product dropped — a top-N table of four colors of one guitar shows one."""
+    seen: set[str] = set()
+    out: list[ScoredCandidate] = []
+    for s in scored:
+        key = variant_key(s.candidate.title)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(s)
+        if len(out) == n:
+            break
+    return out
 
 
 def _identity(scored: ScoredCandidate) -> tuple[str, str]:

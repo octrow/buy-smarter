@@ -377,6 +377,7 @@ def match_used_listings(
 # used deals to surface per run — a short, curated list, not a flood.
 _NOTABLE_USED_TOP_N = 3
 _NOTABLE_USED_TIERS = ("A", "B")
+_LATIN_NAME_MIN_LEN = 4  # shorter latin tokens are model codes/sizes, not names
 
 
 def _notable_tier(
@@ -450,6 +451,7 @@ def unbranded_used_listings(
     pick: Candidate,
     exclude: set[str],
     category: str,
+    refs: list[Candidate] | None = None,
 ) -> list[UsedListing]:
     """No-name used listings meaningfully cheaper than a no-name/tier-C pick.
 
@@ -457,37 +459,51 @@ def unbranded_used_listings(
     A/B notable floor can ever fire, so OLX shows nothing. When the best pick is
     itself unbranded or tier C, a no-name used listing is a fair comparison:
     surface the ones at least ``1 - _USED_PRICE_RATIO`` cheaper, closest to the
-    pick's price first (cheapest-first would lead with toys and junk). Tier-A/B
-    listings are left to ``notable_used_listings``. Pure — no I/O.
+    pick's price first (cheapest-first would lead with toys and junk). The
+    saving is measured against a ranked new product sharing a latin name token
+    with the listing (an untiered "Levinson" on both markets) when ``refs``
+    has one, else against the pick. Tier-A/B listings are left to
+    ``notable_used_listings``. Pure — no I/O.
     """
     if _brand_tier(pick.title, book) in _NOTABLE_USED_TIERS:
         return []
-    ceiling = pick.price * _USED_PRICE_RATIO
-    picked = sorted(
-        (
-            u
-            for u in used
-            if 0 < u.price <= ceiling
-            and (u.url or u.title) not in exclude
-            and _brand_tier(u.title, book) not in _NOTABLE_USED_TIERS
-            and matches_category_or_stripped(u.title, category, book)
-        ),
-        key=lambda u: u.price,
-        reverse=True,
-    )
+    pairs = [
+        (u, ref)
+        for u in used
+        if u.price > 0
+        and (u.url or u.title) not in exclude
+        and _brand_tier(u.title, book) not in _NOTABLE_USED_TIERS
+        and matches_category_or_stripped(u.title, category, book)
+        and (ref := _unbranded_ref(u, pick, refs or [])) is not None
+    ]
+    pairs.sort(key=lambda pair: pair[0].price, reverse=True)
     return [
         UsedListing(
             title=u.title,
             price=u.price,
-            new_price=pick.price,
-            saving=pick.price - u.price,
-            matched_title=pick.title,
+            new_price=ref.price,
+            saving=ref.price - u.price,
+            matched_title=ref.title,
             city=u.specs.get("city"),
             url=u.url,
             con=_used_con(u),
         )
-        for u in picked[:_NOTABLE_USED_TOP_N]
+        for u, ref in pairs[:_NOTABLE_USED_TOP_N]
     ]
+
+
+def _latin_names(title: str) -> set[str]:
+    return {t for t in re.findall(r"[a-z]+", title.lower()) if len(t) >= _LATIN_NAME_MIN_LEN}
+
+
+def _unbranded_ref(u: Candidate, pick: Candidate, refs: list[Candidate]) -> Candidate | None:
+    """The priciest same-name ref ``u`` is meaningfully cheaper than, else the pick."""
+    cheaper = [r for r in refs if u.price <= r.price * _USED_PRICE_RATIO]
+    names = _latin_names(u.title)
+    same_name = [r for r in cheaper if names & _latin_names(r.title)]
+    if same_name:
+        return max(same_name, key=lambda r: r.price)
+    return pick if u.price <= pick.price * _USED_PRICE_RATIO else None
 
 
 def _brand_tier(title: str, book: BrandBook | None) -> str | None:
@@ -660,4 +676,5 @@ async def used_market(
         recommendation.best.candidate,
         exclude=shown,
         category=constraints.category,
+        refs=_reference_candidates(recommendation),
     )

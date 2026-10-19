@@ -1348,3 +1348,24 @@ def test_without_a_kimovil_index_the_specs_axis_is_unchanged():
     axis = _specs_axis(_candidate(), _constraints(required_features=[]))
     assert axis.score == DEFAULT_WEIGHTS["specs"]
     assert "Kimovil" not in axis.explanation
+
+
+def test_variant_key_equal_for_beige_and_brown_guitar_variants():
+    assert variant_key("Гитара акустическая Liewen Toun AR38 бежевый") == variant_key(
+        "Гитара акустическая Liewen Toun AR38 коричневый"
+    )
+
+
+def test_distinct_variants_keeps_top_scored_per_variant():
+    from buysmarter.ranking.selection import distinct_variants
+
+    def _s(pid: str, title: str) -> ScoredCandidate:
+        cand = _candidate(source_product_id=pid, title=title, price=25_000)
+        return ScoredCandidate(candidate=cand, total_score=50.0, confidence=1.0, axes=[])
+
+    beige = _s("1", "Гитара Liewen Toun AR38 бежевый")
+    red = _s("2", "Гитара Liewen Toun AR38 красный")
+    other = _s("3", "Гитара ARG JG-38C KIT")
+    black = _s("4", "Гитара Liewen Toun AR38 черный")
+
+    assert distinct_variants([beige, red, other, black], 2) == [beige, other]

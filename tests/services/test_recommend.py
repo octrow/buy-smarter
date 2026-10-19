@@ -1551,3 +1551,16 @@ def test_unbranded_used_listings_empty_when_pick_is_branded():
     noname = _used_cand("olx", "u1", "Гитара акустическая", 10000)
 
     assert unbranded_used_listings([noname], book, pick, exclude=set(), category="гитара") == []
+
+
+def test_unbranded_used_listings_prefers_new_ref_sharing_latin_name():
+    book = BrandBook(tiers={}, aliases={})
+    pick = _used_cand("kaspi", "k1", "Гитара акустическая TUKKA TS-38", 16000)
+    same_name = _used_cand("kaspi", "k2", "Гитара акустическая Levinson LA-R38B", 22000)
+    used = _used_cand("olx", "u1", "Акустическая гитара Levinson", 10000)
+
+    [listing] = unbranded_used_listings(
+        [used], book, pick, exclude=set(), category="гитара", refs=[pick, same_name]
+    )
+
+    assert listing.matched_title == same_name.title and listing.saving == 12000
