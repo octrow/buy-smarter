@@ -420,11 +420,15 @@ async def _collect_kaspi(
 
 
 async def _collect_ozon(
-    source: ProductSource, category: str, book: BrandBook | None
+    source: ProductSource, category: str, book: BrandBook | None, budget: int | None
 ) -> tuple[list[Candidate], list[ProductRow]]:
-    """Ozon: main search only; specs (a browser nav each) for the very top few."""
-    products = await source.search(category)
-    top = products[:_OZON_MAX_CARDS]
+    """Ozon: main search only, price-capped at ``budget`` (an uncapped
+    relevance-ranked first page can sit entirely above it); specs (a browser
+    nav each) for the very top few. Off-category cards are dropped: a cheap
+    price cap fills the page with look-alikes (a ukulele for "гитара")."""
+    products = await _budget_search(source, category, budget)
+    on_category = [p for p in products if matches_category_or_stripped(p.title, category, book)]
+    top = on_category[:_OZON_MAX_CARDS]
     candidates: list[Candidate] = []
     rows: list[ProductRow] = []
     for index, product in enumerate(top):
@@ -437,10 +441,10 @@ async def _collect_ozon(
     return candidates, rows
 
 
-async def _olx_call(source: ProductSource, query: str, budget: int | None) -> list[RawProduct]:
-    """One OLX search, passing ``budget`` only to adapters whose search accepts it.
+async def _budget_search(source: ProductSource, query: str, budget: int | None) -> list[RawProduct]:
+    """One search, passing ``budget`` only to adapters whose search accepts it.
 
-    The real ``OlxSource.search`` takes a ``budget`` (→ ``filter_float_price:to``);
+    The real ``OlxSource``/``OzonSource.search`` take a ``budget`` (a server-side price cap);
     injected test doubles may not, so we pass it only when the signature has it.
     """
     if budget is not None and "budget" in inspect.signature(source.search).parameters:
@@ -492,13 +496,13 @@ async def _olx_search(
     variant ("TWS наушники" -> "наушники") and head-noun hits widen the pool so
     branded used deals hidden behind a narrow/jargon-heavy query surface.
     """
-    products = await _olx_call(source, category, budget)
+    products = await _budget_search(source, category, budget)
     stripped = strip_latin_tokens(category, book)
     if stripped is not None:
-        products = _dedupe_products(products + await _olx_call(source, stripped, budget))
+        products = _dedupe_products(products + await _budget_search(source, stripped, budget))
     noun = _head_noun(category, book)
     if noun is not None:
-        products = _dedupe_products(products + await _olx_call(source, noun, budget))
+        products = _dedupe_products(products + await _budget_search(source, noun, budget))
     return products
 
 
@@ -681,7 +685,7 @@ async def gather_sources(
     if "kaspi" in active:
         coros["kaspi"] = _collect_kaspi(active["kaspi"], category, city_id, book, substance_plan)
     if "ozon" in active:
-        coros["ozon"] = _collect_ozon(active["ozon"], category, book)
+        coros["ozon"] = _collect_ozon(active["ozon"], category, book, budget)
     if "olx" in active:
         coros["olx"] = _collect_olx(active["olx"], category, book, budget)
     names = list(coros)

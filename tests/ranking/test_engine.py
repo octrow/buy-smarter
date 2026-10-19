@@ -354,6 +354,21 @@ def test_suspicious_price_penalty_and_con_for_far_below_median_noname():
     assert "подозрительно низкая цена" in price_axis.explanation
 
 
+def test_suspicious_price_falls_back_to_pool_median_without_tiered_brands():
+    pool = [
+        _candidate(source_product_id=str(i), price=p, brand=None, brand_tier=None)
+        for i, p in enumerate([16_000, 20_000, 22_000, 25_000])
+    ]
+    toy = _candidate(source_product_id="toy", price=3_255, brand=None, brand_tier=None)
+    market = compute_market_context([*pool, toy])
+
+    assert market.trusted_median_price is None
+    assert "подозрительно низкая цена для категории" in score(toy, _constraints(), market).cons
+    assert "подозрительно низкая цена для категории" not in (
+        score(pool[0], _constraints(), market).cons
+    )
+
+
 def test_no_suspicious_penalty_when_price_near_trusted_median():
     trusted_a = _candidate(source_product_id="1", price=30_000, brand_tier="A")
     noname_near_median = _candidate(

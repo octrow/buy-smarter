@@ -1349,7 +1349,7 @@ class _FlakySpecsSource:
 async def test_collect_ozon_one_failing_specs_fetch_keeps_other_candidates() -> None:
     from buysmarter.services.collect import _collect_ozon
 
-    candidates, rows = await _collect_ozon(_FlakySpecsSource("ozon", {}), "наушники", None)
+    candidates, rows = await _collect_ozon(_FlakySpecsSource("ozon", {}), "наушники", None, None)
 
     assert {c.source_product_id for c in candidates} == {"bad", "ok"}
     assert len(rows) == 2
@@ -1564,3 +1564,33 @@ def test_unbranded_used_listings_prefers_new_ref_sharing_latin_name():
     )
 
     assert listing.matched_title == same_name.title and listing.saving == 12000
+
+
+async def test_collect_ozon_passes_budget_to_search() -> None:
+    from buysmarter.services.collect import _collect_ozon
+
+    class _BudgetSource(_FlakySpecsSource):
+        async def search(self, query: str, city: str | None = None, budget: int | None = None):
+            self.budget = budget
+            return []
+
+    source = _BudgetSource("ozon", {})
+    await _collect_ozon(source, "гитара", None, 30000)
+
+    assert source.budget == 30000
+
+
+async def test_collect_ozon_drops_off_category_cards() -> None:
+    from buysmarter.services.collect import _collect_ozon
+
+    class _MixedSource(_FlakySpecsSource):
+        async def search(self, query: str, city: str | None = None) -> list[RawProduct]:
+            return [
+                RawProduct(source="ozon", product_id="g", title="Гитара акустическая", price=20000),
+                RawProduct(source="ozon", product_id="u", title="Укулеле SZRU-OZ3P", price=1616),
+            ]
+
+    candidates, rows = await _collect_ozon(_MixedSource("ozon", {}), "гитара", None, None)
+
+    assert [c.source_product_id for c in candidates] == ["g"]
+    assert len(rows) == 1

@@ -286,10 +286,16 @@ def _price_history_verdict(candidate: Candidate) -> tuple[str, str] | None:
 
 
 def _is_suspicious_price(candidate: Candidate, market: MarketContext) -> bool:
-    """Unknown brand priced far below the trusted median — anti-counterfeit."""
-    if candidate.brand_tier is not None or market.trusted_median_price is None:
+    """Unknown brand priced far below the market reference — anti-counterfeit.
+
+    The reference is the trusted median, else the whole-pool median (the same
+    fallback the price axis uses): a no-name-only pool must still flag a toy
+    priced at a fifth of the rest.
+    """
+    if candidate.brand_tier is not None:
         return False
-    return candidate.price < _SUSPICIOUS_PRICE_RATIO * market.trusted_median_price
+    reference, _kind = _price_reference(market)
+    return candidate.price < _SUSPICIOUS_PRICE_RATIO * reference
 
 
 def _score_reviews(
