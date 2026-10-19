@@ -21,6 +21,7 @@ from buysmarter.services.matching import (
     match_used_listings,
     notable_used_listings,
     strip_latin_tokens,
+    unbranded_used_listings,
 )
 from buysmarter.services.recommend import recommend
 
@@ -1523,3 +1524,30 @@ async def test_collect_olx_drops_listings_sold_for_parts() -> None:
     used = await _collect_olx(_PartsOlxSource(), "наушники", None, None)
 
     assert [c.source_product_id for c in used] == ["p2"]
+
+
+# --- unbranded_used_listings: no-name pick -> no-name used under it -----------
+
+
+def test_unbranded_used_listings_closest_cheaper_first_when_pick_is_noname():
+    book = BrandBook(tiers={"Yamaha": "A"}, aliases={})
+    pick = _used_cand("kaspi", "k1", "Гитара акустическая TUKKA TS-38", 16000)
+    near = _used_cand("olx", "u1", "Гитара акустическая", 11000)
+    cheap = _used_cand("olx", "u2", "Гитара классическая", 5000)
+    too_close = _used_cand("olx", "u3", "Гитара акустика черная", 14000)  # not 30% cheaper
+    branded = _used_cand("olx", "u4", "Гитара Yamaha", 9000)  # notable section's job
+
+    listings = unbranded_used_listings(
+        [cheap, near, too_close, branded], book, pick, exclude=set(), category="гитара"
+    )
+
+    assert [listing.title for listing in listings] == [near.title, cheap.title]
+    assert listings[0].saving == 5000 and listings[0].matched_title == pick.title
+
+
+def test_unbranded_used_listings_empty_when_pick_is_branded():
+    book = BrandBook(tiers={"Yamaha": "A"}, aliases={})
+    pick = _used_cand("kaspi", "k1", "Гитара Yamaha C40", 40000)
+    noname = _used_cand("olx", "u1", "Гитара акустическая", 10000)
+
+    assert unbranded_used_listings([noname], book, pick, exclude=set(), category="гитара") == []

@@ -444,6 +444,56 @@ def notable_used_listings(
     ]
 
 
+def unbranded_used_listings(
+    used: list[Candidate],
+    book: BrandBook | None,
+    pick: Candidate,
+    exclude: set[str],
+    category: str,
+) -> list[UsedListing]:
+    """No-name used listings meaningfully cheaper than a no-name/tier-C pick.
+
+    In mass no-name segments (guitars under 30k) neither brand matching nor the
+    A/B notable floor can ever fire, so OLX shows nothing. When the best pick is
+    itself unbranded or tier C, a no-name used listing is a fair comparison:
+    surface the ones at least ``1 - _USED_PRICE_RATIO`` cheaper, closest to the
+    pick's price first (cheapest-first would lead with toys and junk). Tier-A/B
+    listings are left to ``notable_used_listings``. Pure — no I/O.
+    """
+    if _brand_tier(pick.title, book) in _NOTABLE_USED_TIERS:
+        return []
+    ceiling = pick.price * _USED_PRICE_RATIO
+    picked = sorted(
+        (
+            u
+            for u in used
+            if 0 < u.price <= ceiling
+            and (u.url or u.title) not in exclude
+            and _brand_tier(u.title, book) not in _NOTABLE_USED_TIERS
+            and matches_category_or_stripped(u.title, category, book)
+        ),
+        key=lambda u: u.price,
+        reverse=True,
+    )
+    return [
+        UsedListing(
+            title=u.title,
+            price=u.price,
+            new_price=pick.price,
+            saving=pick.price - u.price,
+            matched_title=pick.title,
+            city=u.specs.get("city"),
+            url=u.url,
+            con=_used_con(u),
+        )
+        for u in picked[:_NOTABLE_USED_TOP_N]
+    ]
+
+
+def _brand_tier(title: str, book: BrandBook | None) -> str | None:
+    return book.resolve(title)[1] if book is not None else None
+
+
 def _unresolved_used_titles(model_book: ModelBook, used: list[Candidate]) -> list[str]:
     """Distinct OLX titles ``ModelBook.resolve`` failed on, in first-seen order."""
     seen: dict[str, None] = {}
@@ -596,10 +646,18 @@ async def used_market(
         _reference_candidates(recommendation), used_candidates, book, model_book, display_labels
     )
     matched_keys = {ul.url or ul.title for ul in used_listings}
-    return used_listings + notable_used_listings(
+    listings = used_listings + notable_used_listings(
         used_candidates,
         book,
         constraints.budget_max,
         exclude=matched_keys,
+        category=constraints.category,
+    )
+    shown = {ul.url or ul.title for ul in listings}
+    return listings + unbranded_used_listings(
+        used_candidates,
+        book,
+        recommendation.best.candidate,
+        exclude=shown,
         category=constraints.category,
     )
