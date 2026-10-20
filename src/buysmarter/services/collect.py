@@ -92,13 +92,22 @@ def select_sources(names: Iterable[str], allowed: Sequence[str] = ALL_SOURCES) -
 
 
 @contextmanager
-def stage(name: str) -> Iterator[None]:
-    """Log one INFO line with the elapsed wall time of a pipeline stage."""
+def stage(name: str, source: str | None = None) -> Iterator[None]:
+    """Log a pipeline stage's start and its elapsed wall time (INFO).
+
+    The ``progress_*`` extra fields drive the desktop app's progress display, so it never parses
+    the message text: ``progress_state`` goes running, then done or failed.
+    """
+    progress = {"progress_stage": name, "progress_source": source}
+    logger.info("stage %s started", name, extra={**progress, "progress_state": "running"})
     start = time.perf_counter()
+    state = "failed"
     try:
         yield
+        state = "done"
     finally:
-        logger.info("stage %s took %.2fs", name, time.perf_counter() - start)
+        took = time.perf_counter() - start
+        logger.info("stage %s took %.2fs", name, took, extra={**progress, "progress_state": state})
 
 
 def _brand_search_targets(book: BrandBook) -> list[str]:
@@ -570,7 +579,7 @@ def resolve_sources(
 async def _safe[T](name: str, coro: Awaitable[T]) -> T | None:
     """Await a source coroutine, swallowing failures so one source can't kill the run."""
     try:
-        with stage(f"collect[{name}]"):
+        with stage(f"collect[{name}]", source=name):
             result = await coro
     except Exception as exc:  # noqa: BLE001 - one dead source must not abort the pipeline
         logger.warning("Source %r failed, skipping it: %r", name, exc, exc_info=True)
