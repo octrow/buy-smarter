@@ -7,10 +7,11 @@ from PySide6.QtWidgets import (
     QComboBox,
     QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
+    QProgressBar,
     QPushButton,
     QScrollArea,
-    QTableView,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -25,12 +26,17 @@ from buysmarter.gui.screens.alternatives import (
     alternatives_proxy,
 )
 from buysmarter.gui.screens.search import SearchRun
+from buysmarter.gui.tables import FitTableView, FitTableWidget
+from buysmarter.gui.theme import SPACE, set_state
 from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import is_barred
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import RecommendResult
 
 ALL_MARKETPLACES = "Все маркетплейсы"
+_BAR_COLUMN = 2
+_BAR_WIDTH = 120
+_BAR_STEPS = 100
 
 
 def open_offer(url: str | None) -> None:
@@ -50,22 +56,44 @@ def constraints_line(c: QueryConstraints, city_defaulted: bool) -> str:
     return "   ".join(parts)
 
 
-def best_header(best: ScoredCandidate) -> list[str]:
-    """The best-pick card lines, as the CLI's "Best pick" panel prints them."""
-    cand = best.candidate
-    barred = is_barred(best)
-    lines = [
-        f"🥇 {'⚠ ' if barred else ''}{cand.title}  [{cand.source}]",
-        f"Score: {best.total_score:.0f}/100   Confidence: {best.confidence:.0%}",
-        f"Price: {cand.price:,} ₸",
-    ]
-    if barred:
-        lines.append("все кандидаты под подозрением — проверьте вручную")
+def best_notes(best: ScoredCandidate) -> list[tuple[str, str]]:
+    """``(state, text)`` notes under the best pick, worded as the CLI's "Best pick" panel."""
+    notes = []
+    if is_barred(best):
+        notes.append(("warning", "все кандидаты под подозрением — проверьте вручную"))
     if best.review_penalty > 0:
-        lines.append(f"Penalty: отзывы (−{best.review_penalty:.0f})")
-    if cand.best_seller:
-        lines.append(f"Продавец: {cand.best_seller}")
-    return lines
+        notes.append(("warning", f"Penalty: отзывы (−{best.review_penalty:.0f})"))
+    if best.candidate.best_seller:
+        notes.append(("", f"Продавец: {best.candidate.best_seller}"))
+    return notes
+
+
+def _label(text: str, *, name: str = "", role: str = "", state: str = "") -> QLabel:
+    label = QLabel(text, wordWrap=True)
+    if name:
+        label.setObjectName(name)
+    for prop, value in (("role", role), ("state", state)):
+        if value:
+            label.setProperty(prop, value)
+    return label
+
+
+def _metric(value: str, caption: str, name: str) -> QWidget:
+    box = QWidget()
+    column = QVBoxLayout(box)
+    column.setContentsMargins(0, 0, 0, 0)
+    column.setSpacing(SPACE["xs"] // 2)
+    column.addWidget(_label(value, name=name))
+    column.addWidget(_label(caption, role="caption"))
+    return box
+
+
+def _axis_bar(score: float, max_score: float) -> QProgressBar:
+    bar = QProgressBar()
+    bar.setRange(0, _BAR_STEPS)
+    bar.setValue(round(_BAR_STEPS * score / max_score) if max_score else 0)
+    bar.setTextVisible(False)
+    return bar
 
 
 def rejected_line(result: RecommendResult) -> str:
@@ -93,25 +121,12 @@ def could_not_verify(result: RecommendResult, run: SearchRun) -> list[str]:
     return lines
 
 
-def fit_to_rows(view: QTableView) -> None:
-    """Show every row: the page scrolls, so a table never scrolls on its own."""
-    view.resizeColumnsToContents()
-    view.resizeRowsToContents()
-    view.horizontalHeader().setStretchLastSection(True)
-    view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-    rows = sum(view.rowHeight(r) for r in range(view.model().rowCount()))
-    view.setFixedHeight(view.horizontalHeader().height() + rows + 2 * view.frameWidth())
-
-
 def text_table(headers: list[str], rows: list[list[str]]) -> QTableWidget:
-    table = QTableWidget(len(rows), len(headers))
+    table = FitTableWidget(len(rows), len(headers))
     table.setHorizontalHeaderLabels(headers)
-    table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-    table.verticalHeader().setVisible(False)
     for r, row in enumerate(rows):
         for c, text in enumerate(row):
             table.setItem(r, c, QTableWidgetItem(text))
-    fit_to_rows(table)
     return table
 
 
@@ -142,48 +157,73 @@ class ReportScreen(QScrollArea):
         self.open_best: QPushButton | None = None
         self.used: QTableWidget | None = None
         page = QWidget()
+        page.setObjectName("page")
         layout = QVBoxLayout(page)
-        layout.addWidget(QLabel(constraints_line(result.constraints, result.city_defaulted)))
+        layout.setContentsMargins(SPACE["xl"], SPACE["sm"], SPACE["xl"], SPACE["xl"])
+        layout.setSpacing(SPACE["xs"])
+        constraints = constraints_line(result.constraints, result.city_defaulted)
+        layout.addWidget(_label(constraints, role="muted"))
         layout.addWidget(self._best_section(result.recommendation.best))
         layout.addWidget(self._alternatives_section(result))
-        layout.addWidget(_group("Rejected", QLabel(rejected_line(result))))
+        layout.addWidget(_group("Rejected", _label(rejected_line(result), role="muted")))
         if result.used_listings:
             layout.addWidget(self._used_section(result.used_listings))
         if lines := could_not_verify(result, run):
-            layout.addWidget(_group("Не удалось проверить", QLabel("\n".join(lines))))
+            notes = _label("\n".join(lines), state="warning")
+            layout.addWidget(_group("Не удалось проверить", notes))
         layout.addStretch(1)
         self.setWidget(page)
 
     def _best_section(self, best: ScoredCandidate) -> QGroupBox:
-        header = QLabel("\n".join(best_header(best)))
-        header.setObjectName("bestHeader")
-        axes = text_table(
-            ["Axis", "Score", "Why"],
-            [[a.name, f"{a.score:.1f}/{a.max_score:.0f}", a.explanation] for a in best.axes],
-        )
-        self.best_axes = axes
-        widgets: list[QWidget] = [header, axes]
-        if best.pros:
-            widgets.append(QLabel("+ " + "  + ".join(best.pros)))
-        if best.cons:
-            widgets.append(QLabel("- " + "  - ".join(best.cons)))
-        if url := best.candidate.url:
+        cand = best.candidate
+        title = f"⚠ {cand.title}" if is_barred(best) else cand.title
+        metrics = QHBoxLayout()
+        metrics.setSpacing(SPACE["xxl"])
+        metrics.addWidget(_metric(f"{best.total_score:.0f}/100", "Score", "bestScore"))
+        metrics.addWidget(_metric(f"{best.confidence:.0%}", "Confidence", "bestConfidence"))
+        metrics.addWidget(_metric(f"{cand.price:,} ₸", "Price", "bestPrice"))
+        metrics.addStretch(1)
+        if url := cand.url:
             self.open_best = QPushButton("Открыть на маркетплейсе")
+            set_state(self.open_best, "primary", "true")
             self.open_best.clicked.connect(lambda: open_offer(url))
-            widgets.append(self.open_best)
+            metrics.addWidget(self.open_best, 0, Qt.AlignmentFlag.AlignBottom)
+        figures = QWidget()
+        figures.setLayout(metrics)
+
+        axes = text_table(
+            ["Axis", "Score", "", "Why"],
+            [[a.name, f"{a.score:.1f}/{a.max_score:.0f}", "", a.explanation] for a in best.axes],
+        )
+        for row, axis in enumerate(best.axes):
+            axes.setCellWidget(row, _BAR_COLUMN, _axis_bar(axis.score, axis.max_score))
+        axes.horizontalHeader().setSectionResizeMode(_BAR_COLUMN, QHeaderView.ResizeMode.Fixed)
+        axes.setColumnWidth(_BAR_COLUMN, _BAR_WIDTH)
+        self.best_axes = axes
+
+        widgets: list[QWidget] = [
+            _label(title, name="bestTitle"),
+            _label(cand.source, role="caption"),
+            figures,
+        ]
+        widgets += [_label(text, state=state) for state, text in best_notes(best)]
+        widgets.append(axes)
+        if best.pros:
+            widgets.append(_label("+ " + "  + ".join(best.pros), state="ok"))
+        if best.cons:
+            widgets.append(_label("- " + "  - ".join(best.cons), state="error"))
         return _group("Best pick", *widgets)
 
     def _alternatives_section(self, result: RecommendResult) -> QGroupBox:
         self.alternatives = AlternativesModel(result.recommendation)
         self.alternatives_proxy = alternatives_proxy(self.alternatives)
-        view = self.alternatives_view = QTableView()
+        view = self.alternatives_view = FitTableView()
         view.setModel(self.alternatives_proxy)
         view.setSortingEnabled(True)
         view.sortByColumn(SCORE_COLUMN, Qt.SortOrder.DescendingOrder)  # the ranking order
         view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         view.verticalHeader().setVisible(False)
         view.doubleClicked.connect(lambda index: open_offer(index.data(URL_ROLE)))
-        fit_to_rows(view)
         self.marketplace = QComboBox()
         self.marketplace.addItems([ALL_MARKETPLACES, *sorted(self._sources(result))])
         self.marketplace.currentTextChanged.connect(self._filter_marketplace)

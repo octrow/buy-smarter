@@ -31,11 +31,13 @@ def _column(proxy, col: int) -> list[str]:
 def test_best_pick_shows_each_axis_as_score_over_max_with_its_reason(qtbot, result):
     screen = _shown(qtbot, result)
     axes = screen.best_axes
-    rows = [[axes.item(r, c).text() for c in range(3)] for r in range(axes.rowCount())]
+    rows = [[axes.item(r, c).text() for c in (0, 1, 3)] for r in range(axes.rowCount())]
     assert rows == [["price", "20.0/25", "ниже медианы рынка"], ["specs", "18.0/20", "IPX7 есть"]]
-    text = _texts(screen)
-    assert "Philips Sonicare Power Flosser  [kaspi]" in text
-    assert "Score: 88/100   Confidence: 80%" in text and "Price: 38,000 ₸" in text
+    assert [axes.cellWidget(r, 2).value() for r in range(2)] == [80, 90]  # the bars
+    labels = _texts(screen).splitlines()
+    for text in ("Philips Sonicare Power Flosser", "kaspi", "88/100", "80%", "38,000 ₸"):
+        assert text in labels
+    assert {"Score", "Confidence", "Price"} <= set(labels)
 
 
 def test_alternatives_sort_by_price_and_filter_to_one_marketplace(qtbot, result):

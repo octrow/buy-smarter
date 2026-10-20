@@ -29,6 +29,6 @@
 
 ## 5. Look
 
-- [ ] 5.1 Design pass with the impeccable skill: palette (light/dark), type scale, spacing, component states; deliver the palette dict and QSS
-- [ ] 5.2 Theme switching on OS color scheme change and bundled Inter; test that both palettes pass 4.5:1 on every text/background pair
+- [x] 5.1 Design pass with the impeccable skill: palette (light/dark), type scale, spacing, component states; deliver the palette dict and QSS
+- [x] 5.2 Theme switching on OS color scheme change and bundled Inter; test that both palettes pass 4.5:1 on every text/background pair
 - [ ] 5.3 Manual check on Linux in light and dark: screenshots of all five screens, attached to the PR

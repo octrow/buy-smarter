@@ -4,7 +4,7 @@ import logging
 import sys
 from collections.abc import Callable, Mapping
 from types import TracebackType
-from typing import Any
+from typing import Any, cast
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -23,6 +23,7 @@ from buysmarter.gui.screens.preferences import PreferencesScreen
 from buysmarter.gui.screens.report import ReportScreen
 from buysmarter.gui.screens.search import SearchRun, SearchScreen
 from buysmarter.gui.screens.settings import SettingsScreen, unavailable_sources
+from buysmarter.gui.theme import apply_theme
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.memory import prefs
 from buysmarter.services.recommend import RecommendResult
@@ -72,6 +73,8 @@ class MainWindow(QMainWindow):
 
         central = QWidget()
         layout = QHBoxLayout(central)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         layout.addWidget(self.sidebar)
         layout.addWidget(self.stack, 1)
         self.setCentralWidget(central)
@@ -125,7 +128,11 @@ def install_excepthook(parent: QWidget) -> Callable[..., Any]:
 
 def run(argv: list[str] | None = None) -> int:
     """Show the main window and run the Qt event loop until it closes; returns the exit code."""
-    app = QApplication.instance() or QApplication(argv if argv is not None else sys.argv)
+    app = cast(
+        QApplication,
+        QApplication.instance() or QApplication(argv if argv is not None else sys.argv),
+    )
+    apply_theme(app)
     runner = CoreRunner()
     window = MainWindow(runner)
     previous_hook = install_excepthook(window)

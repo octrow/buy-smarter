@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from PySide6.QtCore import QLocale
 from PySide6.QtWidgets import QCheckBox, QSpinBox
 
 from buysmarter.services.collect import ALL_SOURCES
@@ -32,6 +33,7 @@ def as_budget(value: Any) -> int:
 
 def budget_box() -> QSpinBox:
     box = QSpinBox(maximum=BUDGET_MAX, singleStep=_BUDGET_STEP, suffix=" ₸")
+    box.setLocale(QLocale.c())  # "40,000 ₸", as the report tables and the CLI write prices
     box.setSpecialValueText("без лимита")
     box.setGroupSeparatorShown(True)
     return box

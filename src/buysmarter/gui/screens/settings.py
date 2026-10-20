@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter.gui.bridge import CoreRunner, Job
+from buysmarter.gui.theme import SPACE, set_state
 from buysmarter.services import doctor
 from buysmarter.services.doctor import OZON_BROWSER, Check
 
@@ -52,6 +53,8 @@ class SettingsScreen(QWidget):
         self._row_labels: dict[str, tuple[QLabel, ...]] = {}
 
         self.rows = QGridLayout()
+        self.rows.setHorizontalSpacing(SPACE["lg"])
+        self.rows.setVerticalSpacing(SPACE["sm"])
         self.recheck_button = QPushButton("Проверить снова")
         self.recheck_button.clicked.connect(self.recheck)
         health = QGroupBox("Состояние")
@@ -77,6 +80,7 @@ class SettingsScreen(QWidget):
         ozon_layout.addLayout(button_row)
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(SPACE["xl"], SPACE["sm"], SPACE["xl"], SPACE["xl"])
         layout.addWidget(health)
         layout.addWidget(ozon)
         layout.addStretch(1)
@@ -101,7 +105,7 @@ class SettingsScreen(QWidget):
         self._clear_rows()
         for row, check in enumerate(checks):
             status = QLabel("ок" if check.ok else "нет")
-            status.setObjectName("ok" if check.ok else "missing")  # the theme colors it
+            set_state(status, "state", "ok" if check.ok else "missing")
             labels = (
                 QLabel(check.name),
                 status,

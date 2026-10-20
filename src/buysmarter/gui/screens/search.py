@@ -31,6 +31,7 @@ from buysmarter.gui.prefs_fields import (
     source_boxes,
 )
 from buysmarter.gui.progress import Progress
+from buysmarter.gui.theme import SPACE, set_state
 from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services.collect import ALL_SOURCES
 from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
@@ -47,6 +48,8 @@ STATE_LABELS = {
 }
 
 logger = logging.getLogger(__name__)
+
+_SOURCE_COLUMN_WIDTH = 96
 
 type Recommend = Callable[..., Awaitable[RecommendResult]]
 type Parse = Callable[[str, bool], Awaitable[QueryConstraints]]
@@ -101,7 +104,9 @@ class SearchScreen(QWidget):
         self.status = {name: QLabel() for name in ALL_SOURCES}
         self.stage = QLabel()
         self.message = QLabel(wordWrap=True)
+        set_state(self.message, "role", "muted")
         self.start_button = QPushButton("Найти", default=True)
+        set_state(self.start_button, "primary", "true")
         self.start_button.clicked.connect(self.start)
         self.cancel_button = QPushButton("Отмена")
         self.cancel_button.setEnabled(False)
@@ -114,6 +119,8 @@ class SearchScreen(QWidget):
         form.addRow("", self.use_llm)
         for name in ALL_SOURCES:
             row = QHBoxLayout()
+            row.setSpacing(SPACE["lg"])
+            self.sources[name].setMinimumWidth(_SOURCE_COLUMN_WIDTH)  # statuses line up
             row.addWidget(self.sources[name])
             row.addWidget(self.status[name], 1)
             form.addRow("", row)
@@ -122,6 +129,10 @@ class SearchScreen(QWidget):
         buttons.addWidget(self.cancel_button)
         buttons.addStretch(1)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(SPACE["xl"], SPACE["xl"], SPACE["xl"], SPACE["xl"])
+        layout.setSpacing(SPACE["md"])
+        form.setVerticalSpacing(SPACE["md"])
+        form.setHorizontalSpacing(SPACE["lg"])
         layout.addLayout(form)
         layout.addLayout(buttons)
         layout.addWidget(self.stage)
@@ -149,6 +160,7 @@ class SearchScreen(QWidget):
             box.setEnabled(not off and self._job is None)
             box.setToolTip(self._unavailable.get(name, ""))
             self.status[name].setText("недоступен" if off else "")
+            set_state(self.status[name], "state", "missing" if off else "")
 
     def start(self) -> None:
         if self._job is not None:
@@ -214,7 +226,9 @@ class SearchScreen(QWidget):
 
     def _show_states(self) -> None:
         for name, label in self.status.items():
-            label.setText(STATE_LABELS[self._states.get(name, "waiting")])
+            state = self._states.get(name, "waiting")
+            label.setText(STATE_LABELS[state])
+            set_state(label, "state", state)
 
     def _settle(self, interrupted: str = "skipped") -> None:
         """Back to idle; a marketplace still running ends as ``interrupted``.

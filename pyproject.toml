@@ -80,6 +80,10 @@ extend-exclude = ["src/buysmarter/migrations"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "C90"]
 
+[tool.ruff.lint.per-file-ignores]
+# The generated QSS reads best as one rule per line.
+"src/buysmarter/gui/theme/__init__.py" = ["E501"]
+
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 

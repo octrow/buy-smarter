@@ -26,6 +26,7 @@ from buysmarter.gui.prefs_fields import (
     check_sources,
     source_boxes,
 )
+from buysmarter.gui.theme import SPACE, set_state
 from buysmarter.memory import prefs
 
 type Store = Callable[[Mapping[str, Any]], Coroutine[Any, Any, None]]
@@ -52,9 +53,12 @@ class PreferencesScreen(QWidget):
         self.excluded = QLineEdit(placeholderText="через запятую, например: Noname, Generic")
         self.message = QLabel(wordWrap=True)
         self.save_button = QPushButton("Сохранить", default=True)
+        set_state(self.save_button, "primary", "true")
+        set_state(self.message, "role", "muted")
         self.save_button.clicked.connect(self.save)
 
         marketplaces = QHBoxLayout()
+        marketplaces.setSpacing(SPACE["xl"])
         for box in self.sources.values():
             marketplaces.addWidget(box)
         marketplaces.addStretch(1)
@@ -64,6 +68,10 @@ class PreferencesScreen(QWidget):
         form.addRow("Маркетплейсы", marketplaces)
         form.addRow("Исключить бренды", self.excluded)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(SPACE["xl"], SPACE["xl"], SPACE["xl"], SPACE["xl"])
+        layout.setSpacing(SPACE["lg"])
+        form.setVerticalSpacing(SPACE["md"])
+        form.setHorizontalSpacing(SPACE["lg"])
         buttons = QHBoxLayout()
         buttons.addWidget(self.save_button)
         buttons.addStretch(1)

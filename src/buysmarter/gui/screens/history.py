@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.progress import Progress
 from buysmarter.gui.screens.report import text_table
+from buysmarter.gui.theme import SPACE, set_state
 from buysmarter.services.price_tracking import CategoryRefresh, ProductHistory
 from buysmarter.services.price_tracking import product_history as run_product_history
 from buysmarter.services.price_tracking import refresh_tracked as run_refresh_tracked
@@ -72,6 +73,8 @@ class HistoryScreen(QWidget):
         self.cancel_button.setEnabled(False)
         self.cancel_button.clicked.connect(self.cancel_refresh)
         self.status = QLabel(wordWrap=True)
+        set_state(self.status, "role", "muted")
+        set_state(self.find_button, "primary", "true")
         self.results = QScrollArea(widgetResizable=True)
 
         search_row = QHBoxLayout()
@@ -82,6 +85,8 @@ class HistoryScreen(QWidget):
         refresh_row.addWidget(self.cancel_button)
         refresh_row.addStretch(1)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(SPACE["xl"], SPACE["xl"], SPACE["xl"], SPACE["xl"])
+        layout.setSpacing(SPACE["md"])
         layout.addLayout(search_row)
         layout.addLayout(refresh_row)
         layout.addWidget(self.status)
@@ -102,7 +107,9 @@ class HistoryScreen(QWidget):
     def _show_history(self, term: str, entries: list[ProductHistory]) -> None:
         self.find_button.setEnabled(True)
         page = QWidget()
+        page.setObjectName("page")
         layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
         if not entries:
             layout.addWidget(
                 QLabel(f"Нет истории для «{term}» (нет совпадений или хранилище недоступно).")

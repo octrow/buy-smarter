@@ -30,3 +30,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Inter
+
+The desktop app bundles `src/buysmarter/gui/theme/fonts/InterVariable.ttf`, Inter 4.1 by the
+Inter Project Authors (https://github.com/rsms/inter), under the SIL Open Font License 1.1; the
+full license ships next to it as `OFL.txt`.
