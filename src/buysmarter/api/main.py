@@ -2,12 +2,16 @@
 
 import logging
 import os
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response, status
-from fastapi.responses import JSONResponse
-from redis.exceptions import RedisError
+try:
+    from fastapi import FastAPI, Request, Response, status
+    from fastapi.responses import JSONResponse
+    from redis.exceptions import RedisError
+except ModuleNotFoundError as exc:
+    sys.exit(f"{exc.name} is missing: the HTTP API needs `pip install buysmarter[server]`")
 
 from buysmarter import __version__, logsetup, telemetry
 from buysmarter.api.recommend import router

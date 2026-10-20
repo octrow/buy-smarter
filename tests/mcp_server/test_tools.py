@@ -1,12 +1,9 @@
-"""MCP server tests: tool registry, recommend markdown, prefs file fallback.
+"""MCP server tests: tool registry, recommend markdown, preferences.
 
-No network/DB/LLM — the service layer is stubbed and the preferences file
-fallback is pointed at a tmp path via ``$BUYSMARTER_PREFS_FILE``.
+No network/LLM — the service layer is stubbed; preferences use the suite's tmp store.
 """
 
 import inspect
-
-import pytest
 
 from buysmarter.mcp_server import server
 from buysmarter.ranking.models import (
@@ -118,40 +115,21 @@ async def test_recommend_tool_reports_value_error_gracefully(monkeypatch) -> Non
     assert out.startswith("No recommendation:")
 
 
-# --- preferences file fallback --------------------------------------------
+# --- preferences (the suite's tmp store) -----------------------------------
 
 
-@pytest.fixture
-def prefs_file(tmp_path, monkeypatch):
-    path = tmp_path / "prefs.json"
-    monkeypatch.setenv("BUYSMARTER_PREFS_FILE", str(path))
-    return path
-
-
-async def test_preferences_file_fallback_roundtrip(prefs_file, monkeypatch) -> None:
-    # Force the DB path to fail so the JSON file fallback is exercised.
-    def dead_session(*args, **kwargs):
-        raise RuntimeError("no postgres")
-
-    monkeypatch.setattr("buysmarter.memory.prefs.async_session", dead_session)
-
+async def test_preferences_roundtrip_through_the_store() -> None:
     set_tool = await _get_tool("set_preference")
     get_tool = await _get_tool("get_preferences")
 
     confirm = await set_tool.fn("city", "Астана")
-    assert "city" in confirm
-    assert prefs_file.exists()
-
     out = await get_tool.fn()
-    assert "city" in out
-    assert "Астана" in out
+
+    assert "city" in confirm
+    assert "city" in out and "Астана" in out
 
 
-async def test_get_preferences_empty_message(prefs_file, monkeypatch) -> None:
-    monkeypatch.setattr(
-        "buysmarter.memory.prefs.async_session",
-        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no db")),
-    )
+async def test_get_preferences_empty_message() -> None:
     tool = await _get_tool("get_preferences")
     out = await tool.fn()
     assert "No preferences stored" in out
@@ -162,7 +140,6 @@ async def test_recommend_rejects_unknown_sources(monkeypatch) -> None:
         raise AssertionError("pipeline must not run")
 
     monkeypatch.setattr(server, "run_recommend", boom)
-    monkeypatch.setenv("BUYSMARTER_PREFS_FILE", "/nonexistent/none.json")
     out = await server.recommend("q", city="Алматы", sources="amazon")
     assert "amazon" in out
 
@@ -201,7 +178,6 @@ async def test_recommend_nonpositive_top_is_clamped(monkeypatch) -> None:
 
     monkeypatch.setattr(server, "run_recommend", fake)
     monkeypatch.setattr(server, "render_markdown", lambda result, top: seen.setdefault("top", top))
-    monkeypatch.setenv("BUYSMARTER_PREFS_FILE", "/nonexistent/none.json")
     await server.recommend("q", city="Алматы", top=-3)
     assert seen["top"] == 1
 

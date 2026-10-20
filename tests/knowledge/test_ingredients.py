@@ -1,10 +1,7 @@
 """IngredientBook resolution/merge + category_type/ingredient store roundtrip.
 
-No network/DB/LLM: ``$BUYSMARTER_KNOWLEDGE_DIR`` points the store at a tmp path
-and Postgres is unreachable, so the DB-primary path falls back to the file.
+No network/LLM: the store is the suite's tmp SQLite (tests/conftest.py).
 """
-
-import pytest
 
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import (
@@ -16,16 +13,6 @@ from buysmarter.knowledge.ingredients import (
 )
 from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.knowledge.store import resolve_composition, save_knowledge
-
-
-def _no_db(*args, **kwargs):
-    raise RuntimeError("DB disabled in test — use file fallback")
-
-
-@pytest.fixture(autouse=True)
-def _tmp_knowledge_dir(tmp_path, monkeypatch):
-    monkeypatch.setenv("BUYSMARTER_KNOWLEDGE_DIR", str(tmp_path))
-    monkeypatch.setattr("buysmarter.knowledge.store.async_session", _no_db)
 
 
 def _adapalene_book() -> IngredientBook:

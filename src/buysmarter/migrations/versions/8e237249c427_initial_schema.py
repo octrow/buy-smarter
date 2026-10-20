@@ -11,6 +11,9 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+# JSONB on Postgres (unchanged DDL), JSON elsewhere.
+JSON_TYPE = sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), 'postgresql')
+
 # revision identifiers, used by Alembic.
 revision: str = '8e237249c427'
 down_revision: Union[str, Sequence[str], None] = None
@@ -24,8 +27,8 @@ def upgrade() -> None:
     op.create_table('category_knowledge',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('category', sa.String(length=128), nullable=False),
-    sa.Column('schema_json', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('schema_json', JSON_TYPE, nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_category_knowledge_category'), 'category_knowledge', ['category'], unique=True)
@@ -38,12 +41,12 @@ def upgrade() -> None:
     sa.Column('input_hash', sa.String(length=64), nullable=False),
     sa.Column('cache_key', sa.String(length=64), nullable=False),
     sa.Column('response_text', sa.Text(), nullable=False),
-    sa.Column('structured_json', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+    sa.Column('structured_json', JSON_TYPE, nullable=False),
     sa.Column('prompt_tokens', sa.Integer(), nullable=True),
     sa.Column('completion_tokens', sa.Integer(), nullable=True),
     sa.Column('cost_usd', sa.Float(), nullable=True),
     sa.Column('latency_ms', sa.Integer(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
@@ -59,16 +62,16 @@ def upgrade() -> None:
     sa.Column('image_url', sa.Text(), nullable=True),
     sa.Column('rating', sa.Float(), nullable=True),
     sa.Column('review_count', sa.Integer(), nullable=True),
-    sa.Column('specs', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('specs', JSON_TYPE, nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('source', 'source_product_id', name='uq_product_source')
     )
     op.create_table('user_preferences',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('key', sa.String(length=128), nullable=False),
-    sa.Column('value', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+    sa.Column('value', JSON_TYPE, nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_user_preferences_key'), 'user_preferences', ['key'], unique=True)
@@ -78,8 +81,8 @@ def upgrade() -> None:
     sa.Column('merchant_id', sa.String(length=128), nullable=True),
     sa.Column('merchant_name', sa.String(length=256), nullable=False),
     sa.Column('price', sa.Integer(), nullable=False),
-    sa.Column('delivery_info', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-    sa.Column('fetched_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('delivery_info', JSON_TYPE, nullable=True),
+    sa.Column('fetched_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -88,7 +91,7 @@ def upgrade() -> None:
     sa.Column('product_id', sa.Integer(), nullable=False),
     sa.Column('min_price', sa.Integer(), nullable=False),
     sa.Column('offer_count', sa.Integer(), nullable=False),
-    sa.Column('captured_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('captured_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -99,7 +102,7 @@ def upgrade() -> None:
     sa.Column('rating', sa.Float(), nullable=True),
     sa.Column('text', sa.Text(), nullable=False),
     sa.Column('date', sa.String(length=64), nullable=True),
-    sa.Column('raw', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+    sa.Column('raw', JSON_TYPE, nullable=True),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )

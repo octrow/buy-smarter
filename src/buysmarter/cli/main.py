@@ -1,9 +1,11 @@
 """Typer CLI entry point for buy-smarter."""
 
 import asyncio
+import os
 import shutil
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 import httpx
 import typer
@@ -13,10 +15,12 @@ from rich.console import Console
 from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
+from sqlalchemy.engine import make_url
 
+from buysmarter import local_store
 from buysmarter.cli.report import format_rejected_reasons, save_report
 from buysmarter.config import get_settings
-from buysmarter.db.base import db_reachable as _db_reachable
+from buysmarter.db.schema import schema_is_current
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.generate import (
     EXTRACT_KNOWLEDGE_MODEL,
@@ -58,6 +62,7 @@ def _main() -> None:
     """buy-smarter: AI-powered shopping assistant (keeps subcommands named)."""
     setup_logging()
     new_run_id()
+    local_store.prepare()
 
 
 _QUERY_HELP = 'Natural-language request, e.g. "нужен ирригатор, IPX7, до 40000 тг, Алматы"'
@@ -535,7 +540,7 @@ def refresh() -> None:
     if not results:
         console.print(
             "[yellow]No tracked categories yet — run `recommend` first "
-            "(or Postgres is unavailable).[/yellow]"
+            "(or the local store is unavailable).[/yellow]"
         )
         return
     for result in results:
@@ -563,7 +568,7 @@ def history(
     if not entries:
         console.print(
             f"[yellow]No history for {escape(repr(query))} "
-            "(no match, or Postgres unavailable).[/yellow]"
+            "(no match, or the local store is unavailable).[/yellow]"
         )
         return
     for entry in entries:
@@ -602,26 +607,45 @@ def _chromium_installed() -> bool:
         return False
 
 
-def doctor_checks() -> list[tuple[str, bool, str]]:
-    """(name, ok, hint) for every optional piece the pipeline can use."""
-    settings = get_settings()
+class Check(NamedTuple):
+    """One ``doctor`` row: ``hint`` says what to do when it fails, ``detail`` is shown when ok."""
+
+    name: str
+    ok: bool
+    hint: str
+    detail: str = ""
+
+
+def _storage_check(url: str) -> Check:
+    """Which store is in use and where; failing when it cannot be opened (or, SQLite, written)."""
+    parsed = make_url(url)
+    off = "history, preferences and learned categories off"
+    if parsed.get_backend_name() == "sqlite":
+        path = Path(parsed.database or "")
+        target = path if path.exists() else path.parent
+        ok = os.access(target, os.W_OK) and asyncio.run(schema_is_current(url))
+        hint = f"{off}; {path} is not writable or its schema is not current (see the log)"
+        return Check("Storage", ok, hint, f"SQLite {path}")
+    location = parsed.render_as_string(hide_password=True)
+    hint = f"{off}; check DATABASE_URL and run `alembic upgrade head`"
+    return Check("Storage", asyncio.run(schema_is_current(url)), hint, location)
+
+
+def doctor_checks() -> list[Check]:
+    """One row for every optional piece the pipeline can use."""
     return [
-        (
-            "Postgres",
-            asyncio.run(_db_reachable(settings.database_url)),
-            "history and preferences off; in a clone run `make up && uv run alembic upgrade head`",
-        ),
-        (
+        _storage_check(get_settings().database_url),
+        Check(
             "claude CLI",
             shutil.which("claude") is not None,
             "LLM parsing and review summaries off; install Claude Code or use --no-llm",
         ),
-        (
+        Check(
             "Playwright Chromium",
             _chromium_installed(),
             f'Ozon off; run `"{sys.executable}" -m playwright install chromium`',
         ),
-        (
+        Check(
             "Ozon session",
             ozon_state_path().exists(),
             "Ozon may hit the anti-bot page; run `buysmarter ozon-setup`",
@@ -632,9 +656,12 @@ def doctor_checks() -> list[tuple[str, bool, str]]:
 @app.command()
 def doctor() -> None:
     """Check what is set up; every missing piece only disables part of the pipeline."""
-    for name, ok, hint in doctor_checks():
-        mark = "[green]ok[/green]" if ok else f"[yellow]missing[/yellow]  {escape(hint)}"
-        console.print(f"{name:<20} {mark}")
+    for check in doctor_checks():
+        if check.ok:
+            mark = f"[green]ok[/green]  {escape(check.detail)}"
+        else:
+            mark = f"[yellow]missing[/yellow]  {escape(check.hint)}"
+        console.print(f"{check.name:<20} {mark}".rstrip())
 
 
 if __name__ == "__main__":

@@ -1,90 +1,96 @@
-"""prefs JSON fallback: non-object JSON must be treated as empty."""
+"""Preferences in the store, and the one-time import of the pre-store JSON file."""
 
 import json
+import os
+from pathlib import Path
 
 import pytest
 
 from buysmarter.memory import prefs
 
 
-def test_read_file_non_object_json_is_empty(tmp_path, monkeypatch, caplog) -> None:
-    path = tmp_path / "prefs.json"
-    path.write_text("[1, 2]", encoding="utf-8")
-    monkeypatch.setenv("BUYSMARTER_PREFS_FILE", str(path))
-    with caplog.at_level("WARNING"):
-        assert prefs._read_file() == {}
-    assert "not a JSON object" in caplog.text
-
-
-class _DbDown:
+class _StoreDown:
     async def __aenter__(self) -> None:
-        raise OSError("connection refused")
-
-    async def __aexit__(self, *exc: object) -> None:
-        return None
-
-
-class _FakeSession:
-    async def __aenter__(self) -> "_FakeSession":
-        return self
+        raise OSError("unable to open database file")
 
     async def __aexit__(self, *exc: object) -> None:
         return None
 
 
 @pytest.fixture
-def prefs_file(tmp_path, monkeypatch):
-    path = tmp_path / "prefs.json"
-    monkeypatch.setenv("BUYSMARTER_PREFS_FILE", str(path))
+def legacy_file() -> Path:
+    """The conftest points ``$BUYSMARTER_PREFS_FILE`` at a tmp path; start each test without it."""
+    path = Path(os.environ["BUYSMARTER_PREFS_FILE"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    for leftover in path.parent.glob("prefs.json*"):
+        leftover.unlink()
     return path
 
 
-@pytest.fixture
-def db_down(monkeypatch):
-    monkeypatch.setattr(prefs, "async_session", _DbDown)
-
-
-async def test_set_then_get_round_trips_through_file_when_db_down(prefs_file, db_down) -> None:
+async def test_set_then_get_round_trips_through_the_store() -> None:
     await prefs.set("city", "Алматы")
     await prefs.set("budget", 40000)
 
     assert await prefs.get("city") == "Алматы"
     assert await prefs.get("missing") is None
     assert await prefs.get_all() == {"city": "Алматы", "budget": 40000}
-    assert json.loads(prefs_file.read_text(encoding="utf-8"))["city"] == "Алматы"
 
 
-async def test_get_all_is_empty_when_db_down_and_no_file(prefs_file, db_down) -> None:
+async def test_reads_are_empty_when_the_store_is_down(monkeypatch, caplog) -> None:
+    monkeypatch.setattr(prefs, "async_session", _StoreDown)
+
+    with caplog.at_level("WARNING"):
+        assert await prefs.get_all() == {}
+        assert await prefs.get("city") is None
+    assert "unavailable" in caplog.text
+
+
+async def test_set_raises_when_the_store_is_down(monkeypatch) -> None:
+    monkeypatch.setattr(prefs, "async_session", _StoreDown)
+
+    with pytest.raises(OSError):
+        await prefs.set("city", "Алматы")
+
+
+async def test_legacy_import_adds_missing_keys_only_and_renames(legacy_file) -> None:
+    await prefs.set("budget", 9000)
+    legacy_file.write_text(json.dumps({"city": "Алматы", "budget": 5000}), encoding="utf-8")
+
+    await prefs.import_legacy_file()
+
+    assert await prefs.get_all() == {"city": "Алматы", "budget": 9000}
+    assert not legacy_file.exists()
+    assert legacy_file.with_name("prefs.json.imported").exists()
+
+
+async def test_legacy_import_without_a_file_is_a_noop(legacy_file) -> None:
+    await prefs.import_legacy_file()
+
     assert await prefs.get_all() == {}
 
 
-def test_read_file_corrupt_json_is_empty(prefs_file, caplog) -> None:
-    prefs_file.write_text("{not json", encoding="utf-8")
+@pytest.mark.parametrize("content", ["{not json", "[1, 2]"])
+async def test_legacy_import_sets_aside_an_unreadable_file(legacy_file, caplog, content) -> None:
+    legacy_file.write_text(content, encoding="utf-8")
 
     with caplog.at_level("WARNING"):
-        assert prefs._read_file() == {}
+        await prefs.import_legacy_file()
+
+    assert await prefs.get_all() == {}
+    assert legacy_file.with_name("prefs.json.invalid").read_text(encoding="utf-8") == content
     assert "unreadable" in caplog.text
 
 
-async def test_db_reachable_reads_and_writes_go_to_repo_not_file(prefs_file, monkeypatch) -> None:
-    stored: dict[str, object] = {}
+async def test_legacy_import_survives_a_failed_rename(legacy_file, monkeypatch, caplog) -> None:
+    legacy_file.write_text(json.dumps({"city": "Алматы"}), encoding="utf-8")
 
-    async def set_preference(session, key, value) -> None:
-        stored[key] = value
+    def _fail(self, target):
+        raise PermissionError("read-only")
 
-    async def get_preference(session, key):
-        return stored.get(key)
+    monkeypatch.setattr(Path, "rename", _fail)
+    with caplog.at_level("WARNING"):
+        await prefs.import_legacy_file()
+        await prefs.import_legacy_file()  # the file is still there: a re-run imports nothing new
 
-    async def get_all_preferences(session):
-        return dict(stored)
-
-    monkeypatch.setattr(prefs, "async_session", _FakeSession)
-    monkeypatch.setattr(prefs.repo, "set_preference", set_preference)
-    monkeypatch.setattr(prefs.repo, "get_preference", get_preference)
-    monkeypatch.setattr(prefs.repo, "get_all_preferences", get_all_preferences)
-
-    await prefs.set("city", "Астана")
-
-    assert await prefs.get("city") == "Астана"
-    assert await prefs.get_all() == {"city": "Астана"}
-    assert not prefs_file.exists()
+    assert await prefs.get_all() == {"city": "Алматы"}
+    assert "Could not rename" in caplog.text

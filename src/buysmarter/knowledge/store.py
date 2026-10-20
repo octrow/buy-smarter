@@ -1,13 +1,11 @@
-"""Per-category knowledge store: BrandBook + ModelBook, DB-primary + file fallback.
+"""Per-category knowledge store: BrandBook + ModelBook in the local store.
 
 Category knowledge (brand-trust tiers, product-identity models) is persisted per
 category so any category — not just the hand-seeded irrigators — can accrue an
-LLM-generated ``BrandBook`` + ``ModelBook`` (docs/PLAN.md фаза 4). Storage mirrors
-``memory/prefs.py``: the Postgres ``CategoryKnowledge.schema_json`` column is
-primary, and when the DB is unreachable the same functions transparently fall
-back to a local JSON file ``~/.config/buysmarter/knowledge/<category-slug>.json``.
-Override the directory with ``$BUYSMARTER_KNOWLEDGE_DIR`` (tests point it at a tmp
-path).
+LLM-generated ``BrandBook`` + ``ModelBook`` (docs/PLAN.md фаза 4), kept in the
+``CategoryKnowledge.schema_json`` column. Reads treat an unavailable store as "nothing
+learned"; writes are best-effort and log a warning. Earlier versions kept one JSON file per
+category under ``$BUYSMARTER_KNOWLEDGE_DIR``; ``import_legacy_dir`` carries them over once.
 
 Resolution (``resolve_books`` / ``get_brand_book`` / ``get_model_book``) prefers a
 stored book, then falls back to the static seed (irrigators keep working offline
@@ -33,6 +31,7 @@ from buysmarter.knowledge.models_book import ModelBook, ModelEntry
 from buysmarter.knowledge.models_book import get_model_book as _seed_model_book
 from buysmarter.llm.adapter import LlmConfigError, LlmError, generate
 from buysmarter.llm.jev import system_one
+from buysmarter.local_store import set_aside
 
 logger = logging.getLogger(__name__)
 
@@ -71,36 +70,14 @@ def _slug(category: str) -> str:
     return re.sub(r"[^\w-]", "", text, flags=re.UNICODE) or "category"
 
 
-def _knowledge_dir() -> Path:
-    """Directory of the JSON fallback store (``$BUYSMARTER_KNOWLEDGE_DIR`` overrides)."""
+def _legacy_dir() -> Path:
+    """The pre-store JSON directory (``$BUYSMARTER_KNOWLEDGE_DIR`` overrides)."""
     override = os.environ.get("BUYSMARTER_KNOWLEDGE_DIR")
     return Path(override).expanduser() if override else _DEFAULT_DIR
 
 
-def _file(category: str) -> Path:
-    return _knowledge_dir() / f"{_slug(category)}.json"
-
-
-def _read_file(category: str) -> dict[str, Any] | None:
-    path = _file(category)
-    if not path.exists():
-        return None
-    try:
-        data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
-        return data
-    except (OSError, json.JSONDecodeError) as exc:
-        logger.warning("Knowledge file unreadable (%r); treating as missing", exc)
-        return None
-
-
-def _write_file(category: str, payload: dict[str, Any]) -> None:
-    path = _file(category)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
 async def load_knowledge(category: str) -> dict[str, Any] | None:
-    """Return the raw ``schema_json`` for a category; DB-primary, file fallback.
+    """Return the raw ``schema_json`` for a category, or ``None`` (also when the store is off).
 
     Keyed by the category *slug* (not the raw string) in both stores, so spacing
     / case / hyphen variants of the same category ("робот пылесос" vs
@@ -111,9 +88,9 @@ async def load_knowledge(category: str) -> dict[str, Any] | None:
     try:
         async with async_session() as session:
             return await repo.get_category_knowledge(session, key)
-    except Exception as exc:  # noqa: BLE001 - DB is optional, fall back to file
-        logger.warning("Knowledge DB unavailable (%r); reading JSON fallback", exc)
-        return _read_file(category)
+    except Exception as exc:  # noqa: BLE001 - the store is optional at read time
+        logger.warning("Knowledge store unavailable (%r); nothing learned applies", exc)
+        return None
 
 
 async def save_knowledge(
@@ -125,7 +102,7 @@ async def save_knowledge(
     category_type: str | None = None,
     ingredient_book: IngredientBook | None = None,
 ) -> None:
-    """Persist the books for a category (DB-primary; JSON fallback when DB is down).
+    """Persist the books for a category (best-effort: a store failure is logged).
 
     ``category_type`` and ``ingredient_book`` (composition-driven categories) are
     stored in the same payload. When either is left ``None`` the existing stored
@@ -147,10 +124,8 @@ async def save_knowledge(
     try:
         async with async_session() as session:
             await repo.upsert_category_knowledge(session, _slug(category), payload)
-            return
-    except Exception as exc:  # noqa: BLE001 - DB is optional, fall back to file
-        logger.warning("Knowledge DB unavailable (%r); writing JSON fallback", exc)
-    _write_file(category, payload)
+    except Exception as exc:  # noqa: BLE001 - learned knowledge is best-effort
+        logger.warning("Knowledge store unavailable (%r); %s not saved", exc, category)
 
 
 async def get_stored_books(category: str) -> tuple[BrandBook | None, ModelBook | None]:
@@ -189,16 +164,40 @@ async def resolve_composition(
 
 
 async def _list_stored_categories() -> list[str]:
-    """Every stored category slug, DB-primary with a file-listing fallback."""
+    """Every stored category slug (``[]`` when the store is off)."""
     try:
         async with async_session() as session:
             return await repo.list_category_slugs(session)
-    except Exception as exc:  # noqa: BLE001 - DB is optional, fall back to files
-        logger.warning("Knowledge DB unavailable (%r); listing JSON fallback", exc)
-        knowledge_dir = _knowledge_dir()
-        if not knowledge_dir.exists():
-            return []
-        return [p.stem for p in knowledge_dir.glob("*.json")]
+    except Exception as exc:  # noqa: BLE001 - the store is optional at read time
+        logger.warning("Knowledge store unavailable (%r); no stored categories", exc)
+        return []
+
+
+async def import_legacy_dir() -> None:
+    """Import categories the store lacks from the old JSON files once, then rename the dir.
+
+    The directory becomes ``*.imported``; an unreadable file is skipped with a warning. Re-running
+    is safe: only missing slugs are written.
+    """
+    legacy = _legacy_dir()
+    if not legacy.is_dir():
+        return
+    async with async_session() as session:
+        stored = set(await repo.list_category_slugs(session))
+        for path in sorted(legacy.glob("*.json")):
+            if path.stem in stored:
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+                payload, reason = None, repr(exc)
+            else:
+                reason = "not a JSON object"
+            if not isinstance(payload, dict):
+                logger.warning("Legacy knowledge file %s unreadable (%s); skipped", path, reason)
+                continue
+            await repo.upsert_category_knowledge(session, path.stem, payload)
+    set_aside(legacy, ".imported")
 
 
 def _substring_match(slug: str, candidates: list[str]) -> str | None:

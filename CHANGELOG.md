@@ -2,6 +2,22 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- **The local store is the default.** Price history, preferences and learned categories go to a SQLite file in the
+  user data dir (`~/.local/share/buysmarter/buysmarter.db` on Linux), created and migrated at start by the CLI and the
+  MCP server; no database server is needed. Postgres still works when `DATABASE_URL` points at it, and keeps its
+  explicit `alembic upgrade head` step. `doctor` shows a `Storage` row (backend and path) instead of `Postgres`.
+- **BREAKING (packaging):** the HTTP API, the worker and their dependencies (fastapi, uvicorn, asyncpg, redis, taskiq,
+  the Prometheus exporter) moved to the `server` extra: `pip install "buysmarter[server]"`. The Docker image has it.
+- Migrations ship inside the package (`buysmarter.migrations`); `alembic.ini` points there.
+
+### Removed
+- The JSON-file fallbacks for preferences (`~/.config/buysmarter/prefs.json`) and category knowledge
+  (`~/.config/buysmarter/knowledge/`). Both are imported into the store once and renamed `*.imported`; an unreadable
+  preferences file becomes `prefs.json.invalid`. Rollback: reinstall 0.2.0 and rename the `*.imported` files back.
+
 ## [0.2.0] - 2026-10-16
 
 ### Added

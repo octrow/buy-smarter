@@ -2,11 +2,57 @@
 
 import logging
 import os
+import sqlite3
+import tempfile
+from pathlib import Path
 
 # Before any test imports buysmarter.worker: an in-process broker, no Redis stream.
 os.environ.setdefault("BUYSMARTER_BROKER", "memory")
 
-import pytest
+# Before any buysmarter import (db.base builds its engine at import): the whole suite uses one tmp
+# SQLite store and tmp legacy paths, never the developer's data dir, Postgres or ~/.config files.
+_TEST_ROOT = Path(tempfile.mkdtemp(prefix="buysmarter-tests-"))
+TEST_DB = _TEST_ROOT / "test.db"
+os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB}"
+os.environ["BUYSMARTER_PREFS_FILE"] = str(_TEST_ROOT / "legacy" / "prefs.json")
+os.environ["BUYSMARTER_KNOWLEDGE_DIR"] = str(_TEST_ROOT / "legacy" / "knowledge")
+
+import importlib.util  # noqa: E402 - the env above must be set first
+
+import pytest  # noqa: E402
+
+# Tests of the HTTP API, the worker and the job queue need the [server] extra.
+SERVER_TESTS = ("api/*", "test_jobs.py", "test_worker.py", "test_telemetry.py")
+_HAS_SERVER_EXTRA = all(importlib.util.find_spec(m) for m in ("fastapi", "redis", "taskiq"))
+collect_ignore_glob = [] if _HAS_SERVER_EXTRA else list(SERVER_TESTS)
+
+
+def pytest_collection_modifyitems(config, items):
+    """Mark the server tests, so `-m "not server"` selects the core suite."""
+    root = Path(__file__).parent
+    for item in items:
+        rel = item.path.relative_to(root)
+        if any(rel.match(pattern) for pattern in SERVER_TESTS):
+            item.add_marker(pytest.mark.server)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _test_store():
+    """Migrate the tmp store once for the session."""
+    from buysmarter.db.schema import ensure_schema
+
+    ensure_schema()
+    yield TEST_DB
+
+
+@pytest.fixture(autouse=True)
+def _empty_store(_test_store):
+    """Every test starts on empty tables (the schema stays)."""
+    from buysmarter.db.base import Base
+
+    with sqlite3.connect(_test_store) as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            conn.execute(f"DELETE FROM {table.name}")  # noqa: S608 - names from our own metadata
 
 
 @pytest.fixture(autouse=True)
@@ -71,18 +117,6 @@ def _no_live_jev(monkeypatch):
         raise LlmConfigError("Jev is off in tests: mock <module>.system_one")
 
     monkeypatch.setattr(jev, "api_key", _no_key)
-
-
-@pytest.fixture(autouse=True)
-def _isolate_knowledge_store(tmp_path, monkeypatch):
-    """Keep tests off the user's real knowledge (Postgres and ~/.config/buysmarter/
-    knowledge): stored categories feed slug matching and would reach the LLM."""
-
-    def _no_db(*_args, **_kwargs):
-        raise RuntimeError("DB disabled in test — use file fallback")
-
-    monkeypatch.setenv("BUYSMARTER_KNOWLEDGE_DIR", str(tmp_path / "knowledge"))
-    monkeypatch.setattr("buysmarter.knowledge.store.async_session", _no_db)
 
 
 @pytest.fixture(autouse=True)

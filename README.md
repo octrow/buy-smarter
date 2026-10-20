@@ -52,7 +52,7 @@ The report goes on with a review summary, alternatives (best value, best budget)
 - **Brand and model knowledge.** Brand tiers and model aliases are seeded for water flossers. Any other
   category gets them via `learn-category`, so "me 705" on OLX resolves to "Xiaomi Water Flosser 2". Without it,
   every brand ranks as unknown: run `learn-category "смартфон"` once before phone queries. Knowledge goes to
-  Postgres, or to `~/.config/buysmarter/knowledge/<category>.json` when Postgres is down.
+  the local store.
 - **Phone specs from Kimovil.** For smartphone queries each model is looked up on Kimovil: its overall index
   (0–100) goes into the specs axis ("Kimovil 83/100"), and refresh rate, battery, fast charging, chipset, AnTuTu
   and IP rating are added in Kaspi's wording, so "120 Гц" or "5000 мАч" as a required feature can match. Results
@@ -119,8 +119,7 @@ offers the browser for Ozon and runs `buysmarter doctor`, which says what is mis
 Re-run it to update; `sh -s -- --uninstall` removes it. Prefer to read it first? Download `install.sh`, read it,
 then run `sh install.sh`. API keys and a proxy go in `~/.config/buysmarter/.env` (see [.env.example](.env.example)).
 
-From source, for price history in Postgres and for development
-([uv](https://docs.astral.sh/uv/) and Docker):
+From source, for development ([uv](https://docs.astral.sh/uv/); Docker only for the server stack):
 
 ```bash
 git clone https://github.com/octrow/buy-smarter && cd buy-smarter
@@ -128,14 +127,15 @@ uv sync
 uv run buysmarter doctor      # tells you what is missing and what that turns off
 
 # Optional pieces
-make up && uv run alembic upgrade head   # Postgres :5434 + Redis :6380: history and preferences
+uv sync --extra server && make up        # HTTP API stack: Postgres :5434 + Redis :6380 (see .env.example)
 uv run playwright install chromium       # Ozon source
 uv run buysmarter ozon-setup             # pass Ozon's anti-bot check once in a visible browser
 cp .env.example .env                     # optional API keys and proxy
 ```
 
-Every piece is optional: without Postgres, writes are skipped; without the `claude` CLI, `--no-llm` falls
-back to a naive parser. In a clone, prefix the commands below with `uv run`.
+Price history, preferences and learned categories live in the **local store**, a SQLite file in the user
+data dir (`~/.local/share/buysmarter/buysmarter.db` on Linux), created at first start. `doctor` shows where it
+is. Every other piece is optional: without the `claude` CLI, `--no-llm` falls back to a naive parser. In a clone, prefix the commands below with `uv run`.
 
 ## Usage
 
@@ -218,7 +218,7 @@ uv run python -m buysmarter.mcp_server   # blocks on stdio; normally the client 
 | `recommend` | Full pipeline → markdown report (best pick with axes, alternatives, top N, OLX used). Parameters: `query`, `city`, `budget`, `sources`, `trusted_only`, `top`, `parse_with_llm` (default `False`: Claude parses the request itself). |
 | `search_products` | Raw search on one marketplace, no ranking (title, price, rating, url). |
 | `compare` | 2–4 comma-separated products → side-by-side specs (Kaspi). |
-| `get_preferences` / `set_preference` | Read/write preferences (city, budget…). Postgres, or `~/.config/buysmarter/prefs.json` when it is down. |
+| `get_preferences` / `set_preference` | Read/write preferences (city, budget…) in the local store. |
 
 ## HTTP API
 
@@ -299,7 +299,7 @@ The chart adds `prometheus.io/scrape` annotations, an optional `ServiceMonitor` 
 ## Development
 
 ```bash
-make check   # ruff + pytest (no network needed; db tests skip without Postgres)
+make check   # ruff + pytest (no network or database server needed)
 make test
 make up / make down
 ```

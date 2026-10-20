@@ -8,28 +8,36 @@ license-files = ["LICENSE"]
 authors = [{ name = "Daniil Petrov" }]
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi",
-    "uvicorn",
     "sqlalchemy[asyncio]>=2",
-    "asyncpg",
     "alembic",
     "pydantic>=2",
     "pydantic-settings",
     "httpx",
-    "redis",
     "typer",
     "fastmcp>=4.1",
     "openai",
     "claude-subprocess>=0.1.1",
     "market-sources[browser,impersonate,kimovil]>=0.2.0",
     "opentelemetry-sdk>=1.45.1",
-    "opentelemetry-exporter-prometheus>=0.66b1",
     "opentelemetry-exporter-otlp-proto-http>=1.45.1",
-    "opentelemetry-instrumentation-fastapi>=0.66b1",
     "opentelemetry-instrumentation-httpx>=0.66b1",
     "opentelemetry-instrumentation-sqlalchemy>=0.66b1",
+    "aiosqlite>=0.22.1",
+    "platformdirs>=4.10.1",
+]
+
+[project.optional-dependencies]
+# The multi-user server: HTTP API, taskiq worker on Redis, Postgres, Prometheus /metrics.
+server = [
+    "fastapi",
+    "uvicorn",
+    "asyncpg",
+    "redis",
     "taskiq[opentelemetry]>=0.13.0",
     "taskiq-redis>=1.2.4",
+    "opentelemetry-exporter-prometheus>=0.66b1",
+    "opentelemetry-instrumentation-fastapi>=0.66b1",
+    "prometheus-client",
 ]
 
 [project.scripts]
@@ -61,7 +69,7 @@ packages = ["src/buysmarter"]
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
-extend-exclude = ["alembic"]
+extend-exclude = ["src/buysmarter/migrations"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "C90"]
@@ -73,19 +81,16 @@ max-complexity = 10
 asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
-    "db: requires a reachable PostgreSQL (skipped when unavailable)",
+    "server: needs the [server] extra (fastapi, redis, taskiq, ...)",
 ]
 
 [tool.coverage.run]
 source = ["src/buysmarter"]
 branch = true
-# Entry point and the Postgres layer: db/ coverage depends on whether a
-# database is reachable (tests/db is skipped without one), so it would make
-# the threshold differ between local runs and CI.
+# Entry point; the migrations run in subprocesses (tests/storage), out of coverage's sight.
 omit = [
     "src/buysmarter/mcp_server/__main__.py",
-    "src/buysmarter/db/base.py",
-    "src/buysmarter/db/repo.py",
+    "src/buysmarter/migrations/*",
 ]
 
 [tool.coverage.report]

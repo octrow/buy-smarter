@@ -59,5 +59,5 @@ case $status in done|no_match) ;; failed) ! grep -q '"error":"internal"' <<<"$vi
 # Upgrade: the migration hook runs again (no-op) and the pods roll.
 install --set podAnnotations.smoke=upgrade
 helm test buysmarter -n "$NS"
-kubectl -n "$NS" exec deploy/buysmarter -- buysmarter doctor | grep -E '^Postgres +ok'
+kubectl -n "$NS" exec deploy/buysmarter -- buysmarter doctor | grep -E '^Storage +ok'
 echo "kind smoke: ok"

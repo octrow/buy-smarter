@@ -17,11 +17,11 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-dev --no-editable --no-install-project
+    uv sync --locked --no-dev --no-editable --no-install-project --extra server
 COPY pyproject.toml uv.lock README.md LICENSE ./
 COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --no-editable
+    uv sync --locked --no-dev --no-editable --extra server
 # Playwright's Node driver (~130 MB) is useless without Chromium; only the browser target gets it back.
 RUN mv /app/.venv/lib/python3.12/site-packages/playwright/driver /opt/playwright-driver
 
@@ -42,7 +42,6 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 # Migrations run as a separate `alembic upgrade head`, not on start.
 COPY alembic.ini ./
-COPY alembic ./alembic
 USER 10001:10001
 VOLUME /home/app/.cache/buysmarter
 EXPOSE 8000

@@ -1,36 +1,17 @@
-"""Repo tests against the dockerized Postgres.
-
-Marked ``db``: they skip cleanly when Postgres is unreachable so ``make check``
-stays green without Docker. Run the stack (``make up``) and ``alembic upgrade
-head`` first for these to execute.
-"""
+"""Repo tests on the suite's tmp SQLite store (tests/conftest.py), emptied per test."""
 
 import pytest
 from market_sources.base import RawProduct
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from buysmarter.config import get_settings
 from buysmarter.db import repo
-
-pytestmark = pytest.mark.db
+from buysmarter.db.base import async_session
 
 
 @pytest.fixture
 async def session():
-    """Yield a session, or skip if Postgres is unreachable."""
-    engine = create_async_engine(get_settings().database_url)
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-    except Exception as exc:  # noqa: BLE001 - any connect failure means skip
-        await engine.dispose()
-        pytest.skip(f"PostgreSQL unreachable: {exc}")
-
-    factory = async_sessionmaker(engine, expire_on_commit=False)
-    async with factory() as sess:
+    async with async_session() as sess:
         yield sess
-    await engine.dispose()
 
 
 async def test_upsert_product_is_idempotent(session) -> None:

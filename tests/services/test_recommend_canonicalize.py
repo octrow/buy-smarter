@@ -1,11 +1,9 @@
 """LLM canonicalization wiring for used-OLX matching (stubbed generate).
 
-Covers: map-to-existing learns + persists an alias (file fallback store),
+Covers: map-to-existing learns + persists an alias (tmp store),
 new-canonical suggestions are display-only, null/fail-open leave the book
 untouched, and nothing-unresolved skips the LLM call entirely.
 """
-
-import pytest
 
 from buysmarter.knowledge.models_book import ModelBook, ModelEntry
 from buysmarter.knowledge.store import get_stored_books
@@ -13,16 +11,6 @@ from buysmarter.llm import canonicalize as canon
 from buysmarter.llm.canonicalize import CanonicalizeResult, CanonicalMapping
 from buysmarter.ranking.models import Candidate
 from buysmarter.services.matching import canonicalize_used_titles, match_used_listings
-
-
-@pytest.fixture(autouse=True)
-def _tmp_knowledge_dir(tmp_path, monkeypatch):
-    monkeypatch.setenv("BUYSMARTER_KNOWLEDGE_DIR", str(tmp_path))
-    monkeypatch.setattr("buysmarter.knowledge.store.async_session", _no_db)
-
-
-def _no_db(*args, **kwargs):
-    raise RuntimeError("DB disabled in test — use file fallback")
 
 
 def _used(pid: str, title: str, price: int) -> Candidate:

@@ -22,7 +22,7 @@ jobs:
       - name: tag must match the pyproject version (the installers derive the wheel name from the tag)
         if: startsWith(github.ref, 'refs/tags/')
         run: test "v$(uv version --short)" = "$GITHUB_REF_NAME"
-      - run: uv sync --locked && uv run pytest -q
+      - run: uv sync --locked --extra server && uv run pytest -q
 
   build:
     needs: check

@@ -53,8 +53,7 @@
 - **Знания о брендах и моделях.** Тиры брендов и алиасы моделей заложены для ирригаторов. Любая другая
   категория получает их через `learn-category`, поэтому «me 705» с OLX превращается в «Xiaomi Water Flosser 2».
   Без этого каждый бренд считается неизвестным: перед запросами про телефоны один раз запустите
-  `learn-category "смартфон"`. Знания пишутся в Postgres, а если он не запущен — в
-  `~/.config/buysmarter/knowledge/<категория>.json`.
+  `learn-category "смартфон"`. Знания пишутся в локальное хранилище.
 - **Характеристики смартфонов из Kimovil.** Для запросов про смартфоны каждая модель ищется на Kimovil: её общий
   индекс (0–100) идёт в ось specs («Kimovil 83/100»), а частота экрана, аккумулятор, быстрая зарядка, процессор,
   AnTuTu и защита IP добавляются в формулировках Kaspi, так что обязательная фича «120 Гц» или «5000 мАч» находится.
@@ -123,7 +122,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/oct
 `install.sh`, прочтите и запустите `sh install.sh`. API-ключи и прокси кладутся в `~/.config/buysmarter/.env`
 (образец в [.env.example](.env.example)).
 
-Из исходников, для истории цен в Postgres и для разработки ([uv](https://docs.astral.sh/uv/) и Docker):
+Из исходников, для разработки ([uv](https://docs.astral.sh/uv/); Docker нужен только для серверного стека):
 
 ```bash
 git clone https://github.com/octrow/buy-smarter && cd buy-smarter
@@ -131,14 +130,15 @@ uv sync
 uv run buysmarter doctor      # скажет, чего не хватает и что от этого отключится
 
 # По желанию
-make up && uv run alembic upgrade head   # Postgres :5434 + Redis :6380: история и предпочтения
+uv sync --extra server && make up        # стек HTTP API: Postgres :5434 + Redis :6380 (см. .env.example)
 uv run playwright install chromium       # источник Ozon
 uv run buysmarter ozon-setup             # один раз пройти антибот Ozon в видимом браузере
 cp .env.example .env                     # необязательные API-ключи и прокси
 ```
 
-Всё это по желанию: без Postgres запись пропускается, без `claude` CLI режим `--no-llm` использует простой
-парсер. В клоне перед командами ниже добавляйте `uv run`.
+История цен, предпочтения и выученные категории лежат в **локальном хранилище** — файле SQLite в папке данных
+пользователя (`~/.local/share/buysmarter/buysmarter.db` в Linux), он создаётся при первом запуске. Где он, показывает
+`doctor`. Остальное по желанию: без `claude` CLI режим `--no-llm` использует простой парсер. В клоне перед командами ниже добавляйте `uv run`.
 
 ## Использование
 
@@ -220,7 +220,7 @@ uv run python -m buysmarter.mcp_server   # блокируется на stdio; о
 | `recommend` | Полный пайплайн → markdown-отчёт (лучший выбор с осями, альтернативы, топ-N, б/у на OLX). Параметры: `query`, `city`, `budget`, `sources`, `trusted_only`, `top`, `parse_with_llm` (по умолчанию `False`: Claude сам разбирает запрос). |
 | `search_products` | Сырой поиск по одной площадке без ранжирования (title, price, rating, url). |
 | `compare` | 2–4 товара через запятую → сравнение спецификаций (Kaspi). |
-| `get_preferences` / `set_preference` | Чтение и запись предпочтений (город, бюджет…). Postgres или `~/.config/buysmarter/prefs.json`, если база недоступна. |
+| `get_preferences` / `set_preference` | Чтение и запись предпочтений (город, бюджет…). Хранятся в локальном хранилище. |
 
 ## HTTP API
 
@@ -301,7 +301,7 @@ make observe   # compose-стек + Prometheus :9090, Grafana :3000 (дашбо�
 ## Разработка
 
 ```bash
-make check   # ruff + pytest (сеть не нужна; db-тесты пропускаются без Postgres)
+make check   # ruff + pytest (не нужны ни сеть, ни сервер БД)
 make test
 make up / make down
 ```

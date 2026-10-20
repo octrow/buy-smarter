@@ -9,7 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  # The [server] extra on Postgres: the migrations against a real server, lint, types, full suite.
+  server:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -27,13 +28,28 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-      - run: uv sync --locked
+      - run: uv sync --locked --extra server
       - run: uv run alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+asyncpg://buysmarter:buysmarter@localhost:5434/buysmarter
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy src
       - run: uv run complexipy src
       - run: uv run pytest -q --cov --cov-fail-under=90
+
+  # A plain install (no extra): what the CLI, MCP and the desktop app ship with.
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - run: uv sync --locked
+      - run: uv run --no-sync python -c "import buysmarter.cli.main, buysmarter.mcp_server.server"
+      - run: uv run --no-sync pytest -q -m "not server"
 
   docker:
     runs-on: ubuntu-latest
@@ -57,7 +73,7 @@ jobs:
         run: |
           docker compose up -d --no-build --wait --wait-timeout 120 || { docker compose logs; exit 1; }
           curl -fsS http://127.0.0.1:8000/health
-          docker compose run --rm app buysmarter doctor | grep -E '^Postgres +ok'
+          docker compose run --rm app buysmarter doctor | grep -E '^Storage +ok'
           img=ghcr.io/octrow/buy-smarter:ci
           [ "$(docker run --rm $img id -u)" = 10001 ]
           ! docker run --rm $img ls -a /app | grep -E '^\.(env|git)$'

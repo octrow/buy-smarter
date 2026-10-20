@@ -122,7 +122,7 @@ async def latest_snapshot(session: AsyncSession, product_id: int) -> PriceSnapsh
     stmt = (
         select(PriceSnapshot)
         .where(PriceSnapshot.product_id == product_id)
-        .order_by(PriceSnapshot.captured_at.desc())
+        .order_by(PriceSnapshot.captured_at.desc(), PriceSnapshot.id.desc())
         .limit(1)
     )
     return (await session.execute(stmt)).scalar_one_or_none()
@@ -135,7 +135,7 @@ async def list_snapshots(
     stmt = (
         select(PriceSnapshot)
         .where(PriceSnapshot.product_id == product_id)
-        .order_by(PriceSnapshot.captured_at.desc())
+        .order_by(PriceSnapshot.captured_at.desc(), PriceSnapshot.id.desc())
         .limit(limit)
     )
     return list((await session.execute(stmt)).scalars().all())

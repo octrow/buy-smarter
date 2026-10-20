@@ -1,10 +1,7 @@
-"""Store roundtrip (file fallback), merge logic, and resolution order.
+"""Store roundtrip, merge logic, and resolution order.
 
-No network/DB/LLM: ``$BUYSMARTER_KNOWLEDGE_DIR`` points the store at a tmp path,
-and Postgres is unreachable in CI so the DB-primary path falls back to the file.
+No network/LLM: the store is the suite's tmp SQLite (tests/conftest.py), emptied per test.
 """
-
-import pytest
 
 from buysmarter.knowledge import store as store_mod
 from buysmarter.knowledge.brands import IRRIGATOR_BRAND_BOOK, BrandBook
@@ -18,23 +15,13 @@ from buysmarter.knowledge.store import (
 )
 
 
-def _no_db(*args, **kwargs):
-    raise RuntimeError("DB disabled in test — use file fallback")
-
-
-@pytest.fixture(autouse=True)
-def _tmp_knowledge_dir(tmp_path, monkeypatch):
-    monkeypatch.setenv("BUYSMARTER_KNOWLEDGE_DIR", str(tmp_path))
-    monkeypatch.setattr("buysmarter.knowledge.store.async_session", _no_db)
-
-
 def _sample_books() -> tuple[BrandBook, ModelBook]:
     brand = BrandBook(tiers={"Roborock": "A", "Xiaomi": "C"}, aliases={"Сяоми": "Xiaomi"})
     model = ModelBook(entries=[ModelEntry(canonical="Roborock S8", brand="Roborock", codes=["S8"])])
     return brand, model
 
 
-async def test_save_then_load_roundtrip_via_file() -> None:
+async def test_save_then_load_roundtrip() -> None:
     brand, model = _sample_books()
     await save_knowledge("робот-пылесос", brand, model, "opus")
 
@@ -212,3 +199,46 @@ def test_merge_model_books_overlay_wins_by_canonical() -> None:
     by_canon = {e.canonical: e for e in merged.entries}
     assert set(by_canon) == {"Roborock S8", "Xiaomi X10"}
     assert by_canon["Roborock S8"].codes == ["S8", "S8PRO"]
+
+
+# --- one-time import of the pre-store JSON files ------------------------------
+
+
+def _legacy_dir():
+    import os
+    import shutil
+    from pathlib import Path
+
+    path = Path(os.environ["BUYSMARTER_KNOWLEDGE_DIR"])
+    for leftover in (path, path.with_name(path.name + ".imported")):
+        shutil.rmtree(leftover, ignore_errors=True)
+    path.mkdir(parents=True)
+    return path
+
+
+def _legacy_payload(canonical: str) -> str:
+    import json
+
+    model = ModelBook(entries=[ModelEntry(canonical=canonical, brand="Acme", codes=["X1"])])
+    return json.dumps(
+        {"brand_book": BrandBook().model_dump(mode="json"), "model_book": model.model_dump()},
+        ensure_ascii=False,
+    )
+
+
+async def test_legacy_import_adds_missing_categories_and_keeps_stored_ones() -> None:
+    legacy = _legacy_dir()
+    brand, model = _sample_books()
+    await save_knowledge("пылесос", brand, model, generated_by="test")
+    (legacy / "пылесос.json").write_text(_legacy_payload("Old"), encoding="utf-8")
+    (legacy / "фен.json").write_text(_legacy_payload("Acme X1"), encoding="utf-8")
+    (legacy / "битый.json").write_text("{not json", encoding="utf-8")
+
+    await store_mod.import_legacy_dir()
+
+    _, kept = await get_stored_books("пылесос")
+    _, imported = await get_stored_books("фен")
+    assert kept is not None and [e.canonical for e in kept.entries] == ["Roborock S8"]
+    assert imported is not None and [e.canonical for e in imported.entries] == ["Acme X1"]
+    assert await get_stored_books("битый") == (None, None)
+    assert not legacy.exists() and legacy.with_name(legacy.name + ".imported").is_dir()

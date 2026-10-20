@@ -7,12 +7,12 @@ Bug reports, new categories of brand knowledge and source fixes are welcome.
 ## Setup
 
 ```bash
-uv sync
+uv sync --extra server
 make check   # ruff check + ruff format --check + pytest
 ```
 
-Tests need no network. Database tests run when Postgres is up (`make up && uv run alembic upgrade head`)
-and are skipped otherwise. API and worker tests use fakeredis and an in-memory broker, so Redis is optional.
+Tests need no network and no database server: the suite runs on a tmp SQLite store. API, worker and job
+tests need the server extra (`uv sync --extra server`) and are skipped without it. API and worker tests use fakeredis and an in-memory broker, so Redis is optional.
 
 ## Pull requests
 

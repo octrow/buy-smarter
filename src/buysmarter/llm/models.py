@@ -3,11 +3,10 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Float, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Float, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from buysmarter.db.base import Base
+from buysmarter.db.base import Base, JsonType, UTCDateTime, utcnow
 
 
 class LlmCache(Base):
@@ -27,10 +26,12 @@ class LlmCache(Base):
     input_hash: Mapped[str] = mapped_column(String(64))
     cache_key: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     response_text: Mapped[str] = mapped_column(Text)
-    structured_json: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    structured_json: Mapped[dict[str, Any]] = mapped_column(JsonType)
     prompt_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     completion_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utcnow, server_default=func.now()
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)

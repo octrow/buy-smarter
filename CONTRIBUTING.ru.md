@@ -7,12 +7,12 @@
 ## Подготовка
 
 ```bash
-uv sync
+uv sync --extra server
 make check   # ruff check + ruff format --check + pytest
 ```
 
-Тестам сеть не нужна. Тесты базы запускаются, когда поднят Postgres (`make up && uv run alembic upgrade head`),
-иначе пропускаются. Тесты API и воркера идут на fakeredis и брокере в памяти, Redis для них не нужен.
+Тестам не нужны ни сеть, ни сервер БД: набор идёт на временном SQLite. Тесты API, воркера и очереди
+требуют серверный extra (`uv sync --extra server`) и без него пропускаются. Тесты API и воркера идут на fakeredis и брокере в памяти, Redis для них не нужен.
 
 ## Pull request
 

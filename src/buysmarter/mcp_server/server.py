@@ -234,8 +234,8 @@ async def compare(product_urls_or_names: str) -> str:
 async def get_preferences() -> str:
     """Return the stored user preferences (default city, budget, excluded brands...).
 
-    Reads from Postgres when available, else the local JSON fallback file.
-    Returns a markdown key/value table, or a note when nothing is stored.
+    Reads the local store (Postgres on a server). Returns a markdown key/value table,
+    or a note when nothing is stored.
     """
     stored = await prefs.get_all()
     if not stored:
@@ -249,9 +249,9 @@ async def get_preferences() -> str:
 async def set_preference(key: str, value: str) -> str:
     """Store a single user preference (e.g. key="city", value="Алматы").
 
-    Persists to Postgres when reachable, else to the local JSON fallback file,
-    so preferences survive across sessions. Common keys: ``city``, ``budget``,
-    ``excluded_brands``. Returns a confirmation string.
+    Persists to the local store (Postgres on a server), so preferences survive
+    across sessions. Common keys: ``city``, ``budget``, ``excluded_brands``.
+    Returns a confirmation string.
     """
     await prefs.set(key, value)
     return f"Saved preference {key} = {value}."

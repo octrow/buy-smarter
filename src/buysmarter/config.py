@@ -2,11 +2,17 @@
 
 from pathlib import Path
 
+from platformdirs import user_data_dir
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # A uv tool install has no project folder, so keys live here; a local .env (a clone) overrides it.
 USER_ENV_FILE = Path.home() / ".config" / "buysmarter" / ".env"
+
+
+def default_database_url() -> str:
+    """The local store: one SQLite file in the per-user data dir (resolved per call, for XDG)."""
+    return f"sqlite+aiosqlite:///{Path(user_data_dir('buysmarter')) / 'buysmarter.db'}"
 
 
 class Settings(BaseSettings):
@@ -18,7 +24,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: str = "postgresql+asyncpg://buysmarter:buysmarter@localhost:5434/buysmarter"
+    # Postgres for server deployments: DATABASE_URL=postgresql+asyncpg://...
+    database_url: str = Field(default_factory=default_database_url)
     redis_url: str = "redis://localhost:6380/0"
 
     # LLM provider keys (optional): the primary provider is the local `claude`

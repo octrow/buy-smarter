@@ -1,10 +1,9 @@
 """CLI tests for `learn-category` / `learn` with stubbed LLM generation.
 
-No network/DB/LLM: the generation/extraction coroutines are monkeypatched and
-``$BUYSMARTER_KNOWLEDGE_DIR`` points the store at a tmp path (file fallback).
+No network/LLM: the generation/extraction coroutines are monkeypatched; the store is the
+suite's tmp SQLite (tests/conftest.py).
 """
 
-import pytest
 from typer.testing import CliRunner
 
 from buysmarter.cli import main
@@ -18,16 +17,6 @@ from buysmarter.knowledge.models_book import ModelBook, ModelEntry
 from buysmarter.knowledge.store import get_stored_books, resolve_composition
 
 runner = CliRunner()
-
-
-def _no_db(*args, **kwargs):
-    raise RuntimeError("DB disabled in test — use file fallback")
-
-
-@pytest.fixture(autouse=True)
-def _tmp_knowledge_dir(tmp_path, monkeypatch):
-    monkeypatch.setenv("BUYSMARTER_KNOWLEDGE_DIR", str(tmp_path))
-    monkeypatch.setattr("buysmarter.knowledge.store.async_session", _no_db)
 
 
 def _stub_books() -> tuple[BrandBook, ModelBook]:
@@ -54,7 +43,7 @@ def test_learn_category_generates_saves_and_summarizes(monkeypatch) -> None:
     assert "Models: 1" in result.output
     assert "spec_driven" in result.output
 
-    # Persisted and reloadable via the file fallback.
+    # Persisted and reloadable from the store.
     import asyncio
 
     brand, model = asyncio.run(get_stored_books("робот-пылесос"))

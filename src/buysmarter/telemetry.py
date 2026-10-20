@@ -6,20 +6,23 @@ SDK provider for the API, and the proxy instruments start exporting from then on
 """
 
 import os
+from typing import TYPE_CHECKING
 
-from fastapi import FastAPI, Response
 from opentelemetry import metrics, trace
-from opentelemetry.exporter.prometheus import PrometheusMetricReader
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest, start_http_server
 
 from buysmarter import __version__
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI, Response
+
+# The fastapi/Prometheus imports below sit inside the functions: they come with the [server]
+# extra, and the core (CLI, MCP, GUI) imports this module for the instruments alone.
 
 # Stable HTTP semconv: http_server_request_duration_seconds, labelled by http_route. Read once,
 # by the first instrumentor (taskiq's, at worker import), so it is set when this module loads.
@@ -63,8 +66,10 @@ RATE_LIMITED = _meter.create_counter(
 _UNTRACED_PATHS = "health,ready,metrics"
 
 
-def instrument_app(app: FastAPI) -> None:
+def instrument_app(app: "FastAPI") -> None:
     """Install the SDK providers, instrument FastAPI/httpx/SQLAlchemy and serve ``GET /metrics``."""
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
     _install_providers()
     FastAPIInstrumentor.instrument_app(app, excluded_urls=_UNTRACED_PATHS)
     _instrument_clients()
@@ -73,6 +78,8 @@ def instrument_app(app: FastAPI) -> None:
 
 def instrument_worker(metrics_port: int) -> None:
     """The worker's side: same providers and client instrumentation, /metrics on its own port."""
+    from prometheus_client import start_http_server
+
     _install_providers()
     _instrument_clients()
     start_http_server(metrics_port)
@@ -92,6 +99,8 @@ def _install_providers() -> None:
     Traces are exported only when ``OTEL_EXPORTER_OTLP_ENDPOINT`` is set; the exporter reads the
     rest of its configuration from the standard ``OTEL_*`` variables.
     """
+    from opentelemetry.exporter.prometheus import PrometheusMetricReader
+
     resource = Resource.create({SERVICE_NAME: os.environ.get("OTEL_SERVICE_NAME", "buysmarter")})
     metrics.set_meter_provider(
         MeterProvider(resource=resource, metric_readers=[PrometheusMetricReader()])
@@ -104,5 +113,8 @@ def _install_providers() -> None:
         trace.set_tracer_provider(provider)
 
 
-def _metrics_endpoint() -> Response:
+def _metrics_endpoint() -> "Response":
+    from fastapi import Response
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)

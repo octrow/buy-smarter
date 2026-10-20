@@ -9,12 +9,17 @@ died mid-run is reclaimed by another one (``XAUTOCLAIM`` after twice the job tim
 import asyncio
 import logging
 import os
+import sys
 from datetime import UTC, datetime
 from typing import Any
 
-from taskiq import AsyncBroker, InMemoryBroker, TaskiqEvents, TaskiqState
-from taskiq.instrumentation import TaskiqInstrumentor
-from taskiq_redis import RedisStreamBroker
+try:
+    import redis  # noqa: F401  (jobs.py needs it)
+    from taskiq import AsyncBroker, InMemoryBroker, TaskiqEvents, TaskiqState
+    from taskiq.instrumentation import TaskiqInstrumentor
+    from taskiq_redis import RedisStreamBroker
+except ModuleNotFoundError as exc:
+    sys.exit(f"{exc.name} is missing: the worker needs `pip install buysmarter[server]`")
 
 from buysmarter import logsetup, telemetry
 from buysmarter.cli.report import render_markdown, render_no_substance_markdown
