@@ -2,8 +2,13 @@
 
 import threading
 
+import keyring
+from keyring.backends.fail import Keyring as NoBackend
+from PySide6.QtWidgets import QLabel, QLineEdit
+
 from buysmarter.gui import app as gui_app
 from buysmarter.gui.screens.settings import SettingsScreen
+from buysmarter.llm import keys
 from buysmarter.services import doctor
 from buysmarter.services.doctor import OZON_BROWSER, Check
 from tests.gui.conftest import WAIT_MS
@@ -86,3 +91,79 @@ def test_checks_run_one_at_a_time(qtbot, runner):
         screen.recheck()
     qtbot.waitUntil(lambda: all(s.recheck_button.isEnabled() for s in screens), timeout=WAIT_MS)
     assert overlap == []
+
+
+_KEY = "sk-proj-GUISECRET123456"
+
+
+def _llm_screen(qtbot, runner) -> SettingsScreen:
+    screen = SettingsScreen(runner, checks=lambda: [doctor.llm_check()])
+    qtbot.addWidget(screen)
+    return screen
+
+
+def _all_texts(screen: SettingsScreen) -> str:
+    texts = [w.text() for w in screen.findChildren(QLabel) + screen.findChildren(QLineEdit)]
+    return " ".join(texts)
+
+
+def test_the_key_field_is_masked(qtbot, runner):
+    screen = _llm_screen(qtbot, runner)
+    assert screen.key_input.echoMode() == QLineEdit.EchoMode.Password
+
+
+def test_saving_a_key_stores_it_hides_it_and_turns_the_llm_row_green(qtbot, runner, fake_keyring):
+    screen = _llm_screen(qtbot, runner)
+    screen.provider.setCurrentText("gemini")
+    screen.key_input.setText(_KEY)
+    with qtbot.waitSignal(screen.checks_ready, timeout=WAIT_MS):
+        screen.save_key()
+    assert fake_keyring.secrets[("buysmarter", "gemini")] == _KEY
+    assert screen.key_input.text() == ""
+    assert "GUISECRET" not in _all_texts(screen)
+    assert screen.row_texts()["LLM"] == ("ок", "gemini (keyring)")
+
+
+def test_clearing_the_key_turns_the_llm_row_back_to_missing(qtbot, runner):
+    keys.set_key("openai", _KEY)
+    screen = _llm_screen(qtbot, runner)
+    screen.provider.setCurrentText("openai")
+    with qtbot.waitSignal(screen.checks_ready, timeout=WAIT_MS):
+        screen.clear_key()
+    assert keys.get_key("openai") is None
+    assert screen.row_texts()["LLM"][0] == "нет"
+
+
+def test_an_empty_key_is_not_saved(qtbot, runner, fake_keyring):
+    screen = _llm_screen(qtbot, runner)
+    screen.save_key()
+    assert fake_keyring.secrets == {}
+    assert screen.key_message.text() == "Введите ключ."
+
+
+def test_without_a_keyring_the_message_names_the_env_var(qtbot, runner):
+    keyring.set_keyring(NoBackend())
+    screen = _llm_screen(qtbot, runner)
+    screen.provider.setCurrentText("openai")
+    screen.key_input.setText(_KEY)
+    screen.save_key()
+    qtbot.waitUntil(screen.save_button.isEnabled, timeout=WAIT_MS)
+    assert "OPENAI_API_KEY" in screen.key_message.text()
+    assert "GUISECRET" not in _all_texts(screen)
+
+
+def test_a_recheck_asked_during_a_check_runs_after_it(qtbot, runner):
+    release, runs = threading.Event(), []
+
+    def checks():
+        runs.append(True)
+        if len(runs) == 1:
+            release.wait(WAIT_MS / 1000)
+        return []
+
+    screen = SettingsScreen(runner, checks=checks)
+    qtbot.addWidget(screen)
+    screen.recheck()
+    screen.recheck()  # e.g. a key saved while the start-up checks run
+    release.set()
+    qtbot.waitUntil(lambda: len(runs) == 2, timeout=WAIT_MS)

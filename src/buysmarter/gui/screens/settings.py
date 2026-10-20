@@ -1,4 +1,4 @@
-"""Settings screen: the same health checks as ``doctor``, and the visible Ozon check."""
+"""Settings screen: the ``doctor`` health checks, the LLM key, and the visible Ozon check."""
 
 import asyncio
 import threading
@@ -7,10 +7,12 @@ from typing import Any
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
+    QComboBox,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -18,12 +20,30 @@ from PySide6.QtWidgets import (
 
 from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.theme import SPACE, set_state
+from buysmarter.llm import keys
 from buysmarter.services import doctor
 from buysmarter.services.doctor import OZON_BROWSER, Check
 
 _CHECKS_LOCK = threading.Lock()
 
 type OzonCheck = Callable[[], Coroutine[Any, Any, bool]]
+
+
+async def _save_key(provider: str, key: str) -> str:
+    """Store the key off the loop (a keyring call may block); the message to show."""
+    try:
+        await asyncio.to_thread(keys.set_key, provider, key)
+    except (keys.KeyStoreError, ValueError) as exc:
+        return str(exc)  # names the env var to use instead; never the key
+    return f"Ключ {provider} сохранён в системном хранилище."
+
+
+async def _clear_key(provider: str) -> str:
+    try:
+        await asyncio.to_thread(keys.clear_key, provider)
+    except keys.KeyStoreError as exc:
+        return str(exc)
+    return f"Ключ {provider} удалён."
 
 
 def unavailable_sources(checks: list[Check]) -> dict[str, str]:
@@ -50,6 +70,8 @@ class SettingsScreen(QWidget):
         self._ozon_check = ozon_check or doctor.pass_ozon_check
         self._check_job: Job | None = None
         self._ozon_job: Job | None = None
+        self._key_job: Job | None = None
+        self._recheck_pending = False  # asked while a check ran (e.g. a key saved during it)
         self._row_labels: dict[str, tuple[QLabel, ...]] = {}
 
         self.rows = QGridLayout()
@@ -82,11 +104,66 @@ class SettingsScreen(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(SPACE["xl"], SPACE["sm"], SPACE["xl"], SPACE["xl"])
         layout.addWidget(health)
+        layout.addWidget(self._key_group())
         layout.addWidget(ozon)
         layout.addStretch(1)
 
+    def _key_group(self) -> QGroupBox:
+        self.provider = QComboBox()
+        self.provider.addItems(list(keys.KEY_FIELDS))
+        self.key_input = QLineEdit(placeholderText="API-ключ")
+        self.key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.save_button = QPushButton("Сохранить")
+        set_state(self.save_button, "primary", "true")
+        self.save_button.clicked.connect(self.save_key)
+        self.clear_button = QPushButton("Удалить ключ")
+        self.clear_button.clicked.connect(self.clear_key)
+        self.key_message = QLabel(
+            "Ключ хранится в системном хранилище паролей и больше не показывается.", wordWrap=True
+        )
+        row = QHBoxLayout()
+        for widget in (self.provider, self.key_input, self.save_button, self.clear_button):
+            row.addWidget(widget)
+        row.setStretch(1, 1)
+        group = QGroupBox("AI-ключ")
+        group_layout = QVBoxLayout(group)
+        group_layout.addWidget(self.key_message)
+        group_layout.addLayout(row)
+        return group
+
+    def save_key(self) -> None:
+        key = self.key_input.text().strip()
+        if not key:
+            self.key_message.setText("Введите ключ.")
+            return
+        self.key_input.clear()  # the key never stays on screen
+        self._run_key_job(_save_key(self.provider.currentText(), key))
+
+    def clear_key(self) -> None:
+        self._run_key_job(_clear_key(self.provider.currentText()))
+
+    def _run_key_job(self, coro: Coroutine[Any, Any, str]) -> None:
+        if self._key_job is not None:
+            coro.close()
+            return
+        self._set_key_busy(True)
+        self._key_job = self._runner.submit(coro)
+        self._key_job.finished.connect(self._key_done)
+        self._key_job.failed.connect(self._key_done)
+
+    def _key_done(self, message: str) -> None:
+        self._key_job = None
+        self._set_key_busy(False)
+        self.key_message.setText(message)
+        self.recheck()
+
+    def _set_key_busy(self, busy: bool) -> None:
+        for widget in (self.provider, self.key_input, self.save_button, self.clear_button):
+            widget.setEnabled(not busy)
+
     def recheck(self) -> None:
         if self._check_job is not None:
+            self._recheck_pending = True
             return
         self.recheck_button.setEnabled(False)
         # doctor_checks is blocking (asyncio.run, Playwright's sync API): run it off the loop.
@@ -99,9 +176,15 @@ class SettingsScreen(QWidget):
         with _CHECKS_LOCK:
             return self._checks()
 
-    def _show_checks(self, checks: list[Check]) -> None:
+    def _check_settled(self) -> None:
         self._check_job = None
         self.recheck_button.setEnabled(True)
+        if self._recheck_pending:
+            self._recheck_pending = False
+            self.recheck()
+
+    def _show_checks(self, checks: list[Check]) -> None:
+        self._check_settled()
         self._clear_rows()
         for row, check in enumerate(checks):
             status = QLabel("ок" if check.ok else "нет")
@@ -124,8 +207,7 @@ class SettingsScreen(QWidget):
         self._row_labels = {}
 
     def _checks_failed(self, message: str) -> None:
-        self._check_job = None
-        self.recheck_button.setEnabled(True)
+        self._check_settled()
         self._clear_rows()
         error = QLabel(message, wordWrap=True)
         self.rows.addWidget(error, 0, 0, 1, 3)

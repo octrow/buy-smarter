@@ -60,17 +60,19 @@ def stored() -> tuple[str, str] | None:
 def set_key(provider: str, key: str) -> None:
     """Store ``key`` for ``provider`` and make it the chosen provider."""
     _known(provider)
-    stored.cache_clear()
-    if not key.strip():
+    key = key.strip()
+    if not key:
         raise ValueError("The key is empty")
     try:
-        keyring.set_password(SERVICE, provider, key.strip())
+        keyring.set_password(SERVICE, provider, key)
         keyring.set_password(SERVICE, _CHOSEN, provider)
     except KeyringError as exc:
         raise KeyStoreError(
             f"No usable OS credential store ({type(exc).__name__}). "
             f"Set the {env_var(provider)} environment variable instead."
         ) from exc
+    finally:  # after the writes: a read racing them must not cache the old value
+        stored.cache_clear()
 
 
 def get_key(provider: str) -> str | None:
@@ -84,13 +86,19 @@ def chosen_provider() -> str | None:
 
 def clear_key(provider: str) -> None:
     """Remove ``provider``'s key; it stops being the chosen provider. Missing keys are fine."""
-    stored.cache_clear()
     chosen = chosen_provider()
     usernames = [_known(provider), *([_CHOSEN] if chosen == provider else [])]
-    for username in usernames:
-        try:
-            keyring.delete_password(SERVICE, username)
-        except PasswordDeleteError:
-            pass  # nothing stored under it
-        except KeyringError as exc:
-            raise KeyStoreError(f"Could not clear the key: {type(exc).__name__}") from exc
+    try:
+        for username in usernames:
+            _delete(username)
+    finally:
+        stored.cache_clear()
+
+
+def _delete(username: str) -> None:
+    try:
+        keyring.delete_password(SERVICE, username)
+    except PasswordDeleteError:
+        pass  # nothing stored under it
+    except KeyringError as exc:
+        raise KeyStoreError(f"Could not clear the key: {type(exc).__name__}") from exc

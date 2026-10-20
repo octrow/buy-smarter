@@ -73,3 +73,15 @@ def test_every_stored_provider_matches_an_adapter_provider_and_its_settings_fiel
 
     adapter_fields = {p.name: p.key_field for p in PROVIDERS.values()}
     assert adapter_fields == keys.KEY_FIELDS
+
+
+def test_a_read_racing_the_write_does_not_cache_the_old_value(fake_keyring, monkeypatch):
+    real_set = keyring.set_password
+
+    def set_then_read(service, username, password):
+        real_set(service, username, password)
+        keys.stored()  # e.g. the Settings health check reading mid-save
+
+    monkeypatch.setattr(keyring, "set_password", set_then_read)
+    keys.set_key("openai", "sk-1")
+    assert keys.stored() == ("openai", "sk-1")

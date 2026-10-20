@@ -24,7 +24,7 @@
 ## 4. Settings and errors
 
 - [x] 4.1 Settings: doctor rows with hints, store path (the Storage row), "Pass Ozon check" running ozon-setup via the bridge; tests for the rows; Ozon off in Search when its browser is missing
-- [ ] 4.1b Settings: LLM key set/clear (masked); test that the key is never displayed after save — waits for `llm-key-keyring`
+- [x] 4.1b Settings: LLM key set/clear (masked); test that the key is never displayed after save
 - [x] 4.2 Error handling: user-facing message, log file traceback, `sys.excepthook` dialog; test that a failing job shows a message and the window stays open
 
 ## 5. Look
