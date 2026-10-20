@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from pydantic import ValidationError
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QFormLayout,
@@ -83,6 +84,7 @@ class SearchScreen(QWidget):
         self._recommend = recommend
         self._parse = parse
         self._excluded_brands: list[str] = []
+        self._unavailable: dict[str, str] = {}
         self._job: Job | None = None
         self._states: dict[str, str] = {}
         self._progress = Progress()
@@ -128,17 +130,33 @@ class SearchScreen(QWidget):
 
     def apply_prefs(self, prefs: Mapping[str, Any]) -> None:
         """Pre-fill from saved preferences; excluded brands apply to every search."""
-        if isinstance(city := prefs.get(CITY), str):
+        # A city the user typed wins over a default arriving later.
+        if isinstance(city := prefs.get(CITY), str) and not self.city.isModified():
             self.city.setText(city)
         self.budget.setValue(as_budget(prefs.get(BUDGET)))
         check_sources(self.sources, prefs.get(MARKETPLACES))
         self._excluded_brands = as_list(prefs.get(EXCLUDED_BRANDS))
 
+    def set_unavailable(self, reasons: Mapping[str, str]) -> None:
+        """Turn marketplaces off (``{name: hint}``, from the health checks); others back on."""
+        self._unavailable = dict(reasons)
+        for name, box in self.sources.items():
+            off = name in self._unavailable
+            if off:
+                box.setChecked(False)
+            box.setEnabled(not off and self._job is None)
+            box.setToolTip(self._unavailable.get(name, ""))
+            self.status[name].setText("недоступен" if off else "")
+
     def start(self) -> None:
         if self._job is not None:
             return
         query = self.query.text().strip()
-        selected = [name for name, box in self.sources.items() if box.isChecked()]
+        selected = [
+            name
+            for name, box in self.sources.items()
+            if box.isChecked() and name not in self._unavailable
+        ]
         if not query or not selected:
             self.message.setText("Введите запрос и выберите хотя бы один маркетплейс.")
             return
@@ -146,7 +164,6 @@ class SearchScreen(QWidget):
         self._show_states()
         self.message.clear()
         self._set_running(True)
-        self._progress.attach()
         self._run = SearchRun(query, self.use_llm.isChecked(), self._states)
         coro = self._search(
             query,
@@ -156,7 +173,7 @@ class SearchScreen(QWidget):
             sources=selected,
             excluded_brands=self._excluded_brands,
         )
-        self._job = self._runner.submit(coro)
+        self._job = self._runner.submit(self._progress.track(coro))
         self._job.finished.connect(self._on_finished)
         self._job.failed.connect(self._on_failed)
         self._job.cancelled.connect(self._on_cancelled)
@@ -174,6 +191,8 @@ class SearchScreen(QWidget):
         except NoSubstanceMatch as exc:
             nearest = [f"• {c.title} — {c.price:,} ₸ [{c.source}]" for c in exc.alternatives]
             return NoRecommendation("\n".join([exc.message(), *nearest]))
+        except ValidationError:
+            raise  # a bug, not "nothing to recommend": the generic message, details in the log
         except ValueError as exc:  # the core's "nothing to recommend" (the CLI prints it too)
             logger.info("No recommendation for %r", query, exc_info=exc)
             return NoRecommendation(f"No recommendation: {exc}")
@@ -200,7 +219,6 @@ class SearchScreen(QWidget):
 
         A selected marketplace the pipeline never reached did not run (skipped).
         """
-        self._progress.detach()
         self._job = None
         self._set_running(False)
         self.stage.clear()
@@ -227,5 +245,6 @@ class SearchScreen(QWidget):
     def _set_running(self, running: bool) -> None:
         self.start_button.setEnabled(not running)
         self.cancel_button.setEnabled(running)
-        for box in (*self.sources.values(), self.use_llm):
-            box.setEnabled(not running)
+        self.use_llm.setEnabled(not running)
+        for name, box in self.sources.items():
+            box.setEnabled(not running and name not in self._unavailable)

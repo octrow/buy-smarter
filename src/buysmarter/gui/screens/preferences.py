@@ -1,6 +1,6 @@
 """Preferences screen: the saved defaults every new search starts from."""
 
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Callable, Coroutine, Mapping
 from typing import Any
 
 from PySide6.QtCore import Signal
@@ -28,12 +28,11 @@ from buysmarter.gui.prefs_fields import (
 )
 from buysmarter.memory import prefs
 
-type StoreSet = Callable[[str, Any], Awaitable[None]]
+type Store = Callable[[Mapping[str, Any]], Coroutine[Any, Any, None]]
 
 
-async def save_all(values: Mapping[str, Any], store_set: StoreSet) -> dict[str, Any]:
-    for key, value in values.items():
-        await store_set(key, value)
+async def save_all(values: Mapping[str, Any], store: Store) -> dict[str, Any]:
+    await store(values)  # one transaction: a failure keeps none of the new values
     return dict(values)
 
 
@@ -42,10 +41,10 @@ class PreferencesScreen(QWidget):
 
     saved = Signal(dict)
 
-    def __init__(self, runner: CoreRunner, store_set: StoreSet = prefs.set) -> None:
+    def __init__(self, runner: CoreRunner, store: Store = prefs.set_many) -> None:
         super().__init__()
         self._runner = runner
-        self._store_set = store_set
+        self._store = store
         self._job: Job | None = None
         self.city = QLineEdit(placeholderText="Алматы")
         self.budget = budget_box()
@@ -74,7 +73,8 @@ class PreferencesScreen(QWidget):
         layout.addStretch(1)
 
     def apply_prefs(self, stored: Mapping[str, Any]) -> None:
-        if isinstance(city := stored.get(CITY), str):
+        # A city the user typed wins over a default arriving later.
+        if isinstance(city := stored.get(CITY), str) and not self.city.isModified():
             self.city.setText(city)
         self.budget.setValue(as_budget(stored.get(BUDGET)))
         check_sources(self.sources, stored.get(MARKETPLACES))
@@ -97,7 +97,7 @@ class PreferencesScreen(QWidget):
             return
         self.save_button.setEnabled(False)
         self.message.clear()
-        self._job = self._runner.submit(save_all(values, self._store_set))
+        self._job = self._runner.submit(save_all(values, self._store))
         self._job.finished.connect(self._on_saved)
         self._job.failed.connect(self._on_failed)
 

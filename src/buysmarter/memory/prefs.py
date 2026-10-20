@@ -10,6 +10,7 @@ Earlier versions kept preferences in a JSON file (``$BUYSMARTER_PREFS_FILE``);
 import json
 import logging
 import os
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +53,12 @@ async def set(key: str, value: Any) -> None:
     """Persist a preference; raises when the store cannot be written."""
     async with async_session() as session:
         await repo.set_preference(session, key, value)
+
+
+async def set_many(values: Mapping[str, Any]) -> None:
+    """Persist several preferences at once, all or none; raises when the store cannot be written."""
+    async with async_session() as session:
+        await repo.set_preferences(session, values)
 
 
 async def import_legacy_file() -> None:

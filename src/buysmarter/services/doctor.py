@@ -7,11 +7,21 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
-from market_sources.ozon.browser import ozon_state_path
+from market_sources.ozon.browser import OzonBrowser, ozon_state_path
+from market_sources.ozon.source import search_path
 from sqlalchemy.engine import make_url
 
 from buysmarter.config import get_settings
 from buysmarter.db.schema import schema_is_current
+
+OZON_BROWSER = "Playwright Chromium"  # the row whose failure turns Ozon off
+_OZON_SETUP_PROBE_QUERY = "смартфон"
+
+
+async def pass_ozon_check() -> bool:
+    """Open a visible browser to pass Ozon's anti-bot check once; True when the session is saved."""
+    browser = OzonBrowser(base_url=get_settings().ozon_base_url, state_path=ozon_state_path())
+    return await browser.bootstrap(browser.composer_url(search_path(_OZON_SETUP_PROBE_QUERY)))
 
 
 def _chromium_installed() -> bool:
@@ -64,7 +74,7 @@ def doctor_checks() -> list[Check]:
             "LLM parsing and review summaries off; install Claude Code or use --no-llm",
         ),
         Check(
-            "Playwright Chromium",
+            OZON_BROWSER,
             _chromium_installed(),
             f'Ozon off; run `"{sys.executable}" -m playwright install chromium`',
         ),

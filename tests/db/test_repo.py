@@ -112,3 +112,10 @@ async def test_track_category_dedups_and_persists(session) -> None:
     assert tracked[0] == "ирригатор"
     assert tracked.count("ирригатор") == 1
     assert set(await repo.get_tracked_categories(session)) == {"ирригатор", "робот-пылесос"}
+
+
+async def test_set_preferences_keeps_none_of_them_when_one_cannot_be_stored(session) -> None:
+    with pytest.raises(Exception):  # noqa: B017 - the driver's error type is not the point
+        await repo.set_preferences(session, {"city": "Astana", "budget": object()})
+    await session.rollback()
+    assert await repo.get_all_preferences(session) == {}

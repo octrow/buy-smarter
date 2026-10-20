@@ -10,10 +10,22 @@ from buysmarter.ranking.models import (
     Recommendation,
     ScoredCandidate,
 )
+from buysmarter.services import doctor
+from buysmarter.services.doctor import Check
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import RecommendResult
 
 WAIT_MS = 3000
+
+
+@pytest.fixture(autouse=True)
+def _healthy_checks(monkeypatch):
+    """Windows run the doctor checks at start; the real ones launch Playwright."""
+    checks = [
+        Check("Storage", True, "", "SQLite test.db"),
+        Check(doctor.OZON_BROWSER, True, ""),
+    ]
+    monkeypatch.setattr(doctor, "doctor_checks", lambda: checks)
 
 
 @pytest.fixture

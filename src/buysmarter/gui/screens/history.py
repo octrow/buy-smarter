@@ -58,6 +58,7 @@ class HistoryScreen(QWidget):
         self._find = find
         self._refresh = refresh
         self._refresh_job: Job | None = None
+        self._reload_pending = False
         self._progress = Progress()
         self._progress.changed.connect(self._on_progress)
 
@@ -88,7 +89,10 @@ class HistoryScreen(QWidget):
 
     def look_up(self) -> None:
         term = self.term.text().strip()
-        if not term or not self.find_button.isEnabled():
+        if not term:
+            return
+        if not self.find_button.isEnabled():  # a look-up is running: redo it once it is back
+            self._reload_pending = True
             return
         self.find_button.setEnabled(False)
         job = self._runner.submit(self._find(term))
@@ -107,6 +111,9 @@ class HistoryScreen(QWidget):
             layout.addWidget(_history_group(entry))
         layout.addStretch(1)
         self.results.setWidget(page)
+        if self._reload_pending:
+            self._reload_pending = False
+            self.look_up()
 
     def _on_lookup_failed(self, message: str) -> None:
         self.find_button.setEnabled(True)
@@ -117,8 +124,7 @@ class HistoryScreen(QWidget):
             return
         self._set_refreshing(True)
         self.status.setText("Обновление цен…")
-        self._progress.attach()
-        self._refresh_job = self._runner.submit(self._refresh())
+        self._refresh_job = self._runner.submit(self._progress.track(self._refresh()))
         self._refresh_job.finished.connect(self._on_refreshed)
         self._refresh_job.failed.connect(lambda message: self._end_refresh(message))
         self._refresh_job.cancelled.connect(lambda: self._end_refresh("Обновление отменено."))
@@ -137,7 +143,6 @@ class HistoryScreen(QWidget):
         self.look_up()  # the new snapshots show up in the open history
 
     def _end_refresh(self, text: str) -> None:
-        self._progress.detach()
         self._refresh_job = None
         self._set_refreshing(False)
         self.status.setText(text)

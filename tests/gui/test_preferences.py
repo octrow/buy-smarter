@@ -26,10 +26,10 @@ def test_a_saved_city_prefills_search_after_recreating_the_window(qtbot, runner)
 
 
 def test_a_store_that_cannot_be_written_says_so(qtbot, runner):
-    async def broken(key, value):
+    async def broken(values):
         raise OSError("disk full at /secret/path")
 
-    page = PreferencesScreen(runner, store_set=broken)
+    page = PreferencesScreen(runner, store=broken)
     qtbot.addWidget(page)
     page.save()
     qtbot.waitUntil(page.save_button.isEnabled, timeout=WAIT_MS)

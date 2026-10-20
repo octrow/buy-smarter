@@ -6,8 +6,7 @@ from pathlib import Path
 
 import httpx
 import typer
-from market_sources.ozon.browser import OzonBrowser, ozon_state_path
-from market_sources.ozon.source import search_path
+from market_sources.ozon.browser import ozon_state_path
 from rich.console import Console
 from rich.markup import escape
 from rich.panel import Panel
@@ -15,7 +14,6 @@ from rich.table import Table
 
 from buysmarter import local_store
 from buysmarter.cli.report import ROLE_LABELS, format_rejected_reasons, save_report
-from buysmarter.config import get_settings
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.generate import (
     EXTRACT_KNOWLEDGE_MODEL,
@@ -38,7 +36,7 @@ from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.collect import ALL_SOURCES, select_sources
-from buysmarter.services.doctor import doctor_checks
+from buysmarter.services.doctor import doctor_checks, pass_ozon_check
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.price_tracking import CategoryRefresh, ProductHistory
 from buysmarter.services.price_tracking import product_history as run_product_history
@@ -566,20 +564,14 @@ def history(
         _render_history(entry)
 
 
-_OZON_SETUP_PROBE_QUERY = "смартфон"
-
-
 @app.command("ozon-setup")
 def ozon_setup() -> None:
     """Open a visible browser, pass Ozon's anti-bot check once, and save the session."""
-    path = ozon_state_path()
-    browser = OzonBrowser(base_url=get_settings().ozon_base_url, state_path=path)
-    probe = browser.composer_url(search_path(_OZON_SETUP_PROBE_QUERY))
     console.print("Откроется окно браузера. Дождитесь результатов поиска Ozon…")
-    if not asyncio.run(browser.bootstrap(probe)):
+    if not asyncio.run(pass_ozon_check()):
         console.print("[red]Не удалось получить сессию Ozon за отведённое время.[/red]")
         raise typer.Exit(code=1)
-    console.print(f"[green]Сессия Ozon сохранена: {escape(str(path))}[/green]")
+    console.print(f"[green]Сессия Ozon сохранена: {escape(str(ozon_state_path()))}[/green]")
 
 
 @app.command()

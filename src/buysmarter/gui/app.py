@@ -2,7 +2,8 @@
 
 import logging
 import sys
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from types import TracebackType
 from typing import Any
 
 from PySide6.QtWidgets import (
@@ -10,16 +11,18 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QListWidget,
     QMainWindow,
+    QMessageBox,
     QStackedWidget,
     QWidget,
 )
 
 from buysmarter import local_store
-from buysmarter.gui.bridge import CoreRunner
+from buysmarter.gui.bridge import USER_ERROR, CoreRunner
 from buysmarter.gui.screens.history import HistoryScreen
 from buysmarter.gui.screens.preferences import PreferencesScreen
 from buysmarter.gui.screens.report import ReportScreen
 from buysmarter.gui.screens.search import SearchRun, SearchScreen
+from buysmarter.gui.screens.settings import SettingsScreen, unavailable_sources
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.memory import prefs
 from buysmarter.services.recommend import RecommendResult
@@ -43,6 +46,10 @@ class MainWindow(QMainWindow):
         self.report = ReportScreen()
         self.preferences = PreferencesScreen(runner)
         self.history = HistoryScreen(runner)
+        self.settings = SettingsScreen(runner)
+        self.settings.checks_ready.connect(
+            lambda checks: self.search.set_unavailable(unavailable_sources(checks))
+        )
         self.search.report_ready.connect(self._show_report)
         self.preferences.saved.connect(self.search.apply_prefs)
 
@@ -55,6 +62,7 @@ class MainWindow(QMainWindow):
             ("Отчёт", self.report),
             ("Настройки поиска", self.preferences),
             ("История цен", self.history),
+            ("Настройки", self.settings),
         )
         for title, screen in screens:
             self.sidebar.addItem(title)
@@ -68,6 +76,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.stack, 1)
         self.setCentralWidget(central)
         self._load_prefs()
+        self.settings.recheck()
 
     def _load_prefs(self) -> None:
         job = self.runner.submit(prefs.get_all())
@@ -76,6 +85,8 @@ class MainWindow(QMainWindow):
         job.failed.connect(lambda _msg: logger.warning("Preferences not loaded"))
 
     def _apply_prefs(self, stored: Mapping[str, Any]) -> None:
+        if not stored:  # nothing saved, or the store is off: keep the form's defaults
+            return
         self.search.apply_prefs(stored)
         self.preferences.apply_prefs(stored)
 
@@ -84,15 +95,37 @@ class MainWindow(QMainWindow):
         self.sidebar.setCurrentRow(self.stack.indexOf(self.report))
 
 
+def install_excepthook(parent: QWidget) -> Callable[..., Any]:
+    """Show an unexpected error as a dialog instead of letting it end the app; returns the old hook.
+
+    The traceback goes to the log file; the dialog says nothing about internals.
+    """
+    previous = sys.excepthook
+
+    def show_error(
+        exc_type: type[BaseException], exc: BaseException, tb: TracebackType | None
+    ) -> None:
+        if issubclass(exc_type, KeyboardInterrupt):
+            previous(exc_type, exc, tb)
+            return
+        logger.critical("Unexpected error in the desktop app", exc_info=(exc_type, exc, tb))
+        QMessageBox.critical(parent, _TITLE, USER_ERROR)
+
+    sys.excepthook = show_error
+    return previous
+
+
 def run(argv: list[str] | None = None) -> int:
     """Show the main window and run the Qt event loop until it closes; returns the exit code."""
     app = QApplication.instance() or QApplication(argv if argv is not None else sys.argv)
     runner = CoreRunner()
     window = MainWindow(runner)
+    previous_hook = install_excepthook(window)
     window.show()
     try:
         return app.exec()
     finally:
+        sys.excepthook = previous_hook
         runner.shutdown()
 
 

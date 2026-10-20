@@ -4,6 +4,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 from buysmarter.gui import app as gui_app
+from buysmarter.gui.bridge import USER_ERROR
 from buysmarter.gui.screens.search import SearchRun
 from tests.gui.conftest import WAIT_MS
 
@@ -45,3 +46,34 @@ def test_window_prefills_search_from_saved_prefs_and_opens_the_report(
     window.search.report_ready.emit(result, SearchRun("q", True, {"kaspi": "done"}))
     assert window.stack.currentWidget() is window.report
     assert window.report.best_axes.rowCount() == 2
+
+
+def test_an_unexpected_error_shows_a_dialog_and_the_window_stays_open(qtbot, runner, monkeypatch):
+    shown = []
+    monkeypatch.setattr(
+        gui_app.QMessageBox, "critical", lambda parent, title, text: shown.append(text)
+    )
+    window = gui_app.MainWindow(runner)
+    qtbot.addWidget(window)
+    window.show()
+    previous = gui_app.install_excepthook(window)
+    try:
+        try:
+            raise RuntimeError("token=abc123")
+        except RuntimeError as exc:
+            gui_app.sys.excepthook(type(exc), exc, exc.__traceback__)
+    finally:
+        gui_app.sys.excepthook = previous
+    assert shown == [USER_ERROR]
+    assert window.isVisible()
+
+
+def test_ctrl_c_still_reaches_the_previous_hook(qapp, monkeypatch):
+    seen = []
+    monkeypatch.setattr(gui_app.sys, "excepthook", lambda *args: seen.append(args[0]))
+    previous = gui_app.install_excepthook(None)
+    try:
+        gui_app.sys.excepthook(KeyboardInterrupt, KeyboardInterrupt(), None)
+    finally:
+        gui_app.sys.excepthook = previous
+    assert seen == [KeyboardInterrupt]

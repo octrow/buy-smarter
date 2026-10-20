@@ -105,3 +105,21 @@ def test_no_tracked_categories_points_to_a_first_search(qtbot, runner):
     screen.start_refresh()
     qtbot.waitUntil(screen.refresh_button.isEnabled, timeout=WAIT_MS)
     assert screen.status.text().startswith("Отслеживаемых категорий пока нет")
+
+
+def test_a_reload_asked_during_a_look_up_runs_after_it(qtbot, runner):
+    release, terms = threading.Event(), []
+
+    async def find(term):
+        terms.append(term)
+        if len(terms) == 1:
+            await asyncio.to_thread(release.wait, WAIT_MS / 1000)
+        return []
+
+    screen = HistoryScreen(runner, find=find)
+    qtbot.addWidget(screen)
+    screen.term.setText("waterpik")
+    screen.look_up()
+    screen.look_up()  # e.g. a refresh finishing while the first look-up runs
+    release.set()
+    qtbot.waitUntil(lambda: len(terms) == 2, timeout=WAIT_MS)

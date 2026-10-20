@@ -5,7 +5,7 @@ Input products/offers/reviews are the raw source-shaped Pydantic models from
 ``market_sources.base`` (or any object exposing the same attributes).
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -212,16 +212,26 @@ async def get_all_preferences(session: AsyncSession) -> dict[str, Any]:
 
 async def set_preference(session: AsyncSession, key: str, value: Any) -> UserPreference:
     """Insert or update a single preference row."""
-    stmt = select(UserPreference).where(UserPreference.key == key)
-    pref = (await session.execute(stmt)).scalar_one_or_none()
-    if pref is None:
-        pref = UserPreference(key=key, value=value)
-        session.add(pref)
-    else:
-        pref.value = value
-    await session.commit()
-    await session.refresh(pref)
+    (pref,) = await set_preferences(session, {key: value})
     return pref
+
+
+async def set_preferences(session: AsyncSession, values: Mapping[str, Any]) -> list[UserPreference]:
+    """Insert or update several preference rows in one transaction: all of them or none."""
+    prefs: list[UserPreference] = []
+    for key, value in values.items():
+        stmt = select(UserPreference).where(UserPreference.key == key)
+        pref = (await session.execute(stmt)).scalar_one_or_none()
+        if pref is None:
+            pref = UserPreference(key=key, value=value)
+            session.add(pref)
+        else:
+            pref.value = value
+        prefs.append(pref)
+    await session.commit()
+    for pref in prefs:
+        await session.refresh(pref)
+    return prefs
 
 
 async def get_category_knowledge(session: AsyncSession, category: str) -> dict[str, Any] | None:

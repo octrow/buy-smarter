@@ -202,3 +202,12 @@ def test_unknown_stored_marketplaces_leave_the_boxes_ticked(qtbot, runner):
     qtbot.addWidget(screen)
     screen.apply_prefs({"marketplaces": "wildberries"})
     assert all(box.isChecked() for box in screen.sources.values())
+
+
+def test_a_typed_city_is_not_overwritten_by_preferences_arriving_later(qtbot, runner):
+    screen = SearchScreen(runner)
+    qtbot.addWidget(screen)
+    screen.city.setText("Караганда")
+    screen.city.setModified(True)  # what typing into the field sets
+    screen.apply_prefs({"city": "Астана"})
+    assert screen.city.text() == "Караганда"
