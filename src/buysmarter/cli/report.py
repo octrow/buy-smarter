@@ -16,7 +16,7 @@ from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
 
-_ROLE_LABELS = {
+ROLE_LABELS = {
     "best_value": "Best value",
     "best_budget": "Best budget",
     "best_premium": "Best premium",
@@ -142,7 +142,7 @@ def _alternatives_md(result: RecommendResult) -> list[str]:
         seen.add(key)
         c = scored.candidate
         lines.append(
-            f"| {_ROLE_LABELS.get(role, role)} | {c.source} | {_md_link(c.title, c.url)} | "
+            f"| {ROLE_LABELS.get(role, role)} | {c.source} | {_md_link(c.title, c.url)} | "
             f"{_fmt_price(c.price)} | {scored.total_score:.0f} |"
         )
     return lines

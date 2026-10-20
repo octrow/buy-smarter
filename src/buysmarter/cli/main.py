@@ -14,7 +14,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from buysmarter import local_store
-from buysmarter.cli.report import format_rejected_reasons, save_report
+from buysmarter.cli.report import ROLE_LABELS, format_rejected_reasons, save_report
 from buysmarter.config import get_settings
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.generate import (
@@ -62,11 +62,6 @@ def _main() -> None:
 
 
 _QUERY_HELP = 'Natural-language request, e.g. "нужен ирригатор, IPX7, до 40000 тг, Алматы"'
-_ROLE_LABELS = {
-    "best_value": "Best value",
-    "best_budget": "Best budget",
-    "best_premium": "Best premium",
-}
 
 
 def _render_constraints(c: QueryConstraints, city_defaulted: bool = False) -> None:
@@ -157,7 +152,7 @@ def _render_alternatives(alts: dict[str, ScoredCandidate]) -> None:
             continue
         seen.add(key)
         table.add_row(
-            _ROLE_LABELS.get(role, role),
+            ROLE_LABELS.get(role, role),
             scored.candidate.source,
             _product_cell(scored.candidate.title, scored.candidate.url),
             f"{scored.candidate.price:,} ₸",
