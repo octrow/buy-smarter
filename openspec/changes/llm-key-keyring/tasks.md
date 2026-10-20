@@ -13,8 +13,8 @@
 
 ## 3. No-LLM run
 
-- [ ] 3.1 `recommend()` switches to no-LLM when the route is None and fills `skipped_llm_steps`; test with no keys and no CLI returns ranked offers
-- [ ] 3.2 Report renders the skipped-steps note; snapshot test of the report section
+- [x] 3.1 `recommend()` switches to no-LLM when the route is None and fills `skipped_llm_steps`; test with no keys and no CLI returns ranked offers
+- [x] 3.2 Report renders the skipped-steps note; snapshot test of the report section
 
 ## 4. CLI
 

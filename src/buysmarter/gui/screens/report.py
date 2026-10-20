@@ -114,7 +114,12 @@ def could_not_verify(result: RecommendResult, run: SearchRun) -> list[str]:
             lines.append(f"{source}: пропущен — не выбран или поиск до него не дошёл")
         elif state == "failed":
             lines.append(f"{source}: ошибка — его предложений нет в отчёте (подробности в логе)")
-    if not run.use_llm:
+    if result.skipped_llm_steps:
+        lines.append(
+            "AI не настроен: запрос разобран по ключевым словам, без сводки отзывов и разбора "
+            "состава. Ключ можно добавить в Настройках"
+        )
+    elif not run.use_llm:
         lines.append("AI выключен: запрос разобран по ключевым словам, сводки отзывов нет")
     elif result.review_summary is None:
         lines.append("Сводка отзывов недоступна")

@@ -22,6 +22,7 @@ from market_sources.base import ProductSource
 from pydantic import BaseModel, Field
 
 from buysmarter import telemetry
+from buysmarter.config import get_settings
 from buysmarter.db.base import async_session
 from buysmarter.db.repo import (
     get_preference,
@@ -34,7 +35,7 @@ from buysmarter.knowledge.store import (
     resolve_books,
     resolve_composition,
 )
-from buysmarter.llm.adapter import LlmConfigError, LlmError
+from buysmarter.llm.adapter import LlmConfigError, LlmError, current_route
 from buysmarter.llm.ingredients import extract_ingredients
 from buysmarter.llm.prompts import parse_query, parse_query_naive
 from buysmarter.llm.relevance import accessory_reason, filter_relevant
@@ -72,6 +73,8 @@ logger = logging.getLogger(__name__)
 # yields one (docs/INIT_DATA.md, most users are in Almaty).
 _DEFAULT_CITY = "Алматы"
 _CITY_PREFERENCE_KEY = "city"
+# What a run with no LLM route (no key, no claude CLI) does without the LLM.
+NO_LLM_STEPS = ("query parsing", "review summaries", "ingredient extraction")
 
 
 class RecommendResult(BaseModel):
@@ -82,10 +85,16 @@ class RecommendResult(BaseModel):
     used_listings: list[UsedListing] = Field(default_factory=list)
     city_defaulted: bool = False
     review_summary: ReviewSummary | None = None
+    # Set when the run went no-LLM because nothing is configured (not on an explicit opt-out).
+    skipped_llm_steps: list[str] = Field(default_factory=list)
+
+
+def _no_llm_route() -> bool:
+    return current_route(get_settings()) is None
 
 
 async def _parse(query: str, use_llm: bool) -> QueryConstraints:
-    if not use_llm:
+    if not use_llm or _no_llm_route():
         return parse_query_naive(query)
     try:
         return await parse_query(query)
@@ -340,6 +349,8 @@ async def recommend(
     result back in here instead of parsing the query a second time).
     """
     total_start = time.perf_counter()
+    skipped_llm_steps = list(NO_LLM_STEPS) if use_llm and _no_llm_route() else []
+    use_llm = use_llm and not skipped_llm_steps
     with stage("query parse"):
         base_constraints = parsed if parsed is not None else await _parse(query, use_llm)
     resolved_city, city_defaulted = await resolve_city(base_constraints.city, city)
@@ -416,6 +427,7 @@ async def recommend(
         used_listings=used_listings,
         city_defaulted=city_defaulted,
         review_summary=review_summary,
+        skipped_llm_steps=skipped_llm_steps,
     )
 
 

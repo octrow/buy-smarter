@@ -55,6 +55,16 @@ def _md_link(title: str, url: str | None) -> str:
     return f"[{title}]({url})" if url else title
 
 
+def skipped_llm_note(result: RecommendResult) -> str | None:
+    """The steps a keyless run did without LLM, or None when the LLM ran (or was opted out)."""
+    if not result.skipped_llm_steps:
+        return None
+    return (
+        f"Ran without LLM (none configured): {', '.join(result.skipped_llm_steps)}. "
+        "Add a key with `buysmarter llm set-key <provider>`."
+    )
+
+
 def _constraints_md(result: RecommendResult) -> list[str]:
     c = result.constraints
     city_note = " (по умолчанию)" if result.city_defaulted else ""
@@ -69,6 +79,8 @@ def _constraints_md(result: RecommendResult) -> list[str]:
         lines.append(f"- **Required:** {', '.join(c.required_features)}")
     if c.excluded_brands:
         lines.append(f"- **Excluded:** {', '.join(c.excluded_brands)}")
+    if note := skipped_llm_note(result):
+        lines += ["", f"_{note}_"]
     return lines
 
 

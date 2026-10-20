@@ -13,7 +13,12 @@ from rich.panel import Panel
 from rich.table import Table
 
 from buysmarter import local_store
-from buysmarter.cli.report import ROLE_LABELS, format_rejected_reasons, save_report
+from buysmarter.cli.report import (
+    ROLE_LABELS,
+    format_rejected_reasons,
+    save_report,
+    skipped_llm_note,
+)
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.generate import (
     EXTRACT_KNOWLEDGE_MODEL,
@@ -221,6 +226,8 @@ def _render_used(used: list[UsedListing]) -> None:
 
 def _render(result: RecommendResult, top: int) -> None:
     _render_constraints(result.constraints, result.city_defaulted)
+    if note := skipped_llm_note(result):
+        console.print(f"[yellow]{escape(note)}[/yellow]")
     _render_best(result.recommendation.best)
     _render_review_summary(result.review_summary)
     _render_alternatives(result.recommendation.alternatives)

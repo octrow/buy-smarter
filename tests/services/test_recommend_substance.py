@@ -89,6 +89,7 @@ def _patch_extraction(monkeypatch) -> None:
         return out
 
     monkeypatch.setattr(svc, "extract_ingredients", _fake_extract)
+    monkeypatch.setattr(svc, "_no_llm_route", lambda: False)  # the fakes stand in for an LLM
 
 
 _CONSTRAINTS = QueryConstraints(category="крем с адапаленом", budget_max=20000)

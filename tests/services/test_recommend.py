@@ -1594,3 +1594,24 @@ async def test_collect_ozon_drops_off_category_cards() -> None:
 
     assert [c.source_product_id for c in candidates] == ["g"]
     assert len(rows) == 1
+
+
+async def test_without_any_llm_route_the_run_goes_keyless_and_says_what_it_skipped(
+    stub_source: StubKaspiSource,
+) -> None:
+    # conftest: no claude CLI, an empty keyring, and these settings carry no env key
+    result = await recommend(
+        "нужен ирригатор, портативный, до 40000 тг, Алматы", source=stub_source, persist=False
+    )
+
+    assert result.recommendation.ranked
+    assert result.skipped_llm_steps == [
+        "query parsing",
+        "review summaries",
+        "ingredient extraction",
+    ]
+
+
+async def test_an_explicit_no_llm_run_lists_no_skipped_steps(stub_source: StubKaspiSource) -> None:
+    result = await recommend("ирригатор до 40000", use_llm=False, source=stub_source, persist=False)
+    assert result.skipped_llm_steps == []

@@ -74,6 +74,14 @@ def test_rejected_used_and_could_not_verify_sections(qtbot, result):
     assert "AI выключен" in text
 
 
+def test_a_keyless_run_says_ai_is_not_configured_and_where_to_add_a_key(qtbot, result):
+    result = result.model_copy(update={"skipped_llm_steps": ["query parsing"]})
+    run = SearchRun("ирригатор", True, {"kaspi": "done", "ozon": "done", "olx": "done"})
+    text = _texts(_shown(qtbot, result, run))
+    assert "AI не настроен" in text
+    assert "Ключ можно добавить в Настройках" in text
+
+
 def test_could_not_verify_is_hidden_when_everything_ran(qtbot, result):
     result = result.model_copy(update={"review_summary": _summary()})
     assert "Не удалось проверить" not in _texts(_shown(qtbot, result))
