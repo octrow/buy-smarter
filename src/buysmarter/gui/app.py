@@ -101,6 +101,7 @@ def install_excepthook(parent: QWidget) -> Callable[..., Any]:
     The traceback goes to the log file; the dialog says nothing about internals.
     """
     previous = sys.excepthook
+    showing = False
 
     def show_error(
         exc_type: type[BaseException], exc: BaseException, tb: TracebackType | None
@@ -108,8 +109,15 @@ def install_excepthook(parent: QWidget) -> Callable[..., Any]:
         if issubclass(exc_type, KeyboardInterrupt):
             previous(exc_type, exc, tb)
             return
+        nonlocal showing
         logger.critical("Unexpected error in the desktop app", exc_info=(exc_type, exc, tb))
-        QMessageBox.critical(parent, _TITLE, USER_ERROR)
+        if showing:  # the dialog's own event loop hit another error: log it, do not stack dialogs
+            return
+        showing = True
+        try:
+            QMessageBox.critical(parent, _TITLE, USER_ERROR)
+        finally:
+            showing = False
 
     sys.excepthook = show_error
     return previous

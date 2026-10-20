@@ -77,3 +77,19 @@ def test_ctrl_c_still_reaches_the_previous_hook(qapp, monkeypatch):
     finally:
         gui_app.sys.excepthook = previous
     assert seen == [KeyboardInterrupt]
+
+
+def test_an_error_while_the_dialog_is_open_is_logged_without_a_second_dialog(qapp, monkeypatch):
+    shown = []
+
+    def critical(parent, title, text):
+        shown.append(text)
+        gui_app.sys.excepthook(RuntimeError, RuntimeError("again"), None)  # re-entered
+
+    monkeypatch.setattr(gui_app.QMessageBox, "critical", critical)
+    previous = gui_app.install_excepthook(None)
+    try:
+        gui_app.sys.excepthook(RuntimeError, RuntimeError("first"), None)
+    finally:
+        gui_app.sys.excepthook = previous
+    assert shown == [USER_ERROR]

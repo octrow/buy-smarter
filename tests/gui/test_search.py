@@ -211,3 +211,11 @@ def test_a_typed_city_is_not_overwritten_by_preferences_arriving_later(qtbot, ru
     screen.city.setModified(True)  # what typing into the field sets
     screen.apply_prefs({"city": "Астана"})
     assert screen.city.text() == "Караганда"
+
+
+def test_preferences_arriving_after_the_checks_keep_an_unavailable_source_unticked(qtbot, runner):
+    screen = SearchScreen(runner)
+    qtbot.addWidget(screen)
+    screen.set_unavailable({"ozon": "no browser"})
+    screen.apply_prefs({"marketplaces": ["kaspi", "ozon"]})
+    assert not screen.sources["ozon"].isChecked()

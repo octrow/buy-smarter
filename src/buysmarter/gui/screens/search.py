@@ -135,6 +135,8 @@ class SearchScreen(QWidget):
             self.city.setText(city)
         self.budget.setValue(as_budget(prefs.get(BUDGET)))
         check_sources(self.sources, prefs.get(MARKETPLACES))
+        for name in self._unavailable:  # health checks may have landed first
+            self.sources[name].setChecked(False)
         self._excluded_brands = as_list(prefs.get(EXCLUDED_BRANDS))
 
     def set_unavailable(self, reasons: Mapping[str, str]) -> None:
