@@ -1,19 +1,9 @@
 """Progress: the core's stage records become per-source states on the GUI thread."""
 
-import pytest
-
-from buysmarter.gui.bridge import CoreRunner
 from buysmarter.gui.progress import Progress
 from buysmarter.services.collect import _safe, stage
 
 _WAIT_MS = 3000
-
-
-@pytest.fixture
-def runner(qapp):
-    r = CoreRunner()
-    yield r
-    r.shutdown()
 
 
 async def _stub_run() -> None:

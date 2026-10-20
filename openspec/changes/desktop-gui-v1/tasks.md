@@ -9,11 +9,11 @@
 
 ## 2. Search and Report
 
-- [ ] 2.1 Search screen (query, city, budget, marketplace toggles prefilled from prefs, per-source status, cancel); qtbot test drives a stubbed recommend through start → progress → report
-- [ ] 2.2 Report: best-pick card with per-axis score/max and reason; test against a fixture `RecommendResult`
-- [ ] 2.3 Alternatives table (sort and filter by axis, price, marketplace via proxy model); test sort order and the marketplace filter
-- [ ] 2.4 Rejected-with-reasons, OLX used listings, could-not-verify sections; fixture test covers skipped Ozon and skipped LLM steps
-- [ ] 2.5 Offer activation opens the URL via `QDesktopServices`; test with the open call patched
+- [x] 2.1 Search screen (query, city, budget, marketplace toggles prefilled from prefs, per-source status, cancel); qtbot test drives a stubbed recommend through start → progress → report
+- [x] 2.2 Report: best-pick card with per-axis score/max and reason; test against a fixture `RecommendResult`
+- [x] 2.3 Alternatives table (sort and filter by axis, price, marketplace via proxy model); test sort order and the marketplace filter
+- [x] 2.4 Rejected-with-reasons, OLX used listings, could-not-verify sections; fixture test covers skipped Ozon and skipped LLM steps
+- [x] 2.5 Offer activation opens the URL via `QDesktopServices`; test with the open call patched
 
 ## 3. Preferences and History
 

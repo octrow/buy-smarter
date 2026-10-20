@@ -11,13 +11,6 @@ from buysmarter.gui.bridge import USER_ERROR, CoreRunner
 _WAIT_MS = 3000
 
 
-@pytest.fixture
-def runner(qapp):
-    r = CoreRunner()
-    yield r
-    r.shutdown()
-
-
 async def _answer() -> int:
     await asyncio.sleep(0)
     return 42
@@ -64,15 +57,17 @@ def test_cancel_fires_cancelled_only_after_the_cleanup_ran(qtbot, runner):
 
 
 def test_cancel_before_the_coroutine_starts_settles_cancelled_without_running_it(qtbot, runner):
-    release, ran = threading.Event(), []
+    hogging, release, ran = threading.Event(), threading.Event(), []
 
     async def hog_the_loop() -> None:
+        hogging.set()
         release.wait(_WAIT_MS / 1000)  # blocks the loop thread, so `never` cannot start yet
 
     async def never() -> None:
         ran.append(True)
 
     runner.submit(hog_the_loop())
+    hogging.wait(_WAIT_MS / 1000)  # `never` must be queued while the loop is busy
     job = runner.submit(never())
     job.cancel()
     release.set()

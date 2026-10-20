@@ -1,31 +1,87 @@
 """Desktop app entry point: the QApplication and the main window."""
 
+import logging
 import sys
+from collections.abc import Mapping
+from typing import Any
 
-from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtWidgets import (
+    QApplication,
+    QHBoxLayout,
+    QListWidget,
+    QMainWindow,
+    QStackedWidget,
+    QWidget,
+)
 
 from buysmarter import local_store
+from buysmarter.gui.bridge import CoreRunner
+from buysmarter.gui.screens.report import ReportScreen
+from buysmarter.gui.screens.search import SearchRun, SearchScreen
 from buysmarter.logsetup import new_run_id, setup_logging
+from buysmarter.memory import prefs
+from buysmarter.services.recommend import RecommendResult
+
+logger = logging.getLogger(__name__)
 
 _TITLE = "buy-smarter"
 _MIN_SIZE = (960, 640)
+_SIDEBAR_WIDTH = 180
 
 
 class MainWindow(QMainWindow):
-    """The app window; the screens hang off its sidebar."""
+    """The app window: a sidebar of screens next to the current one."""
 
-    def __init__(self) -> None:
+    def __init__(self, runner: CoreRunner) -> None:
         super().__init__()
         self.setWindowTitle(_TITLE)
         self.setMinimumSize(*_MIN_SIZE)
+        self.runner = runner
+        self.search = SearchScreen(runner)
+        self.report = ReportScreen()
+        self.search.report_ready.connect(self._show_report)
+
+        self.sidebar = QListWidget()
+        self.sidebar.setObjectName("sidebar")
+        self.sidebar.setFixedWidth(_SIDEBAR_WIDTH)
+        self.stack = QStackedWidget()
+        for title, screen in (("Поиск", self.search), ("Отчёт", self.report)):
+            self.sidebar.addItem(title)
+            self.stack.addWidget(screen)
+        self.sidebar.currentRowChanged.connect(self.stack.setCurrentIndex)
+        self.sidebar.setCurrentRow(0)
+
+        central = QWidget()
+        layout = QHBoxLayout(central)
+        layout.addWidget(self.sidebar)
+        layout.addWidget(self.stack, 1)
+        self.setCentralWidget(central)
+        self._load_prefs()
+
+    def _load_prefs(self) -> None:
+        job = self.runner.submit(prefs.get_all())
+        job.finished.connect(self._apply_prefs)
+        # Without its store the app still searches; the failure is already in the log.
+        job.failed.connect(lambda _msg: logger.warning("Preferences not loaded"))
+
+    def _apply_prefs(self, stored: Mapping[str, Any]) -> None:
+        self.search.apply_prefs(stored)
+
+    def _show_report(self, result: RecommendResult, run: SearchRun) -> None:
+        self.report.show_result(result, run)
+        self.sidebar.setCurrentRow(self.stack.indexOf(self.report))
 
 
 def run(argv: list[str] | None = None) -> int:
     """Show the main window and run the Qt event loop until it closes; returns the exit code."""
     app = QApplication.instance() or QApplication(argv if argv is not None else sys.argv)
-    window = MainWindow()
+    runner = CoreRunner()
+    window = MainWindow(runner)
     window.show()
-    return app.exec()
+    try:
+        return app.exec()
+    finally:
+        runner.shutdown()
 
 
 def main() -> int:

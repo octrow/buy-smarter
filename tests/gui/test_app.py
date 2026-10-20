@@ -4,10 +4,17 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 from buysmarter.gui import app as gui_app
+from buysmarter.gui.screens.search import SearchRun
+from tests.gui.conftest import WAIT_MS
+
+
+async def _no_prefs():
+    return {}
 
 
 def test_run_shows_the_main_window_and_returns_the_exit_code(qapp, monkeypatch):
     shown = []
+    monkeypatch.setattr(gui_app.prefs, "get_all", _no_prefs)
     monkeypatch.setattr(gui_app.MainWindow, "show", lambda self: shown.append(self))
     QTimer.singleShot(0, QApplication.quit)
     assert gui_app.run() == 0
@@ -22,3 +29,19 @@ def test_main_prepares_logging_and_the_store_before_the_window(monkeypatch):
     monkeypatch.setattr(gui_app, "run", lambda: calls.append("window") or 0)
     assert gui_app.main() == 0
     assert calls == ["logging", "run id", "store", "window"]
+
+
+def test_window_prefills_search_from_saved_prefs_and_opens_the_report(
+    qtbot, runner, result, monkeypatch
+):
+    async def saved():
+        return {"city": "Астана"}
+
+    monkeypatch.setattr(gui_app.prefs, "get_all", saved)
+    window = gui_app.MainWindow(runner)
+    qtbot.addWidget(window)
+    qtbot.waitUntil(lambda: window.search.city.text() == "Астана", timeout=WAIT_MS)
+
+    window.search.report_ready.emit(result, SearchRun("q", True, {"kaspi": "done"}))
+    assert window.stack.currentWidget() is window.report
+    assert window.report.best_axes.rowCount() == 2

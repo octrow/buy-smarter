@@ -4,6 +4,7 @@ import asyncio
 import concurrent.futures
 import logging
 import threading
+import weakref
 from collections.abc import Coroutine
 from typing import Any
 
@@ -33,7 +34,15 @@ class Job(QObject):
         self._cancel_requested = False
         self._settled.connect(self._deliver, Qt.ConnectionType.QueuedConnection)
         future = asyncio.run_coroutine_threadsafe(self._run(coro), loop)
-        future.add_done_callback(self._settled.emit)
+        # A weak reference: the loop thread must never drop the last reference to this QObject
+        # (Qt deletes it on the wrong thread). CoreRunner holds the job until it is delivered.
+        ref = weakref.ref(self)
+
+        def settled(fut: concurrent.futures.Future[Any]) -> None:
+            if (job := ref()) is not None:
+                job._settled.emit(fut)
+
+        future.add_done_callback(settled)
 
     async def _run(self, coro: Coroutine[Any, Any, Any]) -> Any:
         self._task = asyncio.current_task()
