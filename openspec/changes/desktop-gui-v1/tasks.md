@@ -3,7 +3,7 @@
 ## 1. Foundations
 
 - [ ] 1.1 Add the `[gui]` extra (PySide6) and `pytest-qt` to dev; `buysmarter gui` command and `buysmarter-gui` script; verify `buysmarter gui --help` and an offscreen start/exit test
-- [ ] 1.2 Move `doctor_checks()` to `buysmarter/services/doctor.py`; existing doctor CLI tests stay green
+- [x] 1.2 Move `doctor_checks()` to `buysmarter/services/doctor.py`; existing doctor CLI tests stay green
 - [ ] 1.3 `CoreRunner` bridge (loop thread, submit, finished/failed signals, cancel, shutdown); pytest-qt tests: result arrives on the GUI thread, exception becomes `failed`, cancel stops a sleeping coroutine, shutdown joins the thread
 - [ ] 1.4 Progress handler + `extra` fields on the stage and per-source log calls; test that a stubbed run emits running → done per source
 
