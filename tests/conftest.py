@@ -16,6 +16,8 @@ TEST_DB = _TEST_ROOT / "test.db"
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB}"
 os.environ["BUYSMARTER_PREFS_FILE"] = str(_TEST_ROOT / "legacy" / "prefs.json")
 os.environ["BUYSMARTER_KNOWLEDGE_DIR"] = str(_TEST_ROOT / "legacy" / "knowledge")
+# The GUI tests run headless.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import importlib.util  # noqa: E402 - the env above must be set first
 
@@ -25,6 +27,9 @@ import pytest  # noqa: E402
 SERVER_TESTS = ("api/*", "test_jobs.py", "test_worker.py", "test_telemetry.py")
 _HAS_SERVER_EXTRA = all(importlib.util.find_spec(m) for m in ("fastapi", "redis", "taskiq"))
 collect_ignore_glob = [] if _HAS_SERVER_EXTRA else list(SERVER_TESTS)
+# The desktop app tests need the [gui] extra.
+if not importlib.util.find_spec("PySide6"):
+    collect_ignore_glob.append("gui/*")
 
 
 def pytest_collection_modifyitems(config, items):

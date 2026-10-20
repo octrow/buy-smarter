@@ -598,5 +598,19 @@ def doctor() -> None:
         console.print(f"{check.name:<20} {mark}".rstrip())
 
 
+@app.command()
+def gui() -> None:
+    """Open the desktop app (needs the gui extra)."""
+    try:
+        from buysmarter.gui.app import run as run_gui
+    except ModuleNotFoundError as exc:
+        if not (exc.name or "").startswith("PySide6"):
+            raise
+        hint = escape("pip install 'buysmarter[gui]'")
+        console.print(f"[red]The desktop app needs the gui extra: {hint}[/red]")
+        raise typer.Exit(code=1) from exc
+    raise typer.Exit(code=run_gui())
+
+
 if __name__ == "__main__":
     app()
