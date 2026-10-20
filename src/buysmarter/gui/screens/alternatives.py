@@ -30,7 +30,7 @@ class AlternativesModel(QAbstractTableModel):
         super().__init__()
         self._rows = distinct_variants(recommendation.ranked, len(recommendation.ranked))
         self._roles = {
-            s.candidate.source_product_id: ROLE_LABELS.get(role, role)
+            _identity(s): ROLE_LABELS.get(role, role)
             for role, s in reversed(recommendation.alternatives.items())
         }
         self._axes = list(dict.fromkeys(a.name for s in self._rows for a in s.axes))
@@ -65,7 +65,7 @@ class AlternativesModel(QAbstractTableModel):
         cand = scored.candidate
         match column:
             case 0:
-                role = self._roles.get(cand.source_product_id, "")
+                role = self._roles.get(_identity(scored), "")
                 return role, role
             case 1:
                 return cand.source, cand.source
@@ -81,6 +81,11 @@ class AlternativesModel(QAbstractTableModel):
         if axis is None:
             return "—", -1.0
         return f"{axis.score:.1f}/{axis.max_score:.0f}", axis.score
+
+
+def _identity(scored: ScoredCandidate) -> tuple[str, str]:
+    # The core's candidate identity: ids are only unique within one marketplace.
+    return scored.candidate.source, scored.candidate.source_product_id
 
 
 def alternatives_proxy(model: AlternativesModel) -> QSortFilterProxyModel:

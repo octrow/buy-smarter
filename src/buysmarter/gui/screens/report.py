@@ -138,6 +138,9 @@ class ReportScreen(QScrollArea):
         self.setWidget(QLabel("Здесь появится отчёт после поиска."))
 
     def show_result(self, result: RecommendResult, run: SearchRun) -> None:
+        # Optional sections: drop handles into the page that setWidget below deletes.
+        self.open_best: QPushButton | None = None
+        self.used: QTableWidget | None = None
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.addWidget(QLabel(constraints_line(result.constraints, result.city_defaulted)))

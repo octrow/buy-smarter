@@ -2,9 +2,9 @@
 
 import asyncio
 import concurrent.futures
+import itertools
 import logging
 import threading
-import weakref
 from collections.abc import Coroutine
 from typing import Any
 
@@ -16,6 +16,31 @@ USER_ERROR = "Something went wrong. The details are in the log file."
 _SHUTDOWN_TIMEOUT_S = 10.0
 
 
+class _LoopSide:
+    """The part of a job the loop thread holds: never the ``Job`` QObject itself.
+
+    Qt must delete a QObject on its own (GUI) thread; anything the loop thread references may
+    lose its last reference there, so the loop side is a plain object.
+    """
+
+    def __init__(self) -> None:
+        self.task: asyncio.Task[Any] | None = None  # set on the loop thread once it starts
+        self.cancel_requested = False
+
+    async def run(self, coro: Coroutine[Any, Any, Any]) -> Any:
+        self.task = asyncio.current_task()
+        if self.cancel_requested:
+            coro.close()
+            raise asyncio.CancelledError
+        return await coro
+
+    def cancel(self) -> None:
+        if self.task is None:
+            self.cancel_requested = True
+        else:
+            self.task.cancel()
+
+
 class Job(QObject):
     """One submitted coroutine; exactly one of ``finished``, ``failed``, ``cancelled`` fires.
 
@@ -25,31 +50,11 @@ class Job(QObject):
     finished = Signal(object)
     failed = Signal(str)
     cancelled = Signal()
-    _settled = Signal(object)  # loop thread -> GUI thread hop
 
-    def __init__(self, coro: Coroutine[Any, Any, Any], loop: asyncio.AbstractEventLoop) -> None:
+    def __init__(self, side: _LoopSide, loop: asyncio.AbstractEventLoop) -> None:
         super().__init__()
+        self._side = side
         self._loop = loop
-        self._task: asyncio.Task[Any] | None = None  # set on the loop thread once it starts
-        self._cancel_requested = False
-        self._settled.connect(self._deliver, Qt.ConnectionType.QueuedConnection)
-        future = asyncio.run_coroutine_threadsafe(self._run(coro), loop)
-        # A weak reference: the loop thread must never drop the last reference to this QObject
-        # (Qt deletes it on the wrong thread). CoreRunner holds the job until it is delivered.
-        ref = weakref.ref(self)
-
-        def settled(fut: concurrent.futures.Future[Any]) -> None:
-            if (job := ref()) is not None:
-                job._settled.emit(fut)
-
-        future.add_done_callback(settled)
-
-    async def _run(self, coro: Coroutine[Any, Any, Any]) -> Any:
-        self._task = asyncio.current_task()
-        if self._cancel_requested:
-            coro.close()
-            raise asyncio.CancelledError
-        return await coro
 
     def cancel(self) -> None:
         """Cancel the coroutine; ``cancelled`` fires only after its ``finally`` blocks ran.
@@ -57,15 +62,8 @@ class Job(QObject):
         The asyncio task is cancelled on the loop thread: cancelling the concurrent future
         instead would settle it at once, while the browser ``aclose`` is still running.
         """
-        self._loop.call_soon_threadsafe(self._cancel_in_loop)
+        self._loop.call_soon_threadsafe(self._side.cancel)
 
-    def _cancel_in_loop(self) -> None:
-        if self._task is None:
-            self._cancel_requested = True
-        else:
-            self._task.cancel()
-
-    @Slot(object)
     def _deliver(self, future: concurrent.futures.Future[Any]) -> None:
         if future.cancelled():
             self.cancelled.emit()
@@ -77,12 +75,19 @@ class Job(QObject):
 
 
 class CoreRunner(QObject):
-    """Owns the core's event loop thread; ``submit`` coroutines, ``shutdown`` once on exit."""
+    """Owns the core's event loop thread; ``submit`` coroutines, ``shutdown`` once on exit.
+
+    Keep the runner alive until ``shutdown`` returns: the loop thread's done callbacks hold it.
+    """
+
+    _settled = Signal(int, object)  # (job id, future): loop thread -> GUI thread hop
 
     def __init__(self) -> None:
         super().__init__()
         self._loop = asyncio.new_event_loop()
-        self._jobs: set[Job] = set()
+        self._jobs: dict[int, Job] = {}
+        self._ids = itertools.count()
+        self._settled.connect(self._deliver, Qt.ConnectionType.QueuedConnection)
         self._thread = threading.Thread(target=self._run_loop, name="core-loop", daemon=True)
         self._thread.start()
 
@@ -97,11 +102,16 @@ class CoreRunner(QObject):
         if not self._thread.is_alive():
             coro.close()
             raise RuntimeError("CoreRunner is shut down")
-        job = Job(coro, self._loop)
-        self._jobs.add(job)
-        for signal in (job.finished, job.failed, job.cancelled):
-            signal.connect(lambda *_: self._jobs.discard(job))
+        side = _LoopSide()
+        job, job_id = Job(side, self._loop), next(self._ids)
+        self._jobs[job_id] = job
+        future = asyncio.run_coroutine_threadsafe(side.run(coro), self._loop)
+        future.add_done_callback(lambda fut: self._settled.emit(job_id, fut))
         return job
+
+    @Slot(int, object)
+    def _deliver(self, job_id: int, future: concurrent.futures.Future[Any]) -> None:
+        self._jobs.pop(job_id)._deliver(future)
 
     def shutdown(self) -> None:
         """Cancel what still runs, let it clean up, then stop the loop and join its thread."""

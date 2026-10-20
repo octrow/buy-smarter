@@ -100,3 +100,16 @@ def _summary():
 def test_alternatives_start_in_ranking_order(qtbot, result):
     proxy = _shown(qtbot, result).alternatives_proxy
     assert _column(proxy, 4) == ["88", "81", "74"]
+
+
+def test_roles_follow_the_marketplace_when_ids_collide(qtbot, result):
+    from tests.gui.conftest import scored
+
+    twin = scored("ozon", "3", "Panasonic EW1411", 21000, 60.0, 10.0)  # same id as kaspi's "3"
+    rec = result.recommendation
+    rec = rec.model_copy(update={"ranked": [*rec.ranked, twin]})
+    screen = _shown(qtbot, result.model_copy(update={"recommendation": rec}))
+    proxy = screen.alternatives_proxy
+    roles = {proxy.index(r, 2).data(): proxy.index(r, 0).data() for r in range(proxy.rowCount())}
+    assert roles["Xiaomi Water Flosser 2"] == "Best budget"
+    assert roles["Panasonic EW1411"] == ""

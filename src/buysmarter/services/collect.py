@@ -96,7 +96,7 @@ def stage(name: str, source: str | None = None) -> Iterator[None]:
     """Log a pipeline stage's start and its elapsed wall time (INFO).
 
     The ``progress_*`` extra fields drive the desktop app's progress display, so it never parses
-    the message text: ``progress_state`` goes running, then done or failed.
+    the message text: ``progress_state`` goes running, then done, failed or cancelled.
     """
     progress = {"progress_stage": name, "progress_source": source}
     logger.info("stage %s started", name, extra={**progress, "progress_state": "running"})
@@ -105,6 +105,9 @@ def stage(name: str, source: str | None = None) -> Iterator[None]:
     try:
         yield
         state = "done"
+    except asyncio.CancelledError:
+        state = "cancelled"
+        raise
     finally:
         took = time.perf_counter() - start
         logger.info("stage %s took %.2fs", name, took, extra={**progress, "progress_state": state})

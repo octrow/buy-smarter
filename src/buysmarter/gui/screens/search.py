@@ -1,32 +1,42 @@
 """Search screen: the request form, live per-marketplace progress and cancel."""
 
+import logging
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
-    QCheckBox,
     QFormLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
-    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
 
 from buysmarter.gui.bridge import CoreRunner, Job
+from buysmarter.gui.prefs_fields import (
+    BUDGET,
+    CITY,
+    EXCLUDED_BRANDS,
+    MARKETPLACES,
+    as_budget,
+    as_list,
+    budget_box,
+    check_sources,
+    checked_box,
+    source_boxes,
+)
 from buysmarter.gui.progress import Progress
+from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services.collect import ALL_SOURCES
 from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
+from buysmarter.services.recommend import parse_request as run_parse_request
 from buysmarter.services.recommend import recommend as run_recommend
 
-_BUDGET_MAX = 100_000_000
-_BUDGET_STEP = 1_000
 _QUERY_PLACEHOLDER = "нужен ирригатор, IPX7, до 40000 тг, Алматы"
-SOURCE_LABELS = {"kaspi": "Kaspi", "ozon": "Ozon", "olx": "OLX"}
 STATE_LABELS = {
     "waiting": "ждёт",
     "running": "ищет…",
@@ -35,7 +45,10 @@ STATE_LABELS = {
     "failed": "ошибка",
 }
 
+logger = logging.getLogger(__name__)
+
 type Recommend = Callable[..., Awaitable[RecommendResult]]
+type Parse = Callable[[str, bool], Awaitable[QueryConstraints]]
 
 
 @dataclass(frozen=True)
@@ -59,10 +72,17 @@ class SearchScreen(QWidget):
 
     report_ready = Signal(object, object)
 
-    def __init__(self, runner: CoreRunner, recommend: Recommend = run_recommend) -> None:
+    def __init__(
+        self,
+        runner: CoreRunner,
+        recommend: Recommend = run_recommend,
+        parse: Parse = run_parse_request,
+    ) -> None:
         super().__init__()
         self._runner = runner
         self._recommend = recommend
+        self._parse = parse
+        self._excluded_brands: list[str] = []
         self._job: Job | None = None
         self._states: dict[str, str] = {}
         self._progress = Progress()
@@ -73,11 +93,9 @@ class SearchScreen(QWidget):
         self.query = QLineEdit(placeholderText=_QUERY_PLACEHOLDER)
         self.query.returnPressed.connect(self.start)
         self.city = QLineEdit(placeholderText="из запроса или настроек")
-        self.budget = QSpinBox(maximum=_BUDGET_MAX, singleStep=_BUDGET_STEP, suffix=" ₸")
-        self.budget.setSpecialValueText("без лимита")
-        self.budget.setGroupSeparatorShown(True)
-        self.use_llm = _checked_box("AI: разбор запроса и сводка отзывов")
-        self.sources = {name: _checked_box(SOURCE_LABELS[name]) for name in ALL_SOURCES}
+        self.budget = budget_box()
+        self.use_llm = checked_box("AI: разбор запроса и сводка отзывов")
+        self.sources = source_boxes()
         self.status = {name: QLabel() for name in ALL_SOURCES}
         self.stage = QLabel()
         self.message = QLabel(wordWrap=True)
@@ -109,19 +127,12 @@ class SearchScreen(QWidget):
         layout.addStretch(1)
 
     def apply_prefs(self, prefs: Mapping[str, Any]) -> None:
-        """Pre-fill from saved preferences: ``city``, ``budget``, ``marketplaces``."""
-        if isinstance(city := prefs.get("city"), str):
+        """Pre-fill from saved preferences; excluded brands apply to every search."""
+        if isinstance(city := prefs.get(CITY), str):
             self.city.setText(city)
-        budget = str(prefs.get("budget") or "").replace(" ", "")
-        if budget.isdigit():
-            self.budget.setValue(min(int(budget), _BUDGET_MAX))
-        marketplaces = prefs.get("marketplaces")
-        if isinstance(marketplaces, str):
-            marketplaces = marketplaces.split(",")
-        if isinstance(marketplaces, list):
-            wanted = {str(m).strip().lower() for m in marketplaces}
-            for name, box in self.sources.items():
-                box.setChecked(name in wanted)
+        self.budget.setValue(as_budget(prefs.get(BUDGET)))
+        check_sources(self.sources, prefs.get(MARKETPLACES))
+        self._excluded_brands = as_list(prefs.get(EXCLUDED_BRANDS))
 
     def start(self) -> None:
         if self._job is not None:
@@ -143,19 +154,28 @@ class SearchScreen(QWidget):
             budget=self.budget.value() or None,
             use_llm=self._run.use_llm,
             sources=selected,
+            excluded_brands=self._excluded_brands,
         )
         self._job = self._runner.submit(coro)
         self._job.finished.connect(self._on_finished)
         self._job.failed.connect(self._on_failed)
         self._job.cancelled.connect(self._on_cancelled)
 
-    async def _search(self, query: str, **kwargs: Any) -> RecommendResult | NoRecommendation:
+    async def _search(
+        self, query: str, *, excluded_brands: list[str], **kwargs: Any
+    ) -> RecommendResult | NoRecommendation:
         # Runs on the core loop thread: takes plain values only, never touches a widget.
         try:
+            if excluded_brands:
+                parsed = await self._parse(query, kwargs["use_llm"])
+                merged = list(dict.fromkeys([*parsed.excluded_brands, *excluded_brands]))
+                kwargs["parsed"] = parsed.model_copy(update={"excluded_brands": merged})
             return await self._recommend(query, **kwargs)
         except NoSubstanceMatch as exc:
-            return NoRecommendation(exc.message())
+            nearest = [f"• {c.title} — {c.price:,} ₸ [{c.source}]" for c in exc.alternatives]
+            return NoRecommendation("\n".join([exc.message(), *nearest]))
         except ValueError as exc:  # the core's "nothing to recommend" (the CLI prints it too)
+            logger.info("No recommendation for %r", query, exc_info=exc)
             return NoRecommendation(f"No recommendation: {exc}")
 
     def cancel(self) -> None:
@@ -168,20 +188,24 @@ class SearchScreen(QWidget):
         if state == "running":
             self.stage.setText(f"{stage}…")
         if source in self._states and self._states[source] != "skipped":
-            self._states[source] = state
+            self._states[source] = "skipped" if state == "cancelled" else state
             self._show_states()
 
     def _show_states(self) -> None:
         for name, label in self.status.items():
             label.setText(STATE_LABELS[self._states.get(name, "waiting")])
 
-    def _settle(self) -> None:
+    def _settle(self, interrupted: str = "skipped") -> None:
+        """Back to idle; a marketplace still running ends as ``interrupted``.
+
+        A selected marketplace the pipeline never reached did not run (skipped).
+        """
         self._progress.detach()
         self._job = None
         self._set_running(False)
         self.stage.clear()
-        # A selected marketplace the pipeline never reached did not run.
-        self._states = {n: "skipped" if s == "waiting" else s for n, s in self._states.items()}
+        final = {"waiting": "skipped", "running": interrupted}
+        self._states = {n: final.get(s, s) for n, s in self._states.items()}
         self._show_states()
 
     def _on_finished(self, result: RecommendResult | NoRecommendation) -> None:
@@ -193,7 +217,7 @@ class SearchScreen(QWidget):
         self.report_ready.emit(result, run)
 
     def _on_failed(self, message: str) -> None:
-        self._settle()
+        self._settle(interrupted="failed")
         self.message.setText(message)
 
     def _on_cancelled(self) -> None:
@@ -205,9 +229,3 @@ class SearchScreen(QWidget):
         self.cancel_button.setEnabled(running)
         for box in (*self.sources.values(), self.use_llm):
             box.setEnabled(not running)
-
-
-def _checked_box(text: str) -> QCheckBox:
-    box = QCheckBox(text)
-    box.setChecked(True)
-    return box
