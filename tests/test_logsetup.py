@@ -147,3 +147,31 @@ def test_log_file_dash_streams_info_to_stderr_without_a_file(tmp_path, monkeypat
     assert "to the container log" in captured.err
     assert "to the container log" not in captured.out
     assert not list(tmp_path.iterdir())
+
+
+def test_key_shaped_strings_are_masked_in_the_log_file(tmp_path) -> None:
+    log_path = tmp_path / "buysmarter.log"
+    setup_logging(log_path)
+    log = logging.getLogger("buysmarter.test")
+
+    log.warning("openai key %s, gemini %s", "sk-proj-AbC123def456GhI789", "AIza" + "x" * 35)
+    try:
+        raise ValueError("bad key sk-ant-api03-SECRETSECRET")
+    except ValueError:
+        log.exception("call failed")
+    for handler in logging.getLogger().handlers:
+        handler.flush()
+
+    text = log_path.read_text()
+    assert "AbC123def456" not in text
+    assert "x" * 35 not in text
+    assert "SECRETSECRET" not in text
+    assert "sk-***" in text
+    assert "call failed" in text
+
+
+def test_the_redaction_filter_leaves_a_bad_format_call_to_the_handler() -> None:
+    from buysmarter.logsetup import _RedactKeysFilter
+
+    record = logging.LogRecord("t", logging.WARNING, __file__, 1, "%d items", ("x",), None)
+    assert _RedactKeysFilter().filter(record)  # no TypeError out of the logger call

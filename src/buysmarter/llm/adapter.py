@@ -1,12 +1,10 @@
 """Single-entry multi-provider LLM adapter with structured output + caching.
 
-The primary provider is the *local* ``claude`` CLI run through OmniRoute (no API
-key) — ``haiku``/``sonnet``/``opus`` and OmniRoute combo names route there. The
-gateway picks the combo by model (haiku/sonnet→free-stack with no subscription
-rung, opus→hard with the subscription first). API
-providers (OpenAI / DeepSeek / Gemini / Anthropic) are an optional fallback via
-the ``openai`` SDK's ``AsyncOpenAI`` client pointed at each provider's
-OpenAI-compatible endpoint; the model-name prefix selects them. Responses are
+The route (``resolve_route``) is: an API key from the environment, then the key the user stored
+in the OS keyring for the chosen provider (``llm/keys.py``), then the local ``claude`` CLI run
+through OmniRoute, then no LLM (``LlmConfigError``; callers fall back to their non-LLM path).
+API providers (OpenAI / DeepSeek / Gemini / Anthropic) go through the ``openai`` SDK's
+``AsyncOpenAI`` client pointed at each provider's OpenAI-compatible endpoint. Responses are
 validated against a Pydantic model (retry once on failure) and cached by default.
 """
 
@@ -16,8 +14,8 @@ import json
 import logging
 import os
 import time
-from dataclasses import dataclass
-from typing import Any, cast
+from dataclasses import dataclass, field
+from typing import Any, Literal, cast
 
 from claude_cli import MODELS as CLAUDE_CLI_MODELS
 from claude_cli import (
@@ -34,6 +32,7 @@ from pydantic import BaseModel, ValidationError
 
 from buysmarter import telemetry
 from buysmarter.config import Settings, get_settings
+from buysmarter.llm import keys
 from buysmarter.llm.cache import cache_key_for, get_cached, hash_text, store_cached
 from buysmarter.llm.models import LlmCache
 
@@ -102,30 +101,88 @@ PROVIDERS: dict[str, Provider] = {
 CLAUDE_CLI = Provider("claude-cli", None, "", False, is_cli=True)
 
 
-def _resolve_provider(model: str, settings: Settings) -> Provider:
-    """Pick a provider for ``model``.
+# The model a key route uses when the requested one is not that provider's (e.g. "sonnet").
+DEFAULT_MODEL_BY_PROVIDER = {
+    "openai": "gpt-5.6-terra",
+    "anthropic": "claude-haiku-5-5",
+    "gemini": "gemini-3.8-flash",
+    "deepseek": "deepseek-chat",
+}
+_BY_NAME = {p.name: p for p in PROVIDERS.values()}
+# OpenAI reasoning models (GPT-5, o-series) reject any temperature but the default.
+_DEFAULT_TEMPERATURE_ONLY = ("gpt-5", "o1", "o3", "o4")
 
-    ``haiku``/``sonnet``/``opus`` always route to the local CLI. An API model
-    whose key is unset falls back to the CLI when the binary exists; an unknown
-    model likewise falls back to the CLI, else raises.
+
+@dataclass(frozen=True)
+class Route:
+    """Where LLM calls go: a provider, where its key came from, and the key (never shown)."""
+
+    provider: Provider
+    source: Literal["env", "keyring", "cli"]
+    api_key: str | None = field(default=None, repr=False)
+
+
+def provider_of(model: str) -> Provider | None:
+    """The API provider whose model-name prefix ``model`` has; None for CLI aliases/combos."""
+    return next((p for prefix, p in PROVIDERS.items() if model.startswith(prefix)), None)
+
+
+def _env_order(settings: Settings, chosen: str | None) -> list[str]:
+    default = provider_of(settings.default_llm_model)
+    first = [name for name in (chosen, default and default.name) if name]
+    return list(dict.fromkeys([*first, *keys.KEY_FIELDS]))
+
+
+def resolve_route(settings: Settings, stored: tuple[str, str] | None, cli: bool) -> Route | None:
+    """Env key (the chosen provider's first) > ``stored`` (chosen provider, key) > CLI > None."""
+    for name in _env_order(settings, stored[0] if stored else None):
+        if env_key := getattr(settings, keys.KEY_FIELDS[name]):
+            return Route(_BY_NAME[name], "env", env_key)
+    if stored:
+        return Route(_BY_NAME[stored[0]], "keyring", stored[1])
+    return Route(CLAUDE_CLI, "cli") if cli else None
+
+
+def current_route(settings: Settings) -> Route | None:
+    """The route on this machine now: env, the OS keyring, the installed CLI."""
+    return resolve_route(settings, keys.stored(), claude_available())
+
+
+def route_model(route: Route, model: str, settings: Settings) -> str:
+    """The model to ask ``route`` for: ``model`` if it is the route's, else a default of it."""
+    if route.provider.is_cli:
+        return model
+    for candidate in (model, settings.default_llm_model):
+        if provider_of(candidate) == route.provider:
+            return candidate
+    return DEFAULT_MODEL_BY_PROVIDER[route.provider.name]
+
+
+def _resolve_provider(model: str, settings: Settings, cli_tools: str = "") -> tuple[Route, str]:
+    """The route for this machine and the model to ask it for; raises without any route.
+
+    ``cli_tools`` (web search) exist only on the CLI, so such a call prefers the CLI when installed.
     """
-    if model in CLAUDE_CLI_MODELS or model in CLI_COMBOS:
-        return CLAUDE_CLI
-    for prefix, provider in PROVIDERS.items():
-        if model.startswith(prefix):
-            if not getattr(settings, provider.key_field) and claude_available():
-                return CLAUDE_CLI
-            return provider
-    if claude_available():
-        return CLAUDE_CLI
-    raise LlmConfigError(f"No provider registered for model {model!r}")
+    route = current_route(settings)
+    if route is None:
+        raise LlmConfigError(
+            "No LLM configured: set an API key (buysmarter llm set-key, or an env var "
+            "such as OPENAI_API_KEY) or install the claude CLI"
+        )
+    if cli_tools and not route.provider.is_cli:
+        if claude_available():
+            route = Route(CLAUDE_CLI, "cli")
+        else:
+            logger.warning(
+                "%s has no %s tools; answering without them", route.provider.name, cli_tools
+            )
+    return route, route_model(route, model, settings)
 
 
-def _make_client(provider: Provider, settings: Settings) -> AsyncOpenAI:
-    api_key = getattr(settings, provider.key_field)
-    if not api_key:
-        raise LlmConfigError(f"Missing API key setting {provider.key_field!r}")
-    return AsyncOpenAI(api_key=api_key, base_url=provider.base_url)
+def _make_client(route: Route) -> AsyncOpenAI:
+    if not route.api_key:
+        raise LlmConfigError(f"No API key for {route.provider.name}")
+    return AsyncOpenAI(api_key=route.api_key, base_url=route.provider.base_url)
 
 
 def _system_prompt(response_model: type[BaseModel], supports_json_mode: bool) -> str:
@@ -147,13 +204,14 @@ async def _chat(
     provider: Provider,
 ) -> ChatCompletion:
     kwargs: dict[str, Any] = {}
+    if not model.startswith(_DEFAULT_TEMPERATURE_ONLY):
+        kwargs["temperature"] = temperature
     if provider.supports_json_mode:
         kwargs["response_format"] = {"type": "json_object"}
     try:
         # **kwargs hides `stream`, so the overloads resolve to Any; no stream here.
         resp: ChatCompletion = await client.chat.completions.create(
             model=model,
-            temperature=temperature,
             messages=cast(list[ChatCompletionMessageParam], messages),
             **kwargs,
         )
@@ -223,7 +281,7 @@ async def generate(
     if model is None:
         model = settings.default_llm_model
         logger.info("llm model not set explicitly, defaulting to %s", model)
-    provider = _resolve_provider(model, settings)
+    route, model = _resolve_provider(model, settings, cli_tools)
     key = cache_key_for(model, settings.prompt_version, prompt, response_model, cli_tools=cli_tools)
 
     if use_cache:
@@ -242,12 +300,12 @@ async def generate(
                 return hit
 
     telemetry.LLM_CALLS.add(1, {"model": model, "cache": "miss"})
-    if provider.is_cli:
+    if route.provider.is_cli:
         return await _generate_cli(
             prompt, response_model, model, key, use_cache, settings, cli_tools, cli_timeout
         )
     return await _generate_openai(
-        prompt, response_model, model, provider, temperature, key, use_cache, settings
+        prompt, response_model, model, route, temperature, key, use_cache, settings
     )
 
 
@@ -255,13 +313,14 @@ async def _generate_openai(
     prompt: str,
     response_model: type[BaseModel],
     model: str,
-    provider: Provider,
+    route: Route,
     temperature: float,
     key: str,
     use_cache: bool,
     settings: Settings,
 ) -> BaseModel:
-    client = _make_client(provider, settings)
+    provider = route.provider
+    client = _make_client(route)
     system = _system_prompt(response_model, provider.supports_json_mode)
     messages = [
         {"role": "system", "content": system},

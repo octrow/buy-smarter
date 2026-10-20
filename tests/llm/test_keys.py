@@ -53,6 +53,15 @@ def test_without_a_keyring_setting_fails_naming_the_env_var_and_writes_nothing(
     assert not any(p.is_file() for p in tmp_path.rglob("*"))
 
 
+def test_the_stored_key_is_read_once_and_refreshed_by_set_and_clear(fake_keyring):
+    keys.set_key("openai", "sk-1")
+    assert keys.stored() == ("openai", "sk-1")
+    fake_keyring.secrets.clear()  # an outside change is not re-read...
+    assert keys.stored() == ("openai", "sk-1")
+    keys.clear_key("openai")  # ...but our own writes drop the cached value
+    assert keys.stored() is None
+
+
 def test_without_a_keyring_reads_find_no_key():
     keyring.set_keyring(NoBackend())
     assert keys.get_key("openai") is None

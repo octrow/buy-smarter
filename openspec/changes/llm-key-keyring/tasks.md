@@ -7,9 +7,9 @@
 
 ## 2. Resolution
 
-- [ ] 2.1 `resolve_route()` pure function (env > keyring > CLI > None) with `DEFAULT_MODEL_BY_PROVIDER`; table-driven tests over every combination
-- [ ] 2.2 Wire `_resolve_provider`/`_make_client` to the route; existing adapter tests stay green
-- [ ] 2.3 Log filter redacting key-shaped strings; test that a logged key is masked
+- [x] 2.1 `resolve_route()` pure function (env > keyring > CLI > None) with `DEFAULT_MODEL_BY_PROVIDER`; table-driven tests over every combination
+- [x] 2.2 Wire `_resolve_provider`/`_make_client` to the route; existing adapter tests stay green
+- [x] 2.3 Log filter redacting key-shaped strings; test that a logged key is masked
 
 ## 3. No-LLM run
 

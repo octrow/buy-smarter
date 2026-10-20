@@ -104,6 +104,7 @@ async def test_llm_calls_are_counted_as_cache_hits_and_misses(monkeypatch) -> No
 
     settings = Settings(_env_file=None, default_llm_model="sonnet")
     monkeypatch.setattr(adapter, "_generate_cli", fake_cli)
+    monkeypatch.setattr(adapter, "claude_available", lambda: True)
     hits = _sample("buysmarter_llm_calls_total", model="sonnet", cache="hit")
     misses = _sample("buysmarter_llm_calls_total", model="sonnet", cache="miss")
 

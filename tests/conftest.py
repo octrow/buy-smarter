@@ -97,6 +97,8 @@ def _no_live_claude(monkeypatch):
         raise RuntimeError("test reached the live claude CLI: mock adapter.arun_claude")
 
     monkeypatch.setattr(adapter, "arun_claude", _blocked)
+    # The LLM route must not depend on whether this machine has the CLI (CI does not).
+    monkeypatch.setattr(adapter, "claude_available", lambda: False)
 
 
 @pytest.fixture(autouse=True)
@@ -150,8 +152,11 @@ class MemoryKeyring(KeyringBackend):
 @pytest.fixture(autouse=True)
 def fake_keyring():
     # No keyring.get_keyring() to restore it: that would probe the real Secret Service.
+    from buysmarter.llm import keys
+
     store = MemoryKeyring()
     keyring.set_keyring(store)
+    keys.stored.cache_clear()
     return store
 
 

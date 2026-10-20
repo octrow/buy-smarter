@@ -5,6 +5,7 @@ There is no plaintext fallback: without a usable keyring, setting a key fails an
 pointed to the provider's environment variable.
 """
 
+import functools
 import logging
 
 import keyring
@@ -45,9 +46,21 @@ def _read(username: str) -> str | None:
         return None
 
 
+@functools.cache
+def stored() -> tuple[str, str] | None:
+    """(chosen provider, its key), read once per process: a keyring read may block on D-Bus.
+
+    ``set_key``/``clear_key`` drop the cached value.
+    """
+    chosen = chosen_provider()
+    key = get_key(chosen) if chosen else None
+    return (chosen, key) if chosen and key else None
+
+
 def set_key(provider: str, key: str) -> None:
     """Store ``key`` for ``provider`` and make it the chosen provider."""
     _known(provider)
+    stored.cache_clear()
     if not key.strip():
         raise ValueError("The key is empty")
     try:
@@ -71,6 +84,7 @@ def chosen_provider() -> str | None:
 
 def clear_key(provider: str) -> None:
     """Remove ``provider``'s key; it stops being the chosen provider. Missing keys are fine."""
+    stored.cache_clear()
     chosen = chosen_provider()
     usernames = [_known(provider), *([_CHOSEN] if chosen == provider else [])]
     for username in usernames:

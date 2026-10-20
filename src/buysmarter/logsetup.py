@@ -8,6 +8,7 @@ filter drops) while that same noise is captured durably in ``~/.cache/buysmarter
 import contextvars
 import logging
 import os
+import re
 import uuid
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -38,6 +39,28 @@ class _RunIdFilter(logging.Filter):
         return True
 
 
+# Defence in depth (llm-key-keyring): API keys are never logged on purpose, but an SDK error may
+# echo one. OpenAI/Anthropic/DeepSeek keys start with "sk-", Google keys with "AIza".
+_KEY_SHAPED = re.compile(r"\b(sk-|AIza)[A-Za-z0-9_\-]{8,}")
+
+
+def _redact(text: str) -> str:
+    return _KEY_SHAPED.sub(lambda m: f"{m.group(1)}***", text)
+
+
+class _RedactKeysFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            record.msg, record.args = _redact(record.getMessage()), None
+        except Exception:  # noqa: BLE001 - a bad format call stays the handler's to report
+            return True
+        if record.exc_info and not record.exc_text:
+            record.exc_text = logging.Formatter().formatException(record.exc_info)
+        if record.exc_text:
+            record.exc_text = _redact(record.exc_text)
+        return True
+
+
 def _env_level(var: str, default: str) -> int:
     raw = os.environ.get(var)
     if raw is None:
@@ -59,6 +82,7 @@ def _ours(handler: logging.Handler, level: int) -> logging.Handler:
     handler.setLevel(level)
     handler.setFormatter(logging.Formatter(_FORMAT))
     handler.addFilter(_RunIdFilter())
+    handler.addFilter(_RedactKeysFilter())
     setattr(handler, _MARKER, True)
     return handler
 

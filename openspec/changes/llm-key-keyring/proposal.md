@@ -7,7 +7,7 @@ The default model `sonnet` routes to a local `claude` CLI that people installing
 ## What Changes
 
 - A key store backed by the OS keyring (Secret Service, Credential Manager, Keychain), holding one key per provider (openai, anthropic, gemini, deepseek) and the chosen provider.
-- Provider resolution order: env var, then keyring key for the chosen provider, then local `claude` CLI, then no LLM.
+- Provider resolution order: env var, then keyring key for the chosen provider, then local `claude` CLI, then no LLM. This changes existing setups: an env key now wins even for `haiku`/`sonnet`/`opus`/combo calls that used to go to the CLI unconditionally (the model becomes that provider's default). Calls with `cli_tools` (web search) still prefer the CLI when it is installed.
 - Without any provider, a recommendation runs as with `--no-llm`, and the report lists what it skipped (query parsing, review summary, ingredient extraction).
 - CLI: `buysmarter llm set-key <provider>` (prompted, never echoed), `buysmarter llm clear-key <provider>`, `buysmarter llm status`. The GUI settings screen (desktop-gui-v1) calls the same functions.
 - `doctor` reports the active LLM route, without the key.

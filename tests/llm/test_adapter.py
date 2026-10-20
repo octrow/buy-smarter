@@ -59,6 +59,11 @@ def _dict_store():
     set_store(DictCacheStore())
 
 
+@pytest.fixture(autouse=True)
+def _cli_installed(monkeypatch):
+    monkeypatch.setattr(adapter, "claude_available", lambda: True)
+
+
 def _patch_client(monkeypatch, responses: list) -> _FakeCompletions:
     completions = _FakeCompletions(responses)
     monkeypatch.setattr(adapter, "AsyncOpenAI", lambda **kw: _FakeClient(completions))
@@ -118,17 +123,54 @@ def _patch_cli(monkeypatch, results: list[str], cost: float = 0.001) -> list[str
 
 
 def test_resolve_provider_picks_claude_cli_for_sonnet() -> None:
-    provider = adapter._resolve_provider("sonnet", _cli_settings())
-    assert provider.is_cli
-    assert provider.name == "claude-cli"
+    route, model = adapter._resolve_provider("sonnet", _cli_settings())
+    assert route.provider.is_cli
+    assert (route.provider.name, model) == ("claude-cli", "sonnet")
 
 
-def test_resolve_provider_falls_back_to_cli_without_api_key(monkeypatch) -> None:
+def test_resolve_provider_falls_back_to_cli_without_api_key() -> None:
     # No deepseek key set, but the `claude` binary exists.
-    monkeypatch.setattr(adapter, "claude_available", lambda: True)
     settings = Settings(_env_file=None, default_llm_model="deepseek-chat")
-    provider = adapter._resolve_provider("deepseek-chat", settings)
-    assert provider.is_cli
+    route, _ = adapter._resolve_provider("deepseek-chat", settings)
+    assert route.provider.is_cli
+
+
+async def test_without_any_route_generate_raises_a_config_error(monkeypatch) -> None:
+    monkeypatch.setattr(adapter, "claude_available", lambda: False)
+    with pytest.raises(adapter.LlmConfigError):
+        await adapter.generate("find one", Product, settings=_cli_settings())
+
+
+async def test_a_stored_key_routes_a_cli_model_to_its_provider(monkeypatch) -> None:
+    from buysmarter.llm import keys
+
+    monkeypatch.setattr(adapter, "claude_available", lambda: False)
+    keys.set_key("openai", "sk-stored")
+    clients: list[dict] = []
+    completions = _FakeCompletions([_resp('{"name": "irrigator", "price": 1}')])
+
+    def _client(**kw):
+        clients.append(kw)
+        return _FakeClient(completions)
+
+    monkeypatch.setattr(adapter, "AsyncOpenAI", _client)
+
+    await adapter.generate("find one", Product, model="free-stack", settings=_cli_settings())
+
+    assert clients[0]["api_key"] == "sk-stored"
+    assert completions.calls[0]["model"] == adapter.DEFAULT_MODEL_BY_PROVIDER["openai"]
+    assert "temperature" not in completions.calls[0]  # GPT-5 models take only the default
+
+
+async def test_a_web_search_call_prefers_the_cli_over_a_key_route(monkeypatch) -> None:
+    from buysmarter.llm import keys
+
+    keys.set_key("openai", "sk-stored")
+    prompts = _patch_cli(monkeypatch, ['{"name": "irrigator", "price": 1}'])
+
+    await adapter.generate("find one", Product, settings=_cli_settings(), cli_tools="WebSearch")
+
+    assert len(prompts) == 1
 
 
 async def test_generate_via_claude_cli_end_to_end(monkeypatch) -> None:
