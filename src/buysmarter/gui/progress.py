@@ -22,16 +22,20 @@ class Progress(QObject):
         super().__init__()
         self._record.connect(self._deliver, Qt.ConnectionType.QueuedConnection)
         self._handler = _StageHandler(self._record.emit)
+        self._saved_level = logging.NOTSET
 
     def attach(self) -> None:
         core = logging.getLogger(_CORE_LOGGER)
+        self._saved_level = core.level
         # Stage records are INFO; the file and console handlers keep their own levels.
         if core.getEffectiveLevel() > logging.INFO:
             core.setLevel(logging.INFO)
         core.addHandler(self._handler)
 
     def detach(self) -> None:
-        logging.getLogger(_CORE_LOGGER).removeHandler(self._handler)
+        core = logging.getLogger(_CORE_LOGGER)
+        core.removeHandler(self._handler)
+        core.setLevel(self._saved_level)
 
     @Slot(str, str, str)
     def _deliver(self, source: str, state: str, stage: str) -> None:
@@ -50,4 +54,7 @@ class _StageHandler(logging.Handler):
         if state is None:
             return
         source = getattr(record, "progress_source", None) or ""
-        self._emit_progress(source, state, getattr(record, "progress_stage", ""))
+        try:
+            self._emit_progress(source, state, getattr(record, "progress_stage", ""))
+        except Exception:  # noqa: BLE001 - a dead progress widget must not break the core's logging
+            self.handleError(record)

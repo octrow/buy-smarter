@@ -1,6 +1,7 @@
 """CoreRunner: the async core runs off the GUI thread and reports back on it."""
 
 import asyncio
+import threading
 
 import pytest
 from PySide6.QtCore import QThread
@@ -43,21 +44,50 @@ def test_exception_becomes_failed_with_a_message_free_of_internals(qtbot, runner
     assert logged == ["secret internal detail"]
 
 
-def test_cancel_stops_a_sleeping_coroutine_and_runs_its_cleanup(qtbot, runner):
-    started, cleaned = asyncio.Event(), []
+def test_cancel_fires_cancelled_only_after_the_cleanup_ran(qtbot, runner):
+    started, cleaned, at_cancelled = threading.Event(), [], []
 
     async def sleeper() -> None:
         try:
             started.set()
             await asyncio.sleep(60)
         finally:
+            await asyncio.sleep(0.05)  # an aclose() that takes a moment
             cleaned.append(True)
 
     job = runner.submit(sleeper())
+    job.cancelled.connect(lambda: at_cancelled.append(list(cleaned)))
     qtbot.waitUntil(started.is_set, timeout=_WAIT_MS)
     with qtbot.waitSignal(job.cancelled, timeout=_WAIT_MS):
         job.cancel()
-    qtbot.waitUntil(lambda: cleaned == [True], timeout=_WAIT_MS)
+    assert at_cancelled == [[True]]
+
+
+def test_cancel_before_the_coroutine_starts_settles_cancelled_without_running_it(qtbot, runner):
+    release, ran = threading.Event(), []
+
+    async def hog_the_loop() -> None:
+        release.wait(_WAIT_MS / 1000)  # blocks the loop thread, so `never` cannot start yet
+
+    async def never() -> None:
+        ran.append(True)
+
+    runner.submit(hog_the_loop())
+    job = runner.submit(never())
+    job.cancel()
+    release.set()
+    with qtbot.waitSignal(job.cancelled, timeout=_WAIT_MS):
+        pass
+    assert ran == []
+
+
+def test_submit_after_shutdown_refuses_and_closes_the_coroutine(qapp):
+    runner = CoreRunner()
+    runner.shutdown()
+    coro = _answer()
+    with pytest.raises(RuntimeError):
+        runner.submit(coro)
+    assert coro.cr_frame is None  # closed, so no "never awaited" warning
 
 
 def test_shutdown_cancels_running_work_and_joins_the_thread(qapp):

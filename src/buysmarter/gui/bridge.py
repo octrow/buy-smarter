@@ -26,15 +26,35 @@ class Job(QObject):
     cancelled = Signal()
     _settled = Signal(object)  # loop thread -> GUI thread hop
 
-    def __init__(self, future: concurrent.futures.Future[Any]) -> None:
+    def __init__(self, coro: Coroutine[Any, Any, Any], loop: asyncio.AbstractEventLoop) -> None:
         super().__init__()
-        self._future = future
+        self._loop = loop
+        self._task: asyncio.Task[Any] | None = None  # set on the loop thread once it starts
+        self._cancel_requested = False
         self._settled.connect(self._deliver, Qt.ConnectionType.QueuedConnection)
+        future = asyncio.run_coroutine_threadsafe(self._run(coro), loop)
         future.add_done_callback(self._settled.emit)
 
+    async def _run(self, coro: Coroutine[Any, Any, Any]) -> Any:
+        self._task = asyncio.current_task()
+        if self._cancel_requested:
+            coro.close()
+            raise asyncio.CancelledError
+        return await coro
+
     def cancel(self) -> None:
-        """Cancel the coroutine; its ``finally`` blocks (browser ``aclose``) still run."""
-        self._future.cancel()
+        """Cancel the coroutine; ``cancelled`` fires only after its ``finally`` blocks ran.
+
+        The asyncio task is cancelled on the loop thread: cancelling the concurrent future
+        instead would settle it at once, while the browser ``aclose`` is still running.
+        """
+        self._loop.call_soon_threadsafe(self._cancel_in_loop)
+
+    def _cancel_in_loop(self) -> None:
+        if self._task is None:
+            self._cancel_requested = True
+        else:
+            self._task.cancel()
 
     @Slot(object)
     def _deliver(self, future: concurrent.futures.Future[Any]) -> None:
@@ -65,7 +85,10 @@ class CoreRunner(QObject):
 
     def submit(self, coro: Coroutine[Any, Any, Any]) -> Job:
         """Schedule ``coro`` on the core loop; the runner keeps the job alive until it settles."""
-        job = Job(asyncio.run_coroutine_threadsafe(coro, self._loop))
+        if not self._thread.is_alive():
+            coro.close()
+            raise RuntimeError("CoreRunner is shut down")
+        job = Job(coro, self._loop)
         self._jobs.add(job)
         for signal in (job.finished, job.failed, job.cancelled):
             signal.connect(lambda *_: self._jobs.discard(job))
