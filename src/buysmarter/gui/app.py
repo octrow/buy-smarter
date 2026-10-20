@@ -16,6 +16,8 @@ from PySide6.QtWidgets import (
 
 from buysmarter import local_store
 from buysmarter.gui.bridge import CoreRunner
+from buysmarter.gui.screens.history import HistoryScreen
+from buysmarter.gui.screens.preferences import PreferencesScreen
 from buysmarter.gui.screens.report import ReportScreen
 from buysmarter.gui.screens.search import SearchRun, SearchScreen
 from buysmarter.logsetup import new_run_id, setup_logging
@@ -39,13 +41,22 @@ class MainWindow(QMainWindow):
         self.runner = runner
         self.search = SearchScreen(runner)
         self.report = ReportScreen()
+        self.preferences = PreferencesScreen(runner)
+        self.history = HistoryScreen(runner)
         self.search.report_ready.connect(self._show_report)
+        self.preferences.saved.connect(self.search.apply_prefs)
 
         self.sidebar = QListWidget()
         self.sidebar.setObjectName("sidebar")
         self.sidebar.setFixedWidth(_SIDEBAR_WIDTH)
         self.stack = QStackedWidget()
-        for title, screen in (("Поиск", self.search), ("Отчёт", self.report)):
+        screens = (
+            ("Поиск", self.search),
+            ("Отчёт", self.report),
+            ("Настройки поиска", self.preferences),
+            ("История цен", self.history),
+        )
+        for title, screen in screens:
             self.sidebar.addItem(title)
             self.stack.addWidget(screen)
         self.sidebar.currentRowChanged.connect(self.stack.setCurrentIndex)
@@ -66,6 +77,7 @@ class MainWindow(QMainWindow):
 
     def _apply_prefs(self, stored: Mapping[str, Any]) -> None:
         self.search.apply_prefs(stored)
+        self.preferences.apply_prefs(stored)
 
     def _show_report(self, result: RecommendResult, run: SearchRun) -> None:
         self.report.show_result(result, run)

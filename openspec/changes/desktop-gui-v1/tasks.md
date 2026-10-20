@@ -17,9 +17,9 @@
 
 ## 3. Preferences and History
 
-- [ ] 3.1 Preferences screen (read/edit/save the supported keys); test that a saved city pre-fills Search after re-creating the window
-- [ ] 3.2 Price history screen (search term → snapshots newest first) on the SQLite store; test with seeded snapshots
-- [ ] 3.3 Refresh tracked with progress and cancel; test with a stubbed `refresh_tracked`
+- [x] 3.1 Preferences screen (read/edit/save the supported keys); test that a saved city pre-fills Search after re-creating the window
+- [x] 3.2 Price history screen (search term → snapshots newest first) on the SQLite store; test with seeded snapshots
+- [x] 3.3 Refresh tracked with progress and cancel; test with a stubbed `refresh_tracked`
 
 ## 4. Settings and errors
 

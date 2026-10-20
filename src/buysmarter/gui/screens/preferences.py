@@ -1,0 +1,113 @@
+"""Preferences screen: the saved defaults every new search starts from."""
+
+from collections.abc import Awaitable, Callable, Mapping
+from typing import Any
+
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from buysmarter.gui.bridge import CoreRunner, Job
+from buysmarter.gui.prefs_fields import (
+    BUDGET,
+    CITY,
+    EXCLUDED_BRANDS,
+    MARKETPLACES,
+    as_budget,
+    as_list,
+    budget_box,
+    check_sources,
+    source_boxes,
+)
+from buysmarter.memory import prefs
+
+type StoreSet = Callable[[str, Any], Awaitable[None]]
+
+
+async def save_all(values: Mapping[str, Any], store_set: StoreSet) -> dict[str, Any]:
+    for key, value in values.items():
+        await store_set(key, value)
+    return dict(values)
+
+
+class PreferencesScreen(QWidget):
+    """Edits the stored preferences; emits ``saved(dict)`` once they are written."""
+
+    saved = Signal(dict)
+
+    def __init__(self, runner: CoreRunner, store_set: StoreSet = prefs.set) -> None:
+        super().__init__()
+        self._runner = runner
+        self._store_set = store_set
+        self._job: Job | None = None
+        self.city = QLineEdit(placeholderText="Алматы")
+        self.budget = budget_box()
+        self.sources = source_boxes()
+        self.excluded = QLineEdit(placeholderText="через запятую, например: Noname, Generic")
+        self.message = QLabel(wordWrap=True)
+        self.save_button = QPushButton("Сохранить", default=True)
+        self.save_button.clicked.connect(self.save)
+
+        marketplaces = QHBoxLayout()
+        for box in self.sources.values():
+            marketplaces.addWidget(box)
+        marketplaces.addStretch(1)
+        form = QFormLayout()
+        form.addRow("Город по умолчанию", self.city)
+        form.addRow("Бюджет", self.budget)
+        form.addRow("Маркетплейсы", marketplaces)
+        form.addRow("Исключить бренды", self.excluded)
+        layout = QVBoxLayout(self)
+        buttons = QHBoxLayout()
+        buttons.addWidget(self.save_button)
+        buttons.addStretch(1)
+        layout.addLayout(form)
+        layout.addLayout(buttons)
+        layout.addWidget(self.message)
+        layout.addStretch(1)
+
+    def apply_prefs(self, stored: Mapping[str, Any]) -> None:
+        if isinstance(city := stored.get(CITY), str):
+            self.city.setText(city)
+        self.budget.setValue(as_budget(stored.get(BUDGET)))
+        check_sources(self.sources, stored.get(MARKETPLACES))
+        self.excluded.setText(", ".join(as_list(stored.get(EXCLUDED_BRANDS))))
+
+    def values(self) -> dict[str, Any]:
+        return {
+            CITY: self.city.text().strip(),
+            BUDGET: self.budget.value(),
+            MARKETPLACES: [name for name, box in self.sources.items() if box.isChecked()],
+            EXCLUDED_BRANDS: as_list(self.excluded.text()),
+        }
+
+    def save(self) -> None:
+        if self._job is not None:
+            return
+        values = self.values()
+        if not values[MARKETPLACES]:
+            self.message.setText("Выберите хотя бы один маркетплейс.")
+            return
+        self.save_button.setEnabled(False)
+        self.message.clear()
+        self._job = self._runner.submit(save_all(values, self._store_set))
+        self._job.finished.connect(self._on_saved)
+        self._job.failed.connect(self._on_failed)
+
+    def _on_saved(self, values: dict[str, Any]) -> None:
+        self._job = None
+        self.save_button.setEnabled(True)
+        self.message.setText("Сохранено. Новые значения применятся к следующему поиску.")
+        self.saved.emit(values)
+
+    def _on_failed(self, _message: str) -> None:
+        self._job = None
+        self.save_button.setEnabled(True)
+        self.message.setText("Не удалось сохранить: хранилище недоступно. Подробности в логе.")

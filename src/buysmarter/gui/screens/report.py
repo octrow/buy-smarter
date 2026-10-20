@@ -103,7 +103,7 @@ def fit_to_rows(view: QTableView) -> None:
     view.setFixedHeight(view.horizontalHeader().height() + rows + 2 * view.frameWidth())
 
 
-def _table(headers: list[str], rows: list[list[str]]) -> QTableWidget:
+def text_table(headers: list[str], rows: list[list[str]]) -> QTableWidget:
     table = QTableWidget(len(rows), len(headers))
     table.setHorizontalHeaderLabels(headers)
     table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -157,7 +157,7 @@ class ReportScreen(QScrollArea):
     def _best_section(self, best: ScoredCandidate) -> QGroupBox:
         header = QLabel("\n".join(best_header(best)))
         header.setObjectName("bestHeader")
-        axes = _table(
+        axes = text_table(
             ["Axis", "Score", "Why"],
             [[a.name, f"{a.score:.1f}/{a.max_score:.0f}", a.explanation] for a in best.axes],
         )
@@ -203,7 +203,7 @@ class ReportScreen(QScrollArea):
         return {s.candidate.source for s in result.recommendation.ranked}
 
     def _used_section(self, used: list[UsedListing]) -> QGroupBox:
-        table = _table(
+        table = text_table(
             ["Listing", "Price", "Saving vs new", "City", "Con"], [_used_row(u) for u in used]
         )
         table.cellDoubleClicked.connect(lambda row, _col: open_offer(used[row].url))
