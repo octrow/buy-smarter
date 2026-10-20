@@ -2,8 +2,8 @@
 
 ## 1. Key store
 
-- [ ] 1.1 Add `keyring`; implement `llm/keys.py` (set/get/clear per provider, chosen provider); tests use a fake in-memory keyring backend
-- [ ] 1.2 `NoKeyringError` → user-facing error naming the env var, with nothing written to disk; test with a failing backend
+- [x] 1.1 Add `keyring`; implement `llm/keys.py` (set/get/clear per provider, chosen provider); tests use a fake in-memory keyring backend
+- [x] 1.2 `NoKeyringError` → user-facing error naming the env var, with nothing written to disk; test with a failing backend
 
 ## 2. Resolution
 

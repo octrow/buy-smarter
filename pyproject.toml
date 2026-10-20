@@ -24,6 +24,7 @@ dependencies = [
     "opentelemetry-instrumentation-sqlalchemy>=0.66b1",
     "aiosqlite>=0.22.1",
     "platformdirs>=4.10.1",
+    "keyring>=25",
 ]
 
 [project.optional-dependencies]

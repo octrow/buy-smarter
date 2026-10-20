@@ -21,7 +21,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import importlib.util  # noqa: E402 - the env above must be set first
 
+import keyring  # noqa: E402
 import pytest  # noqa: E402
+from keyring.backend import KeyringBackend  # noqa: E402
+from keyring.errors import PasswordDeleteError  # noqa: E402
 
 # Tests of the HTTP API, the worker and the job queue need the [server] extra.
 SERVER_TESTS = ("api/*", "test_jobs.py", "test_worker.py", "test_telemetry.py")
@@ -122,6 +125,35 @@ def _no_live_jev(monkeypatch):
         raise LlmConfigError("Jev is off in tests: mock <module>.system_one")
 
     monkeypatch.setattr(jev, "api_key", _no_key)
+
+
+class MemoryKeyring(KeyringBackend):
+    """An in-memory OS credential store: no test reads or writes the developer's real keyring."""
+
+    priority = 1  # type: ignore[assignment]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.secrets: dict[tuple[str, str], str] = {}
+
+    def get_password(self, service, username):
+        return self.secrets.get((service, username))
+
+    def set_password(self, service, username, password):
+        self.secrets[(service, username)] = password
+
+    def delete_password(self, service, username):
+        if self.secrets.pop((service, username), None) is None:
+            raise PasswordDeleteError(username)
+
+
+@pytest.fixture(autouse=True)
+def fake_keyring():
+    previous = keyring.get_keyring()
+    store = MemoryKeyring()
+    keyring.set_keyring(store)
+    yield store
+    keyring.set_keyring(previous)
 
 
 @pytest.fixture(autouse=True)
