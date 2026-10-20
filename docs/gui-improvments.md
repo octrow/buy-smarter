@@ -1,3 +1,6 @@
+> **Decision: PySide6** ([ADR 0001](adr/0001-desktop-gui-pyside6.md), confirmed 2026-10-20). The notes below are the
+> background research that was weighed; NiceGUI, Tauri and Flet were not chosen.
+
 https://claude.ai/chat/27aa9d21-eaf6-41db-8032-230bc472f441
 
 Short version: since you're already on NiceGUI, you likely don't need to switch frameworks. Wrapping it as a desktop app is the fastest route. A rewrite only pays off for specific reasons, covered below.
