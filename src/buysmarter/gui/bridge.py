@@ -32,7 +32,13 @@ class _LoopSide:
         if self.cancel_requested:
             coro.close()
             raise asyncio.CancelledError
-        return await coro
+        try:
+            return await coro
+        finally:
+            # A failed job's traceback holds this frame: without the task it is no reference
+            # cycle, so the loop thread frees it by refcount, never in a GC pass that could
+            # collect a QObject (a screen's Progress, in the frames below) on the wrong thread.
+            self.task = None
 
     def cancel(self) -> None:
         if self.task is None:

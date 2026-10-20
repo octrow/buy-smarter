@@ -1,11 +1,14 @@
 """CoreRunner: the async core runs off the GUI thread and reports back on it."""
 
 import asyncio
+import gc
 import threading
+import weakref
 
 import pytest
 from PySide6.QtCore import QThread
 
+from buysmarter.gui import bridge
 from buysmarter.gui.bridge import USER_ERROR, CoreRunner
 
 _WAIT_MS = 3000
@@ -35,6 +38,30 @@ def test_exception_becomes_failed_with_a_message_free_of_internals(qtbot, runner
     assert blocker.args == [USER_ERROR]
     logged = [str(r.exc_info[1]) for r in caplog.records if r.exc_info]
     assert logged == ["secret internal detail"]
+
+
+def test_a_failed_job_frees_its_frames_without_a_gc_pass(qtbot, runner, monkeypatch):
+    monkeypatch.setattr(bridge.logger, "disabled", True)  # pytest keeps logged tracebacks
+
+    class Held:  # stands in for a screen's Progress in the failing coroutine's frames
+        pass
+
+    held = Held()
+    alive = weakref.ref(held)
+
+    async def boom(obj: Held) -> None:
+        raise RuntimeError(type(obj).__name__)
+
+    gc.disable()
+    try:
+        job = runner.submit(boom(held))
+        del held
+        with qtbot.waitSignal(job.failed, timeout=_WAIT_MS):
+            pass
+        del job
+        qtbot.waitUntil(lambda: alive() is None, timeout=_WAIT_MS)
+    finally:
+        gc.enable()
 
 
 def test_cancel_fires_cancelled_only_after_the_cleanup_ran(qtbot, runner):

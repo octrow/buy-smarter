@@ -149,11 +149,10 @@ class MemoryKeyring(KeyringBackend):
 
 @pytest.fixture(autouse=True)
 def fake_keyring():
-    previous = keyring.get_keyring()
+    # No keyring.get_keyring() to restore it: that would probe the real Secret Service.
     store = MemoryKeyring()
     keyring.set_keyring(store)
-    yield store
-    keyring.set_keyring(previous)
+    return store
 
 
 @pytest.fixture(autouse=True)
