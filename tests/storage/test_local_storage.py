@@ -209,6 +209,7 @@ def test_postgres_configured_behaves_like_the_local_store(store: Store) -> None:
 
 def test_postgres_url_start_does_not_run_migrations(store: Store) -> None:
     # spec: Server deployments use Postgres with explicit migrations / No auto-migration on Postgres
+    pytest.importorskip("asyncpg", reason="a Postgres URL needs the [server] extra")
     # Arrange: an unreachable Postgres URL; any connection attempt or alembic call would blow up
     url = "postgresql+asyncpg://nobody:nopass@127.0.0.1:1/none"
 

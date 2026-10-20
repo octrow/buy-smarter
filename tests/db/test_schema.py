@@ -2,6 +2,8 @@
 
 import sqlite3
 
+import pytest
+
 from buysmarter.config import get_settings
 from buysmarter.db.schema import schema_is_current
 
@@ -18,4 +20,5 @@ async def test_unmigrated_store_is_not_current(tmp_path) -> None:
 
 
 async def test_unreachable_server_is_not_current() -> None:
+    pytest.importorskip("asyncpg", reason="a Postgres URL needs the [server] extra")
     assert not await schema_is_current("postgresql+asyncpg://u:p@127.0.0.1:1/none")

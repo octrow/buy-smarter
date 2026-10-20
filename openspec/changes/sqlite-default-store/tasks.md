@@ -30,7 +30,7 @@
 ## 5. Doctor, texts, CI
 
 - [x] 5.1 Replace the `Postgres` doctor row with `Storage` (backend + path, writable); update `cli/main.py` "Postgres unavailable" texts and the `mcp_server/server.py` docstrings; tests for OK and unwritable
-- [ ] 5.2 `ci.yml` docker job and `deploy/kind/smoke.sh` grep `^Storage +ok`; verify both jobs are green
+- [x] 5.2 `ci.yml` docker job and `deploy/kind/smoke.sh` grep `^Storage +ok`; verify both jobs are green
 - [x] 5.3 CI split: a `server` job (extra + Postgres; ruff, mypy, complexipy, full pytest at 90%) and a `core` job (no extra; `pytest -m "not server"`, import smoke); verify both green
 - [x] 5.4 End-to-end on a clean `uv tool install` from the built wheel (no Postgres, empty data dir): `recommend`, then `history` shows the snapshot, and `doctor` shows `Storage ok` with the path
 - [x] 5.5 CHANGELOG: SQLite default, `[server]` extra, legacy import and the rollback line
