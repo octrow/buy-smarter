@@ -10,7 +10,7 @@ from tests.gui.conftest import WAIT_MS
 
 _NO_BROWSER = [
     Check("Storage", True, "unused", "SQLite /data/buysmarter.db"),
-    Check("claude CLI", False, "LLM parsing off; install Claude Code or use --no-llm"),
+    Check("LLM", False, "LLM parsing off; run `buysmarter llm set-key <provider>`"),
     Check(OZON_BROWSER, False, "Ozon off; run `playwright install chromium`"),
 ]
 
@@ -22,7 +22,7 @@ def test_rows_show_detail_when_ok_and_the_hint_when_missing(qtbot, runner):
         screen.recheck()
     assert screen.row_texts() == {
         "Storage": ("ок", "SQLite /data/buysmarter.db"),
-        "claude CLI": ("нет", "LLM parsing off; install Claude Code or use --no-llm"),
+        "LLM": ("нет", "LLM parsing off; run `buysmarter llm set-key <provider>`"),
         OZON_BROWSER: ("нет", "Ozon off; run `playwright install chromium`"),
     }
 

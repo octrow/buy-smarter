@@ -122,6 +122,16 @@ class Route:
     api_key: str | None = field(default=None, repr=False)
 
 
+_SOURCE_LABELS = {"env": "environment", "keyring": "keyring"}
+
+
+def route_label(route: Route) -> str:
+    """ "openai (keyring)", "deepseek (environment)" or "claude CLI"; never the key."""
+    if route.provider.is_cli:
+        return "claude CLI"
+    return f"{route.provider.name} ({_SOURCE_LABELS[route.source]})"
+
+
 def provider_of(model: str) -> Provider | None:
     """The API provider whose model-name prefix ``model`` has; None for CLI aliases/combos."""
     return next((p for prefix, p in PROVIDERS.items() if model.startswith(prefix)), None)

@@ -36,12 +36,13 @@ from buysmarter.knowledge.store import (
     resolve_composition,
     save_knowledge,
 )
+from buysmarter.llm import keys
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.collect import ALL_SOURCES, select_sources
-from buysmarter.services.doctor import doctor_checks, pass_ozon_check
+from buysmarter.services.doctor import doctor_checks, llm_check, pass_ozon_check
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.price_tracking import CategoryRefresh, ProductHistory
 from buysmarter.services.price_tracking import product_history as run_product_history
@@ -579,6 +580,50 @@ def ozon_setup() -> None:
         console.print("[red]Не удалось получить сессию Ozon за отведённое время.[/red]")
         raise typer.Exit(code=1)
     console.print(f"[green]Сессия Ozon сохранена: {escape(str(ozon_state_path()))}[/green]")
+
+
+llm_app = typer.Typer(help="The LLM key: stored in the OS keyring, never shown.")
+app.add_typer(llm_app, name="llm")
+
+
+def _provider(name: str) -> str:
+    if name not in keys.KEY_FIELDS:
+        raise typer.BadParameter(f"expected one of {', '.join(keys.KEY_FIELDS)}")
+    return name
+
+
+@llm_app.command("set-key")
+def llm_set_key(provider: str = typer.Argument(..., callback=_provider)) -> None:
+    """Store an API key for PROVIDER (prompted, not echoed) and make it the one to use."""
+    key = typer.prompt(f"{provider} API key", hide_input=True)
+    try:
+        keys.set_key(provider, key)
+    except (keys.KeyStoreError, ValueError) as exc:
+        console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(code=1) from exc
+    console.print(f"[green]Saved the {provider} key in the OS keyring.[/green]")
+    llm_status()  # an env key still wins over the stored one
+
+
+@llm_app.command("clear-key")
+def llm_clear_key(provider: str = typer.Argument(..., callback=_provider)) -> None:
+    """Remove PROVIDER's stored key."""
+    try:
+        keys.clear_key(provider)
+    except keys.KeyStoreError as exc:
+        console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(code=1) from exc
+    console.print(f"Cleared the {provider} key.")
+    llm_status()  # an env key or the claude CLI may still serve LLM calls
+
+
+@llm_app.command("status")
+def llm_status() -> None:
+    """Where LLM calls go and where the key came from; never the key."""
+    check = llm_check()
+    console.print(
+        f"LLM: {escape(check.detail)}" if check.ok else f"LLM: none. {escape(check.hint)}"
+    )
 
 
 @app.command()

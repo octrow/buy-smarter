@@ -18,5 +18,5 @@
 
 ## 4. CLI
 
-- [ ] 4.1 `buysmarter llm set-key|clear-key|status` (hidden prompt; status never prints the key); CliRunner tests including "no key characters in output"
-- [ ] 4.2 `doctor` "LLM" row shows the route and its source; test for each source
+- [x] 4.1 `buysmarter llm set-key|clear-key|status` (hidden prompt; status never prints the key); CliRunner tests including "no key characters in output"
+- [x] 4.2 `doctor` "LLM" row shows the route and its source; test for each source

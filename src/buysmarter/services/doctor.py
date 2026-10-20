@@ -2,7 +2,6 @@
 
 import asyncio
 import os
-import shutil
 import sys
 from pathlib import Path
 from typing import NamedTuple
@@ -13,6 +12,7 @@ from sqlalchemy.engine import make_url
 
 from buysmarter.config import get_settings
 from buysmarter.db.schema import schema_is_current
+from buysmarter.llm.adapter import current_route, route_label
 
 OZON_BROWSER = "Playwright Chromium"  # the row whose failure turns Ozon off
 _OZON_SETUP_PROBE_QUERY = "смартфон"
@@ -64,15 +64,21 @@ def _storage_check(url: str) -> Check:
     return Check("Storage", asyncio.run(schema_is_current(url)), hint, location)
 
 
+def llm_check() -> Check:
+    """Where LLM calls go and where the key came from (never the key)."""
+    route = current_route(get_settings())
+    hint = (
+        "LLM parsing and review summaries off; run `buysmarter llm set-key <provider>`, "
+        "set an env key such as OPENAI_API_KEY, or install Claude Code"
+    )
+    return Check("LLM", route is not None, hint, route_label(route) if route else "")
+
+
 def doctor_checks() -> list[Check]:
     """One row for every optional piece the pipeline can use."""
     return [
         _storage_check(get_settings().database_url),
-        Check(
-            "claude CLI",
-            shutil.which("claude") is not None,
-            "LLM parsing and review summaries off; install Claude Code or use --no-llm",
-        ),
+        llm_check(),
         Check(
             OZON_BROWSER,
             _chromium_installed(),

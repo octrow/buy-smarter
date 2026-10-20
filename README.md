@@ -135,7 +135,11 @@ cp .env.example .env                     # optional API keys and proxy
 
 Price history, preferences and learned categories live in the **local store**, a SQLite file in the user
 data dir (`~/.local/share/buysmarter/buysmarter.db` on Linux), created at first start. `doctor` shows where it
-is. Every other piece is optional: without the `claude` CLI, `--no-llm` falls back to a naive parser. In a clone, prefix the commands below with `uv run`.
+is. Every other piece is optional. The LLM comes from, in this order: an API key in the environment
+(`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`), a key you stored with
+`buysmarter llm set-key <provider>` (kept in the OS keyring, never in a file), or the local `claude` CLI.
+With none of them a run goes keyless (naive parser, no review summary) and the report says so;
+`buysmarter llm status` shows which one is in use. In a clone, prefix the commands below with `uv run`.
 
 ## Usage
 
