@@ -56,7 +56,10 @@ def _storage_check(url: str) -> Check:
         hint = f"{off}; {path} is not writable or its schema is not current (see the log)"
         return Check("Storage", ok, hint, f"SQLite {path}")
     location = parsed.render_as_string(hide_password=True)
-    hint = f"{off}; check DATABASE_URL and run `alembic upgrade head`"
+    hint = (
+        f"{off}; check DATABASE_URL (unset it for the default SQLite store), "
+        "install its driver (`buysmarter[server]`) and run `alembic upgrade head`"
+    )
     return Check("Storage", asyncio.run(schema_is_current(url)), hint, location)
 
 

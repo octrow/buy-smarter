@@ -1,5 +1,6 @@
 """Async SQLAlchemy engine, session factory, and declarative base."""
 
+import logging
 from datetime import UTC, datetime
 from typing import Any
 
@@ -15,6 +16,8 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.types import TypeDecorator
 
 from buysmarter.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 DB_TIMEOUT_S = 3
 SQLITE_BUSY_TIMEOUT_MS = 5000
@@ -68,11 +71,30 @@ def _sqlite_on_connect(dbapi_conn: Any, _record: Any) -> None:
 
 
 def make_engine(url: str, **kwargs: Any) -> AsyncEngine:
-    """An async engine; SQLite ones get ``_sqlite_on_connect``."""
-    eng = create_async_engine(url, **kwargs)
+    """An async engine; SQLite ones get ``_sqlite_on_connect``.
+
+    A URL whose driver is not installed (Postgres in the desktop build or a plain install: no
+    asyncpg) gives an engine that fails on connect, so the store is off and the app still starts.
+    """
+    try:
+        eng = create_async_engine(url, **kwargs)
+    except ModuleNotFoundError as exc:
+        logger.warning(
+            "DATABASE_URL needs %s, which is not installed; the local store is off "
+            "(unset DATABASE_URL for the default SQLite store, or install buysmarter[server])",
+            exc.name,
+        )
+        return _engine_without_driver(exc)
     if eng.dialect.name == "sqlite":
         event.listen(eng.sync_engine, "connect", _sqlite_on_connect)
     return eng
+
+
+def _engine_without_driver(missing: ModuleNotFoundError) -> AsyncEngine:
+    async def fail() -> Any:
+        raise missing
+
+    return create_async_engine("sqlite+aiosqlite://", async_creator=fail, poolclass=NullPool)
 
 
 def create_engine() -> AsyncEngine:
