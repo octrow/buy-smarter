@@ -14,7 +14,7 @@
 
 ## 3. macOS
 
-- [ ] 3.1 `.dmg` with the `.app` and an Applications link; CI mounts it and self-tests the app
+- [x] 3.1 `.dmg` with the `.app` and an Applications link; CI mounts it and self-tests the app
 
 ## 4. Architectures
 
