@@ -114,10 +114,14 @@ Windows (PowerShell):
 powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/octrow/buy-smarter/main/install.ps1 | iex"
 ```
 
-The installer gets [uv](https://docs.astral.sh/uv/) (it brings its own Python), installs the latest release,
-offers the browser for Ozon and runs `buysmarter doctor`, which says what is missing and what that turns off.
+The installer gets [uv](https://docs.astral.sh/uv/) (it brings its own Python), installs the latest release
+with the desktop app (`buysmarter gui`), offers the browser for Ozon and runs `buysmarter doctor`, which says what is missing and what that turns off.
 Re-run it to update; `sh -s -- --uninstall` removes it. Prefer to read it first? Download `install.sh`, read it,
 then run `sh install.sh`. API keys and a proxy go in `~/.config/buysmarter/.env` (see [.env.example](.env.example)).
+
+**Desktop app without the terminal:** each release has ready-made builds for Windows, macOS and Linux.
+[Installing the desktop app](docs/install-desktop.md) says which file to download and how to open an
+unsigned build; Ozon needs Google Chrome.
 
 From source, for development ([uv](https://docs.astral.sh/uv/); Docker only for the server stack):
 
