@@ -113,7 +113,8 @@ def test_an_error_while_the_dialog_is_open_is_logged_without_a_second_dialog(qap
 
 def test_run_names_the_desktop_entry_and_sets_the_app_icon(qapp, monkeypatch):
     monkeypatch.setattr(gui_app.prefs, "get_all", _no_prefs)
-    monkeypatch.setattr(gui_app.MainWindow, "show", lambda self: None)
+    shown = []  # keeps the window alive: freed mid-teardown with jobs pending, it crashes Qt
+    monkeypatch.setattr(gui_app.MainWindow, "show", lambda self: shown.append(self))
     QTimer.singleShot(0, QApplication.quit)
     gui_app.run()
     # Wayland docks match the window to buysmarter.desktop (the .deb's menu entry) by this name.
