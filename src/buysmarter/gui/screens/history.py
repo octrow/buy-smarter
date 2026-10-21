@@ -74,6 +74,10 @@ class HistoryScreen(QWidget):
         self.cancel_button.clicked.connect(self.cancel_refresh)
         self.status = QLabel(wordWrap=True)
         set_state(self.status, "role", "muted")
+        self.status.setText(
+            "Введите название товара, чтобы увидеть, как менялась его цена. "
+            "«Обновить цены» заново снимает цены всех отслеживаемых категорий."
+        )
         set_state(self.find_button, "primary", "true")
         self.results = QScrollArea(widgetResizable=True)
 

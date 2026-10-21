@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from pydantic import ValidationError
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
@@ -99,7 +99,7 @@ class SearchScreen(QWidget):
         self.query.returnPressed.connect(self.start)
         self.city = QLineEdit(placeholderText="из запроса или настроек")
         self.budget = budget_box()
-        self.use_llm = checked_box("AI: разбор запроса и сводка отзывов")
+        self.use_llm = checked_box("разбор запроса и сводка отзывов")
         self.sources = source_boxes()
         self.status = {name: QLabel() for name in ALL_SOURCES}
         self.stage = QLabel()
@@ -116,14 +116,14 @@ class SearchScreen(QWidget):
         form.addRow("Запрос", self.query)
         form.addRow("Город", self.city)
         form.addRow("Бюджет", self.budget)
-        form.addRow("", self.use_llm)
-        for name in ALL_SOURCES:
+        form.addRow("AI", self.use_llm)
+        for i, name in enumerate(ALL_SOURCES):
             row = QHBoxLayout()
             row.setSpacing(SPACE["lg"])
             self.sources[name].setMinimumWidth(_SOURCE_COLUMN_WIDTH)  # statuses line up
             row.addWidget(self.sources[name])
             row.addWidget(self.status[name], 1)
-            form.addRow("", row)
+            form.addRow("Маркетплейсы" if i == 0 else "", row)
         buttons = QHBoxLayout()
         buttons.addWidget(self.start_button)
         buttons.addWidget(self.cancel_button)
@@ -133,6 +133,7 @@ class SearchScreen(QWidget):
         layout.setSpacing(SPACE["md"])
         form.setVerticalSpacing(SPACE["md"])
         form.setHorizontalSpacing(SPACE["lg"])
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         layout.addLayout(form)
         layout.addLayout(buttons)
         layout.addWidget(self.stage)

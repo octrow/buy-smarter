@@ -25,6 +25,12 @@ from buysmarter.services import doctor
 from buysmarter.services.doctor import OZON_BROWSER, Check
 
 _CHECKS_LOCK = threading.Lock()
+CHECK_LABELS = {
+    "Storage": "Хранилище",
+    "LLM": "AI",
+    OZON_BROWSER: "Браузер Ozon",
+    "Ozon session": "Сессия Ozon",
+}
 
 type OzonCheck = Callable[[], Coroutine[Any, Any, bool]]
 
@@ -102,7 +108,7 @@ class SettingsScreen(QWidget):
         ozon_layout.addLayout(button_row)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(SPACE["xl"], SPACE["sm"], SPACE["xl"], SPACE["xl"])
+        layout.setContentsMargins(SPACE["xl"], SPACE["xl"], SPACE["xl"], SPACE["xl"])
         layout.addWidget(health)
         layout.addWidget(self._key_group())
         layout.addWidget(ozon)
@@ -190,7 +196,7 @@ class SettingsScreen(QWidget):
             status = QLabel("ок" if check.ok else "нет")
             set_state(status, "state", "ok" if check.ok else "missing")
             labels = (
-                QLabel(check.name),
+                QLabel(CHECK_LABELS.get(check.name, check.name)),
                 status,
                 QLabel(check.detail if check.ok else check.hint, wordWrap=True),
             )

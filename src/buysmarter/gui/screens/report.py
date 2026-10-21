@@ -157,7 +157,11 @@ class ReportScreen(QScrollArea):
     def __init__(self) -> None:
         super().__init__()
         self.setWidgetResizable(True)
-        self.setWidget(QLabel("Здесь появится отчёт после поиска."))
+        empty = _label(
+            "Здесь появится отчёт после поиска.\nНачните с экрана «Поиск».", role="muted"
+        )
+        empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setWidget(empty)
 
     def show_result(self, result: RecommendResult, run: SearchRun) -> None:
         # Optional sections: drop handles into the page that setWidget below deletes.

@@ -5,6 +5,7 @@ from typing import Any
 from PySide6.QtCore import QLocale
 from PySide6.QtWidgets import QCheckBox, QSpinBox
 
+from buysmarter.gui.theme import SPACE
 from buysmarter.services.collect import ALL_SOURCES
 
 CITY = "city"  # the core reads this one too (services.recommend.resolve_city)
@@ -36,6 +37,8 @@ def budget_box() -> QSpinBox:
     box.setLocale(QLocale.c())  # "40,000 ₸", as the report tables and the CLI write prices
     box.setSpecialValueText("без лимита")
     box.setGroupSeparatorShown(True)
+    # QSS horizontal padding does not reach a spin box's text: inset it like a QLineEdit's.
+    box.lineEdit().setTextMargins(SPACE["sm"], 0, SPACE["sm"], 0)
     return box
 
 

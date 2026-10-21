@@ -3,7 +3,7 @@
 from collections.abc import Callable, Coroutine, Mapping
 from typing import Any
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
@@ -72,6 +72,7 @@ class PreferencesScreen(QWidget):
         layout.setSpacing(SPACE["lg"])
         form.setVerticalSpacing(SPACE["md"])
         form.setHorizontalSpacing(SPACE["lg"])
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         buttons = QHBoxLayout()
         buttons.addWidget(self.save_button)
         buttons.addStretch(1)

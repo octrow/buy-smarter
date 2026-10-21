@@ -4,6 +4,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Fixed
+- **Desktop app started from the app menu** now finds the claude CLI route: it takes PATH from the login shell,
+  so `omniroute` and `node` installed through nvm are visible. The AI health check no longer reports it missing.
+- Settings: health-check rows are in Russian, a failing store names the DATABASE_URL it tried, and the AI hint
+  mentions OmniRoute. Budget fields align with the other inputs; the report and price-history screens explain
+  their empty state; the search form labels its AI and marketplace checkboxes.
+
 ## [0.3.0] - 2026-10-21
 
 ### Added

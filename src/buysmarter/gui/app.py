@@ -1,6 +1,8 @@
 """Desktop app entry point: the QApplication and the main window."""
 
 import logging
+import os
+import subprocess
 import sys
 from collections.abc import Callable, Mapping
 from types import TracebackType
@@ -35,6 +37,32 @@ _TITLE = "buy-smarter"
 DESKTOP_ENTRY = "buysmarter"  # packaging/linux/buysmarter.desktop
 _MIN_SIZE = (960, 640)
 _SIDEBAR_WIDTH = 180
+_SHELL_TIMEOUT_S = 5
+
+
+def inherit_login_path() -> None:
+    """Take PATH from the user's login shell when launched from the app menu, not a terminal.
+
+    A desktop launch gets the session PATH, which misses what shell rc files add (nvm's node,
+    OmniRoute), so the claude-CLI route looks absent; a terminal launch already has it.
+    """
+    shell = os.environ.get("SHELL")
+    if sys.platform == "win32" or not shell or (sys.stdin is not None and sys.stdin.isatty()):
+        return
+    try:
+        out = subprocess.run(
+            [shell, "-ilc", 'printf "\\n%s" "$PATH"'],
+            capture_output=True,
+            text=True,
+            timeout=_SHELL_TIMEOUT_S,
+            stdin=subprocess.DEVNULL,
+            check=True,
+        ).stdout
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("Login shell PATH not read (%r); keeping the session PATH", exc)
+        return
+    if path := out.strip().rsplit("\n", 1)[-1]:  # the last line: rc files may print banners
+        os.environ["PATH"] = path
 
 
 class MainWindow(QMainWindow):
@@ -152,5 +180,6 @@ def main() -> int:
     """``buysmarter-gui``: the same start-up as the CLI (logging, local store), then the window."""
     setup_logging()
     new_run_id()
+    inherit_login_path()
     local_store.prepare()
     return run()

@@ -57,7 +57,7 @@ def _storage_check(url: str) -> Check:
         return Check("Storage", ok, hint, f"SQLite {path}")
     location = parsed.render_as_string(hide_password=True)
     hint = (
-        f"{off}; check DATABASE_URL (unset it for the default SQLite store), "
+        f"{off}; check DATABASE_URL={location} (unset it for the default SQLite store), "
         "install its driver (`buysmarter[server]`) and run `alembic upgrade head`"
     )
     return Check("Storage", asyncio.run(schema_is_current(url)), hint, location)
@@ -68,7 +68,7 @@ def llm_check() -> Check:
     route = current_route(get_settings())
     hint = (
         "LLM parsing and review summaries off; run `buysmarter llm set-key <provider>`, "
-        "set an env key such as OPENAI_API_KEY, or install Claude Code"
+        "set an env key such as OPENAI_API_KEY, or install Claude Code and OmniRoute"
     )
     return Check("LLM", route is not None, hint, route_label(route) if route else "")
 

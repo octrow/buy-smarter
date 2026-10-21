@@ -1,5 +1,8 @@
 """The desktop app starts and exits headless."""
 
+import os
+import subprocess
+
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
@@ -26,10 +29,23 @@ def test_main_prepares_logging_and_the_store_before_the_window(monkeypatch):
     calls = []
     monkeypatch.setattr(gui_app, "setup_logging", lambda: calls.append("logging"))
     monkeypatch.setattr(gui_app, "new_run_id", lambda: calls.append("run id"))
+    monkeypatch.setattr(gui_app, "inherit_login_path", lambda: calls.append("path"))
     monkeypatch.setattr(gui_app.local_store, "prepare", lambda: calls.append("store"))
     monkeypatch.setattr(gui_app, "run", lambda: calls.append("window") or 0)
     assert gui_app.main() == 0
-    assert calls == ["logging", "run id", "store", "window"]
+    assert calls == ["logging", "run id", "path", "store", "window"]
+
+
+def test_a_menu_launch_takes_path_from_the_login_shell_past_rc_banners(monkeypatch):
+    def shell(cmd, **_kw):
+        return subprocess.CompletedProcess(cmd, 0, stdout="Welcome!\n/nvm/bin:/usr/bin\n")
+
+    monkeypatch.setenv("SHELL", "/bin/zsh")
+    monkeypatch.setenv("PATH", "/usr/bin")
+    monkeypatch.setattr(gui_app.sys, "stdin", None)
+    monkeypatch.setattr(gui_app.subprocess, "run", shell)
+    gui_app.inherit_login_path()
+    assert os.environ["PATH"] == "/nvm/bin:/usr/bin"
 
 
 def test_window_prefills_search_from_saved_prefs_and_opens_the_report(
