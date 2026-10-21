@@ -38,30 +38,41 @@ async def pass_ozon_check() -> bool:
 
 
 class Check(NamedTuple):
-    """One ``doctor`` row: ``hint`` says what to do when it fails, ``detail`` is shown when ok."""
+    """One ``doctor`` row: ``hint`` says what to do when it fails, ``detail`` is shown when ok.
+
+    ``hint`` is for the terminal; ``app_hint`` says the same in Russian for the desktop app, with
+    what to click there instead of a command to type.
+    """
 
     name: str
     ok: bool
     hint: str
     detail: str = ""
+    app_hint: str = ""
 
 
 def _storage_check(url: str) -> Check:
     """Which store is in use and where; failing when it cannot be opened (or, SQLite, written)."""
     parsed = make_url(url)
     off = "history, preferences and learned categories off"
+    app_off = "История цен, настройки поиска и выученные категории выключены"
     if parsed.get_backend_name() == "sqlite":
         path = Path(parsed.database or "")
         target = path if path.exists() else path.parent
         ok = os.access(target, os.W_OK) and asyncio.run(schema_is_current(url))
         hint = f"{off}; {path} is not writable or its schema is not current (see the log)"
-        return Check(STORAGE, ok, hint, f"SQLite {path}")
+        app_hint = f"{app_off}: не удалось открыть файл {path} (подробности в логе)."
+        return Check(STORAGE, ok, hint, f"SQLite {path}", app_hint)
     location = parsed.render_as_string(hide_password=True)
     hint = (
         f"{off}; check DATABASE_URL={location} (unset it for the default SQLite store), "
         "install its driver (`buysmarter[server]`) and run `alembic upgrade head`"
     )
-    return Check(STORAGE, asyncio.run(schema_is_current(url)), hint, location)
+    app_hint = (
+        f"{app_off}: в ~/.config/buysmarter/.env задан DATABASE_URL на сервер базы данных. "
+        "Уберите эту строку, и данные будут храниться на этом компьютере."
+    )
+    return Check(STORAGE, asyncio.run(schema_is_current(url)), hint, location, app_hint)
 
 
 def llm_check() -> Check:
@@ -71,7 +82,12 @@ def llm_check() -> Check:
         "LLM parsing and review summaries off; run `buysmarter llm set-key <provider>`, "
         "set an env key such as OPENAI_API_KEY, or install Claude Code and OmniRoute"
     )
-    return Check("LLM", route is not None, hint, route_label(route) if route else "")
+    app_hint = (
+        "Без AI запрос разбирается по ключевым словам, без сводки отзывов. "
+        "Добавьте ключ в блоке «AI-ключ» ниже."
+    )
+    detail = route_label(route) if route else ""
+    return Check("LLM", route is not None, hint, detail, app_hint)
 
 
 def ozon_browser_check() -> Check:
@@ -80,8 +96,10 @@ def ozon_browser_check() -> Check:
         return Check(OZON_BROWSER, True, "", LABELS[browser])
     if ozon_browser.launches(CHROME):  # headless Chrome passes Variti only with a saved session
         hint = "Ozon off until set up; run `buysmarter ozon-setup` (opens Google Chrome once)"
-        return Check(OZON_BROWSER, False, hint)
-    return Check(OZON_BROWSER, False, f"Ozon off; {INSTALL_BROWSER}")
+        app_hint = "Ozon выключен до первой проверки: нажмите «Пройти проверку Ozon» ниже."
+        return Check(OZON_BROWSER, False, hint, app_hint=app_hint)
+    app_hint = "Ozon выключен: установите Google Chrome (google.com/chrome) и проверьте снова."
+    return Check(OZON_BROWSER, False, f"Ozon off; {INSTALL_BROWSER}", app_hint=app_hint)
 
 
 def doctor_checks() -> list[Check]:
@@ -94,5 +112,6 @@ def doctor_checks() -> list[Check]:
             "Ozon session",
             ozon_state_path().exists(),
             "Ozon may hit the anti-bot page; run `buysmarter ozon-setup`",
+            app_hint="Ozon может показать антибот-страницу: нажмите «Пройти проверку Ozon» ниже.",
         ),
     ]

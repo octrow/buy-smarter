@@ -32,6 +32,15 @@ def test_rows_show_detail_when_ok_and_the_hint_when_missing(qtbot, runner):
     }
 
 
+def test_a_failing_row_shows_its_in_app_hint_when_it_has_one(qtbot, runner):
+    checks = [Check("LLM", False, "run `buysmarter llm set-key`", app_hint="Добавьте ключ ниже")]
+    screen = SettingsScreen(runner, checks=lambda: checks)
+    qtbot.addWidget(screen)
+    with qtbot.waitSignal(screen.checks_ready, timeout=WAIT_MS):
+        screen.recheck()
+    assert screen.row_texts()["LLM"] == ("нет", "Добавьте ключ ниже")
+
+
 def test_missing_ozon_browser_turns_ozon_off_in_search(qtbot, runner, monkeypatch):
     monkeypatch.setattr(doctor, "doctor_checks", lambda: _NO_BROWSER)
     window = gui_app.MainWindow(runner)

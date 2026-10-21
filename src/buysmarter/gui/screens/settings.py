@@ -55,7 +55,11 @@ async def _clear_key(provider: str) -> str:
 def unavailable_sources(checks: list[Check]) -> dict[str, str]:
     """Marketplaces a failing check turns off, with that check's hint."""
     browser = next((c for c in checks if c.name == OZON_BROWSER), None)
-    return {"ozon": browser.hint} if browser is not None and not browser.ok else {}
+    return {"ozon": _hint(browser)} if browser is not None and not browser.ok else {}
+
+
+def _hint(check: Check) -> str:
+    return check.app_hint or check.hint
 
 
 def store_available(checks: list[Check]) -> bool:
@@ -205,7 +209,7 @@ class SettingsScreen(QWidget):
             labels = (
                 QLabel(CHECK_LABELS.get(check.name, check.name)),
                 status,
-                QLabel(check.detail if check.ok else check.hint, wordWrap=True),
+                QLabel(check.detail if check.ok else _hint(check), wordWrap=True),
             )
             for col, label in enumerate(labels):
                 self.rows.addWidget(label, row, col, Qt.AlignmentFlag.AlignTop)

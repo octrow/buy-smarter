@@ -98,3 +98,24 @@ def test_ozon_setup_command_without_a_browser_says_what_to_install():
 
 async def _done(value):
     return value
+
+
+def test_failing_checks_carry_a_russian_hint_that_points_inside_the_app(monkeypatch):
+    monkeypatch.setattr(doctor, "schema_is_current", lambda url: _done(False))
+    _installed(monkeypatch, CHROME)
+    hints = {c.name: c.app_hint for c in doctor.doctor_checks() if not c.ok}
+    assert "«Пройти проверку Ozon»" in hints[doctor.OZON_BROWSER]
+    assert "«Пройти проверку Ozon»" in hints["Ozon session"]
+    assert "«AI-ключ»" in hints["LLM"]
+    assert "История" in hints[doctor.STORAGE]
+    assert not any("`" in hint for hint in hints.values())  # no commands to type
+
+
+def test_no_browser_app_hint_asks_for_google_chrome():
+    assert "Google Chrome" in doctor.ozon_browser_check().app_hint
+
+
+def test_a_server_database_url_app_hint_names_the_settings_file(monkeypatch):
+    monkeypatch.setattr(doctor, "schema_is_current", lambda url: _done(False))
+    check = doctor._storage_check("postgresql+asyncpg://u:p@127.0.0.1:5434/x")
+    assert ".env" in check.app_hint and "DATABASE_URL" in check.app_hint
