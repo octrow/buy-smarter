@@ -127,3 +127,17 @@ def test_shutdown_cancels_running_work_and_joins_the_thread(qapp):
     assert not runner._thread.is_alive()
     assert cleaned == [True]
     runner.shutdown()  # idempotent
+
+
+def test_busy_until_every_job_has_settled(qtbot, runner):
+    release = threading.Event()
+
+    async def waits():
+        await asyncio.to_thread(release.wait)
+
+    assert not runner.busy()
+    job = runner.submit(waits())
+    assert runner.busy()
+    with qtbot.waitSignal(job.finished, timeout=_WAIT_MS):
+        release.set()
+    assert not runner.busy()

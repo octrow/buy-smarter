@@ -72,3 +72,10 @@ def test_the_app_restyles_when_the_os_switches_between_light_and_dark(qapp):
         assert theme.LIGHT["window"] in qapp.styleSheet()
     finally:
         qapp.setStyleSheet("")
+
+
+def test_the_check_icon_url_survives_spaces_and_backslashes_in_the_install_path():
+    qss = theme.build_qss(theme.LIGHT)
+    url = qss.split("image: url(", 1)[1].split(")", 1)[0]
+    assert url.startswith('"') and url.endswith('check-light.svg"')
+    assert "\\" not in url

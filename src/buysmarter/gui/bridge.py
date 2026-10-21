@@ -115,6 +115,10 @@ class CoreRunner(QObject):
         future.add_done_callback(lambda fut: self._settled.emit(job_id, fut))
         return job
 
+    def busy(self) -> bool:
+        """True while a submitted job has not yet delivered its result to the GUI thread."""
+        return bool(self._jobs)
+
     @Slot(int, object)
     def _deliver(self, job_id: int, future: concurrent.futures.Future[Any]) -> None:
         self._jobs.pop(job_id)._deliver(future)

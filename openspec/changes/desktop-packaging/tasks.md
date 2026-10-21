@@ -2,8 +2,9 @@
 
 ## 1. Build
 
-- [ ] 1.1 `--self-test` in the GUI app (offscreen, temp store, in-memory keyring, migrate, build window, exit code); test runs it from source and asserts exit 0
-- [ ] 1.2 `packaging/buysmarter-gui.spec` (one-dir, hidden imports and data, Qt module excludes); verify a local Linux build's `--self-test` exits 0 and log the bundle size
+- [x] 1.1 `--self-test` in the GUI app (offscreen, temp store, in-memory keyring, migrate, build window, exit code); test runs it from source and asserts exit 0
+- [x] 1.2 `packaging/buysmarter-gui.spec` (one-dir, hidden imports and data, Qt module excludes); verify a local Linux build's `--self-test` exits 0 and log the bundle size
+  - 2026-10-21: local Linux build passes `--self-test`; 384 MB unpacked, ~150 MB as `.tar.gz` (Playwright's Node driver 123 MB, PySide6 ~100 MB).
 
 ## 2. CI
 
