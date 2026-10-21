@@ -27,3 +27,6 @@ logs/
 # Generated reports
 reports/
 .coverage
+
+# Local GUI review screenshots
+docs/review/
