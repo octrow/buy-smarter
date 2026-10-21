@@ -10,6 +10,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Settings: health-check rows are in Russian, a failing store names the DATABASE_URL it tried, and the AI hint
   mentions OmniRoute. Budget fields align with the other inputs; the report and price-history screens explain
   their empty state; the search form labels its AI and marketplace checkboxes.
+- Desktop app: with the store off, «Настройки поиска» and «История цен» say so up front instead of failing on
+  use. Settings rows align to the top of a long hint, and the AI-key panel says a key is optional with the claude
+  CLI.
 
 ## [0.3.0] - 2026-10-21
 

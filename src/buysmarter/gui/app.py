@@ -25,10 +25,11 @@ from buysmarter.gui.screens.history import HistoryScreen
 from buysmarter.gui.screens.preferences import PreferencesScreen
 from buysmarter.gui.screens.report import ReportScreen
 from buysmarter.gui.screens.search import SearchRun, SearchScreen
-from buysmarter.gui.screens.settings import SettingsScreen, unavailable_sources
+from buysmarter.gui.screens.settings import SettingsScreen, store_available, unavailable_sources
 from buysmarter.gui.theme import ICON, apply_theme
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.memory import prefs
+from buysmarter.services.doctor import Check
 from buysmarter.services.recommend import RecommendResult
 
 logger = logging.getLogger(__name__)
@@ -78,9 +79,7 @@ class MainWindow(QMainWindow):
         self.preferences = PreferencesScreen(runner)
         self.history = HistoryScreen(runner)
         self.settings = SettingsScreen(runner)
-        self.settings.checks_ready.connect(
-            lambda checks: self.search.set_unavailable(unavailable_sources(checks))
-        )
+        self.settings.checks_ready.connect(self._apply_checks)
         self.search.report_ready.connect(self._show_report)
         self.preferences.saved.connect(self.search.apply_prefs)
 
@@ -110,6 +109,12 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         self._load_prefs()
         self.settings.recheck()
+
+    def _apply_checks(self, checks: list[Check]) -> None:
+        self.search.set_unavailable(unavailable_sources(checks))
+        store_off = not store_available(checks)
+        self.preferences.store_warning.setVisible(store_off)
+        self.history.store_warning.setVisible(store_off)
 
     def _load_prefs(self) -> None:
         job = self.runner.submit(prefs.get_all())

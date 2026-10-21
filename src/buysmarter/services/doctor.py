@@ -17,6 +17,7 @@ from buysmarter.services import ozon_browser
 from buysmarter.services.ozon_browser import CHROME, LABELS, channel, search_browser, setup_browser
 
 OZON_BROWSER = "Ozon browser"  # the row whose failure turns Ozon off
+STORAGE = "Storage"  # the row whose failure turns history and preferences off
 _OZON_SETUP_PROBE_QUERY = "смартфон"
 INSTALL_BROWSER = (
     "install Google Chrome (https://www.google.com/chrome/), "
@@ -54,13 +55,13 @@ def _storage_check(url: str) -> Check:
         target = path if path.exists() else path.parent
         ok = os.access(target, os.W_OK) and asyncio.run(schema_is_current(url))
         hint = f"{off}; {path} is not writable or its schema is not current (see the log)"
-        return Check("Storage", ok, hint, f"SQLite {path}")
+        return Check(STORAGE, ok, hint, f"SQLite {path}")
     location = parsed.render_as_string(hide_password=True)
     hint = (
         f"{off}; check DATABASE_URL={location} (unset it for the default SQLite store), "
         "install its driver (`buysmarter[server]`) and run `alembic upgrade head`"
     )
-    return Check("Storage", asyncio.run(schema_is_current(url)), hint, location)
+    return Check(STORAGE, asyncio.run(schema_is_current(url)), hint, location)
 
 
 def llm_check() -> Check:

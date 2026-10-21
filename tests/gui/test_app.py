@@ -119,3 +119,15 @@ def test_run_names_the_desktop_entry_and_sets_the_app_icon(qapp, monkeypatch):
     # Wayland docks match the window to buysmarter.desktop (the .deb's menu entry) by this name.
     assert QApplication.desktopFileName() == "buysmarter"
     assert not QApplication.windowIcon().isNull()
+
+
+def test_a_failing_store_check_warns_on_the_screens_that_need_the_store(qtbot, runner):
+    window = gui_app.MainWindow(runner)
+    qtbot.addWidget(window)
+    with qtbot.waitSignal(window.settings.checks_ready, timeout=WAIT_MS):
+        pass  # the start-up checks (healthy) land before the ones below
+    pages = (window.preferences, window.history)
+    window._apply_checks([gui_app.Check("Storage", False, "start Postgres")])
+    assert all(not page.store_warning.isHidden() for page in pages)
+    window._apply_checks([gui_app.Check("Storage", True, "", "SQLite x.db")])
+    assert all(page.store_warning.isHidden() for page in pages)

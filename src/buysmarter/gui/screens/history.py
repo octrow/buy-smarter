@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter.gui.bridge import CoreRunner, Job
+from buysmarter.gui.prefs_fields import store_warning
 from buysmarter.gui.progress import Progress
 from buysmarter.gui.screens.report import text_table
 from buysmarter.gui.theme import SPACE, set_state
@@ -73,6 +74,7 @@ class HistoryScreen(QWidget):
         self.cancel_button.setEnabled(False)
         self.cancel_button.clicked.connect(self.cancel_refresh)
         self.status = QLabel(wordWrap=True)
+        self.store_warning = store_warning()
         set_state(self.status, "role", "muted")
         self.status.setText(
             "Введите название товара, чтобы увидеть, как менялась его цена. "
@@ -91,6 +93,7 @@ class HistoryScreen(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(SPACE["xl"], SPACE["xl"], SPACE["xl"], SPACE["xl"])
         layout.setSpacing(SPACE["md"])
+        layout.addWidget(self.store_warning)
         layout.addLayout(search_row)
         layout.addLayout(refresh_row)
         layout.addWidget(self.status)

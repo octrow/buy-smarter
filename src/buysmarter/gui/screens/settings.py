@@ -5,7 +5,7 @@ import threading
 from collections.abc import Callable, Coroutine, Mapping
 from typing import Any
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QGridLayout,
@@ -22,11 +22,11 @@ from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.theme import SPACE, set_state
 from buysmarter.llm import keys
 from buysmarter.services import doctor
-from buysmarter.services.doctor import OZON_BROWSER, Check
+from buysmarter.services.doctor import OZON_BROWSER, STORAGE, Check
 
 _CHECKS_LOCK = threading.Lock()
 CHECK_LABELS = {
-    "Storage": "Хранилище",
+    STORAGE: "Хранилище",
     "LLM": "AI",
     OZON_BROWSER: "Браузер Ozon",
     "Ozon session": "Сессия Ozon",
@@ -56,6 +56,11 @@ def unavailable_sources(checks: list[Check]) -> dict[str, str]:
     """Marketplaces a failing check turns off, with that check's hint."""
     browser = next((c for c in checks if c.name == OZON_BROWSER), None)
     return {"ozon": browser.hint} if browser is not None and not browser.ok else {}
+
+
+def store_available(checks: list[Check]) -> bool:
+    """False only when the storage check ran and failed."""
+    return all(c.ok for c in checks if c.name == STORAGE)
 
 
 class SettingsScreen(QWidget):
@@ -125,7 +130,9 @@ class SettingsScreen(QWidget):
         self.clear_button = QPushButton("Удалить ключ")
         self.clear_button.clicked.connect(self.clear_key)
         self.key_message = QLabel(
-            "Ключ хранится в системном хранилище паролей и больше не показывается.", wordWrap=True
+            "Нужен, только если AI работает не через claude CLI. Ключ хранится в системном "
+            "хранилище паролей и больше не показывается.",
+            wordWrap=True,
         )
         row = QHBoxLayout()
         for widget in (self.provider, self.key_input, self.save_button, self.clear_button):
@@ -201,7 +208,7 @@ class SettingsScreen(QWidget):
                 QLabel(check.detail if check.ok else check.hint, wordWrap=True),
             )
             for col, label in enumerate(labels):
-                self.rows.addWidget(label, row, col)
+                self.rows.addWidget(label, row, col, Qt.AlignmentFlag.AlignTop)
             self._row_labels[check.name] = labels
         self.rows.setColumnStretch(2, 1)
         self.checks_ready.emit(checks)

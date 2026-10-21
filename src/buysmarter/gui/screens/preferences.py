@@ -25,6 +25,7 @@ from buysmarter.gui.prefs_fields import (
     budget_box,
     check_sources,
     source_boxes,
+    store_warning,
 )
 from buysmarter.gui.theme import SPACE, set_state
 from buysmarter.memory import prefs
@@ -52,6 +53,7 @@ class PreferencesScreen(QWidget):
         self.sources = source_boxes()
         self.excluded = QLineEdit(placeholderText="через запятую, например: Noname, Generic")
         self.message = QLabel(wordWrap=True)
+        self.store_warning = store_warning()
         self.save_button = QPushButton("Сохранить", default=True)
         set_state(self.save_button, "primary", "true")
         set_state(self.message, "role", "muted")
@@ -76,6 +78,7 @@ class PreferencesScreen(QWidget):
         buttons = QHBoxLayout()
         buttons.addWidget(self.save_button)
         buttons.addStretch(1)
+        layout.addWidget(self.store_warning)
         layout.addLayout(form)
         layout.addLayout(buttons)
         layout.addWidget(self.message)

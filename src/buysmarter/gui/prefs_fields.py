@@ -3,9 +3,9 @@
 from typing import Any
 
 from PySide6.QtCore import QLocale
-from PySide6.QtWidgets import QCheckBox, QSpinBox
+from PySide6.QtWidgets import QCheckBox, QLabel, QSpinBox
 
-from buysmarter.gui.theme import SPACE
+from buysmarter.gui.theme import SPACE, set_state
 from buysmarter.services.collect import ALL_SOURCES
 
 CITY = "city"  # the core reads this one too (services.recommend.resolve_city)
@@ -16,6 +16,10 @@ EXCLUDED_BRANDS = "excluded_brands"
 SOURCE_LABELS = {"kaspi": "Kaspi", "ozon": "Ozon", "olx": "OLX"}
 BUDGET_MAX = 100_000_000
 _BUDGET_STEP = 1_000
+STORE_OFF = (
+    "Хранилище выключено: настройки не сохранятся, истории цен нет. "
+    "Причина — на экране «Настройки»."
+)
 
 
 def as_list(value: Any) -> list[str]:
@@ -40,6 +44,14 @@ def budget_box() -> QSpinBox:
     # QSS horizontal padding does not reach a spin box's text: inset it like a QLineEdit's.
     box.lineEdit().setTextMargins(SPACE["sm"], 0, SPACE["sm"], 0)
     return box
+
+
+def store_warning() -> QLabel:
+    """Hidden until the health checks find the store off (``setVisible(True)``)."""
+    label = QLabel(STORE_OFF, wordWrap=True)
+    set_state(label, "state", "warning")
+    label.hide()
+    return label
 
 
 def checked_box(text: str) -> QCheckBox:
