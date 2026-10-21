@@ -8,15 +8,19 @@ from collections.abc import Callable, Mapping
 from types import TracebackType
 from typing import Any, cast
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QCloseEvent, QFont, QGuiApplication, QIcon
 from PySide6.QtWidgets import (
     QApplication,
+    QFrame,
     QHBoxLayout,
+    QLabel,
     QListWidget,
+    QListWidgetItem,
     QMainWindow,
     QMessageBox,
     QStackedWidget,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -29,7 +33,15 @@ from buysmarter.gui.screens.report import ReportScreen
 from buysmarter.gui.screens.saved import SavedScreen
 from buysmarter.gui.screens.search import SearchRun, SearchScreen
 from buysmarter.gui.screens.settings import SettingsScreen, store_available, unavailable_sources
-from buysmarter.gui.theme import CONTENT_MAX_WIDTH, ICON, apply_theme
+from buysmarter.gui.theme import (
+    CONTENT_MAX_WIDTH,
+    FONT_FAMILY,
+    ICON,
+    SPACE,
+    TYPE,
+    apply_theme,
+    icon,
+)
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.memory import prefs
 from buysmarter.services.doctor import Check
@@ -40,8 +52,15 @@ logger = logging.getLogger(__name__)
 _TITLE = "buy-smarter"
 DESKTOP_ENTRY = "buysmarter"  # packaging/linux/buysmarter.desktop
 _MIN_SIZE = (960, 640)
-_SIDEBAR_WIDTH = 200
+_SIDEBAR_WIDTH = 220
+_NAV_ICON_PX = 18
+_LOGO_ICON = "mdi6.cart-check"
+_LOGO_PX = 24
+_HEADER_TRACKING_PX = 0.6
+_SCREEN_ROLE = Qt.ItemDataRole.UserRole  # a nav item's index in the screen stack
+_ICON_ROLE = Qt.ItemDataRole.UserRole + 1  # its icon name, to re-draw on a scheme change
 _SHELL_TIMEOUT_S = 5
+_CLOSE_WHILE_SEARCHING = "Поиск ещё идёт. Закрыть приложение и остановить его?"
 
 
 def inherit_login_path() -> None:
@@ -89,37 +108,48 @@ class MainWindow(QMainWindow):
         self.report.rerun_requested.connect(self._rerun)
         self.preferences.saved.connect(self.search.apply_prefs)
 
-        self.sidebar = QListWidget()
-        self.sidebar.setObjectName("sidebar")
-        self.sidebar.setFixedWidth(_SIDEBAR_WIDTH)
-        # A long or bold item must elide, never grow a scroll bar under the navigation.
-        self.sidebar.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.sidebar.setTextElideMode(Qt.TextElideMode.ElideRight)
         self.stack = QStackedWidget()
-        screens = (
-            ("Поиск", self.search),
-            ("Отчёт", self.report),
-            ("Прошлые поиски", self.saved),
-            ("Настройки поиска", self.preferences),
-            ("История цен", self.history),
-            ("Состояние и ключи", self.settings),
-        )
-        for title, screen in screens:
-            self.sidebar.addItem(title)
-            # The report caps its own page, inside its scroll area; the others are capped here.
-            self.stack.addWidget(screen if screen is self.report else _centered(screen))
-        self.sidebar.currentRowChanged.connect(self.stack.setCurrentIndex)
-        self.sidebar.setCurrentRow(0)
+        self.sidebar = QListWidget()
+        for header, entries in self._nav_groups():
+            self.sidebar.addItem(_nav_header(header))
+            for title, icon_name, screen in entries:
+                # The report caps its own page, inside its scroll area; the others are capped here.
+                index = self.stack.addWidget(screen if screen is self.report else _centered(screen))
+                self.sidebar.addItem(_nav_item(title, icon_name, index))
+        self.sidebar.currentItemChanged.connect(self._open_nav_item)
+        self._show_screen(self.search)
+        QGuiApplication.styleHints().colorSchemeChanged.connect(self._paint_nav_icons)
 
         central = QWidget()
         layout = QHBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(self.sidebar)
+        layout.addWidget(_side_panel(self.sidebar))
         layout.addWidget(self.stack, 1)
         self.setCentralWidget(central)
         self._load_prefs()
         self.settings.recheck()
+
+    def _nav_groups(self) -> tuple[tuple[str, tuple[tuple[str, str, QWidget], ...]], ...]:
+        """The sidebar: (group, ((title, icon, screen), ...)), in display order."""
+        return (
+            (
+                "Покупки",
+                (
+                    ("Поиск", "mdi6.magnify", self.search),
+                    ("Отчёт", "mdi6.file-document-outline", self.report),
+                    ("Прошлые поиски", "mdi6.history", self.saved),
+                    ("История цен", "mdi6.chart-line", self.history),
+                ),
+            ),
+            (
+                "Сервис",
+                (
+                    ("Настройки поиска", "mdi6.tune-variant", self.preferences),
+                    ("Состояние и ключи", "mdi6.key-outline", self.settings),
+                ),
+            ),
+        )
 
     def _apply_checks(self, checks: list[Check]) -> None:
         self.search.set_unavailable(unavailable_sources(checks))
@@ -156,12 +186,94 @@ class MainWindow(QMainWindow):
 
     def _show_screen(self, screen: QWidget) -> None:
         holder = screen if screen is self.report else (screen.parentWidget() or screen)
-        self.sidebar.setCurrentRow(self.stack.indexOf(holder))
+        index = self.stack.indexOf(holder)
+        for row in range(self.sidebar.count()):
+            if self.sidebar.item(row).data(_SCREEN_ROLE) == index:
+                self.sidebar.setCurrentRow(row)
+                return
+
+    def _open_nav_item(self, item: QListWidgetItem | None) -> None:
+        if item is not None:
+            self.stack.setCurrentIndex(item.data(_SCREEN_ROLE))
+
+    def _paint_nav_icons(self) -> None:
+        """Re-draw the nav icons in the new scheme's colors (the QSS re-applies on its own)."""
+        for row in range(self.sidebar.count()):
+            item = self.sidebar.item(row)
+            if name := item.data(_ICON_ROLE):
+                item.setIcon(icon(name))
+
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802 - Qt override
+        """Ask before closing over a running search; ``run`` then cancels it on shutdown."""
+        if self.search.is_running():
+            answer = QMessageBox.question(
+                self,
+                _TITLE,
+                _CLOSE_WHILE_SEARCHING,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                event.ignore()
+                return
+        event.accept()
 
     def _rerun(self) -> None:
         """Search again with the form as it was (after learning the category)."""
         self._show_screen(self.search)
         self.search.start()
+
+
+def _nav_header(title: str) -> QListWidgetItem:
+    item = QListWidgetItem(title.upper())
+    item.setFlags(Qt.ItemFlag.NoItemFlags)  # a group label: neither selectable nor focusable
+    font = QFont(FONT_FAMILY)  # the QSS cannot size one item of a list
+    font.setPixelSize(TYPE["caption"])
+    font.setWeight(QFont.Weight.DemiBold)
+    font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, _HEADER_TRACKING_PX)
+    item.setFont(font)
+    return item
+
+
+def _nav_item(title: str, icon_name: str, screen_index: int) -> QListWidgetItem:
+    item = QListWidgetItem(icon(icon_name), title)
+    item.setData(_SCREEN_ROLE, screen_index)
+    item.setData(_ICON_ROLE, icon_name)
+    return item
+
+
+def _side_panel(nav: QListWidget) -> QFrame:
+    """The app's name above the navigation, on the sidebar tone."""
+    nav.setObjectName("sidebar")
+    nav.setIconSize(QSize(_NAV_ICON_PX, _NAV_ICON_PX))
+    # A long or bold item must elide, never grow a scroll bar under the navigation.
+    nav.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+    nav.setTextElideMode(Qt.TextElideMode.ElideRight)
+    panel = QFrame()
+    panel.setObjectName("side")
+    panel.setFixedWidth(_SIDEBAR_WIDTH)
+    layout = QVBoxLayout(panel)
+    layout.setContentsMargins(0, SPACE["lg"], 0, SPACE["lg"])
+    layout.setSpacing(0)
+    layout.addLayout(_brand_row())
+    layout.addWidget(nav, 1)
+    return panel
+
+
+def _brand_row() -> QHBoxLayout:
+    logo = QLabel()
+    logo.setPixmap(icon(_LOGO_ICON, "accent").pixmap(_LOGO_PX, _LOGO_PX))
+    row = QHBoxLayout()
+    row.setContentsMargins(SPACE["lg"], 0, SPACE["lg"], SPACE["sm"])
+    row.setSpacing(SPACE["sm"])
+    row.addWidget(logo)
+    row.addWidget(_named(QLabel(_TITLE), "brand"), 1)
+    return row
+
+
+def _named[W: QWidget](widget: W, name: str) -> W:
+    widget.setObjectName(name)
+    return widget
 
 
 def _centered(screen: QWidget) -> QWidget:

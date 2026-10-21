@@ -280,3 +280,49 @@ def test_a_finished_search_shows_what_each_marketplace_brought(qtbot, runner, re
     assert screen.status["kaspi"].text() == f"{STATE_LABELS['done']} · 2"
     assert screen.message.text() == "Найдено предложений: 3, б/у на OLX: 1."
     assert not screen.report_button.isHidden()
+
+
+def _reports(*names):
+    from pathlib import Path
+
+    return lambda: [Path(f"/r/{n}.md") for n in names]
+
+
+def test_recent_searches_show_the_latest_distinct_queries(qtbot, runner):
+    screen = SearchScreen(
+        runner,
+        list_reports=_reports(
+            "20261022-023500-мужские-кроссовки",
+            "20261022-023200-мужские-кроссовки",
+            "20261021-203800-смартфон-до-200000",
+            "20261019-184300-гитара-до-30000",
+            "20261013-172500-iphone-13",
+        ),
+    )
+    qtbot.addWidget(screen)
+    screen.refresh_recent()
+    assert screen.recent_queries() == ["мужские кроссовки", "смартфон до 200000", "гитара до 30000"]
+    assert screen.recent_box.isVisibleTo(screen)
+
+
+def test_no_saved_searches_hides_the_recent_block(qtbot, runner):
+    screen = SearchScreen(runner, list_reports=_reports())
+    qtbot.addWidget(screen)
+    screen.refresh_recent()
+    assert screen.recent_queries() == []
+    assert not screen.recent_box.isVisibleTo(screen)
+
+
+def test_repeat_fills_the_query_and_starts_the_search(qtbot, runner, result):
+    calls = []
+    screen = SearchScreen(
+        runner,
+        recommend=_stub_recommend(result, calls),
+        list_reports=_reports("20261021-203800-смартфон-до-200000"),
+    )
+    qtbot.addWidget(screen)
+    screen.refresh_recent()
+    with qtbot.waitSignal(screen.report_ready, timeout=WAIT_MS):
+        screen.repeat_buttons()[0].click()
+    assert screen.query.text() == "смартфон до 200000"
+    assert calls[0][0] == "смартфон до 200000"

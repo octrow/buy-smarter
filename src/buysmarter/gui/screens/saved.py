@@ -32,13 +32,22 @@ _EMPTY = "Пока нет сохранённых поисков — отчёт �
 type ListReports = Callable[[], list[Path]]
 
 
-def report_label(path: Path) -> str:
-    """``21.10.2026 20:38 — смартфон до 200000 алматы`` from a report's file name."""
+def report_parts(path: Path) -> tuple[str, str]:
+    """``("21.10.2026 20:38", "смартфон до 200000 алматы")`` from a report's file name.
+
+    The query is the file's slug, so it comes back lower-case and without punctuation.
+    """
     m = _NAME.match(path.stem)
     if m is None:
-        return path.stem
+        return "", path.stem
     year, month, day, hour, minute, slug = m.groups()
-    return f"{day}.{month}.{year} {hour}:{minute} — {slug.replace('-', ' ')}"
+    return f"{day}.{month}.{year} {hour}:{minute}", slug.replace("-", " ")
+
+
+def report_label(path: Path) -> str:
+    """``21.10.2026 20:38 — смартфон до 200000 алматы`` from a report's file name."""
+    when, query = report_parts(path)
+    return f"{when} — {query}" if when else query
 
 
 def _report_item(path: Path) -> QListWidgetItem:

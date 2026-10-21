@@ -5,11 +5,16 @@ contrast test checks every text/background pair. The scheme follows the OS and r
 """
 
 import logging
+import os
+from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFontDatabase, QGuiApplication
+from PySide6.QtCore import QObject, Qt, Slot
+from PySide6.QtGui import QFontDatabase, QGuiApplication, QIcon
 from PySide6.QtWidgets import QApplication, QWidget
+
+os.environ.setdefault("QT_API", "pyside6")  # qtawesome loads Qt through qtpy: never another binding
+import qtawesome  # noqa: E402 - needs QT_API first
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +24,14 @@ ICON = _ASSETS / "icon.svg"  # the window, the taskbar and the installers' menu 
 FONT_FAMILY = "Inter Variable"  # the family name InterVariable.ttf registers
 
 # Type: one family, ratio ~1.2 from a 14px body (operate UI: fixed px, not fluid).
-TYPE = {"caption": 12, "body": 14, "subhead": 16, "title": 20, "display": 24}
+TYPE = {"caption": 12, "body": 14, "subhead": 16, "title": 20, "display": 24, "hero": 28}
 # Spacing: a 4px grid.
 SPACE = {"xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24, "xxl": 32}
 RADIUS = 6
+# Field text boxes, sized so a line edit, a combo box and a spin box all come out 36px tall:
+# Fusion adds 3px more frame around a spin box than around a line edit.
+_CONTROL_TEXT_PX = 22
+_SPIN_TEXT_PX = 19
 # Pages stop growing here: on a wide monitor a line of text or a table row stays readable.
 CONTENT_MAX_WIDTH = 1200
 
@@ -90,15 +99,30 @@ QStackedWidget > QWidget {{ background: {p["window"]}; }}
 QScrollArea {{ border: none; }}
 QToolTip {{ background: {p["surface"]}; color: {p["text"]}; border: 1px solid {p["border"]}; padding: {s["xs"]}px {s["sm"]}px; }}
 
-QListWidget#sidebar {{ background: {p["sidebar"]}; border: none; border-right: 1px solid {p["border"]}; padding: {s["md"]}px {s["sm"]}px; outline: 0; }}
+QFrame#side {{ background: {p["sidebar"]}; border: none; border-right: 1px solid {p["border"]}; }}
+QFrame#side QLabel {{ background: transparent; }}
+QLabel#brand {{ font-size: {t["subhead"]}px; font-weight: 700; }}
+QListWidget#sidebar {{ background: transparent; border: none; padding: 0 {s["sm"]}px; outline: 0; }}
 QListWidget#sidebar::item {{ padding: {s["sm"]}px {s["md"]}px; border-radius: {r}px; color: {p["text_muted"]}; margin-bottom: 2px; }}
 QListWidget#sidebar::item:hover {{ background: {p["border"]}; color: {p["text"]}; }}
 QListWidget#sidebar::item:selected {{ background: {p["accent_soft"]}; color: {p["text"]}; font-weight: 600; }}
+QListWidget#sidebar::item:disabled {{ background: transparent; color: {p["text_muted"]}; font-size: {t["caption"]}px; font-weight: 600; padding: {s["lg"]}px {s["md"]}px {s["xs"]}px; }}
 
 QGroupBox {{ background: {p["surface"]}; border: 1px solid {p["border"]}; border-radius: {r + 2}px; margin-top: {s["xl"]}px; padding: {s["lg"]}px {s["lg"]}px {s["md"]}px; }}
 QGroupBox::title {{ subcontrol-origin: margin; subcontrol-position: top left; left: 2px; padding: 0 0 {s["xs"]}px 0; color: {p["text"]}; font-size: {t["subhead"]}px; font-weight: 600; }}
 QGroupBox QLabel, QGroupBox QWidget {{ background: transparent; }}
 
+QLabel#hero {{ font-size: {t["hero"]}px; font-weight: 700; }}
+QLabel#sectionTitle {{ font-size: {t["subhead"]}px; font-weight: 600; }}
+QFrame#card {{ background: {p["surface"]}; border: 1px solid {p["border"]}; border-radius: {r + 4}px; }}
+QFrame#card QLabel, QFrame#card QCheckBox, QFrame#card QWidget#plain {{ background: transparent; }}
+QLineEdit#bigQuery {{ font-size: {t["subhead"]}px; padding: {s["md"]}px; border-radius: {r + 2}px; }}
+QLineEdit#bigQuery:focus {{ padding: {s["md"] - 1}px; }}
+QFrame#recent {{ background: {p["surface"]}; border: 1px solid {p["border"]}; border-radius: {r + 2}px; }}
+QFrame#recent:hover {{ border-color: {p["accent"]}; }}
+QFrame#recent QLabel {{ background: transparent; }}
+QPushButton[flat="true"] {{ background: transparent; border: 1px solid transparent; color: {p["accent"]}; }}
+QPushButton[flat="true"]:hover {{ background: {p["accent_soft"]}; }}
 QLabel[role="muted"] {{ color: {p["text_muted"]}; }}
 QLabel[role="caption"] {{ color: {p["text_muted"]}; font-size: {t["caption"]}px; }}
 QLabel#bestTitle {{ font-size: {t["title"]}px; font-weight: 600; }}
@@ -111,10 +135,11 @@ QLabel[state="skipped"], QLabel[state="waiting"] {{ color: {p["text_muted"]}; }}
 QLabel[state="warning"] {{ color: {p["warning"]}; font-weight: 600; }}
 QLabel[state="error"] {{ color: {p["danger"]}; }}
 
-QLineEdit, QSpinBox, QComboBox {{ background: {p["surface"]}; border: 1px solid {p["border_strong"]}; border-radius: {r}px; padding: {s["sm"] - 2}px {s["sm"]}px; selection-background-color: {p["accent_soft"]}; selection-color: {p["text"]}; min-height: 20px; }}
+QLineEdit, QSpinBox, QComboBox {{ background: {p["surface"]}; border: 1px solid {p["border_strong"]}; border-radius: {r}px; padding: {s["sm"] - 2}px {s["sm"]}px; selection-background-color: {p["accent_soft"]}; selection-color: {p["text"]}; min-height: {_CONTROL_TEXT_PX}px; }}
 QLineEdit:hover, QSpinBox:hover, QComboBox:hover {{ border-color: {p["text_muted"]}; }}
 QLineEdit:focus, QSpinBox:focus, QComboBox:focus {{ border: 2px solid {p["accent"]}; padding: {s["sm"] - 3}px {s["sm"] - 1}px; }}
 QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled {{ color: {p["disabled"]}; background: {p["window"]}; border-color: {p["border"]}; }}
+QSpinBox {{ min-height: {_SPIN_TEXT_PX}px; }}
 QSpinBox::up-button, QSpinBox::down-button {{ width: 0; border: none; }}
 QComboBox QAbstractItemView {{ background: {p["surface"]}; border: 1px solid {p["border"]}; selection-background-color: {p["accent_soft"]}; selection-color: {p["text"]}; outline: 0; }}
 
@@ -168,6 +193,49 @@ QListWidget::item:selected {{ background: {p["accent_soft"]}; color: {p["text"]}
 
 def palette_for(scheme: Qt.ColorScheme) -> dict[str, str]:
     return DARK if scheme == Qt.ColorScheme.Dark else LIGHT
+
+
+def current_palette() -> dict[str, str]:
+    return palette_for(QGuiApplication.styleHints().colorScheme())
+
+
+def icon(name: str, color: str = "text_muted") -> QIcon:
+    """A Material Design icon (``mdi6.*``) in a palette color, accent when selected or hovered.
+
+    Icons are drawn for the current scheme; a widget re-creates them on ``colorSchemeChanged``.
+    """
+    p = current_palette()
+    drawn: QIcon = qtawesome.icon(
+        name,
+        color=p[color],
+        color_active=p["accent"],
+        color_selected=p["accent"],
+        color_disabled=p["disabled"],
+    )
+    return drawn
+
+
+class _IconBinding(QObject):
+    """Keeps one widget's icon in the current scheme's colors; dies with its owner."""
+
+    def __init__(
+        self, owner: QObject, setter: Callable[[QIcon], object], name: str, color: str
+    ) -> None:
+        super().__init__(owner)  # a child: Qt disconnects it when the owner goes
+        self._setter, self._name, self._color = setter, name, color
+        self.repaint()
+        QGuiApplication.styleHints().colorSchemeChanged.connect(self.repaint)
+
+    @Slot()
+    def repaint(self) -> None:
+        self._setter(icon(self._name, self._color))
+
+
+def bind_icon(
+    owner: QObject, setter: Callable[[QIcon], object], name: str, color: str = "text_muted"
+) -> None:
+    """Set ``owner``'s icon through ``setter`` now and again on every OS scheme change."""
+    _IconBinding(owner, setter, name, color)
 
 
 def load_font() -> None:

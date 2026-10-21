@@ -43,7 +43,10 @@ server = [
 
 # The desktop app (ADR 0001): `buysmarter gui`.
 # Essentials: Widgets/Gui/Core only, without WebEngine and the other addons (hundreds of MB).
-gui = ["PySide6-Essentials>=6.8"]
+gui = [
+    "PySide6-Essentials>=6.8",
+    "qtawesome>=1.4.2",
+]
 
 [project.scripts]
 buysmarter = "buysmarter.cli.main:app"
@@ -124,4 +127,9 @@ strict = true
 [[tool.mypy.overrides]]
 # Our own octrow/claude-cli ships no py.typed marker yet.
 module = ["claude_cli", "claude_cli.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# qtawesome ships no type hints.
+module = ["qtawesome", "qtawesome.*"]
 ignore_missing_imports = true

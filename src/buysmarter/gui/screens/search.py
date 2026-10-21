@@ -8,8 +8,9 @@ from typing import Any
 
 from pydantic import ValidationError
 from PySide6.QtCore import QElapsedTimer, Qt, QTimer, Signal
+from PySide6.QtGui import QAction, QIcon, QShowEvent
 from PySide6.QtWidgets import (
-    QGridLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -19,6 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from buysmarter.cli.report import saved_reports
 from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.prefs_fields import (
     BUDGET,
@@ -34,7 +36,8 @@ from buysmarter.gui.prefs_fields import (
     source_boxes,
 )
 from buysmarter.gui.progress import Progress
-from buysmarter.gui.theme import SPACE, set_state
+from buysmarter.gui.screens.saved import ListReports, report_parts
+from buysmarter.gui.theme import SPACE, bind_icon, set_state
 from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services.collect import ALL_SOURCES
 from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
@@ -68,8 +71,42 @@ _RUNNING_TEXT = "Ищу…"
 
 logger = logging.getLogger(__name__)
 
-_SOURCE_COLUMN_WIDTH = 96
 _TICK_MS = 1000
+_HERO = "Что ищем?"
+_HERO_HINT = "Опишите товар, бюджет и город — сравним Kaspi, Ozon и OLX"
+_RECENT_COUNT = 3
+_ROW_ICON_PX = 18
+
+
+def _named[W: QWidget](widget: W, name: str) -> W:
+    widget.setObjectName(name)
+    return widget
+
+
+def _muted(label: QLabel) -> QLabel:
+    set_state(label, "role", "muted")
+    return label
+
+
+def _caption(text: str) -> QLabel:
+    label = QLabel(text)
+    set_state(label, "role", "caption")
+    return label
+
+
+def _captioned(text: str, field: QWidget) -> QVBoxLayout:
+    """``field`` with a small label above it."""
+    column = QVBoxLayout()
+    column.setSpacing(SPACE["xs"])
+    column.addWidget(_caption(text))
+    column.addWidget(field)
+    return column
+
+
+def _clear(layout: QVBoxLayout) -> None:
+    while (item := layout.takeAt(0)) is not None:
+        if (widget := item.widget()) is not None:
+            widget.deleteLater()
 
 
 def stage_label(stage: str) -> str:
@@ -108,6 +145,7 @@ class SearchScreen(QWidget):
         runner: CoreRunner,
         recommend: Recommend = run_recommend,
         parse: Parse = run_parse_request,
+        list_reports: ListReports = saved_reports,
     ) -> None:
         super().__init__()
         self._runner = runner
@@ -123,6 +161,8 @@ class SearchScreen(QWidget):
         self._elapsed = QElapsedTimer()
         self._ticker = QTimer(self, interval=_TICK_MS)
         self._ticker.timeout.connect(self._show_stage)
+        self._list_reports = list_reports
+        self._query_action: QAction | None = None
         self._build()
 
     def _build(self) -> None:
@@ -130,7 +170,7 @@ class SearchScreen(QWidget):
         self.query.returnPressed.connect(self.start)
         self.city = QLineEdit(placeholderText="из запроса или настроек")
         self.budget = budget_box()
-        self.use_llm = checked_box("разбор запроса и сводка отзывов")
+        self.use_llm = checked_box("AI: разбор запроса и отзывы")
         self.use_llm.setToolTip(_USE_LLM_HINT)
         self.sources = source_boxes()
         self.status = {name: QLabel() for name in ALL_SOURCES}
@@ -150,50 +190,140 @@ class SearchScreen(QWidget):
         self.report_button.clicked.connect(self.open_report.emit)
         self.report_button.hide()
 
-        # A grid, not a QFormLayout: its labels sit at the top of a tall row on some styles.
-        form = QGridLayout()
-        form.setVerticalSpacing(SPACE["md"])
-        form.setHorizontalSpacing(SPACE["lg"])
-        form.setColumnStretch(1, 1)
-        rows: list[tuple[str, QWidget | QHBoxLayout]] = [
-            ("Запрос", self.query),
-            ("Город", self.city),
-            ("Бюджет", self.budget),
-            ("AI", self.use_llm),
-        ]
-        for i, name in enumerate(ALL_SOURCES):
-            row = QHBoxLayout()
-            row.setSpacing(SPACE["lg"])
-            self.sources[name].setMinimumWidth(_SOURCE_COLUMN_WIDTH)  # statuses line up
-            row.addWidget(self.sources[name])
-            row.addWidget(self.status[name], 1)
-            rows.append(("Маркетплейсы" if i == 0 else "", row))
-        for r, (label, field) in enumerate(rows):
-            form.addWidget(
-                QLabel(label), r, 0, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-            )
-            if isinstance(field, QWidget):
-                form.addWidget(field, r, 1)
-            else:
-                form.addLayout(field, r, 1)
-        buttons = QHBoxLayout()
-        buttons.addWidget(self.start_button)
-        buttons.addWidget(self.cancel_button)
-        buttons.addWidget(self.report_button)
-        buttons.addStretch(1)
+        self.query.setObjectName("bigQuery")
+        bind_icon(self, self._set_query_icon, "mdi6.magnify")
+        bind_icon(self, self.start_button.setIcon, "mdi6.magnify", "on_accent")
+        self._build_recent_box()
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(SPACE["xxl"], SPACE["xxl"], SPACE["xxl"], SPACE["xl"])
+        layout.setSpacing(SPACE["lg"])
+        layout.addWidget(_named(QLabel(_HERO), "hero"))
+        layout.addWidget(_muted(QLabel(_HERO_HINT)))
+        layout.addWidget(self._form_card())
+        layout.addSpacing(SPACE["sm"])
+        layout.addWidget(self.recent_box)
+        layout.addStretch(1)
+
+    def _build_recent_box(self) -> None:
+        self.recent_box = QWidget()
+        self._recent_rows = QVBoxLayout(self.recent_box)
+        self._recent_rows.setContentsMargins(0, 0, 0, 0)
+        self._recent_rows.setSpacing(SPACE["sm"])
+        self._repeat_buttons: list[QPushButton] = []
+        self._recent: list[str] = []
+        self.recent_box.hide()  # until there is a saved search to show
+
+    def _form_card(self) -> QFrame:
+        """The request: query, city and budget, where to search, then the run controls."""
+        card = _named(QFrame(), "card")
+        body = QVBoxLayout(card)
+        body.setContentsMargins(SPACE["xl"], SPACE["xl"], SPACE["xl"], SPACE["xl"])
+        body.setSpacing(SPACE["lg"])
+        body.addWidget(self.query)
+        where = QHBoxLayout()
+        where.setSpacing(SPACE["md"])
+        where.addLayout(_captioned("Город", self.city), 1)
+        where.addLayout(_captioned("Бюджет", self.budget), 1)
+        body.addLayout(where)
+        body.addLayout(self._sources_row())
+        body.addLayout(self._run_row())
+        return card
+
+    def _sources_row(self) -> QHBoxLayout:
+        row = QHBoxLayout()
+        row.setSpacing(SPACE["xl"])
+        row.addWidget(_caption("Где искать"))
+        for name in ALL_SOURCES:
+            cell = QHBoxLayout()
+            cell.setSpacing(SPACE["sm"])
+            cell.addWidget(self.sources[name])
+            cell.addWidget(self.status[name])
+            row.addLayout(cell)
+        row.addStretch(1)
+        row.addWidget(self.use_llm)
+        return row
+
+    def _run_row(self) -> QHBoxLayout:
+        """Progress on the left, the buttons on the right; the primary one last."""
         status = QVBoxLayout()
         status.setSpacing(SPACE["xs"])
         status.addWidget(self.busy)
         status.addWidget(self.stage)
         status.addWidget(self.message)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(SPACE["xl"], SPACE["xl"], SPACE["xl"], SPACE["xl"])
-        layout.setSpacing(SPACE["md"])
-        layout.addLayout(form)
-        layout.addLayout(buttons)
-        layout.addSpacing(SPACE["sm"])  # the status block reads apart from the buttons
-        layout.addLayout(status)
-        layout.addStretch(1)
+        row = QHBoxLayout()
+        row.setSpacing(SPACE["sm"])
+        row.addLayout(status, 1)
+        row.addWidget(self.cancel_button, alignment=Qt.AlignmentFlag.AlignTop)
+        row.addWidget(self.report_button, alignment=Qt.AlignmentFlag.AlignTop)
+        row.addWidget(self.start_button, alignment=Qt.AlignmentFlag.AlignTop)
+        return row
+
+    def _set_query_icon(self, drawn: QIcon) -> None:
+        if self._query_action is None:
+            self._query_action = self.query.addAction(
+                drawn, QLineEdit.ActionPosition.LeadingPosition
+            )
+        else:
+            self._query_action.setIcon(drawn)
+
+    def showEvent(self, event: QShowEvent) -> None:  # noqa: N802 - Qt override
+        self.refresh_recent()
+        super().showEvent(event)
+
+    def refresh_recent(self) -> None:
+        """The latest distinct saved queries, each with a button that searches it again."""
+        seen: dict[str, str] = {}
+        for path in self._list_reports():
+            when, query = report_parts(path)
+            seen.setdefault(query, when)
+            if len(seen) == _RECENT_COUNT:
+                break
+        if list(seen) == self._recent:
+            return
+        self._recent = list(seen)
+        _clear(self._recent_rows)
+        self._repeat_buttons = []
+        if seen:
+            self._recent_rows.addWidget(_named(QLabel("Недавние поиски"), "sectionTitle"))
+        for query, when in seen.items():
+            self._recent_rows.addWidget(self._recent_row(query, when))
+        self.recent_box.setVisible(bool(seen))
+
+    def _recent_row(self, query: str, when: str) -> QFrame:
+        row = _named(QFrame(), "recent")
+        line = QHBoxLayout(row)
+        line.setContentsMargins(SPACE["lg"], SPACE["sm"], SPACE["sm"], SPACE["sm"])
+        line.setSpacing(SPACE["md"])
+        mark = QLabel()
+        bind_icon(
+            mark,
+            lambda drawn: mark.setPixmap(drawn.pixmap(_ROW_ICON_PX, _ROW_ICON_PX)),
+            "mdi6.history",
+        )
+        text = QVBoxLayout()
+        text.setSpacing(0)
+        text.addWidget(QLabel(query))
+        text.addWidget(_caption(when))
+        again = QPushButton("Повторить")
+        set_state(again, "flat", "true")
+        bind_icon(again, again.setIcon, "mdi6.refresh", "accent")
+        again.clicked.connect(lambda: self._repeat(query))
+        self._repeat_buttons.append(again)
+        line.addWidget(mark)
+        line.addLayout(text, 1)
+        line.addWidget(again)
+        return row
+
+    def recent_queries(self) -> list[str]:
+        return list(self._recent)
+
+    def repeat_buttons(self) -> list[QPushButton]:
+        return list(self._repeat_buttons)
+
+    def _repeat(self, query: str) -> None:
+        self.query.setText(query)
+        self.start()
 
     def apply_prefs(self, prefs: Mapping[str, Any]) -> None:
         """Pre-fill from saved preferences; excluded brands apply to every search."""
@@ -270,6 +400,9 @@ class SearchScreen(QWidget):
             logger.info("No recommendation for %r", query, exc_info=exc)
             return NoRecommendation(f"Не нашлось подходящих предложений: {exc}")
 
+    def is_running(self) -> bool:
+        return self._job is not None
+
     def cancel(self) -> None:
         if self._job is not None:
             self.cancel_button.setEnabled(False)
@@ -330,8 +463,9 @@ class SearchScreen(QWidget):
         self.message.setText(line + ".")
 
     def note_saved(self) -> None:
-        """Say where the finished search's report went."""
+        """Say where the finished search's report went; it now heads the recent searches."""
         self.message.setText(f"{self.message.text()} Отчёт сохранён — см. «Прошлые поиски».")
+        self.refresh_recent()
 
     def _on_failed(self, message: str) -> None:
         self._settle(interrupted="failed")

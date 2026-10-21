@@ -3,7 +3,7 @@
 import os
 import subprocess
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication
 
 from buysmarter.gui import app as gui_app
@@ -149,3 +149,73 @@ def test_a_failing_store_check_warns_on_the_screens_that_need_the_store(qtbot, r
     assert all(not page.store_warning.isHidden() for page in pages)
     window._apply_checks([gui_app.Check("Storage", True, "", "SQLite x.db")])
     assert all(page.store_warning.isHidden() for page in pages)
+
+
+def _window_with_search(qtbot, runner, monkeypatch, *, running: bool, answer):
+    asked = []
+    monkeypatch.setattr(gui_app.prefs, "get_all", _no_prefs)
+    monkeypatch.setattr(
+        gui_app.QMessageBox, "question", lambda *args, **kwargs: asked.append(args) or answer
+    )
+    window = gui_app.MainWindow(runner)
+    qtbot.addWidget(window)
+    monkeypatch.setattr(window.search, "is_running", lambda: running)
+    window.show()
+    return window, asked
+
+
+def test_closing_during_a_search_asks_and_stays_open_on_no(qtbot, runner, monkeypatch):
+    window, asked = _window_with_search(
+        qtbot, runner, monkeypatch, running=True, answer=gui_app.QMessageBox.StandardButton.No
+    )
+    assert window.close() is False
+    assert len(asked) == 1
+    assert window.isVisible()
+
+
+def test_closing_during_a_search_closes_on_yes(qtbot, runner, monkeypatch):
+    window, asked = _window_with_search(
+        qtbot, runner, monkeypatch, running=True, answer=gui_app.QMessageBox.StandardButton.Yes
+    )
+    assert window.close() is True
+    assert len(asked) == 1
+
+
+def test_closing_while_idle_does_not_ask(qtbot, runner, monkeypatch):
+    window, asked = _window_with_search(qtbot, runner, monkeypatch, running=False, answer=None)
+    assert window.close() is True
+    assert asked == []
+
+
+def _nav_items(window):
+    return [window.sidebar.item(row) for row in range(window.sidebar.count())]
+
+
+def test_sidebar_groups_screens_under_headers_that_cannot_be_selected(qtbot, runner, monkeypatch):
+    monkeypatch.setattr(gui_app.prefs, "get_all", _no_prefs)
+    window = gui_app.MainWindow(runner)
+    qtbot.addWidget(window)
+    headers = [i.text() for i in _nav_items(window) if not i.flags() & Qt.ItemFlag.ItemIsSelectable]
+    assert headers == ["ПОКУПКИ", "СЕРВИС"]
+    assert window.sidebar.currentItem().text() == "Поиск"
+
+
+def test_each_nav_item_has_an_icon_and_opens_its_screen(qtbot, runner, monkeypatch):
+    monkeypatch.setattr(gui_app.prefs, "get_all", _no_prefs)
+    window = gui_app.MainWindow(runner)
+    qtbot.addWidget(window)
+    screens = [i for i in _nav_items(window) if i.flags() & Qt.ItemFlag.ItemIsSelectable]
+    assert len(screens) == window.stack.count()
+    for item in screens:
+        assert not item.icon().isNull()
+        window.sidebar.setCurrentItem(item)
+        assert window.stack.currentIndex() == screens.index(item)
+
+
+def test_opening_a_screen_selects_its_nav_item(qtbot, runner, monkeypatch, result):
+    monkeypatch.setattr(gui_app.prefs, "get_all", _no_prefs)
+    window = gui_app.MainWindow(runner)
+    qtbot.addWidget(window)
+    window._show_screen(window.report)
+    assert window.sidebar.currentItem().text() == "Отчёт"
+    assert window.stack.currentWidget() is window.report

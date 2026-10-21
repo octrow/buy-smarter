@@ -23,11 +23,20 @@ Screenshots: `docs/screenshots/desktop/`.
 Every text/background pair is held to WCAG AA 4.5:1 by `tests/gui/test_theme.py`.
 
 **Type:** Inter (bundled variable font), one family. 12 caption · 14 body · 16 card title ·
-20 product title · 24 score and price. **Spacing:** 4px grid (4, 8, 12, 16, 24, 32).
+20 product title · 24 score and price · 28 screen heading. **Spacing:** 4px grid (4, 8, 12, 16, 24, 32).
 **Radius:** 6 (controls), 8 (cards).
 
 ## Components
 
+- Sidebar (220px): the app name with its cart icon, then screens in two groups, ПОКУПКИ
+  (Поиск, Отчёт, Прошлые поиски, История цен) and СЕРВИС (Настройки поиска, Состояние и
+  ключи). Group labels are 12/600 muted caps; items carry an 18px icon.
+- Search screen: a 28/700 heading with a muted hint, then one form card (`QFrame#card`,
+  radius 10): the 16px query with a search icon, city and budget side by side under 12px
+  captions, the marketplaces with their live status, AI on the right, progress and buttons
+  at the bottom with Найти last. Under it, up to three recent distinct queries from the saved
+  reports, each with a flat accent «Повторить».
+- Every field (line edit, combo box, spin box) is 36px tall.
 - Cards are `QGroupBox`es: surface, 1px border, title above the card at 16/600.
 - One primary button per screen (`primary="true"`): Найти, Сохранить, Показать историю,
   Открыть на маркетплейсе. Everything else is secondary.
@@ -40,6 +49,7 @@ Every text/background pair is held to WCAG AA 4.5:1 by `tests/gui/test_theme.py`
 
 ## Rules
 
-- No emoji or glyph icons in chrome; the `⚠` barred marker is a CLI term the report shares.
+- Icons are Material Design line icons (`mdi6.*` via qtawesome, `theme.icon`), muted by default
+  and accent when selected; no emoji in chrome. The `⚠` barred marker is a CLI term the report shares.
 - Accent marks action, current selection and the score only, never decoration.
 - Report wording stays the CLI's ("Best pick", "Score", "Alternatives", "Отсеяно").
