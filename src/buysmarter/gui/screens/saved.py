@@ -6,7 +6,20 @@ from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QDesktopServices, QShowEvent
+from PySide6.QtGui import (
+    QColor,
+    QDesktopServices,
+    QFont,
+    QGuiApplication,
+    QShowEvent,
+    QTextBlock,
+    QTextCharFormat,
+    QTextCursor,
+    QTextDocument,
+    QTextFormat,
+    QTextFrameFormat,
+    QTextTable,
+)
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -19,7 +32,7 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter.cli.report import saved_reports
-from buysmarter.gui.theme import SPACE, set_state
+from buysmarter.gui.theme import SPACE, TYPE, current_palette, set_state
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +71,67 @@ def _report_item(path: Path) -> QListWidgetItem:
     return item
 
 
+# Markdown heading level -> (px, weight): h1 is the report's title, h2 its sections.
+# Bold, not DemiBold: rich text draws the variable Inter at 600 as regular.
+_HEADINGS = {1: (TYPE["title"], QFont.Weight.Bold), 2: (TYPE["subhead"], QFont.Weight.Bold)}
+_HEADING_DEFAULT = (TYPE["body"], QFont.Weight.Bold)
+
+
+def style_report(doc: QTextDocument, p: dict[str, str]) -> None:
+    """Re-style a parsed markdown report in the theme: headings, links and tables.
+
+    ``setMarkdown`` writes its own formats (relative "xx-large" headings, blue links), and a
+    document stylesheet does not reach them, so they are rewritten after parsing.
+    """
+    block = doc.begin()
+    while block.isValid():
+        if level := block.blockFormat().headingLevel():
+            _style_heading(block, *_HEADINGS.get(level, _HEADING_DEFAULT))
+        _recolor_links(block, p["accent"])
+        if (table := QTextCursor(block).currentTable()) is not None:
+            _style_table(table, p)
+        block = block.next()
+
+
+def _style_heading(block: QTextBlock, px: int, weight: QFont.Weight) -> None:
+    fmt = block.begin().fragment().charFormat()
+    # A relative size (markdown's "xx-large") overrides a pixel size, even at 0: remove it.
+    fmt.clearProperty(QTextFormat.Property.FontSizeAdjustment)
+    fmt.setProperty(QTextFormat.Property.FontPixelSize, px)
+    fmt.setFontWeight(weight)
+    cursor = QTextCursor(block)
+    cursor.movePosition(QTextCursor.MoveOperation.EndOfBlock, QTextCursor.MoveMode.KeepAnchor)
+    cursor.setCharFormat(fmt)
+    spacing = block.blockFormat()
+    spacing.setTopMargin(SPACE["lg"])
+    spacing.setBottomMargin(SPACE["xs"])
+    cursor.setBlockFormat(spacing)
+
+
+def _recolor_links(block: QTextBlock, color: str) -> None:
+    it = block.begin()
+    while not it.atEnd():
+        frag = it.fragment()
+        if frag.isValid() and frag.charFormat().isAnchor():
+            cursor = QTextCursor(block.document())
+            cursor.setPosition(frag.position())
+            cursor.setPosition(frag.position() + frag.length(), QTextCursor.MoveMode.KeepAnchor)
+            fmt = QTextCharFormat()
+            fmt.setForeground(QColor(color))
+            fmt.setFontUnderline(False)
+            cursor.mergeCharFormat(fmt)
+        it += 1
+
+
+def _style_table(table: QTextTable, p: dict[str, str]) -> None:
+    fmt = table.format()
+    fmt.setBorderBrush(QColor(p["border"]))
+    fmt.setBorderStyle(QTextFrameFormat.BorderStyle.BorderStyle_Solid)
+    fmt.setBorderCollapse(True)
+    fmt.setCellPadding(SPACE["sm"])
+    table.setFormat(fmt)
+
+
 class SavedScreen(QWidget):
     """A list of saved reports; the selected one is shown as rendered markdown."""
 
@@ -76,6 +150,8 @@ class SavedScreen(QWidget):
         self.folder_button = QPushButton("Открыть папку")
         self.folder_button.clicked.connect(self._open_folder)
         self._lay_out()
+        # Re-render the open report in the new scheme's colors (the QSS re-applies on its own).
+        QGuiApplication.styleHints().colorSchemeChanged.connect(self._restyle)
 
     def _lay_out(self) -> None:
         side = QVBoxLayout()
@@ -86,7 +162,8 @@ class SavedScreen(QWidget):
         body.addLayout(side)
         body.addWidget(self.view, 1)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(SPACE["xl"], SPACE["xl"], SPACE["xl"], SPACE["xl"])
+        # Under the screen heading (app._centered): no top gap of its own.
+        layout.setContentsMargins(SPACE["xxl"], SPACE["lg"], SPACE["xxl"], SPACE["xl"])
         layout.addWidget(self.empty)
         layout.addLayout(body, 1)
 
@@ -116,9 +193,13 @@ class SavedScreen(QWidget):
         path: Path = item.data(_PATH_ROLE)
         try:
             self.view.setMarkdown(path.read_text(encoding="utf-8"))
+            style_report(self.view.document(), current_palette())
         except OSError as exc:
             logger.warning("Saved report %s not read: %r", path, exc)
             self.view.setPlainText("Не удалось открыть отчёт — подробности в логе.")
+
+    def _restyle(self) -> None:
+        self._show(self.reports.currentItem())
 
     def _open_folder(self) -> None:
         item = self.reports.currentItem()

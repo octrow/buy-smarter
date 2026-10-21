@@ -31,6 +31,9 @@ RADIUS = 6
 # Field text boxes, sized so a line edit, a combo box and a spin box all come out 36px tall:
 # Fusion adds 3px more frame around a spin box than around a line edit.
 _CONTROL_TEXT_PX = 22
+# A card's title sits inside it (the QGroupBox font styles it; children reset to body):
+# this much top padding holds the 16px title and its gap.
+_CARD_TITLE_BAND_PX = 52
 _SPIN_TEXT_PX = 19
 # Pages stop growing here: on a wide monitor a line of text or a table row stays readable.
 CONTENT_MAX_WIDTH = 1200
@@ -108,8 +111,9 @@ QListWidget#sidebar::item:hover {{ background: {p["border"]}; color: {p["text"]}
 QListWidget#sidebar::item:selected {{ background: {p["accent_soft"]}; color: {p["text"]}; font-weight: 600; }}
 QListWidget#sidebar::item:disabled {{ background: transparent; color: {p["text_muted"]}; font-size: {t["caption"]}px; font-weight: 600; padding: {s["lg"]}px {s["md"]}px {s["xs"]}px; }}
 
-QGroupBox {{ background: {p["surface"]}; border: 1px solid {p["border"]}; border-radius: {r + 2}px; margin-top: {s["xl"]}px; padding: {s["lg"]}px {s["lg"]}px {s["md"]}px; }}
-QGroupBox::title {{ subcontrol-origin: margin; subcontrol-position: top left; left: 2px; padding: 0 0 {s["xs"]}px 0; color: {p["text"]}; font-size: {t["subhead"]}px; font-weight: 600; }}
+QGroupBox {{ background: {p["surface"]}; border: 1px solid {p["border"]}; border-radius: {r + 4}px; margin-top: 0; padding: {_CARD_TITLE_BAND_PX}px {s["xl"]}px {s["xl"]}px; font-size: {t["subhead"]}px; font-weight: 600; }}
+QGroupBox QWidget {{ font-size: {t["body"]}px; font-weight: 400; }}
+QGroupBox::title {{ subcontrol-origin: padding; subcontrol-position: top left; left: {s["xl"]}px; top: {s["lg"]}px; padding: 0; color: {p["text"]}; font-size: {t["subhead"]}px; font-weight: 600; }}
 QGroupBox QLabel, QGroupBox QWidget {{ background: transparent; }}
 
 QLabel#hero {{ font-size: {t["hero"]}px; font-weight: 700; }}
@@ -162,17 +166,17 @@ QCheckBox::indicator:disabled {{ background: {p["window"]}; border-color: {p["bo
 QCheckBox::indicator:checked:disabled {{ background: {p["disabled"]}; border-color: {p["disabled"]}; }}
 QCheckBox:focus {{ color: {p["accent"]}; }}
 
-QTableView {{ background: {p["surface"]}; alternate-background-color: {p["window"]}; border: 1px solid {p["border"]}; border-radius: {r}px; gridline-color: {p["border"]}; selection-background-color: {p["accent_soft"]}; selection-color: {p["text"]}; outline: 0; }}
-QTableView::item {{ padding: {s["xs"]}px {s["sm"]}px; }}
+QTableView {{ background: {p["surface"]}; alternate-background-color: {p["window"]}; border: 1px solid {p["border"]}; border-radius: {r}px; selection-background-color: {p["accent_soft"]}; selection-color: {p["text"]}; outline: 0; }}
+QTableView::item {{ padding: {s["sm"]}px {s["md"]}px; border-bottom: 1px solid {p["border"]}; }}
 QTableView::item:hover {{ background: {p["sidebar"]}; }}
-QHeaderView::section {{ background: {p["sidebar"]}; color: {p["text_muted"]}; border: none; border-bottom: 1px solid {p["border"]}; border-right: 1px solid {p["border"]}; padding: {s["sm"] - 2}px {s["sm"]}px; font-size: {t["caption"]}px; font-weight: 600; }}
+QHeaderView::section {{ background: {p["sidebar"]}; color: {p["text_muted"]}; border: none; border-bottom: 1px solid {p["border"]}; padding: {s["sm"]}px {s["md"]}px; font-size: {t["caption"]}px; font-weight: 600; }}
 QTableCornerButton::section {{ background: {p["sidebar"]}; border: none; }}
 /* Fusion draws the descending ("down-arrow") indicator as ▲; people read ▲ as ascending. */
 QHeaderView::up-arrow {{ image: url("{(_ASSETS / "arrow-up.svg").as_posix()}"); width: 10px; height: 10px; }}
 QHeaderView::down-arrow {{ image: url("{(_ASSETS / "arrow-down.svg").as_posix()}"); width: 10px; height: 10px; }}
 
-QProgressBar {{ background: {p["sidebar"]}; border: none; border-radius: 3px; height: 6px; max-height: 6px; text-align: right; }}
-QProgressBar::chunk {{ background: {p["accent"]}; border-radius: 3px; }}
+QProgressBar {{ background: {p["sidebar"]}; border: none; border-radius: 4px; height: 8px; max-height: 8px; text-align: right; }}
+QProgressBar::chunk {{ background: {p["accent"]}; border-radius: 4px; }}
 QProgressBar[level="low"]::chunk {{ background: {p["warning"]}; }}
 QProgressBar[level="high"]::chunk {{ background: {p["ok"]}; }}
 QFrame#banner {{ background: {p["accent_soft"]}; border: 1px solid {p["accent"]}; border-radius: {r + 2}px; }}

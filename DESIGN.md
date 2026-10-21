@@ -37,14 +37,20 @@ Every text/background pair is held to WCAG AA 4.5:1 by `tests/gui/test_theme.py`
   at the bottom with Найти last. Under it, up to three recent distinct queries from the saved
   reports, each with a flat accent «Повторить».
 - Every field (line edit, combo box, spin box) is 36px tall.
-- Cards are `QGroupBox`es: surface, 1px border, title above the card at 16/600.
+- Cards are `QGroupBox`es: surface, 1px border, radius 10, the 16/600 title inside the card
+  at the top left; a card's own layout has zero margins (the QSS padding frames it).
+- Every screen opens with a 28/700 heading: the search asks «Что ищем?», the report shows the
+  query with the parsed constraints under it, the others show their nav title.
+- Tables: no vertical grid lines, rows ruled by a 1px border, left-aligned 12/600 headers.
 - One primary button per screen (`primary="true"`): Найти, Сохранить, Показать историю,
   Открыть на маркетплейсе. Everything else is secondary.
 - Statuses are labels with `state` = done/ok (green), running (accent), failed/missing (red),
   skipped/waiting (muted), warning (amber); set with `theme.set_state`.
 - Tables show every row (`gui/tables.py`); the page scrolls, never the table. Headers are
   12/600 muted on the sidebar tone.
-- Axis scores pair the CLI's `score/max` text with a 6px accent bar.
+- Axis scores pair the CLI's `score/max` text with an 8px bar, 160px wide.
+- Past searches render the saved markdown in the theme (`style_report`): 20/16 bold headings,
+  accent links, ruled tables.
 - Light or dark follows the OS and switches live.
 
 ## Rules

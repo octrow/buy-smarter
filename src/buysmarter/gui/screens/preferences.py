@@ -6,6 +6,7 @@ from typing import Any
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -70,7 +71,8 @@ class PreferencesScreen(QWidget):
         form.addRow("Маркетплейсы", marketplaces)
         form.addRow("Исключить бренды", self.excluded)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(SPACE["xl"], SPACE["xl"], SPACE["xl"], SPACE["xl"])
+        # Under the screen heading (app._centered): no top gap of its own.
+        layout.setContentsMargins(SPACE["xxl"], SPACE["lg"], SPACE["xxl"], SPACE["xl"])
         layout.setSpacing(SPACE["lg"])
         form.setVerticalSpacing(SPACE["md"])
         form.setHorizontalSpacing(SPACE["lg"])
@@ -78,10 +80,15 @@ class PreferencesScreen(QWidget):
         buttons = QHBoxLayout()
         buttons.addWidget(self.save_button)
         buttons.addStretch(1)
+        card = QGroupBox("Для каждого поиска")
+        inside = QVBoxLayout(card)
+        inside.setContentsMargins(0, 0, 0, 0)  # the QSS padding frames the card
+        inside.setSpacing(SPACE["lg"])
+        inside.addLayout(form)
+        inside.addLayout(buttons)
+        inside.addWidget(self.message)
         layout.addWidget(self.store_warning)
-        layout.addLayout(form)
-        layout.addLayout(buttons)
-        layout.addWidget(self.message)
+        layout.addWidget(card)
         layout.addStretch(1)
 
     def apply_prefs(self, stored: Mapping[str, Any]) -> None:

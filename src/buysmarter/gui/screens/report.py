@@ -58,7 +58,7 @@ from buysmarter.services.recommend import RecommendResult
 ALL_MARKETPLACES = "Все маркетплейсы"
 _BAR_COLUMN = 2
 _WHY_COLUMN = 3
-_BAR_WIDTH = 120
+_BAR_WIDTH = 160
 _BAR_STEPS = 100
 _LOW_SHARE = 0.4  # an axis bar under this share of its max reads as a weak spot
 _HIGH_SHARE = 0.8
@@ -220,6 +220,8 @@ def _axes_table(best: ScoredCandidate) -> QTableWidget:
 def _group(title: str, *widgets: QWidget) -> QGroupBox:
     box = QGroupBox(title)
     layout = QVBoxLayout(box)
+    layout.setContentsMargins(0, 0, 0, 0)  # the QSS padding frames the card
+    layout.setSpacing(SPACE["sm"])
     for widget in widgets:
         layout.addWidget(widget)
     return box
@@ -270,10 +272,14 @@ class ReportScreen(QScrollArea):
         page.setObjectName("page")
         page.setMaximumWidth(CONTENT_MAX_WIDTH)
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(SPACE["xl"], SPACE["sm"], SPACE["xl"], SPACE["xl"])
-        layout.setSpacing(SPACE["xs"])
+        layout.setContentsMargins(SPACE["xxl"], SPACE["xxl"], SPACE["xxl"], SPACE["xl"])
+        layout.setSpacing(SPACE["lg"])
+        heading = QVBoxLayout()
+        heading.setSpacing(SPACE["xs"])
+        heading.addWidget(_label(run.query, name="hero"))
         constraints = constraints_line(result.constraints, result.city_defaulted)
-        layout.addWidget(_label(constraints, role="muted"))
+        heading.addWidget(_label(constraints, role="muted"))
+        layout.addLayout(heading)
         if result.knowledge_missing:
             layout.addWidget(self._knowledge_banner(result))
         layout.addWidget(self._best_section(result.recommendation.best))

@@ -114,7 +114,9 @@ class MainWindow(QMainWindow):
             self.sidebar.addItem(_nav_header(header))
             for title, icon_name, screen in entries:
                 # The report caps its own page, inside its scroll area; the others are capped here.
-                index = self.stack.addWidget(screen if screen is self.report else _centered(screen))
+                heading = None if screen is self.search else title
+                page = screen if screen is self.report else _centered(screen, heading)
+                index = self.stack.addWidget(page)
                 self.sidebar.addItem(_nav_item(title, icon_name, index))
         self.sidebar.currentItemChanged.connect(self._open_nav_item)
         self._show_screen(self.search)
@@ -185,8 +187,12 @@ class MainWindow(QMainWindow):
         self.search.note_saved()
 
     def _show_screen(self, screen: QWidget) -> None:
-        holder = screen if screen is self.report else (screen.parentWidget() or screen)
-        index = self.stack.indexOf(holder)
+        index = next(
+            i
+            for i in range(self.stack.count())
+            if (page := self.stack.widget(i)) is not None
+            and (page is screen or page.isAncestorOf(screen))
+        )
         for row in range(self.sidebar.count()):
             if self.sidebar.item(row).data(_SCREEN_ROLE) == index:
                 self.sidebar.setCurrentRow(row)
@@ -276,14 +282,26 @@ def _named[W: QWidget](widget: W, name: str) -> W:
     return widget
 
 
-def _centered(screen: QWidget) -> QWidget:
-    """``screen`` no wider than the content cap, centered in whatever room is left."""
-    screen.setMaximumWidth(CONTENT_MAX_WIDTH)
+def _centered(screen: QWidget, heading: str | None) -> QWidget:
+    """``screen`` under its heading, no wider than the content cap, centered in the room left.
+
+    The search screen brings its own heading (``None``); the others take the nav title.
+    """
+    column = QWidget()
+    column.setMaximumWidth(CONTENT_MAX_WIDTH)
+    stack = QVBoxLayout(column)
+    stack.setContentsMargins(0, 0, 0, 0)
+    stack.setSpacing(0)
+    if heading is not None:
+        title = _named(QLabel(heading), "hero")
+        title.setContentsMargins(SPACE["xxl"], SPACE["xxl"], SPACE["xxl"], 0)
+        stack.addWidget(title)
+    stack.addWidget(screen, 1)
     holder = QWidget()
     row = QHBoxLayout(holder)
     row.setContentsMargins(0, 0, 0, 0)
     row.addStretch(0)
-    row.addWidget(screen, 1)
+    row.addWidget(column, 1)
     row.addStretch(0)
     return holder
 

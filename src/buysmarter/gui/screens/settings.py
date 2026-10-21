@@ -117,7 +117,8 @@ class SettingsScreen(QWidget):
         ozon_layout.addLayout(button_row)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(SPACE["xl"], SPACE["xl"], SPACE["xl"], SPACE["xl"])
+        # Under the screen heading (app._centered): no top gap of its own.
+        layout.setContentsMargins(SPACE["xxl"], SPACE["lg"], SPACE["xxl"], SPACE["xl"])
         layout.addWidget(health)
         layout.addWidget(self._key_group())
         layout.addWidget(ozon)

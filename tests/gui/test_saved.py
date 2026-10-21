@@ -33,3 +33,24 @@ def test_no_reports_says_how_they_appear(qtbot):
     qtbot.addWidget(screen)
     screen.reload()
     assert not screen.empty.isHidden() and not screen.folder_button.isEnabled()
+
+
+def test_a_rendered_report_takes_the_theme_sizes_and_link_color(qapp):
+    from PySide6.QtGui import QTextDocument, QTextFormat
+
+    from buysmarter.gui.screens.saved import style_report
+    from buysmarter.gui.theme import DARK, TYPE
+
+    doc = QTextDocument()
+    doc.setMarkdown("# Отчёт\n\n## Запрос\n\n[Kaspi](https://kaspi.kz/p/1)\n")
+    style_report(doc, DARK)
+    blocks = []
+    block = doc.begin()
+    while block.isValid():
+        blocks.append(block.begin().fragment().charFormat())
+        block = block.next()
+    title, section, link = blocks
+    assert not title.hasProperty(QTextFormat.Property.FontSizeAdjustment)
+    assert title.intProperty(QTextFormat.Property.FontPixelSize) == TYPE["title"]
+    assert section.intProperty(QTextFormat.Property.FontPixelSize) == TYPE["subhead"]
+    assert link.isAnchor() and link.foreground().color().name().upper() == DARK["accent"].upper()

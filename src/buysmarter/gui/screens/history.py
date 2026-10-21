@@ -145,7 +145,8 @@ class HistoryScreen(QWidget):
         track.addLayout(refresh_row)
         track.addWidget(self.status)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(SPACE["xl"], SPACE["sm"], SPACE["xl"], SPACE["xl"])
+        # Under the screen heading (app._centered): no top gap of its own.
+        layout.setContentsMargins(SPACE["xxl"], SPACE["lg"], SPACE["xxl"], SPACE["xl"])
         layout.setSpacing(SPACE["md"])
         layout.addWidget(self.store_warning)
         layout.addWidget(find_box)

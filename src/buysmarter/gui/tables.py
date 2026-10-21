@@ -28,7 +28,9 @@ def _configure(view: QTableView) -> None:
     # A wrapped cell grows its row when the window narrows: re-ask the layout for the height,
     # or the last row is clipped (narrow) or a blank strip stays under it (wide).
     rows.sectionResized.connect(lambda *_: view.updateGeometry())
+    view.setShowGrid(False)  # rows are ruled by the QSS item border; no vertical lines
     columns = view.horizontalHeader()
+    columns.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
     columns.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
     columns.sectionResized.connect(lambda *_: view.updateGeometry())
     view.horizontalScrollBar().rangeChanged.connect(lambda *_: view.updateGeometry())
