@@ -6,6 +6,7 @@ from collections.abc import Callable, Mapping
 from types import TracebackType
 from typing import Any, cast
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -23,7 +24,7 @@ from buysmarter.gui.screens.preferences import PreferencesScreen
 from buysmarter.gui.screens.report import ReportScreen
 from buysmarter.gui.screens.search import SearchRun, SearchScreen
 from buysmarter.gui.screens.settings import SettingsScreen, unavailable_sources
-from buysmarter.gui.theme import apply_theme
+from buysmarter.gui.theme import ICON, apply_theme
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.memory import prefs
 from buysmarter.services.recommend import RecommendResult
@@ -31,6 +32,7 @@ from buysmarter.services.recommend import RecommendResult
 logger = logging.getLogger(__name__)
 
 _TITLE = "buy-smarter"
+DESKTOP_ENTRY = "buysmarter"  # packaging/linux/buysmarter.desktop
 _MIN_SIZE = (960, 640)
 _SIDEBAR_WIDTH = 180
 
@@ -132,6 +134,8 @@ def run(argv: list[str] | None = None) -> int:
         QApplication,
         QApplication.instance() or QApplication(argv if argv is not None else sys.argv),
     )
+    app.setDesktopFileName(DESKTOP_ENTRY)
+    app.setWindowIcon(QIcon(str(ICON)))
     apply_theme(app)
     runner = CoreRunner()
     window = MainWindow(runner)

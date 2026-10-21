@@ -4,6 +4,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-21
+
+### Added
+- **Desktop app** (`buysmarter gui`, PySide6): search with live per-marketplace progress, the explainable report
+  (best pick, score axes, sortable and filterable alternatives, used offers on OLX, what could not be checked),
+  search preferences, price history and a Settings screen with health checks. Follows the OS light/dark theme.
+- **Ready-made desktop builds** on every release: a `.deb` for Ubuntu and Debian (app menu entry, pulls in the
+  libraries it needs), and archives for Windows, macOS (Apple silicon) and Linux. Each build passes a self-test in
+  CI before it is attached. See [Installing the desktop app](https://github.com/octrow/buy-smarter/blob/main/docs/install-desktop.md).
+- **Your own LLM key, kept in the OS keyring:** `buysmarter llm set-key <provider>` (OpenAI, Anthropic, Gemini,
+  DeepSeek), `llm clear-key`, `llm status`, or the AI key block in the app's Settings. Order: an env key, the stored
+  key, then the `claude` CLI. With none of them a run goes keyless and the report says what it skipped.
+- **Ozon on your own Google Chrome:** once `buysmarter ozon-setup` has saved a session, Ozon runs on the installed
+  Chrome, so no 150 MB Chromium download is needed; otherwise on Playwright's Chromium. With no browser Ozon is
+  skipped, the report says so, and `doctor` shows an "Ozon browser" row with what to do.
+- The install scripts install the desktop app too and end with `buysmarter gui`.
+
+### Fixed
+- A `DATABASE_URL` whose driver is not installed (for example a Postgres URL in a plain install) turns the local
+  store off with a warning instead of crashing at start.
+
 ### Changed
 - **The local store is the default.** Price history, preferences and learned categories go to a SQLite file in the
   user data dir (`~/.local/share/buysmarter/buysmarter.db` on Linux), created and migrated at start by the CLI and the

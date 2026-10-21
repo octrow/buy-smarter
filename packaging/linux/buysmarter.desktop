@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=buy-smarter
+GenericName=Shopping assistant
+GenericName[ru]=Помощник покупок
+Comment=Find the best offer on Kaspi, Ozon and OLX, with the reasons
+Comment[ru]=Лучшее предложение на Kaspi, Ozon и OLX — с объяснением выбора
+Exec=/opt/buysmarter/buysmarter
+Icon=buysmarter
+Terminal=false
+Categories=Utility;
+Keywords=shopping;kaspi;ozon;olx;price;покупки;цены;
+StartupWMClass=buysmarter

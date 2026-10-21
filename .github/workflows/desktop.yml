@@ -1,4 +1,5 @@
-# A PyInstaller one-dir desktop build per OS → its --self-test → an archive artifact (desktop-<os>).
+# A PyInstaller one-dir desktop build per OS → its --self-test → an archive artifact (desktop-<os>),
+# plus the Ubuntu .deb, installed with apt and self-tested.
 # release.yml calls it on a tag and attaches the archives to the release it creates; run it by hand
 # (workflow_dispatch) for a dry run that only builds and self-tests.
 name: desktop
@@ -50,6 +51,14 @@ jobs:
           $log = Join-Path $env:TEMP "buysmarter-selftest.log"  # selftest.FAILURE_LOG: no console to print to
           if ($p.ExitCode -ne 0 -and (Test-Path $log)) { Get-Content $log }
           exit $p.ExitCode
+
+      - name: Ubuntu package, installed with apt and self-tested where it installed
+        if: runner.os == 'Linux'
+        run: |
+          packaging/linux/build-deb.sh "$(uv version --short)" dist/buysmarter out
+          sudo apt-get install -y --no-install-recommends ./out/buysmarter_*_amd64.deb desktop-file-utils
+          /opt/buysmarter/buysmarter --self-test
+          desktop-file-validate /usr/share/applications/buysmarter.desktop
 
       - name: archive
         id: archive

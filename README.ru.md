@@ -123,7 +123,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/oct
 `install.sh`, прочтите и запустите `sh install.sh`. API-ключи и прокси кладутся в `~/.config/buysmarter/.env`
 (образец в [.env.example](.env.example)).
 
-**Приложение без терминала:** в каждом релизе есть готовые сборки для Windows, macOS и Linux.
+**Приложение без терминала:** в каждом релизе есть `.deb` для Ubuntu и готовые сборки для Windows, macOS и Linux.
 [Установка приложения](docs/install-desktop.ru.md) объясняет, какой файл скачать и как открыть
 неподписанную сборку; для Ozon нужен Google Chrome.
 

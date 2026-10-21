@@ -119,7 +119,7 @@ with the desktop app (`buysmarter gui`), offers the browser for Ozon and runs `b
 Re-run it to update; `sh -s -- --uninstall` removes it. Prefer to read it first? Download `install.sh`, read it,
 then run `sh install.sh`. API keys and a proxy go in `~/.config/buysmarter/.env` (see [.env.example](.env.example)).
 
-**Desktop app without the terminal:** each release has ready-made builds for Windows, macOS and Linux.
+**Desktop app without the terminal:** each release has a `.deb` for Ubuntu and ready-made builds for Windows, macOS and Linux.
 [Installing the desktop app](docs/install-desktop.md) says which file to download and how to open an
 unsigned build; Ozon needs Google Chrome.
 

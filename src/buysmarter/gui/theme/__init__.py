@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 _ASSETS = Path(__file__).parent
 _FONT_FILE = _ASSETS / "fonts" / "InterVariable.ttf"
+ICON = _ASSETS / "icon.svg"  # the window, the taskbar and the installers' menu entries
 FONT_FAMILY = "Inter Variable"  # the family name InterVariable.ttf registers
 
 # Type: one family, ratio ~1.2 from a 14px body (operate UI: fixed px, not fluid).

@@ -10,7 +10,8 @@ Python on your machine.
 |---|---|---|
 | macOS | install script | `buysmarter-<version>-macos-arm64.app.zip` (unsigned, see below) |
 | Windows | `buysmarter-<version>-windows-x64.zip` | install script |
-| Linux | install script | `buysmarter-<version>-linux-x64.tar.gz` |
+| Ubuntu / Debian | `buysmarter_<version>_amd64.deb` | install script |
+| Other Linux | install script | `buysmarter-<version>-linux-x64.tar.gz` |
 
 ## Install script
 
@@ -34,6 +35,18 @@ buysmarter gui
 
 On a Mac this is the recommended route: nothing is downloaded through the browser, so macOS does not ask
 about an unknown developer. Running the script again updates the app.
+
+## Ubuntu and Debian: the .deb package
+
+Download `buysmarter_<version>_amd64.deb` and open it (App Center installs it), or in Terminal:
+
+```bash
+sudo apt install ./buysmarter_<version>_amd64.deb
+```
+
+buy-smarter then appears in the app menu. apt also installs the system libraries the window needs.
+Ubuntu 22.04 or later, Debian 12 or later. To remove it: `sudo apt remove buysmarter` (your history, settings and keys stay).
+To update, install the newer `.deb` the same way.
 
 ## Ready-made build
 

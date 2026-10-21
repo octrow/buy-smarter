@@ -22,6 +22,7 @@ from keyring.errors import PasswordDeleteError
 _DUMMY_KEY = "sk-selftest-0000"
 _STARTUP_TIMEOUT_S = 60
 _PUMP_MS = 50
+_ICON_PX = 32
 FAILURE_LOG = Path(tempfile.gettempdir()) / "buysmarter-selftest.log"
 _KEYRING_BACKEND = {"win32": "keyring.backends.Windows", "darwin": "keyring.backends.macOS"}
 _LINUX_KEYRING_BACKEND = "keyring.backends.SecretService"
@@ -100,17 +101,20 @@ def _check_keyring() -> None:
 
 def _check_window() -> None:
     from PySide6.QtCore import QEventLoop
+    from PySide6.QtGui import QIcon
     from PySide6.QtWidgets import QApplication
 
     from buysmarter.gui.app import MainWindow
     from buysmarter.gui.bridge import CoreRunner
-    from buysmarter.gui.theme import apply_theme
+    from buysmarter.gui.theme import ICON, apply_theme
     from buysmarter.services import ozon_browser
 
     # The build is under test, not this machine's browsers: no probe launches one.
     ozon_browser.launches = lambda browser: False  # type: ignore[assignment]
     app = QApplication.instance() or QApplication(sys.argv[:1])
     apply_theme(app)  # type: ignore[arg-type]
+    if QIcon(str(ICON)).pixmap(_ICON_PX, _ICON_PX).isNull():  # the SVG plugins are in the build
+        raise RuntimeError("the app icon does not render")
     runner = CoreRunner()
     try:
         window = MainWindow(runner)
