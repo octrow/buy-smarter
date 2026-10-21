@@ -9,7 +9,7 @@ Python on your machine.
 | Your system | Recommended | Also possible |
 |---|---|---|
 | macOS | install script | `buysmarter-<version>-macos-arm64.app.zip` (unsigned, see below) |
-| Windows | `buysmarter-<version>-windows-x64.zip` | install script |
+| Windows | `buysmarter-<version>-windows-x64-setup.exe` | `…-windows-x64.zip`, install script |
 | Ubuntu / Debian | `buysmarter_<version>_amd64.deb` | install script |
 | Other Linux | install script | `buysmarter-<version>-linux-x64.tar.gz` |
 
@@ -47,6 +47,12 @@ sudo apt install ./buysmarter_<version>_amd64.deb
 buy-smarter then appears in the app menu. apt also installs the system libraries the window needs.
 Ubuntu 22.04 or later, Debian 12 or later. To remove it: `sudo apt remove buysmarter` (your history, settings and keys stay).
 To update, install the newer `.deb` the same way.
+
+## Windows: the setup program
+
+Download `buysmarter-<version>-windows-x64-setup.exe` and run it. It installs for your user only, so it does
+not ask for administrator rights, and adds buy-smarter to the Start menu. If SmartScreen warns, see below.
+Remove it in **Settings → Apps**. Your history, settings and keys stay. To update, run the newer setup.
 
 ## Ready-made build
 

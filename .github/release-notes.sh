@@ -20,7 +20,7 @@ cat <<NOTES
 | System | File |
 |---|---|
 | Ubuntu / Debian | \`buysmarter_${version}_amd64.deb\`: open it, or \`sudo apt install ./buysmarter_${version}_amd64.deb\` |
-| Windows | \`buysmarter-${version}-windows-x64.zip\` |
+| Windows | \`buysmarter-${version}-windows-x64-setup.exe\` (or the \`.zip\` to run without installing) |
 | macOS (Apple silicon) | \`buysmarter-${version}-macos-arm64.app.zip\` |
 | Other Linux | \`buysmarter-${version}-linux-x64.tar.gz\` |
 

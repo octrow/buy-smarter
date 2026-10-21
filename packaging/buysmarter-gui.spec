@@ -1,6 +1,7 @@
 # PyInstaller one-dir build of the desktop app (ADR 0003, openspec desktop-packaging).
 # Build from the repo root: uv run pyinstaller packaging/buysmarter-gui.spec --noconfirm
 # Check the result:         dist/buysmarter/buysmarter --self-test
+import os
 import sys
 
 from PyInstaller.utils.hooks import (
@@ -57,6 +58,7 @@ exe = EXE(
     exclude_binaries=True,
     name=NAME,
     console=False,  # a window app; --self-test still exits with its code
+    icon=os.path.join(SPECPATH, "windows", "buysmarter.ico") if sys.platform == "win32" else None,
 )
 coll = COLLECT(exe, a.binaries, a.datas, name=NAME)
 

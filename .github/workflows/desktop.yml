@@ -1,5 +1,5 @@
 # A PyInstaller one-dir desktop build per OS → its --self-test → an archive artifact (desktop-<os>),
-# plus the Ubuntu .deb, installed with apt and self-tested.
+# plus the Ubuntu .deb and the Windows setup, each installed and self-tested.
 # release.yml calls it on a tag and attaches the archives to the release it creates; run it by hand
 # (workflow_dispatch) for a dry run that only builds and self-tests.
 name: desktop
@@ -59,6 +59,26 @@ jobs:
           sudo apt-get install -y --no-install-recommends ./out/buysmarter_*_amd64.deb desktop-file-utils
           /opt/buysmarter/buysmarter --self-test
           desktop-file-validate /usr/share/applications/buysmarter.desktop
+
+      - name: Windows setup, installed and uninstalled silently, self-tested where it installed
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; if ($LASTEXITCODE) { exit 1 } }
+          & $iscc /Q "/DAppVersion=$(uv version --short)" "/DSourceDir=$PWD\dist\buysmarter" "/O$PWD\out" packaging\windows\buysmarter.iss
+          if ($LASTEXITCODE) { exit 1 }
+          $setup = (Get-ChildItem out\*-setup.exe).FullName
+          $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER' -Wait -PassThru
+          if ($p.ExitCode) { "setup exited $($p.ExitCode)"; exit 1 }
+          $app = Join-Path $env:LOCALAPPDATA "Programs\buysmarter"  # {autopf} for a per-user install
+          $t = Start-Process "$app\buysmarter.exe" -ArgumentList '--self-test' -Wait -PassThru
+          $log = Join-Path $env:TEMP "buysmarter-selftest.log"
+          if ($t.ExitCode -and (Test-Path $log)) { Get-Content $log }
+          if ($t.ExitCode) { exit 1 }
+          $u = Start-Process "$app\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          Start-Sleep -Seconds 3  # the uninstaller finishes in a copy of itself
+          if ($u.ExitCode -or (Test-Path "$app\buysmarter.exe")) { "uninstall left the app behind"; exit 1 }
 
       - name: archive
         id: archive
