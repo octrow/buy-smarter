@@ -4,7 +4,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-22
+
+### Added
+- **Installers for the desktop app** on every release, each installed and self-tested in CI before it is attached:
+  a Windows setup program (per user, no administrator rights, Start-menu entry, uninstaller) and a macOS disk
+  image (the app next to an Applications link). Ubuntu and Debian keep the `.deb`. The app has its own icon on the
+  window, the taskbar, the menus and the installers.
+
 ### Fixed
+- Desktop app: the health rows in «Состояние и ключи» say in Russian what to click (the AI-key block, the Ozon
+  check, installing Chrome, a server `DATABASE_URL` in `~/.config/buysmarter/.env`) instead of terminal commands.
+- Desktop app: the search screen shows its progress in Russian and prices as "35 000 ₸"; the sidebar has no
+  scrollbar.
 - **Desktop app started from the app menu** now finds the claude CLI route: it takes PATH from the login shell,
   so `omniroute` and `node` installed through nvm are visible. The AI health check no longer reports it missing.
 - Settings: health-check rows are in Russian, a failing store names the DATABASE_URL it tried, and the AI hint
