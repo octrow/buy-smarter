@@ -32,7 +32,7 @@ _HAS_SERVER_EXTRA = all(importlib.util.find_spec(m) for m in ("fastapi", "redis"
 collect_ignore_glob = [] if _HAS_SERVER_EXTRA else list(SERVER_TESTS)
 # The desktop app tests need the [gui] extra.
 if not importlib.util.find_spec("PySide6"):
-    collect_ignore_glob.append("gui/*")
+    collect_ignore_glob.append("gui")  # the directory itself: its conftest imports PySide6
 
 
 def pytest_collection_modifyitems(config, items):

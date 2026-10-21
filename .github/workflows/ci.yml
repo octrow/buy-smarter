@@ -51,7 +51,7 @@ jobs:
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       - run: uv sync --locked
       - run: uv run --no-sync python -c "import buysmarter.cli.main, buysmarter.mcp_server.server"
-      - run: uv run --no-sync pytest -q -m "not server"
+      - run: uv run --no-sync pytest -q -m "not server" -p no:pytest-qt  # no PySide6 here; conftest skips tests/gui
 
   docker:
     runs-on: ubuntu-latest
