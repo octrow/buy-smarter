@@ -54,8 +54,9 @@ fi
 # 2. the app: the release wheel built and tested by CI, or the main branch
 if [ -n "${INSTALL_SOURCE:-}" ]; then
   SPEC="$INSTALL_SOURCE"
+  [ -d "$SPEC" ] && SPEC="$SPEC[gui]"  # a source checkout: add the desktop app as the release does
 elif [ "$MAIN" = 1 ]; then
-  SPEC="$NAME @ https://github.com/$REPO/archive/refs/heads/main.tar.gz"
+  SPEC="$NAME[gui] @ https://github.com/$REPO/archive/refs/heads/main.tar.gz"
 else
   if [ -z "$VERSION" ]; then
     # /releases/latest redirects to /releases/tag/vX.Y.Z; with no release yet it lands on /releases
@@ -64,7 +65,7 @@ else
     case "$URL" in */tag/v*) VERSION="${URL##*/tag/v}" ;; *) die "No release yet. Run this command again with --main." ;; esac
   fi
   WHEEL="$(printf %s "$NAME" | tr '-' '_')-$VERSION-py3-none-any.whl"
-  SPEC="$NAME @ https://github.com/$REPO/releases/download/v$VERSION/$WHEEL"
+  SPEC="$NAME[gui] @ https://github.com/$REPO/releases/download/v$VERSION/$WHEEL"
 fi
 say "Installing $CMD${VERSION:+ $VERSION}"
 uv tool install --reinstall --python "$PYTHON" "$SPEC"
@@ -83,6 +84,6 @@ fi
 say "Checking the setup"
 "$BIN" doctor || warn "Every missing piece only turns off part of the search; see the hints above."
 
-say "$CMD is installed. To start it, run: $CMD"
 note "Command not found? Open a new terminal or run: $BIN"
-note "Try: $CMD recommend \"water flosser, IPX7, under 40000 tg, Almaty\""
+note "In the terminal: $CMD recommend \"water flosser, IPX7, under 40000 tg, Almaty\""
+say "$CMD is installed. To open the app, run: $CMD gui"

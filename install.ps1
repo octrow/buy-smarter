@@ -45,8 +45,9 @@ if (-not (Have uv)) {
 $Version = ""
 if ($env:INSTALL_SOURCE) {
   $Spec = $env:INSTALL_SOURCE
+  if (Test-Path -LiteralPath $Spec -PathType Container) { $Spec = "$Spec[gui]" }  # a source checkout: add the desktop app as the release does
 } elseif ($env:INSTALL_MAIN -eq "1") {
-  $Spec = "$Name @ https://github.com/$Repo/archive/refs/heads/main.tar.gz"
+  $Spec = "$Name[gui] @ https://github.com/$Repo/archive/refs/heads/main.tar.gz"
 } else {
   $Version = "$env:INSTALL_VERSION".TrimStart("v")
   if (-not $Version) {
@@ -54,7 +55,7 @@ if ($env:INSTALL_SOURCE) {
     catch { throw "No release found, or GitHub is not reachable. To install the main branch, set `$env:INSTALL_MAIN = `"1`" and run this command again." }
   }
   $Wheel = "$($Name -replace '-', '_')-$Version-py3-none-any.whl"
-  $Spec = "$Name @ https://github.com/$Repo/releases/download/v$Version/$Wheel"
+  $Spec = "$Name[gui] @ https://github.com/$Repo/releases/download/v$Version/$Wheel"
 }
 Say "Installing $Cmd $Version"
 uv tool install --reinstall --python $Python $Spec
@@ -76,6 +77,6 @@ if ($Interactive -and -not ((& $Bin doctor 2>$null) -match '^Ozon browser +(ok|m
 Say "Checking the setup"
 & $Bin doctor
 
-Say "$Cmd is installed. To start it, run: $Cmd"
 Note "Command not found? Open a new terminal or run: $Bin"
-Note "Try: $Cmd recommend `"water flosser, IPX7, under 40000 tg, Almaty`""
+Note "In the terminal: $Cmd recommend `"water flosser, IPX7, under 40000 tg, Almaty`""
+Say "$Cmd is installed. To open the app, run: $Cmd gui"
