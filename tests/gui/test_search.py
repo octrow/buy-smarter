@@ -267,3 +267,16 @@ def test_health_checks_landing_mid_search_keep_the_marketplace_statuses(qtbot, r
     assert screen.status["olx"].text() == STATE_LABELS["waiting"]
     screen.cancel()
     qtbot.waitUntil(screen.start_button.isEnabled, timeout=WAIT_MS)
+
+
+def test_a_finished_search_shows_what_each_marketplace_brought(qtbot, runner, result):
+    screen = SearchScreen(runner, recommend=_stub_recommend(result, []))
+    qtbot.addWidget(screen)
+    screen.query.setText("ирригатор")
+
+    with qtbot.waitSignal(screen.report_ready, timeout=WAIT_MS):
+        screen.start()
+
+    assert screen.status["kaspi"].text() == f"{STATE_LABELS['done']} · 2"
+    assert screen.message.text() == "Найдено предложений: 3, б/у на OLX: 1."
+    assert not screen.report_button.isHidden()

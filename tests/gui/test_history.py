@@ -41,7 +41,7 @@ def test_history_lists_seeded_snapshots_newest_first(qtbot, runner):
     screen.look_up()
     qtbot.waitUntil(lambda: screen.results.widget() is not None, timeout=WAIT_MS)
     titles, rows = _shown_rows(screen)
-    assert titles == ["Waterpik WP-660  [kaspi]"]
+    assert titles == ["Waterpik WP-660  [Kaspi]"]
     assert rows == [["35\xa0500 ₸", "3"], ["37\xa0000 ₸", "2"], ["40\xa0000 ₸", "1"]]
 
 
@@ -75,7 +75,7 @@ def test_refresh_shows_progress_then_the_summary_and_reloads_the_history(qtbot, 
     screen.term.setText("waterpik")
     screen.start_refresh()
     qtbot.waitUntil(lambda: screen.refresh_button.isEnabled(), timeout=WAIT_MS)
-    assert screen.status.text() == "ирригатор: 12 products, 2 price change(s)"
+    assert screen.status.text() == "ирригатор: товаров 12, цена изменилась у 2"
     assert ("kaspi", "running", "collect[kaspi]") in stages
     qtbot.waitUntil(lambda: looked_up == ["waterpik"], timeout=WAIT_MS)
 
@@ -123,3 +123,32 @@ def test_a_reload_asked_during_a_look_up_runs_after_it(qtbot, runner):
     screen.look_up()  # e.g. a refresh finishing while the first look-up runs
     release.set()
     qtbot.waitUntil(lambda: len(terms) == 2, timeout=WAIT_MS)
+
+
+def test_an_empty_search_lists_recent_products_with_their_last_change(qtbot, runner):
+    from buysmarter.services.price_tracking import ProductHistory, SnapshotRow
+
+    async def find(term):
+        snaps = [
+            SnapshotRow(captured_at="t2", min_price=3700, offer_count=1),
+            SnapshotRow(captured_at="t1", min_price=4000, offer_count=1),
+        ]
+        return [ProductHistory(title="Кроссовки IFORA", source="kaspi", snapshots=snaps)]
+
+    screen = HistoryScreen(runner, find=find)
+    qtbot.addWidget(screen)
+    screen.look_up()
+    qtbot.waitUntil(lambda: screen.results.widget() is not None, timeout=WAIT_MS)
+    row = [screen.recent.item(0, c).text() for c in range(4)]
+    assert row == ["Кроссовки IFORA", "Kaspi", "3\xa0700 ₸", "▼ 8%"]
+
+
+def test_refresh_summary_lists_the_biggest_drops():
+    from buysmarter.gui.screens.history import refresh_summary
+    from buysmarter.services.price_tracking import PriceChange
+
+    drop = PriceChange(title="Кроссовки IFORA", old_price=4000, new_price=3700, delta=-300)
+    text = refresh_summary(
+        [CategoryRefresh(category="кроссовки", product_count=12, changed=1, drops=[drop])]
+    )
+    assert text.splitlines()[1] == "   ▼ Кроссовки IFORA: 4\xa0000 ₸ → 3\xa0700 ₸"

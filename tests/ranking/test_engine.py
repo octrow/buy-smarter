@@ -285,6 +285,17 @@ def test_rank_best_budget_is_cheapest_among_passing():
     assert budget_pick.candidate.price == min(c.price for c in [cheap, mid, expensive])
 
 
+def test_best_budget_dropped_when_the_best_pick_is_already_the_cheapest():
+    # The pick undercuts everyone: a dearer leftover must not be labeled "budget".
+    best = _candidate(source_product_id="1", price=15_000, review_count=1_000, rating=4.9)
+    dearer = _candidate(source_product_id="2", price=25_000, review_count=500, rating=4.5)
+
+    recommendation = rank([best, dearer], _constraints(required_features=[]))
+
+    assert recommendation.best.candidate.source_product_id == "1"
+    assert "best_budget" not in recommendation.alternatives
+
+
 # --- trusted median / anti-counterfeit --------------------------------------
 
 
@@ -1355,13 +1366,22 @@ def _specs_axis(candidate: Candidate, constraints: QueryConstraints) -> AxisScor
 
 def test_the_kimovil_index_is_averaged_into_the_specs_axis():
     axis = _specs_axis(_candidate(kimovil_index=60.0), _constraints(required_features=[]))
-    assert axis.score == round(DEFAULT_WEIGHTS["specs"] * (1.0 + 0.6) / 2, 2)
+    # No required features: the neutral 0.5 averaged with the index.
+    assert axis.score == round(DEFAULT_WEIGHTS["specs"] * (0.5 + 0.6) / 2, 2)
     assert "Kimovil 60/100" in axis.explanation
+
+
+def test_specs_axis_is_neutral_without_required_features():
+    """A spec sheet (Ozon ships one, Kaspi search does not) must not outrank its absence."""
+    no_req = _constraints(required_features=[])
+    with_specs = _specs_axis(_candidate(specs={"цвет": "белый"}), no_req)
+    without = _specs_axis(_candidate(specs={}), no_req)
+    assert with_specs.score == without.score == DEFAULT_WEIGHTS["specs"] * 0.5
 
 
 def test_without_a_kimovil_index_the_specs_axis_is_unchanged():
     axis = _specs_axis(_candidate(), _constraints(required_features=[]))
-    assert axis.score == DEFAULT_WEIGHTS["specs"]
+    assert axis.score == DEFAULT_WEIGHTS["specs"] * 0.5
     assert "Kimovil" not in axis.explanation
 
 

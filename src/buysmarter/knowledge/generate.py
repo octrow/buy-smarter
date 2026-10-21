@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field, model_validator
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import IngredientBook
 from buysmarter.knowledge.models_book import ModelBook
-from buysmarter.knowledge.store import COMPOSITION_DRIVEN, SPEC_DRIVEN
+from buysmarter.knowledge.store import COMPOSITION_DRIVEN, SPEC_DRIVEN, save_knowledge
 from buysmarter.llm.adapter import generate
 
 # Deep-knowledge task (reason over an arbitrary category's brand landscape) —
@@ -190,6 +190,21 @@ async def generate_category_knowledge(
         _normalize_type(result.category_type, result.ingredient_book),  # type: ignore[attr-defined]
         result.ingredient_book,  # type: ignore[attr-defined]
     )
+
+
+async def learn_category(category: str, *, web_search: bool = True) -> CategoryKnowledge:
+    """Generate a category's knowledge and save it: ``learn-category`` for the desktop app."""
+    knowledge = await generate_category_knowledge(category, web_search=web_search)
+    brand, model, category_type, ingredient = knowledge
+    await save_knowledge(
+        category,
+        brand,
+        model,
+        GENERATE_KNOWLEDGE_MODEL,
+        category_type=category_type,
+        ingredient_book=ingredient,
+    )
+    return knowledge
 
 
 async def extract_category_knowledge(category: str, notes: str) -> CategoryKnowledge:

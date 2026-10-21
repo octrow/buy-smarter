@@ -14,6 +14,7 @@ from rich.table import Table
 
 from buysmarter import local_store
 from buysmarter.cli.report import (
+    DEFAULT_TOP,
     ROLE_LABELS,
     format_rejected_reasons,
     save_report,
@@ -58,7 +59,7 @@ from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
 from buysmarter.services.recommend import parse_request as run_parse_request
 from buysmarter.services.recommend import recommend as run_recommend
 
-_DEFAULT_TOP = 8
+_DEFAULT_TOP = DEFAULT_TOP
 
 app = typer.Typer(help="buy-smarter: AI-powered shopping assistant.")
 console = Console()

@@ -219,7 +219,10 @@ async def test_pipeline_produces_recommendation(stub_source: StubKaspiSource) ->
     # resolve to a known brand tier (the brand-targeted searches fall back to
     # the same untiered sample products), so there is no trustworthy brand to
     # promote into the "premium" role — see ranking/engine.py _pick_alternatives.
-    assert {"best_value", "best_budget"} <= set(rec.alternatives)
+    assert "best_value" in rec.alternatives
+    # best_budget only when something undercuts the best pick.
+    budget = rec.alternatives.get("best_budget")
+    assert budget is None or budget.candidate.price < rec.best.candidate.price
 
 
 # --- Multi-source pipeline ------------------------------------------------
@@ -828,8 +831,8 @@ async def test_summarize_top_skips_candidates_with_too_few_reviews(monkeypatch):
 
     summaries = await review_mod._summarize_top(recommendation, {"kaspi": kaspi}, reviews_by_id)
 
-    assert ("kaspi", "k1") in summaries  # 6 reviews → summarized
-    assert ("kaspi", "k2") not in summaries  # 3 reviews (< 5) → skipped
+    assert isinstance(summaries[("kaspi", "k1")], ReviewSummary)  # 6 reviews → summarized
+    assert isinstance(summaries[("kaspi", "k2")], str)  # 3 reviews (< 5) → skipped, with why
     assert calls == ["k1"]
 
 
@@ -851,7 +854,7 @@ async def test_review_pass_penalizes_counterfeit_and_flips_best(monkeypatch):
     kaspi = _MultiReviewKaspi({"k1": _reviews("k1", 8), "k2": _reviews("k2", 8)})
     recommendation = assemble_recommendation([_scored("k1", 90.0), _scored("k2", 80.0)], 0)
 
-    out, summary = await review_mod.review_pass(
+    out, summary, _note = await review_mod.review_pass(
         recommendation, {"kaspi": kaspi}, use_llm=True, with_review_summary=True
     )
 
@@ -1483,7 +1486,7 @@ async def test_review_pass_naive_fallback_confirms_feature_without_llm(monkeypat
     kaspi = _MultiReviewKaspi({"k1": reviews})
     recommendation = assemble_recommendation([_scored("k1", 90.0)], 0)
 
-    out, summary = await review_mod.review_pass(
+    out, summary, _note = await review_mod.review_pass(
         recommendation,
         {"kaspi": kaspi},
         use_llm=False,
@@ -1636,3 +1639,19 @@ async def test_without_any_llm_route_the_run_goes_keyless_and_says_what_it_skipp
 async def test_an_explicit_no_llm_run_lists_no_skipped_steps(stub_source: StubKaspiSource) -> None:
     result = await recommend("ирригатор до 40000", use_llm=False, source=stub_source, persist=False)
     assert result.skipped_llm_steps == []
+
+
+async def test_review_pass_says_why_the_best_pick_has_no_summary(monkeypatch) -> None:
+    async def _never(reviews, features=None):
+        raise AssertionError("too few reviews: the LLM must not be asked")
+
+    monkeypatch.setattr(review_mod, "summarize_reviews", _never)
+    kaspi = _MultiReviewKaspi({"k1": _reviews("k1", 2)})
+    recommendation = assemble_recommendation([_scored("k1", 90.0)], 0)
+
+    _out, summary, note = await review_mod.review_pass(
+        recommendation, {"kaspi": kaspi}, use_llm=True, with_review_summary=True
+    )
+
+    assert summary is None
+    assert note is not None and "мало текстов отзывов" in note

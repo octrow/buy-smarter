@@ -3,6 +3,8 @@
 from collections.abc import Callable, Coroutine
 from typing import Any
 
+from PySide6.QtCore import QPointF, QSize
+from PySide6.QtGui import QPainter, QPen, QPolygonF, QShowEvent
 from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
@@ -15,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter.gui.bridge import CoreRunner, Job
+from buysmarter.gui.labels import clean_title, source_label
 from buysmarter.gui.prefs_fields import kzt, store_warning
 from buysmarter.gui.progress import Progress
 from buysmarter.gui.screens.report import text_table
@@ -28,12 +31,53 @@ type Refresh = Callable[[], Coroutine[Any, Any, list[CategoryRefresh]]]
 
 
 def refresh_summary(results: list[CategoryRefresh]) -> str:
-    """One line per category, as the CLI's ``refresh`` prints it."""
+    """One line per category, then its biggest price drops."""
     if not results:
         return "Отслеживаемых категорий пока нет — сначала выполните поиск."
-    return "\n".join(
-        f"{r.category}: {r.product_count} products, {r.changed} price change(s)" for r in results
-    )
+    lines = []
+    for r in results:
+        lines.append(f"{r.category}: товаров {r.product_count}, цена изменилась у {r.changed}")
+        lines += [
+            f"   ▼ {clean_title(c.title)}: {kzt(c.old_price)} → {kzt(c.new_price)}" for c in r.drops
+        ]
+    return "\n".join(lines)
+
+
+def price_change(entry: ProductHistory) -> str:
+    """The latest move vs the snapshot before it: "▼ 3%", "▲ 5%", or "—"."""
+    if len(entry.snapshots) < 2 or not entry.snapshots[1].min_price:
+        return "—"
+    new, old = entry.snapshots[0].min_price, entry.snapshots[1].min_price
+    pct = round(100 * (new - old) / old)
+    return "—" if pct == 0 else f"{'▲' if pct > 0 else '▼'} {abs(pct)}%"
+
+
+class Sparkline(QWidget):
+    """The min price over time, oldest on the left: the trend a table of dates hides."""
+
+    _SIZE = QSize(240, 48)
+    _PAD = 4
+
+    def __init__(self, prices: list[int]) -> None:
+        super().__init__()
+        self._prices = prices
+        self.setFixedSize(self._SIZE)
+
+    def paintEvent(self, _event: object) -> None:  # noqa: N802 - Qt's name
+        if len(self._prices) < 2:
+            return
+        low, high = min(self._prices), max(self._prices)
+        span = (high - low) or 1
+        w, h, pad = self.width() - 2 * self._PAD, self.height() - 2 * self._PAD, self._PAD
+        step = w / (len(self._prices) - 1)
+        points = [
+            QPointF(pad + i * step, pad + h - (p - low) / span * h)
+            for i, p in enumerate(self._prices)
+        ]
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QPen(self.palette().highlight().color(), 2))
+        painter.drawPolyline(QPolygonF(points))
 
 
 def _history_group(entry: ProductHistory) -> QGroupBox:
@@ -41,13 +85,20 @@ def _history_group(entry: ProductHistory) -> QGroupBox:
         [s.captured_at.replace("T", " "), kzt(s.min_price), str(s.offer_count)]
         for s in entry.snapshots
     ]
-    box = QGroupBox(f"{entry.title}  [{entry.source}]")
-    QVBoxLayout(box).addWidget(text_table(["Date", "Min price", "Offers"], rows))
+    box = QGroupBox(f"{clean_title(entry.title)}  [{source_label(entry.source)}]")
+    layout = QVBoxLayout(box)
+    prices = [s.min_price for s in reversed(entry.snapshots)]
+    if len(prices) > 1:
+        layout.addWidget(Sparkline(prices))
+    layout.addWidget(text_table(["Дата", "Мин. цена", "Предложений"], rows))
     return box
 
 
 class HistoryScreen(QWidget):
-    """Look up a product's snapshots; refresh every tracked category with progress and cancel."""
+    """Recent products, a product's snapshots, and a refresh of tracked categories (cancelable).
+
+    An empty search lists the recently tracked products; double-clicking one opens its history.
+    """
 
     def __init__(
         self,
@@ -61,48 +112,54 @@ class HistoryScreen(QWidget):
         self._refresh = refresh
         self._refresh_job: Job | None = None
         self._reload_pending = False
+        self._shown_once = False
         self._progress = Progress()
         self._progress.changed.connect(self._on_progress)
 
-        self.term = QLineEdit(placeholderText="название товара или часть ссылки")
+        self.term = QLineEdit(placeholderText="название товара или часть ссылки; пусто — недавние")
         self.term.returnPressed.connect(self.look_up)
         self.find_button = QPushButton("Показать историю")
         self.find_button.clicked.connect(self.look_up)
+        set_state(self.find_button, "primary", "true")
         self.refresh_button = QPushButton("Обновить цены")
         self.refresh_button.clicked.connect(self.start_refresh)
         self.cancel_button = QPushButton("Отмена")
         self.cancel_button.setEnabled(False)
         self.cancel_button.clicked.connect(self.cancel_refresh)
         self.status = QLabel(wordWrap=True)
-        self.store_warning = store_warning()
         set_state(self.status, "role", "muted")
-        self.status.setText(
-            "Введите название товара, чтобы увидеть, как менялась его цена. "
-            "«Обновить цены» заново снимает цены всех отслеживаемых категорий."
-        )
-        set_state(self.find_button, "primary", "true")
+        self.status.setText("Заново снимает цены всех категорий, которые вы уже искали.")
+        self.store_warning = store_warning()
         self.results = QScrollArea(widgetResizable=True)
 
-        search_row = QHBoxLayout()
+        find_box = QGroupBox("Найти товар")
+        search_row = QHBoxLayout(find_box)
         search_row.addWidget(self.term, 1)
         search_row.addWidget(self.find_button)
+        track_box = QGroupBox("Отслеживание")
+        track = QVBoxLayout(track_box)
         refresh_row = QHBoxLayout()
         refresh_row.addWidget(self.refresh_button)
         refresh_row.addWidget(self.cancel_button)
         refresh_row.addStretch(1)
+        track.addLayout(refresh_row)
+        track.addWidget(self.status)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(SPACE["xl"], SPACE["xl"], SPACE["xl"], SPACE["xl"])
+        layout.setContentsMargins(SPACE["xl"], SPACE["sm"], SPACE["xl"], SPACE["xl"])
         layout.setSpacing(SPACE["md"])
         layout.addWidget(self.store_warning)
-        layout.addLayout(search_row)
-        layout.addLayout(refresh_row)
-        layout.addWidget(self.status)
+        layout.addWidget(find_box)
+        layout.addWidget(track_box)
         layout.addWidget(self.results, 1)
+
+    def showEvent(self, event: QShowEvent) -> None:  # noqa: N802 - Qt's name
+        super().showEvent(event)
+        if not self._shown_once:  # the first visit opens on the recent products
+            self._shown_once = True
+            self.look_up()
 
     def look_up(self) -> None:
         term = self.term.text().strip()
-        if not term:
-            return
         if not self.find_button.isEnabled():  # a look-up is running: redo it once it is back
             self._reload_pending = True
             return
@@ -118,16 +175,47 @@ class HistoryScreen(QWidget):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
         if not entries:
-            layout.addWidget(
-                QLabel(f"Нет истории для «{term}» (нет совпадений или хранилище недоступно).")
+            text = (
+                f"Нет истории для «{term}» (нет совпадений или хранилище недоступно)."
+                if term
+                else "Пока ничего не отслеживается — история появится после первого поиска."
             )
-        for entry in entries:
-            layout.addWidget(_history_group(entry))
+            layout.addWidget(QLabel(text, wordWrap=True))
+        elif term:
+            for entry in entries:
+                layout.addWidget(_history_group(entry))
+        else:
+            layout.addWidget(self._recent_group(entries))
         layout.addStretch(1)
         self.results.setWidget(page)
         if self._reload_pending:
             self._reload_pending = False
             self.look_up()
+
+    def _recent_group(self, entries: list[ProductHistory]) -> QGroupBox:
+        rows = [
+            [
+                clean_title(e.title),
+                source_label(e.source),
+                kzt(e.snapshots[0].min_price) if e.snapshots else "—",
+                price_change(e),
+            ]
+            for e in entries
+        ]
+        table = text_table(["Товар", "Маркетплейс", "Цена", "Изменение"], rows, stretch=0)
+        table.cellDoubleClicked.connect(lambda row, _col: self._open(entries[row].title))
+        self.recent = table
+        box = QGroupBox("Недавние товары")
+        column = QVBoxLayout(box)
+        column.addWidget(table)
+        hint = QLabel("Двойной клик — история цены товара.")
+        set_state(hint, "role", "caption")
+        column.addWidget(hint)
+        return box
+
+    def _open(self, title: str) -> None:
+        self.term.setText(title)
+        self.look_up()
 
     def _on_lookup_failed(self, message: str) -> None:
         self.find_button.setEnabled(True)

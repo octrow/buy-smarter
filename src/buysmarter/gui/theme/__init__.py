@@ -23,6 +23,8 @@ TYPE = {"caption": 12, "body": 14, "subhead": 16, "title": 20, "display": 24}
 # Spacing: a 4px grid.
 SPACE = {"xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24, "xxl": 32}
 RADIUS = 6
+# Pages stop growing here: on a wide monitor a line of text or a table row stays readable.
+CONTENT_MAX_WIDTH = 1200
 
 LIGHT = {
     "window": "#F4F6F8",  # page ground
@@ -140,9 +142,16 @@ QTableView::item {{ padding: {s["xs"]}px {s["sm"]}px; }}
 QTableView::item:hover {{ background: {p["sidebar"]}; }}
 QHeaderView::section {{ background: {p["sidebar"]}; color: {p["text_muted"]}; border: none; border-bottom: 1px solid {p["border"]}; border-right: 1px solid {p["border"]}; padding: {s["sm"] - 2}px {s["sm"]}px; font-size: {t["caption"]}px; font-weight: 600; }}
 QTableCornerButton::section {{ background: {p["sidebar"]}; border: none; }}
+/* Fusion draws the descending ("down-arrow") indicator as ▲; people read ▲ as ascending. */
+QHeaderView::up-arrow {{ image: url("{(_ASSETS / "arrow-up.svg").as_posix()}"); width: 10px; height: 10px; }}
+QHeaderView::down-arrow {{ image: url("{(_ASSETS / "arrow-down.svg").as_posix()}"); width: 10px; height: 10px; }}
 
 QProgressBar {{ background: {p["sidebar"]}; border: none; border-radius: 3px; height: 6px; max-height: 6px; text-align: right; }}
 QProgressBar::chunk {{ background: {p["accent"]}; border-radius: 3px; }}
+QProgressBar[level="low"]::chunk {{ background: {p["warning"]}; }}
+QProgressBar[level="high"]::chunk {{ background: {p["ok"]}; }}
+QFrame#banner {{ background: {p["accent_soft"]}; border: 1px solid {p["accent"]}; border-radius: {r + 2}px; }}
+QFrame#banner QLabel {{ background: transparent; }}
 
 QScrollBar:vertical {{ background: transparent; width: 10px; margin: 2px; }}
 QScrollBar::handle:vertical {{ background: {p["border_strong"]}; border-radius: 4px; min-height: 32px; }}
@@ -150,6 +159,10 @@ QScrollBar:horizontal {{ background: transparent; height: 10px; margin: 2px; }}
 QScrollBar::handle:horizontal {{ background: {p["border_strong"]}; border-radius: 4px; min-width: 32px; }}
 QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::sub-page {{ background: none; border: none; width: 0; height: 0; }}
 QMessageBox {{ background: {p["surface"]}; }}
+QTextBrowser {{ background: {p["surface"]}; border: 1px solid {p["border"]}; border-radius: {r}px; padding: {s["md"]}px; }}
+QListWidget {{ background: {p["surface"]}; border: 1px solid {p["border"]}; border-radius: {r}px; outline: 0; }}
+QListWidget::item {{ padding: {s["sm"]}px; }}
+QListWidget::item:selected {{ background: {p["accent_soft"]}; color: {p["text"]}; }}
 """
 
 

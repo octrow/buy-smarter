@@ -32,12 +32,15 @@ def test_best_pick_shows_each_axis_as_score_over_max_with_its_reason(qtbot, resu
     screen = _shown(qtbot, result)
     axes = screen.best_axes
     rows = [[axes.item(r, c).text() for c in (0, 1, 3)] for r in range(axes.rowCount())]
-    assert rows == [["price", "20.0/25", "ниже медианы рынка"], ["specs", "18.0/20", "IPX7 есть"]]
+    assert rows == [
+        ["Цена", "20.0/25", "ниже медианы рынка"],
+        ["Характеристики", "18.0/20", "IPX7 есть"],
+    ]
     assert [axes.cellWidget(r, 2).value() for r in range(2)] == [80, 90]  # the bars
     labels = _texts(screen).splitlines()
-    for text in ("Philips Sonicare Power Flosser", "kaspi", "88/100", "80%", "38\xa0000 ₸"):
+    for text in ("Philips Sonicare Power Flosser", "Kaspi", "88/100", "80%", "38\xa0000 ₸"):
         assert text in labels
-    assert {"Score", "Confidence", "Price"} <= set(labels)
+    assert {"Баллы", "Уверенность", "Цена"} <= set(labels)
 
 
 def test_alternatives_sort_by_price_and_filter_to_one_marketplace(qtbot, result):
@@ -45,9 +48,9 @@ def test_alternatives_sort_by_price_and_filter_to_one_marketplace(qtbot, result)
     proxy = screen.alternatives_proxy
     proxy.sort(3, Qt.SortOrder.AscendingOrder)
     assert _column(proxy, 3) == ["19\xa0000 ₸", "35\xa0000 ₸", "38\xa0000 ₸"]
-    assert _column(proxy, 0) == ["Best budget", "", ""]
+    assert _column(proxy, 0) == ["Дешевле", "", "Лучший выбор"]
 
-    screen.marketplace.setCurrentText("ozon")
+    screen.marketplace.setCurrentText("Ozon")
     assert _column(proxy, 2) == ["Waterpik WP-660 Aquarius"]
     screen.marketplace.setCurrentText("Все маркетплейсы")
     assert proxy.rowCount() == 3
@@ -57,7 +60,7 @@ def test_alternatives_sort_by_an_axis_score(qtbot, result):
     screen = _shown(qtbot, result)
     proxy = screen.alternatives_proxy
     headers = [proxy.headerData(c, Qt.Orientation.Horizontal) for c in range(proxy.columnCount())]
-    specs_col = headers.index("specs")
+    specs_col = headers.index("Характеристики")
     proxy.sort(specs_col, Qt.SortOrder.DescendingOrder)
     assert _column(proxy, specs_col) == ["18.0/20", "15.0/20", "12.0/20"]
 
@@ -66,11 +69,11 @@ def test_rejected_used_and_could_not_verify_sections(qtbot, result):
     run = SearchRun("ирригатор", False, {"kaspi": "done", "ozon": "skipped", "olx": "done"})
     screen = _shown(qtbot, result, run)
     text = _texts(screen)
-    assert "3 candidate(s) rejected by hard filters." in text
-    assert "Отсеяно: дороже бюджета ×2, исключённый бренд ×1" in text
+    assert "Отсеяно жёсткими фильтрами: 3." in text
+    assert "дороже бюджета ×2, исключённый бренд ×1" in text
     assert screen.used.item(0, 0).text() == "ирригатор xiaomi б/у"
-    assert screen.used.item(0, 2).text() == "-10\xa0000 ₸"
-    assert "ozon: пропущен" in text
+    assert screen.used.item(0, 2).text() == "10\xa0000 ₸"  # a saving, no minus
+    assert "Ozon: пропущен" in text
     assert "AI выключен" in text
 
 
@@ -86,7 +89,7 @@ def test_ozon_without_a_browser_says_so_and_points_to_settings(qtbot, result):
     result = result.model_copy(update={"unavailable_sources": ["ozon"]})
     run = SearchRun("ирригатор", True, {"kaspi": "done", "ozon": "skipped", "olx": "done"})
     text = _texts(_shown(qtbot, result, run))
-    assert "ozon: пропущен — нет браузера; что сделать, смотрите в «Состояние и ключи»" in text
+    assert "Ozon: пропущен — нет браузера; что сделать, смотрите в «Состояние и ключи»" in text
     assert "не выбран или поиск до него не дошёл" not in text
 
 
@@ -129,5 +132,65 @@ def test_roles_follow_the_marketplace_when_ids_collide(qtbot, result):
     screen = _shown(qtbot, result.model_copy(update={"recommendation": rec}))
     proxy = screen.alternatives_proxy
     roles = {proxy.index(r, 2).data(): proxy.index(r, 0).data() for r in range(proxy.rowCount())}
-    assert roles["Xiaomi Water Flosser 2"] == "Best budget"
+    assert roles["Xiaomi Water Flosser 2"] == "Дешевле"
     assert roles["Panasonic EW1411"] == ""
+
+
+def test_a_category_without_knowledge_offers_to_learn_it_then_to_search_again(
+    qtbot, runner, result
+):
+    learned = []
+
+    async def learn(category):
+        learned.append(category)
+
+    result = result.model_copy(update={"knowledge_missing": True})
+    screen = ReportScreen(runner, learn=learn)
+    qtbot.addWidget(screen)
+    screen.show_result(result, _ALL_RAN)
+    assert "нет данных о брендах" in _texts(screen)
+
+    screen.learn_button.click()
+    qtbot.waitUntil(lambda: screen.learn_button.text() == "Повторить поиск", timeout=3000)
+    assert learned == ["ирригатор"]
+    with qtbot.waitSignal(screen.rerun_requested, timeout=1000):
+        screen.learn_button.click()
+
+
+def test_no_learn_offer_when_the_category_is_known(qtbot, result):
+    screen = _shown(qtbot, result)
+    assert screen.learn_button is None
+
+
+def test_nothing_rejected_shows_no_rejected_section(qtbot, result):
+    rec = result.recommendation.model_copy(update={"rejected_count": 0, "rejected_reasons": {}})
+    screen = _shown(qtbot, result.model_copy(update={"recommendation": rec}))
+    assert screen.rejected is None
+
+
+def test_a_missing_review_summary_says_why(qtbot, result):
+    result = result.model_copy(update={"review_summary_note": "мало текстов отзывов для сводки"})
+    assert "Сводка отзывов недоступна: мало текстов отзывов для сводки" in _texts(
+        _shown(qtbot, result)
+    )
+
+
+def test_the_review_summary_is_shown(qtbot, result):
+    result = result.model_copy(update={"review_summary": _summary()})
+    assert "+ тихий" in _texts(_shown(qtbot, result))
+
+
+def test_axis_columns_start_hidden_and_toggle_on(qtbot, result):
+    from buysmarter.gui.screens.alternatives import AXES_START
+
+    screen = _shown(qtbot, result)
+    view = screen.alternatives_view
+    assert view.isColumnHidden(AXES_START)
+    screen.show_axes.setChecked(True)
+    assert not view.isColumnHidden(AXES_START)
+
+
+def test_bar_levels_flag_weak_and_strong_axes():
+    from buysmarter.gui.screens.report import bar_level
+
+    assert (bar_level(3.8, 25), bar_level(10, 20), bar_level(10, 10)) == ("low", "", "high")

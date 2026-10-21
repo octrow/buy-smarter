@@ -64,6 +64,23 @@ def test_window_prefills_search_from_saved_prefs_and_opens_the_report(
     assert window.report.best_axes.rowCount() == 2
 
 
+def test_a_finished_search_saves_the_cli_report_and_lists_it_in_past_searches(
+    qtbot, runner, result
+):
+    from buysmarter.cli.report import saved_reports
+
+    window = gui_app.MainWindow(runner)
+    qtbot.addWidget(window)
+    window.search.report_ready.emit(result, SearchRun("ирригатор до 40000", True, {}))
+
+    [path] = saved_reports()
+    assert path.name.endswith("-ирригатор-до-40000.md")
+    assert "Отчёт сохранён" in window.search.message.text()
+    window.saved.reload()
+    assert window.saved.reports.count() == 1
+    assert "Philips Sonicare Power Flosser" in window.saved.view.toPlainText()
+
+
 def test_an_unexpected_error_shows_a_dialog_and_the_window_stays_open(qtbot, runner, monkeypatch):
     shown = []
     monkeypatch.setattr(

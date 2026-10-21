@@ -12,7 +12,7 @@ from PySide6.QtCore import QObject, Qt, Signal, Slot
 
 logger = logging.getLogger(__name__)
 
-USER_ERROR = "Something went wrong. The details are in the log file."
+USER_ERROR = "Что-то пошло не так. Подробности — в лог-файле."
 _SHUTDOWN_TIMEOUT_S = 10.0
 
 

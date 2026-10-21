@@ -125,8 +125,11 @@ def _apply_review_trust(
 _REVIEW_SUMMARY_TOP_N = 3
 _SUMMARY_CONCURRENCY = 3  # parallel review-summary LLM calls
 _MIN_REVIEWS_FOR_SUMMARY = 5
+_NOT_SUMMARIZED = f"лучший выбор не вошёл в топ-{_REVIEW_SUMMARY_TOP_N}, чьи отзывы сводятся"
 
 SummariesById = dict[tuple[str, str], ReviewSummary]
+# A summary, or the reason a candidate has none.
+_SummaryOutcomes = dict[tuple[str, str], ReviewSummary | str]
 
 
 async def _reviews_for(
@@ -161,29 +164,27 @@ async def _summarize_top(
     active: dict[str, ProductSource],
     reviews_by_id: ReviewsById,
     required_features: Sequence[str] = (),
-) -> SummariesById:
+) -> _SummaryOutcomes:
     """Summarize the top-N ranked candidates' reviews (≥ floor), degrading gracefully."""
     semaphore = asyncio.Semaphore(_SUMMARY_CONCURRENCY)
 
-    async def summarize(scored: ScoredCandidate) -> ReviewSummary | None:
+    async def summarize(scored: ScoredCandidate) -> ReviewSummary | str:
+        """The summary, or why there is none (shown to the user as is)."""
         async with semaphore:
             reviews = await _reviews_for(scored, active, reviews_by_id)
             if len(reviews) < _MIN_REVIEWS_FOR_SUMMARY:
-                return None
+                need = _MIN_REVIEWS_FOR_SUMMARY
+                return f"мало текстов отзывов для сводки ({len(reviews)}, нужно от {need})"
             features = _unverified_features(scored, required_features)
             try:
                 return await summarize_reviews(reviews, features)
             except (LlmError, LlmConfigError) as exc:
                 logger.warning("Review summarization failed (%r); skipping candidate", exc)
-                return None
+                return "AI не смог свести отзывы (подробности в логе)"
 
     selected = recommendation.ranked[:_REVIEW_SUMMARY_TOP_N]
     results = await asyncio.gather(*(summarize(scored) for scored in selected))
-    return {
-        _candidate_key(scored): summary
-        for scored, summary in zip(selected, results, strict=True)
-        if summary is not None
-    }
+    return {_candidate_key(scored): out for scored, out in zip(selected, results, strict=True)}
 
 
 def _apply_summary_penalties(
@@ -251,8 +252,11 @@ async def review_pass(
     use_llm: bool,
     with_review_summary: bool,
     required_features: Sequence[str] = (),
-) -> tuple[Recommendation, ReviewSummary | None]:
+) -> tuple[Recommendation, ReviewSummary | None, str | None]:
     """Fetch reviews, apply the Kaspi trust re-score, then summarize + penalize.
+
+    Returns the recommendation, the best pick's summary, and why it has none
+    (``None`` when it has one or summaries were not asked for).
 
     Runs while sources are still open. The trust re-score is Kaspi-only (cheap
     endpoint). Summaries cover the top-3 ranked candidates (whatever their
@@ -265,14 +269,18 @@ async def review_pass(
         reviews_by_id, stats_by_id = await _fetch_top_reviews(kaspi, recommendation)
         recommendation = _apply_review_trust(recommendation, reviews_by_id, stats_by_id)
     review_summary = None
+    missing_note = None
     if with_review_summary and use_llm:
-        summaries = await _summarize_top(recommendation, active, reviews_by_id, required_features)
+        outcomes = await _summarize_top(recommendation, active, reviews_by_id, required_features)
+        summaries = {k: v for k, v in outcomes.items() if isinstance(v, ReviewSummary)}
         recommendation = _apply_summary_penalties(recommendation, summaries)
         recommendation = _apply_requirement_checks(
             recommendation, {key: s.requirement_checks for key, s in summaries.items()}
         )
-        review_summary = summaries.get(_candidate_key(recommendation.best))
+        outcome = outcomes.get(_candidate_key(recommendation.best), _NOT_SUMMARIZED)
+        review_summary = outcome if isinstance(outcome, ReviewSummary) else None
+        missing_note = outcome if isinstance(outcome, str) else None
     if not use_llm and required_features:
         checks_by_id = _naive_checks_by_id(recommendation, reviews_by_id, required_features)
         recommendation = _apply_requirement_checks(recommendation, checks_by_id)
-    return recommendation, review_summary
+    return recommendation, review_summary, missing_note

@@ -344,7 +344,9 @@ def _score_specs(
     weight = weights["specs"]
     required = constraints.required_features
     if not required:
-        coverage = 1.0 if candidate.specs else 0.5
+        # Neutral: with nothing to check, whether a marketplace ships a spec sheet (Ozon
+        # does, Kaspi search does not) says nothing about the product and must not rank.
+        coverage = 0.5
         explanation = "no required features specified; " + (
             "spec data present" if candidate.specs else "no spec data"
         )

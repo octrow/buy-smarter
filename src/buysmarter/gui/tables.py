@@ -12,17 +12,31 @@ def _fit_hint(view: QTableView, base: QSize) -> QSize:
     model = view.model()
     rows = sum(view.rowHeight(r) for r in range(model.rowCount())) if model else 0
     header = view.horizontalHeader().sizeHint().height()
-    return QSize(base.width(), header + rows + 2 * view.frameWidth())
+    # A too-wide table scrolls sideways; its scroll bar must not cover the last row.
+    bar = view.horizontalScrollBar()
+    scroll = bar.sizeHint().height() if bar.maximum() > 0 else 0
+    return QSize(base.width(), header + rows + scroll + 2 * view.frameWidth())
 
 
 def _configure(view: QTableView) -> None:
     view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
     view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-    view.verticalHeader().setVisible(False)
-    view.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+    view.setWordWrap(True)
+    rows = view.verticalHeader()
+    rows.setVisible(False)
+    rows.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+    # A wrapped cell grows its row when the window narrows: re-ask the layout for the height,
+    # or the last row is clipped (narrow) or a blank strip stays under it (wide).
+    rows.sectionResized.connect(lambda *_: view.updateGeometry())
     columns = view.horizontalHeader()
     columns.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-    columns.setStretchLastSection(True)
+    columns.sectionResized.connect(lambda *_: view.updateGeometry())
+    view.horizontalScrollBar().rangeChanged.connect(lambda *_: view.updateGeometry())
+
+
+def stretch_column(view: QTableView, column: int) -> None:
+    """Give the spare width to one text column (a title, a reason), never to a number."""
+    view.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeMode.Stretch)
 
 
 def _track_rows(view: QTableView, model: QAbstractItemModel) -> None:

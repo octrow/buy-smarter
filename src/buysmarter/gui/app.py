@@ -21,13 +21,15 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter import local_store
+from buysmarter.cli.report import DEFAULT_TOP, save_report
 from buysmarter.gui.bridge import USER_ERROR, CoreRunner
 from buysmarter.gui.screens.history import HistoryScreen
 from buysmarter.gui.screens.preferences import PreferencesScreen
 from buysmarter.gui.screens.report import ReportScreen
+from buysmarter.gui.screens.saved import SavedScreen
 from buysmarter.gui.screens.search import SearchRun, SearchScreen
 from buysmarter.gui.screens.settings import SettingsScreen, store_available, unavailable_sources
-from buysmarter.gui.theme import ICON, apply_theme
+from buysmarter.gui.theme import CONTENT_MAX_WIDTH, ICON, apply_theme
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.memory import prefs
 from buysmarter.services.doctor import Check
@@ -76,12 +78,15 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(*_MIN_SIZE)
         self.runner = runner
         self.search = SearchScreen(runner)
-        self.report = ReportScreen()
+        self.report = ReportScreen(runner)
         self.preferences = PreferencesScreen(runner)
         self.history = HistoryScreen(runner)
+        self.saved = SavedScreen()
         self.settings = SettingsScreen(runner)
         self.settings.checks_ready.connect(self._apply_checks)
         self.search.report_ready.connect(self._show_report)
+        self.search.open_report.connect(lambda: self._show_screen(self.report))
+        self.report.rerun_requested.connect(self._rerun)
         self.preferences.saved.connect(self.search.apply_prefs)
 
         self.sidebar = QListWidget()
@@ -94,13 +99,15 @@ class MainWindow(QMainWindow):
         screens = (
             ("Поиск", self.search),
             ("Отчёт", self.report),
+            ("Прошлые поиски", self.saved),
             ("Настройки поиска", self.preferences),
             ("История цен", self.history),
             ("Состояние и ключи", self.settings),
         )
         for title, screen in screens:
             self.sidebar.addItem(title)
-            self.stack.addWidget(screen)
+            # The report caps its own page, inside its scroll area; the others are capped here.
+            self.stack.addWidget(screen if screen is self.report else _centered(screen))
         self.sidebar.currentRowChanged.connect(self.stack.setCurrentIndex)
         self.sidebar.setCurrentRow(0)
 
@@ -134,7 +141,39 @@ class MainWindow(QMainWindow):
 
     def _show_report(self, result: RecommendResult, run: SearchRun) -> None:
         self.report.show_result(result, run)
-        self.sidebar.setCurrentRow(self.stack.indexOf(self.report))
+        self._save_report(result, run.query)
+        self._show_screen(self.report)
+
+    def _save_report(self, result: RecommendResult, query: str) -> None:
+        """The same markdown report the CLI's ``search`` saves, in the same folder."""
+        try:
+            path = save_report(result, query, DEFAULT_TOP, None)
+        except OSError as exc:  # a full disk must not lose the report on screen
+            logger.warning("Report not saved: %r", exc)
+            return
+        logger.info("Report saved to %s", path)
+        self.search.note_saved()
+
+    def _show_screen(self, screen: QWidget) -> None:
+        holder = screen if screen is self.report else (screen.parentWidget() or screen)
+        self.sidebar.setCurrentRow(self.stack.indexOf(holder))
+
+    def _rerun(self) -> None:
+        """Search again with the form as it was (after learning the category)."""
+        self._show_screen(self.search)
+        self.search.start()
+
+
+def _centered(screen: QWidget) -> QWidget:
+    """``screen`` no wider than the content cap, centered in whatever room is left."""
+    screen.setMaximumWidth(CONTENT_MAX_WIDTH)
+    holder = QWidget()
+    row = QHBoxLayout(holder)
+    row.setContentsMargins(0, 0, 0, 0)
+    row.addStretch(0)
+    row.addWidget(screen, 1)
+    row.addStretch(0)
+    return holder
 
 
 def install_excepthook(parent: QWidget) -> Callable[..., Any]:

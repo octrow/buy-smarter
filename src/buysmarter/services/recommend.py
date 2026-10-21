@@ -86,6 +86,10 @@ class RecommendResult(BaseModel):
     used_listings: list[UsedListing] = Field(default_factory=list)
     city_defaulted: bool = False
     review_summary: ReviewSummary | None = None
+    # Why ``review_summary`` is None although summaries ran (few review texts, an LLM error).
+    review_summary_note: str | None = None
+    # No brand/model knowledge for the category: every brand scores as unknown.
+    knowledge_missing: bool = False
     # Set when the run went no-LLM because nothing is configured (not on an explicit opt-out).
     skipped_llm_steps: list[str] = Field(default_factory=list)
     # Selected marketplaces left out for lack of a browser (only Ozon needs one).
@@ -367,6 +371,7 @@ async def recommend(
     required_substances, substance_plan = _substance_recall(ingredient_book, constraints)
 
     review_summary: ReviewSummary | None = None
+    review_summary_note: str | None = None
     try:
         with stage("collect"):
             collected = await gather_sources(
@@ -406,7 +411,7 @@ async def recommend(
         # for the top Kaspi picks, discount fake-looking review axes, re-sort,
         # then summarize the (possibly changed) best pick from its own source.
         with stage("review summaries"):
-            recommendation, review_summary = await review_pass(
+            recommendation, review_summary, review_summary_note = await review_pass(
                 recommendation,
                 active,
                 use_llm,
@@ -432,6 +437,8 @@ async def recommend(
         used_listings=used_listings,
         city_defaulted=city_defaulted,
         review_summary=review_summary,
+        review_summary_note=review_summary_note,
+        knowledge_missing=book is None and model_book is None,
         skipped_llm_steps=skipped_llm_steps,
         unavailable_sources=[name for name in requested if name not in active],
     )

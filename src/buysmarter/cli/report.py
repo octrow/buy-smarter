@@ -22,6 +22,7 @@ ROLE_LABELS = {
     "best_premium": "Best premium",
 }
 _REPORTS_DIR = Path.home() / ".local" / "share" / "buysmarter" / "reports"
+DEFAULT_TOP = 8  # ranked candidates in a report's table (``search --top``)
 
 # M5 (docs/PLAN.md "Ranking-фиксы"): ``Recommendation.rejected_reasons`` keys
 # are stable English prefixes (``ranking.engine._reason_key``), chosen for
@@ -274,6 +275,13 @@ def default_report_path(query: str) -> Path:
     """``~/.local/share/buysmarter/reports/YYYYMMDD-HHMMSS-<query-slug>.md`` for now."""
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     return _REPORTS_DIR / f"{stamp}-{_slug(query)}.md"
+
+
+def saved_reports() -> list[Path]:
+    """Every report ``save_report`` wrote to the default folder, newest first."""
+    if not _REPORTS_DIR.is_dir():
+        return []
+    return sorted(_REPORTS_DIR.glob("*.md"), key=lambda p: p.name, reverse=True)
 
 
 def save_report(result: RecommendResult, query: str, top: int, path: str | None) -> Path:

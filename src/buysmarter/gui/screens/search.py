@@ -1,6 +1,7 @@
 """Search screen: the request form, live per-marketplace progress and cancel."""
 
 import logging
+from collections import Counter
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -100,6 +101,7 @@ class SearchScreen(QWidget):
     """Emits ``report_ready(RecommendResult, SearchRun)`` when a search finishes."""
 
     report_ready = Signal(object, object)
+    open_report = Signal()
 
     def __init__(
         self,
@@ -144,6 +146,9 @@ class SearchScreen(QWidget):
         self.cancel_button = QPushButton("Отмена")
         self.cancel_button.setEnabled(False)
         self.cancel_button.clicked.connect(self.cancel)
+        self.report_button = QPushButton("Открыть отчёт")
+        self.report_button.clicked.connect(self.open_report.emit)
+        self.report_button.hide()
 
         # A grid, not a QFormLayout: its labels sit at the top of a tall row on some styles.
         form = QGridLayout()
@@ -174,6 +179,7 @@ class SearchScreen(QWidget):
         buttons = QHBoxLayout()
         buttons.addWidget(self.start_button)
         buttons.addWidget(self.cancel_button)
+        buttons.addWidget(self.report_button)
         buttons.addStretch(1)
         status = QVBoxLayout()
         status.setSpacing(SPACE["xs"])
@@ -229,6 +235,7 @@ class SearchScreen(QWidget):
         self._states = {name: "waiting" if name in selected else "skipped" for name in ALL_SOURCES}
         self._show_states()
         self.message.clear()
+        self.report_button.hide()
         self._set_running(True)
         self._run = SearchRun(query, self.use_llm.isChecked(), self._states)
         coro = self._search(
@@ -305,7 +312,26 @@ class SearchScreen(QWidget):
             self.message.setText(result.message)
             return
         run = SearchRun(self._run.query, self._run.use_llm, dict(self._states))
+        self._show_counts(result)
+        self.report_button.show()
         self.report_ready.emit(result, run)
+
+    def _show_counts(self, result: RecommendResult) -> None:
+        """What each marketplace brought, next to its status and as one summary line."""
+        counts = Counter(s.candidate.source for s in result.recommendation.ranked)
+        counts["olx"] += len(result.used_listings)
+        for name, label in self.status.items():
+            if self._states.get(name) == "done":
+                label.setText(f"{STATE_LABELS['done']} · {counts[name]}")
+        new = sum(n for name, n in counts.items() if name != "olx")
+        line = f"Найдено предложений: {new}"
+        if counts["olx"]:
+            line += f", б/у на OLX: {counts['olx']}"
+        self.message.setText(line + ".")
+
+    def note_saved(self) -> None:
+        """Say where the finished search's report went."""
+        self.message.setText(f"{self.message.text()} Отчёт сохранён — см. «Прошлые поиски».")
 
     def _on_failed(self, message: str) -> None:
         self._settle(interrupted="failed")

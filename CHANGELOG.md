@@ -4,6 +4,30 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Added
+- Desktop app: «Прошлые поиски» lists the saved reports, newest first, and shows the selected one. Each search in
+  the app now saves the same markdown report as the CLI's `search`, to the same folder
+  (`~/.local/share/buysmarter/reports/`), so CLI runs show up there too.
+- Desktop app: when a category has no brand knowledge, the report says so and offers «Изучить категорию»
+  (the CLI's `learn-category`, with a timer) and then «Повторить поиск».
+- Desktop app: the report shows the review summary, or why there is none; «История цен» opens on the recently
+  tracked products with their last price change, draws a price line per product and lists the biggest drops
+  after «Обновить цены»; the search screen says what each marketplace brought and links back to the report.
+
+### Changed
+- Ranking: «Best budget» goes only to an offer cheaper than the best pick. Without required features the specs
+  axis is neutral (half credit for everyone), so a marketplace that ships a spec sheet (Ozon) no longer outranks
+  one that does not (Kaspi search).
+- Desktop app: the report is in Russian throughout (headings, columns, axes, roles, pros and cons, axis reasons),
+  titles drop a doubled first word, marketplaces are capitalized, the best pick is labeled in the alternatives,
+  per-axis columns are behind «Баллы по осям», axis bars are colored by strength, confidence explains itself in a
+  tooltip, the used-market table shows the saving without a minus and what it was compared with, and «Отсеяно»
+  appears only when something was. Pages stop at 1200 px on wide screens.
+
+### Fixed
+- Desktop app: wrapped table rows no longer clip the last row in a narrow window or leave a blank strip in a wide
+  one; the sort arrow points down for a descending sort.
+
 ## [0.3.1] - 2026-10-22
 
 ### Added

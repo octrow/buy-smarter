@@ -119,3 +119,20 @@ async def test_non_empty_ingredient_book_implies_composition_driven(monkeypatch)
     _, _, category_type, _ = await generate_category_knowledge("средства от акне")
 
     assert category_type == "composition_driven"
+
+
+async def test_learn_category_generates_and_saves(monkeypatch):
+    saved = []
+    knowledge = (BrandBook(), ModelBook(), "spec_driven", IngredientBook())
+
+    async def fake_generate(category, *, web_search=True):
+        return knowledge
+
+    async def fake_save(category, brand, model, generated_by, **kwargs):
+        saved.append((category, generated_by, kwargs["category_type"]))
+
+    monkeypatch.setattr(generate_module, "generate_category_knowledge", fake_generate)
+    monkeypatch.setattr(generate_module, "save_knowledge", fake_save)
+
+    assert await generate_module.learn_category("кроссовки") == knowledge
+    assert saved == [("кроссовки", generate_module.GENERATE_KNOWLEDGE_MODEL, "spec_driven")]

@@ -255,9 +255,15 @@ def _pick_alternatives(
     # Quality floor: a candidate scoring far below the best pick must not win
     # best_budget on price alone (e.g. a counterfeit that scores 30/100).
     budget_threshold = _BEST_BUDGET_MIN_SCORE_RATIO * best.total_score
+    # "Budget" must undercut the best pick: when the pick is already the cheapest,
+    # the next-cheapest leftover is no budget option, so the role is dropped.
     claims.claim(
         "best_budget",
-        [s for s in priced if s.total_score >= budget_threshold],
+        [
+            s
+            for s in priced
+            if s.total_score >= budget_threshold and s.candidate.price < best.candidate.price
+        ],
         key=lambda s: s.candidate.price,
         reverse=False,
     )
