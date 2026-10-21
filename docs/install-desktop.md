@@ -74,11 +74,11 @@ you the first time.
 
 - **Google Chrome**, for Ozon.kz. The app uses the Chrome you already have and does not ship its own
   browser. Without Chrome, Kaspi and OLX still work and the report says that Ozon was skipped. The first
-  time, open **Настройки** (Settings) and click **Пройти проверку Ozon**: it opens Chrome once to pass
+  time, open **Состояние и ключи** (Status and keys) and click **Пройти проверку Ozon**: it opens Chrome once to pass
   Ozon's anti-bot page.
 - **A Kazakhstan internet connection** for Kaspi.kz. From abroad or a datacenter Kaspi refuses requests.
-- **Optional: an AI key.** Paste it under **AI-ключ** in **Настройки** to get request parsing and review summaries.
+- **Optional: an AI key.** Paste it under **AI-ключ** in **Состояние и ключи** to get request parsing and review summaries.
   The key goes to your system's password store (Keychain, Windows Credential Manager, or the Linux keyring),
   never into a file. Without a key the app still works and says what it skipped.
 
-**Настройки** shows what is set up and what each missing piece turns off.
+**Состояние и ключи** shows what is set up and what each missing piece turns off.

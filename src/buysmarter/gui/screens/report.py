@@ -111,7 +111,9 @@ def could_not_verify(result: RecommendResult, run: SearchRun) -> list[str]:
     lines = []
     for source, state in run.source_states.items():
         if source in result.unavailable_sources:
-            lines.append(f"{source}: пропущен — нет браузера; что сделать, смотрите в Настройках")
+            lines.append(
+                f"{source}: пропущен — нет браузера; что сделать, смотрите в «Состояние и ключи»"
+            )
         elif state == "skipped":
             lines.append(f"{source}: пропущен — не выбран или поиск до него не дошёл")
         elif state == "failed":
@@ -119,7 +121,7 @@ def could_not_verify(result: RecommendResult, run: SearchRun) -> list[str]:
     if result.skipped_llm_steps:
         lines.append(
             "AI не настроен: запрос разобран по ключевым словам, без сводки отзывов и разбора "
-            "состава. Ключ можно добавить в Настройках"
+            "состава. Ключ можно добавить в «Состояние и ключи»"
         )
     elif not run.use_llm:
         lines.append("AI выключен: запрос разобран по ключевым словам, сводки отзывов нет")

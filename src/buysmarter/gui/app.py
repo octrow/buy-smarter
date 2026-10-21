@@ -92,7 +92,7 @@ class MainWindow(QMainWindow):
             ("Отчёт", self.report),
             ("Настройки поиска", self.preferences),
             ("История цен", self.history),
-            ("Настройки", self.settings),
+            ("Состояние и ключи", self.settings),
         )
         for title, screen in screens:
             self.sidebar.addItem(title)

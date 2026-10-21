@@ -13,6 +13,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Desktop app: with the store off, «Настройки поиска» and «История цен» say so up front instead of failing on
   use. Settings rows align to the top of a long hint, and the AI-key panel says a key is optional with the claude
   CLI.
+- Desktop app: the «Настройки» screen is now «Состояние и ключи», so it is no longer confused with «Настройки поиска».
 
 ## [0.3.0] - 2026-10-21
 
