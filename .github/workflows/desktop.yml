@@ -1,0 +1,71 @@
+# A PyInstaller one-dir desktop build per OS → its --self-test → an archive artifact (desktop-<os>).
+# release.yml calls it on a tag and attaches the archives to the release it creates; run it by hand
+# (workflow_dispatch) for a dry run that only builds and self-tests.
+name: desktop
+on:
+  workflow_call:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04  # the oldest glibc we build on is the minimum the Linux build needs
+            platform: linux
+          - os: windows-latest
+            platform: windows
+          - os: macos-latest  # arm64; an Intel build waits until someone asks for it
+            platform: macos
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: false  # release artifacts: no cache that could be poisoned
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libegl1 libgl1 libxkbcommon0 libfontconfig1
+      - run: uv sync --locked --no-dev --extra gui --group packaging
+      - run: uv run --no-sync pyinstaller packaging/buysmarter-gui.spec --noconfirm
+
+      - name: self-test the built app
+        if: runner.os == 'Linux'
+        run: dist/buysmarter/buysmarter --self-test
+      - name: self-test the built app
+        if: runner.os == 'macOS'
+        run: dist/buysmarter.app/Contents/MacOS/buysmarter --self-test
+      - name: self-test the built app
+        if: runner.os == 'Windows'
+        shell: pwsh  # a windowed exe: wait for it explicitly, then read its exit code
+        run: |
+          $p = Start-Process dist\buysmarter\buysmarter.exe -ArgumentList '--self-test' -Wait -PassThru
+          $log = Join-Path $env:TEMP "buysmarter-selftest.log"  # selftest.FAILURE_LOG: no console to print to
+          if ($p.ExitCode -ne 0 -and (Test-Path $log)) { Get-Content $log }
+          exit $p.ExitCode
+
+      - name: archive
+        id: archive
+        run: |
+          arch="$(echo "$RUNNER_ARCH" | tr '[:upper:]' '[:lower:]')"
+          base="buysmarter-$(uv version --short)-${{ matrix.platform }}-$arch"
+          mkdir -p out
+          case "${{ matrix.platform }}" in
+            linux) tar -C dist -czf "out/$base.tar.gz" buysmarter ;;
+            windows) (cd dist && 7z a -tzip -bso0 "../out/$base.zip" buysmarter) ;;
+            macos) ditto -c -k --keepParent dist/buysmarter.app "out/$base.app.zip" ;;  # keeps the framework symlinks
+          esac
+          du -h out/* >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: out/*
+          if-no-files-found: error
+

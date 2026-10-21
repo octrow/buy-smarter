@@ -13,7 +13,7 @@
 
 - **PyInstaller one-dir** (ADR 0003). One spec file for all OSes, with `sys.platform` branches only for icons and the bundle name. `collect_submodules("keyring.backends")`, `collect_data_files("buysmarter", includes=["alembic/**","gui/theme/**"])`, and `collect_dynamic_libs("curl_cffi")`. Migrations are packaged as package data, so the self-test's auto-migrate finds them.
 - **`--self-test`** lives in `gui/app.py`: `QT_QPA_PLATFORM=offscreen`, a temp store dir, `keyring.set_keyring(InMemory)`, migrate to head, build the main window, then quit with exit code 0 or 1. It runs on each job against the built binary, not against the source tree.
-- **Release wiring.** `release.yml` creates the GitHub Release (if missing) before `desktop.yml` jobs upload to it, using `gh release upload --clobber`. `workflow_dispatch` builds without uploading, for dry runs.
+- **Release wiring.** `release.yml` calls `desktop.yml` (`workflow_call`) after its tests, and creates the GitHub Release once, after PyPI and every desktop build passed, with the wheel and the archives together. A release therefore never exists without its wheel, which `install.sh` downloads from the latest release. A failed self-test fails the run and nothing is released. `workflow_dispatch` on `desktop.yml` builds without uploading, for dry runs.
 - **Archive naming.** `buysmarter-<version>-<os>-<arch>.{tar.gz|zip}` and `buysmarter-<version>-macos-<arch>.app.zip`. On macOS, the runner's arch is `arm64`. An Intel build is skipped until asked for.
 - **Prerequisite checks** are deferred to the running app's doctor rows (Chrome, keyring), with no installer-time checks.
 

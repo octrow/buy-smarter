@@ -1,4 +1,4 @@
-# Tag vX.Y.Z → tests → wheel and sdist → PyPI (trusted publishing) → GitHub release with build provenance; install.sh/install.ps1 install that wheel.
+# Tag vX.Y.Z → tests → wheel and sdist → PyPI (trusted publishing) → GitHub release with build provenance, holding the wheel and the desktop builds (desktop.yml); install.sh/install.ps1 install that wheel.
 name: release
 on:
   push:
@@ -56,8 +56,12 @@ jobs:
           path: dist/
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
 
+  desktop:  # a build that fails its self-test fails the run, and no release is created
+    needs: check
+    uses: ./.github/workflows/desktop.yml
+
   github-release:
-    needs: [build, pypi]
+    needs: [build, pypi, desktop]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 15

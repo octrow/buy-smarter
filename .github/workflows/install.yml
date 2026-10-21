@@ -22,11 +22,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - if: runner.os == 'Linux'  # Qt's offscreen platform still links these
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libegl1 libgl1 libxkbcommon0 libfontconfig1
       - if: runner.os != 'Windows'
         run: |
           sh install.sh
           ~/.local/bin/buysmarter --help
           ~/.local/bin/buysmarter doctor
+          ~/.local/bin/buysmarter-gui --self-test  # the installers include the desktop app
       - if: runner.os == 'Windows'
         shell: powershell  # Windows PowerShell 5.1, what the README one-liner runs
         run: |
@@ -34,3 +37,5 @@ jobs:
           $bin = Join-Path (uv tool dir --bin) "buysmarter.exe"
           & $bin --help; if ($LASTEXITCODE -ne 0) { exit 1 }
           & $bin doctor; if ($LASTEXITCODE -ne 0) { exit 1 }
+          $gui = Join-Path (uv tool dir --bin) "buysmarter-gui.exe"
+          & $gui --self-test; if ($LASTEXITCODE -ne 0) { exit 1 }
