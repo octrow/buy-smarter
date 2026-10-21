@@ -3,6 +3,7 @@
 import asyncio
 import gc
 import threading
+import time
 import weakref
 
 import pytest
@@ -141,3 +142,20 @@ def test_busy_until_every_job_has_settled(qtbot, runner):
     with qtbot.waitSignal(job.finished, timeout=_WAIT_MS):
         release.set()
     assert not runner.busy()
+
+
+# Named like the thread aiosqlite runs each connection in.
+def _connection_worker_thread(done: threading.Event) -> None:
+    time.sleep(0.3)  # still finishing a query a cancelled job abandoned
+    done.set()
+
+
+def test_shutdown_waits_for_store_threads_before_closing_the_loop(qapp):
+    # A query a cancelled job abandons still reports back into the loop from aiosqlite's thread;
+    # closed by then, the loop raises "Event loop is closed" in that thread.
+    done = threading.Event()
+    runner = CoreRunner()
+    worker = threading.Thread(target=_connection_worker_thread, args=(done,), daemon=True)
+    worker.start()
+    runner.shutdown()
+    assert done.is_set()

@@ -5,6 +5,7 @@ import concurrent.futures
 import itertools
 import logging
 import threading
+import time
 from collections.abc import Coroutine
 from typing import Any
 
@@ -14,6 +15,9 @@ logger = logging.getLogger(__name__)
 
 USER_ERROR = "Что-то пошло не так. Подробности — в лог-файле."
 _SHUTDOWN_TIMEOUT_S = 10.0
+_STORE_THREADS_WAIT_S = 2.0
+_POLL_S = 0.02
+_AIOSQLITE_THREAD = "(_connection_worker_thread)"  # threading names a thread after its target
 
 
 class _LoopSide:
@@ -141,3 +145,18 @@ async def _cancel_all() -> None:
     for task in tasks:
         task.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)
+    await _store_threads_done()
+
+
+async def _store_threads_done() -> None:
+    """Keep the loop open until aiosqlite's threads end (bounded).
+
+    A cancelled job's store session drops its connection without awaiting the close; the thread
+    finishes the query and reports back into this loop, which must not be closed by then.
+    """
+    deadline = time.monotonic() + _STORE_THREADS_WAIT_S
+    while any(t.name.endswith(_AIOSQLITE_THREAD) for t in threading.enumerate()):
+        if time.monotonic() > deadline:
+            logger.warning("Store threads busy after %ss; exiting anyway", _STORE_THREADS_WAIT_S)
+            return
+        await asyncio.sleep(_POLL_S)

@@ -113,7 +113,7 @@ class HistoryScreen(QWidget):
         self._refresh_job: Job | None = None
         self._reload_pending = False
         self._shown_once = False
-        self._progress = Progress()
+        self._progress = Progress(self)
         self._progress.changed.connect(self._on_progress)
 
         self.term = QLineEdit(placeholderText="название товара или часть ссылки; пусто — недавние")

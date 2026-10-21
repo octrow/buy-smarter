@@ -117,7 +117,7 @@ class SearchScreen(QWidget):
         self._unavailable: dict[str, str] = {}
         self._job: Job | None = None
         self._states: dict[str, str] = {}
-        self._progress = Progress()
+        self._progress = Progress(self)
         self._progress.changed.connect(self._on_progress)
         self._stage_text = ""
         self._elapsed = QElapsedTimer()

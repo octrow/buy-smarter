@@ -20,15 +20,17 @@ class Progress(QObject):
     """Emits ``changed(source, state, stage)`` for each core stage record of a tracked job.
 
     ``source`` is the marketplace for a collect stage and ``""`` for a pipeline stage; ``state``
-    is running, done, failed or cancelled. Emitted on the GUI thread. Keep the Progress alive as
-    long as its screen: the loop thread holds its emitter while a tracked job runs.
+    is running, done, failed or cancelled. Emitted on the GUI thread. The loop thread holds its
+    emitter while a tracked job runs.
     """
 
     changed = Signal(str, str, str)
     _record = Signal(str, str, str)  # loop thread -> GUI thread hop
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, parent: QObject) -> None:
+        # The parent (its screen) owns it: the loop thread may drop the last Python reference,
+        # and a parentless QObject would then be deleted there, off its thread.
+        super().__init__(parent)
         self._record.connect(self._deliver, Qt.ConnectionType.QueuedConnection)
         _install_handler()
 

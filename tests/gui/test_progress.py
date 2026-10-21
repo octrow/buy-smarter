@@ -2,6 +2,8 @@
 
 import asyncio
 
+from PySide6.QtCore import QObject
+
 from buysmarter.gui.progress import Progress
 from buysmarter.services.collect import _safe, stage
 from tests.gui.conftest import WAIT_MS
@@ -27,7 +29,8 @@ def _recorder(progress: Progress) -> list[tuple[str, str, str]]:
 
 
 def test_stubbed_run_emits_running_then_done_or_failed_per_source(qtbot, runner):
-    progress = Progress()
+    owner = QObject()  # the screen, in the app
+    progress = Progress(owner)
     seen = _recorder(progress)
     job = runner.submit(progress.track(_stub_run()))
     with qtbot.waitSignal(job.finished, timeout=WAIT_MS):
@@ -44,7 +47,8 @@ def test_stubbed_run_emits_running_then_done_or_failed_per_source(qtbot, runner)
 
 
 def test_two_jobs_at_once_each_see_only_their_own_stages(qtbot, runner):
-    search, refresh = Progress(), Progress()
+    owner = QObject()
+    search, refresh = Progress(owner), Progress(owner)
     seen_search, seen_refresh = _recorder(search), _recorder(refresh)
 
     async def stages(name: str) -> None:
@@ -62,9 +66,21 @@ def test_two_jobs_at_once_each_see_only_their_own_stages(qtbot, runner):
 
 
 def test_untracked_work_emits_nothing(qtbot, qapp):
-    progress = Progress()
+    owner = QObject()  # the screen, in the app
+    progress = Progress(owner)
     seen = _recorder(progress)
     with stage("ranking"):
         pass
     qapp.processEvents()
     assert seen == []
+
+
+def test_each_screen_owns_its_progress_so_it_is_never_freed_on_the_loop_thread(qtbot, runner):
+    # The loop thread holds Progress.track's emitter in task contexts. Parentless, the Progress
+    # could be freed there when its screen goes, and Qt crashes deleting a QObject off its thread.
+    from buysmarter.gui.screens.history import HistoryScreen
+    from buysmarter.gui.screens.search import SearchScreen
+
+    for screen in (SearchScreen(runner), HistoryScreen(runner)):
+        qtbot.addWidget(screen)
+        assert screen._progress.parent() is screen
