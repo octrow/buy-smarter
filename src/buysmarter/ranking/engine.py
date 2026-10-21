@@ -11,6 +11,8 @@ from collections import Counter
 from datetime import date
 from typing import TYPE_CHECKING, NamedTuple
 
+from buysmarter.i18n import kzt
+from buysmarter.ranking.audience import has_size
 from buysmarter.ranking.delivery import (
     DELIVERY_LATER_CREDIT,
     delivery_note,
@@ -41,6 +43,7 @@ from buysmarter.ranking.models import (
     Recommendation,
     ScoredCandidate,
 )
+from buysmarter.ranking.price_risk import LOW_CONFIDENCE_CAP, Risk, gap_con, price_risk
 from buysmarter.ranking.selection import assemble_recommendation
 from buysmarter.ranking.spec_conflicts import spec_conflicts
 
@@ -99,8 +102,13 @@ KIMOVIL_INDEX_MAX = 100.0
 
 
 def _tiered_prices(candidates: list[Candidate]) -> list[int]:
-    """Sorted valid prices of candidates with a known brand tier."""
-    return sorted(c.price for c in candidates if c.brand_tier is not None and c.price > 0)
+    """Sorted valid prices of candidates with a known brand tier, brand mimics excluded:
+    a fake "Air Jordan" must not drag the bar every genuine listing is measured against."""
+    return sorted(
+        c.price
+        for c in candidates
+        if c.brand_tier is not None and c.mimic_brand is None and c.price > 0
+    )
 
 
 def _max_reviews_by_source(candidates: list[Candidate]) -> dict[str, int]:
@@ -261,7 +269,7 @@ def _apply_price_history(axis: AxisScore, candidate: Candidate) -> AxisScore:
         return axis
     pct = (candidate.price - hist.avg) / hist.avg
     explanation = (
-        f"{axis.explanation}; средняя за 30д: {hist.avg:,.0f} ₸ (сейчас {pct * 100:+.0f}%)"
+        f"{axis.explanation}; средняя за 30д: {kzt(round(hist.avg))} (сейчас {pct * 100:+.0f}%)"
     )
     score = axis.score
     if candidate.price < _PRICE_HISTORY_LOW_RATIO * hist.avg:
@@ -468,6 +476,9 @@ def _pros_cons(axes: list[AxisScore]) -> tuple[list[str], list[str]]:
 # carries none of them: a different model in the same category, not a hard reject.
 _MODEL_MISMATCH_FACTOR = 0.85
 _MODEL_MISMATCH_CON = "другая модель: в названии нет «{token}»"
+_OFFICIAL_SELLER_PRO = "официальный магазин или партнёр бренда — оригинал"
+# Marketplace cards do not list the sizes in stock: a size is checked on the product page.
+_SIZE_UNVERIFIED_CON = "размер {size}: наличие не проверено"
 
 
 def _unverified_feature_cons(candidate: Candidate, constraints: QueryConstraints) -> list[str]:
@@ -503,10 +514,11 @@ def _price_flags(candidate: Candidate, market: MarketContext) -> _PriceFlags:
     # cheap side of the market too — a normally-priced listing whose duplicate
     # is simply overpriced (e.g. 23k vs a 62k re-lister) must not eat the hit.
     dup_gap = candidate.dup_price_gap is not None and candidate.price < _price_reference(market)[0]
+    risk, _ratio = price_risk(candidate, market)
     return _PriceFlags(
         dup_gap=dup_gap,
         mimic=candidate.mimic_brand is not None,
-        generic=_is_suspicious_price(candidate, market),
+        generic=_is_suspicious_price(candidate, market) or risk is Risk.SUSPICIOUS,
     )
 
 
@@ -572,6 +584,7 @@ def _score_axes(
 def _verdict_pros_cons(
     axes: list[AxisScore],
     candidate: Candidate,
+    market: MarketContext,
     constraints: QueryConstraints,
     flags: _PriceFlags,
     ingredient_ctx: IngredientContext | None,
@@ -579,13 +592,20 @@ def _verdict_pros_cons(
     today: date,
 ) -> tuple[list[str], list[str]]:
     pros, cons = _pros_cons(axes)
+    if candidate.official_seller:
+        pros.insert(0, _OFFICIAL_SELLER_PRO)
     # The only source of a "weak brand" con is an unknown brand (factor 0.15).
     cons = ["неизвестный бренд" if c == "weak brand" else c for c in cons]
     cons += _price_cons(candidate, flags)
+    risk, ratio = price_risk(candidate, market)
+    if risk is Risk.LOW and ratio is not None:
+        cons.append(gap_con(candidate, ratio))
     verdict = _price_history_verdict(candidate)
     if verdict is not None:
         (pros if verdict[0] == "pro" else cons).append(verdict[1])
     cons.extend(_unverified_feature_cons(candidate, constraints))
+    if constraints.size and not has_size(candidate.title, constraints.size):
+        cons.append(_SIZE_UNVERIFIED_CON.format(size=constraints.size))
     if ingredient_ctx is not None:
         pros.extend(equivalence_verdicts(candidate, ingredient_ctx))
         cons = ingredient_cons(cons, candidate, ingredient_ctx)
@@ -605,6 +625,10 @@ def _score_confidence(candidate: Candidate, market: MarketContext) -> float:
         # silent pool-median fallback) can't support full confidence — the
         # reference itself is shaky, not just this candidate.
         confidence = min(confidence, _DEGENERATE_CONFIDENCE_CAP)
+    # A brand read only from the title, or a price well under the genuine item's,
+    # is a claim the listing makes, not a fact we checked.
+    if candidate.brand_from_title or price_risk(candidate, market)[0] is not Risk.NONE:
+        confidence = min(confidence, LOW_CONFIDENCE_CAP)
     return confidence
 
 
@@ -639,6 +663,7 @@ def score(
     pros, cons = _verdict_pros_cons(
         axes,
         candidate,
+        market,
         constraints,
         flags,
         ingredient_ctx,

@@ -201,3 +201,50 @@ def apply_requirement_checks(
             "review_penalty": round(scored.review_penalty + penalty, 2),
         }
     )
+
+
+# Reviews calling the item a fake (``review_trust.count_counterfeit_mentions``), over the
+# fetched sample incl. the complaint-heavy negative page, judged against ALL the card's
+# reviews: two mentions that are at least 1% of them, or any share of 5%+. A hit-seller
+# card with 3000 reviews is not condemned by two angry buyers.
+_COUNTERFEIT_MIN_MENTIONS = 2
+_COUNTERFEIT_MIN_SHARE = 0.01
+_COUNTERFEIT_SURE_SHARE = 0.05
+_COUNTERFEIT_QUOTE_CON = "в отзывах пишут о подделке: {mentions} из {total}"
+
+
+def _counterfeit_verdict(mentions: int, total: int) -> bool:
+    share = mentions / max(total, mentions, 1)
+    if share >= _COUNTERFEIT_SURE_SHARE:
+        return True
+    return mentions >= _COUNTERFEIT_MIN_MENTIONS and share >= _COUNTERFEIT_MIN_SHARE
+
+
+def apply_counterfeit_mentions(
+    scored: ScoredCandidate, mentions: int, total: int
+) -> ScoredCandidate:
+    """Bar and discount a candidate whose reviews call it a fake.
+
+    Same hit as a counterfeit review summary (``_counterfeit_penalty``: softer on a
+    multi-seller card), plus a con with the count. Unchanged below the threshold
+    or when a summary already flagged it.
+    """
+    if mentions <= 0 or COUNTERFEIT_CON in scored.cons or COUNTERFEIT_CON_MULTI in scored.cons:
+        return scored
+    total = max(total, mentions)
+    if not _counterfeit_verdict(mentions, total):
+        return scored
+    factor, con = _counterfeit_penalty(scored.candidate)
+    new_total = round(scored.total_score * factor, 2)
+    return scored.model_copy(
+        update={
+            "total_score": new_total,
+            "confidence": round(scored.confidence * factor, 2),
+            "cons": [
+                *scored.cons,
+                con,
+                _COUNTERFEIT_QUOTE_CON.format(mentions=mentions, total=total),
+            ],
+            "review_penalty": round(scored.review_penalty + scored.total_score - new_total, 2),
+        }
+    )

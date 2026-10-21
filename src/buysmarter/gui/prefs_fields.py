@@ -6,6 +6,8 @@ from PySide6.QtCore import QLocale
 from PySide6.QtWidgets import QCheckBox, QLabel, QSpinBox
 
 from buysmarter.gui.theme import SPACE, set_state
+from buysmarter.i18n import SOURCE_LABELS
+from buysmarter.i18n import kzt as kzt  # re-exported: the screens format prices through here
 from buysmarter.services.collect import ALL_SOURCES
 
 CITY = "city"  # the core reads this one too (services.recommend.resolve_city)
@@ -13,9 +15,8 @@ BUDGET = "budget"
 MARKETPLACES = "marketplaces"
 EXCLUDED_BRANDS = "excluded_brands"
 
-SOURCE_LABELS = {"kaspi": "Kaspi", "ozon": "Ozon", "olx": "OLX"}
 BUDGET_MAX = 100_000_000
-# Russian digit grouping, "40 000 ₸" (a no-break space), for every price the app shows.
+# Russian digit grouping, "40 000 ₸" (a no-break space), as ``i18n.kzt`` writes prices.
 MONEY_LOCALE = QLocale(QLocale.Language.Russian, QLocale.Country.Kazakhstan)
 _BUDGET_STEP = 1_000
 STORE_OFF = (
@@ -46,11 +47,6 @@ def budget_box() -> QSpinBox:
     # QSS horizontal padding does not reach a spin box's text: inset it like a QLineEdit's.
     box.lineEdit().setTextMargins(SPACE["sm"], 0, SPACE["sm"], 0)
     return box
-
-
-def kzt(amount: int) -> str:
-    """A price in tenge as the app shows it: ``kzt(40000) == "40\xa0000 ₸"``."""
-    return f"{MONEY_LOCALE.toString(amount)} ₸"
 
 
 def store_warning() -> QLabel:

@@ -60,7 +60,7 @@ def _result(n_ranked: int = 5) -> RecommendResult:
 
 def _top_rows(md: str) -> list[str]:
     lines = md.splitlines()
-    start = next(i for i, ln in enumerate(lines) if ln.startswith("## Top candidates"))
+    start = next(i for i, ln in enumerate(lines) if ln.startswith("## Лучшие предложения"))
     rows = []
     for ln in lines[start + 4 :]:  # skip heading, blank, header row, separator
         if not ln.startswith("|"):
@@ -72,7 +72,7 @@ def _top_rows(md: str) -> list[str]:
 def test_top_limits_rows_to_requested_n() -> None:
     md = render_markdown(_result(n_ranked=5), top=2)
     assert len(_top_rows(md)) == 2
-    assert "## Top candidates (top 2)" in md
+    assert "## Лучшие предложения (топ 2)" in md
 
 
 def test_top_caps_at_available_when_fewer_than_requested() -> None:
@@ -83,12 +83,12 @@ def test_top_caps_at_available_when_fewer_than_requested() -> None:
 def test_markdown_has_all_sections() -> None:
     md = render_markdown(_result(), top=8)
     for header in (
-        "# buy-smarter recommendation",
-        "## Parsed request",
-        "## Best pick",
-        "## Alternatives",
-        "## Top candidates",
-        "## Б/у на OLX",
+        "# buy-smarter: рекомендация",
+        "## Запрос",
+        "## Лучший выбор",
+        "## Другие варианты",
+        "## Лучшие предложения",
+        "## На OLX (частники)",
     ):
         assert header in md
     # Canonical model label surfaced in the used row.
@@ -100,8 +100,8 @@ def test_save_writes_file_with_sections(tmp_path) -> None:
     written = save_report(_result(), "ирригатор до 40000", top=8, path=str(target))
     assert written == target
     text = target.read_text(encoding="utf-8")
-    assert "## Best pick" in text
-    assert "## Top candidates" in text
+    assert "## Лучший выбор" in text
+    assert "## Лучшие предложения" in text
 
 
 def test_alternatives_and_top_tables_link_the_product_url() -> None:
@@ -115,7 +115,7 @@ def test_product_without_url_renders_plain_title() -> None:
     result.recommendation.best.candidate.url = None
     result.recommendation.ranked[0].candidate.url = None
     md = render_markdown(result, top=8)
-    assert "| 1 | kaspi | Ирригатор 0 |" in md
+    assert "| 1 | Kaspi | Ирригатор 0 |" in md
 
 
 def test_used_table_links_title_no_trailing_url_list() -> None:
@@ -181,7 +181,7 @@ def test_notable_used_listing_renders_dash_for_saving() -> None:
 
     md = render_markdown(result, top=8)
 
-    assert "| Waterpik WP-660 б/у | 18,000 ₸ | — |" in md
+    assert "| Waterpik WP-660 б/у | 18\xa0000 ₸ | — |" in md
 
 
 def test_best_md_marks_barred_fallback_candidate() -> None:
@@ -233,8 +233,8 @@ def test_constraints_list_required_features_and_excluded_brands() -> None:
 
     md = render_markdown(result)
 
-    assert "- **Required:** usb-c" in md
-    assert "- **Excluded:** noname" in md
+    assert "- **Нужно:** usb-c" in md
+    assert "- **Без брендов:** noname" in md
 
 
 def test_best_md_shows_review_penalty_and_cons() -> None:
@@ -245,7 +245,7 @@ def test_best_md_shows_review_penalty_and_cons() -> None:
 
     md = render_markdown(result)
 
-    assert "- **Penalty:** отзывы (−7)" in md
+    assert "- **Штраф:** отзывы (−7)" in md
     assert "**-** шумный" in md
 
 
@@ -282,8 +282,8 @@ def test_alternatives_table_lists_a_product_once_across_roles() -> None:
 
     md = render_markdown(result)
 
-    assert "| Best budget |" in md
-    assert "| Best value |" not in md
+    assert "| Дешевле |" in md
+    assert "| Выгоднее |" not in md
 
 
 def test_no_substance_markdown_lists_alternatives_with_rating() -> None:
@@ -294,7 +294,7 @@ def test_no_substance_markdown_lists_alternatives_with_rating() -> None:
     md = render_no_substance_markdown(exc)
 
     assert "ретинол" in md
-    assert "| Product | Price | Rating |" in md
+    assert "| Товар | Цена | Рейтинг |" in md
     assert "| 4.5 |" in md
     assert "| Крем Б |" in md and md.rstrip().endswith("| - |")
 
@@ -310,21 +310,58 @@ def test_a_keyless_run_ends_the_parsed_request_with_the_skipped_steps() -> None:
         update={"skipped_llm_steps": ["query parsing", "review summaries", "ingredient extraction"]}
     )
     md = render_markdown(result, top=8)
-    section = md.split("## Parsed request\n", 1)[1].split("\n## ", 1)[0]
+    section = md.split("## Запрос\n", 1)[1].split("\n## ", 1)[0]
     assert section.rstrip().endswith(
-        "_Ran without LLM (none configured): query parsing, review summaries, "
-        "ingredient extraction. Add a key with `buysmarter llm set-key <provider>`._"
+        "_AI не настроен: запрос разобран по ключевым словам, без сводки отзывов и разбора "
+        "состава. Ключ добавляется командой `buysmarter llm set-key <provider>`._"
     )
 
 
 def test_ozon_skipped_for_lack_of_a_browser_is_noted_with_what_to_do() -> None:
     result = _result().model_copy(update={"unavailable_sources": ["ozon"]})
     md = render_markdown(result, top=8)
-    section = md.split("## Parsed request\n", 1)[1].split("\n## ", 1)[0]
+    section = md.split("## Запрос\n", 1)[1].split("\n## ", 1)[0]
     assert section.rstrip().endswith(
-        "_Skipped ozon: no browser to run it. `buysmarter doctor` says what to install or set up._"
+        "_Пропущено (Ozon): нет браузера. Что установить, подскажет `buysmarter doctor`._"
     )
 
 
 def test_a_run_with_llm_has_no_skipped_steps_note() -> None:
-    assert "without LLM" not in render_markdown(_result(), top=8)
+    assert "AI не настроен" not in render_markdown(_result(), top=8)
+
+
+def test_the_report_speaks_russian_like_the_gui() -> None:
+    result = _result()
+    best = result.recommendation.best
+    best.candidate.brand, best.candidate.price = "Adidas", 2695
+    best.axes = [
+        AxisScore(name="brand", score=25.0, max_score=25.0, explanation="Adidas is a tier-A brand")
+    ]
+    best.pros = ["strong brand"]
+    md = render_markdown(result, top=8)
+
+    assert "| Бренд | 25.0/25 | Adidas — бренд уровня A |" in md
+    assert "**+** надёжный бренд" in md
+    assert "- **Цена:** 2\xa0695 ₸" in md
+    assert "2,695" not in md and "strong brand" not in md
+
+
+def test_titles_lose_the_category_word_kaspi_prepends() -> None:
+    result = _result(n_ranked=1)
+    result.recommendation.best.candidate.title = "Кроссовки Puma Кроссовки Anzarun 2 Lite"
+    md = render_markdown(result, top=8)
+
+    assert "Puma Кроссовки Anzarun 2 Lite" in md
+    assert "Кроссовки Puma Кроссовки" not in md
+
+
+def test_a_used_listing_of_a_tier_a_brand_asks_for_the_tag_and_receipt() -> None:
+    result = _result()
+    result.recommendation.ranked[0].candidate.brand = "Xiaomi"  # tier A in _result
+    result.used_listings.append(UsedListing(title="Ирригатор Waterpik", price=9000))
+    md = render_markdown(result, top=8)
+
+    xiaomi_row = next(ln for ln in md.splitlines() if "xiaomi me 705" in ln)
+    waterpik_row = next(ln for ln in md.splitlines() if "Waterpik" in ln)
+    assert "попросите фото бирки и чек" in xiaomi_row
+    assert "попросите фото бирки и чек" not in waterpik_row

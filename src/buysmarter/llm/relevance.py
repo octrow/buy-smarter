@@ -41,6 +41,10 @@ RELEVANCE_MODEL = "free-stack"
 # ponytail: tuned on 26 hand-labelled titles (docs/jev-migration.md);
 # retune after 50 real runs or at the first miss seen in one.
 KEEP_THRESHOLD = 0.25
+# OLX ads have no fail-open floor and come from a looser search: a neighbouring
+# product type ("туфли" for "кроссовки", ~0.5) must go, "кеды" (~0.6) may stay.
+# ponytail: tuned on one sneaker run; retune at the first wrong OLX listing.
+USED_KEEP_THRESHOLD = 0.55
 
 # Noul criteria shared by every title question (Jev reads instructions literally,
 # so what counts as "no" is spelled out).
@@ -175,7 +179,9 @@ async def _filter_relevant_llm(category: str, titles: list[str]) -> list[bool]:
     return [i in indices for i in range(len(titles))]
 
 
-async def filter_relevant(category: str, titles: list[str]) -> list[bool]:
+async def filter_relevant(
+    category: str, titles: list[str], keep_threshold: float = KEEP_THRESHOLD
+) -> list[bool]:
     """Classify each title as a real product of ``category`` (True) or not.
 
     One Jev request, all questions answered in parallel over the same state.
@@ -188,7 +194,7 @@ async def filter_relevant(category: str, titles: list[str]) -> list[bool]:
         answers = await system_one(
             {"category": category, "titles": titles}, relevance_questions(len(titles))
         )
-        return [answers[f"t{i}"]["noul"] >= KEEP_THRESHOLD for i in range(len(titles))]
+        return [answers[f"t{i}"]["noul"] >= keep_threshold for i in range(len(titles))]
     except (LlmError, LlmConfigError, KeyError, TypeError) as exc:
         logger.warning("relevance Jev call failed (%r); falling back to the LLM", exc)
         return await _filter_relevant_llm(category, titles)

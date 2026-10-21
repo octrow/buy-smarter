@@ -10,6 +10,7 @@ from typing import NamedTuple
 
 from pydantic import BaseModel
 
+from buysmarter.i18n import kzt
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.models_book import ModelBook, ModelEntry
 from buysmarter.knowledge.store import get_stored_books, merge_model_books, save_knowledge
@@ -224,9 +225,8 @@ def dedupe_cross_source(
     canonical model (``ModelBook``, strongest signal) or, failing that, share a
     (known) brand and overlap heavily by title. The cheaper survives; a note
     pointing at the PRICIEST listing ever seen in the group is recorded per
-    kept candidate so ranking can add it as a pro ("также на <source> за
-    <price> ₸") or, at a large enough gap, a warning con instead
-    (``apply_cross_notes``). Pure — no I/O, and never mutates an input
+    kept candidate; at a large enough gap ``apply_cross_notes`` turns it into a
+    warning con (a pricier copy elsewhere is not a pro). Pure — no I/O, and never mutates an input
     ``Candidate``: the surviving cheaper listing is returned as a fresh copy
     (``model_copy``) when a ``dup_price_gap`` needs recording, so the
     originals in ``candidates`` are untouched.
@@ -271,7 +271,7 @@ def dedupe_cross_source(
             # survivor's note so no orphaned/stale key lingers in the result.
             notes.pop((dup.source, dup.source_product_id), None)
         notes[(cheaper.source, cheaper.source_product_id)] = CrossSourceNote(
-            text=f"также на {priciest.source} за {priciest.price:,} ₸",
+            text=f"также на {priciest.source} за {kzt(priciest.price)}",
             gap=display_gap,
         )
     return kept, notes
@@ -630,20 +630,17 @@ def _dup_gap_warning(pro_text: str, gap: float) -> str:
 def apply_cross_notes(
     recommendation: Recommendation, notes: dict[tuple[str, str], CrossSourceNote]
 ) -> None:
-    """Route each cross-source note to pros (mild gap) or cons (large gap).
+    """Turn a large cross-source price gap into a warning con; drop a mild one.
 
-    Below ``_DUP_GAP_WARN_RATIO`` the note stays an upbeat pro; at/above it,
-    it becomes a warning con instead — the same fact framed honestly.
+    The kept listing is always the cheaper one, so the note only says a pricier copy exists
+    elsewhere: not an advantage worth a pro. At/above ``_DUP_GAP_WARN_RATIO`` the gap itself
+    is the signal, framed as a warning.
     """
     scored: list[ScoredCandidate] = [recommendation.best, *recommendation.alternatives.values()]
     for s in scored:
         note = notes.get((s.candidate.source, s.candidate.source_product_id))
-        if note is None:
-            continue
-        if note.gap is not None and note.gap >= _DUP_GAP_WARN_RATIO:
+        if note is not None and note.gap is not None and note.gap >= _DUP_GAP_WARN_RATIO:
             s.cons.append(_dup_gap_warning(note.text, note.gap))
-        else:
-            s.pros.append(note.text)
 
 
 async def used_market(

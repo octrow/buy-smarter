@@ -246,7 +246,7 @@ def test_render_used_shows_dash_for_standalone_saving() -> None:
     listing = UsedListing(title="Waterpik WP-660 б/у", price=18000, standalone=True)
 
     with main.console.capture() as capture:
-        main._render_used([listing])
+        main._render_used([listing], [])
     out = capture.get()
 
     assert "—" in out

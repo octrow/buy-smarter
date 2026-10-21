@@ -5,6 +5,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Unreleased]
 
 ### Added
+- Ranking: counterfeit checks for branded listings. The card's own brand field wins over the title: an unknown or
+  «Без бренда» card naming a known brand or model line in its title («PODPODOSHVOI yeezy», «XAN Air Jordan 4»)
+  is a brand mimic, barred from every role. A known brand far below the genuine item's price (the model's official
+  price, else the brand's cheapest original) is suspicious below 0.4 and lowers confidence below 0.7; official
+  sellers and OLX are exempt. Reviews are read from the negative page too, and «подделка/реплика/копия/паль/фейк»
+  (also Kazakh) mentions bar the listing; reviews that failed to load are reported.
+- Official brand stores as a source: store catalog pages are read through their schema.org JSON-LD, so their
+  cheapest in-budget products join the ranking («Офиц. магазин», e.g. puma.kz from 13 000 ₸), and `learn-category`
+  stores each store's lowest price as the brand's genuine-price floor. Knowledge also keeps official marketplace
+  sellers and model reference prices; product lines are no longer brand aliases, 1-2 letter aliases are dropped.
+- Search: the query's audience («мужские», «женские», «детские») filters out listings for another audience, by
+  title and the marketplace category; a size («42 размер») is parsed, kept out of the search phrase and reported as
+  unverified.
 - Desktop app: «Прошлые поиски» lists the saved reports, newest first, and shows the selected one. Each search in
   the app now saves the same markdown report as the CLI's `search`, to the same folder
   (`~/.local/share/buysmarter/reports/`), so CLI runs show up there too.
@@ -15,6 +28,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   after «Обновить цены»; the search screen says what each marketplace brought and links back to the report.
 
 ### Changed
+- The markdown report and CLI prices are in Russian / «35 000 ₸»; the OLX section is «На OLX (частники)» with a
+  «попросите фото бирки и чек» hint for trusted brands; OLX ads pass a stricter relevance check («туфли» in a
+  sneaker search); a pricier copy on another marketplace is no longer a pro; a listing without brand or model
+  takes no role while named products compete. Needs market-sources 0.4.0 (Kaspi brand, configSku, partner flag).
 - Ranking: «Best budget» goes only to an offer cheaper than the best pick. Without required features the specs
   axis is neutral (half credit for everyone), so a marketplace that ships a spec sheet (Ozon) no longer outranks
   one that does not (Kaspi search).

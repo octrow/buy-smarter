@@ -332,6 +332,9 @@ def merge_brand_books(base: BrandBook, overlay: BrandBook) -> BrandBook:
     return BrandBook(
         tiers={**base.tiers, **overlay.tiers},
         aliases={**base.aliases, **overlay.aliases},
+        price_floors={**base.price_floors, **overlay.price_floors},
+        official_sellers={**base.official_sellers, **overlay.official_sellers},
+        official_stores={**base.official_stores, **overlay.official_stores},
     )
 
 

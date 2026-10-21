@@ -17,6 +17,7 @@ from fastmcp import FastMCP
 from market_sources.base import ProductSource, RawProduct
 
 from buysmarter.cli.report import render_markdown, render_no_substance_markdown
+from buysmarter.i18n import kzt
 from buysmarter.memory import prefs
 from buysmarter.services.collect import ALL_SOURCES, resolve_sources, select_sources
 from buysmarter.services.recommend import NoSubstanceMatch
@@ -64,7 +65,7 @@ async def aclose(source: ProductSource) -> None:
 
 
 def _fmt_price(price: float | None) -> str:
-    return f"{int(price):,} ₸" if price else "-"
+    return kzt(int(price)) if price else "-"
 
 
 def _esc(value: object) -> str:
@@ -101,7 +102,7 @@ async def recommend(
     (brand tier, price vs trusted median, specs, reviews, availability). Returns
     a markdown report: the best pick with a per-axis score breakdown and
     pros/cons, role-labeled alternatives (best value / budget / premium), a top
-    candidates table, and a "Б/у на OLX" used-market section when a top model is
+    candidates table, and an "На OLX (частники)" used-market section when a top model is
     meaningfully cheaper second-hand.
 
     Args:

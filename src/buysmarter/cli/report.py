@@ -3,7 +3,9 @@ rich console output). Pure string building — no I/O, no rich, no network.
 
 The console renderer in ``cli.main`` and this markdown renderer show the same
 content (parsed request, best pick + axes, alternatives, top candidates, used
-listings); this is the single source of the report body written to disk.
+listings); this is the single source of the report body written to disk — the CLI's
+``--save``, the desktop app (``gui.app``), the worker and MCP all write it. Russian, from the
+same ``buysmarter.i18n`` tables the GUI shows.
 """
 
 import re
@@ -11,16 +13,26 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
+from buysmarter.i18n import (
+    BEST_ROLE,
+    ROLE_LABELS,
+    USED_SECTION,
+    axis_label,
+    checked_brands,
+    clean_title,
+    explain,
+    kzt,
+    pro_con,
+    source_label,
+    used_con,
+)
 from buysmarter.ranking.models import Candidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
 
-ROLE_LABELS = {
-    "best_value": "Best value",
-    "best_budget": "Best budget",
-    "best_premium": "Best premium",
-}
+__all__ = ["ROLE_LABELS"]  # re-exported for the console renderer
+REPORT_TITLE = "# buy-smarter: рекомендация"
 _REPORTS_DIR = Path.home() / ".local" / "share" / "buysmarter" / "reports"
 DEFAULT_TOP = 8  # ranked candidates in a report's table (``search --top``)
 
@@ -35,6 +47,7 @@ _REASON_LABELS_RU = {
     "excluded brand": "исключённый бренд",
     "missing required feature(s)": "нет требуемой функции",
     "unknown brand (trusted-brands-only)": "неизвестный бренд",
+    "other audience": "для другой аудитории (пол/возраст)",
 }
 
 
@@ -47,8 +60,7 @@ def format_rejected_reasons(reasons: dict[str, int]) -> str:
     )
 
 
-def _fmt_price(price: int) -> str:
-    return f"{price:,} ₸"
+_fmt_price = kzt  # the GUI's "35 000 ₸" (no-break space), never "35,000"
 
 
 def _md_link(title: str, url: str | None) -> str:
@@ -61,8 +73,8 @@ def skipped_llm_note(result: RecommendResult) -> str | None:
     if not result.skipped_llm_steps:
         return None
     return (
-        f"Ran without LLM (none configured): {', '.join(result.skipped_llm_steps)}. "
-        "Add a key with `buysmarter llm set-key <provider>`."
+        "AI не настроен: запрос разобран по ключевым словам, без сводки отзывов и разбора "
+        "состава. Ключ добавляется командой `buysmarter llm set-key <provider>`."
     )
 
 
@@ -70,26 +82,24 @@ def unavailable_sources_note(result: RecommendResult) -> str | None:
     """The marketplaces left out for lack of a browser, or None when every selected one ran."""
     if not result.unavailable_sources:
         return None
-    return (
-        f"Skipped {', '.join(result.unavailable_sources)}: no browser to run it. "
-        "`buysmarter doctor` says what to install or set up."
-    )
+    names = ", ".join(map(source_label, result.unavailable_sources))
+    return f"Пропущено ({names}): нет браузера. Что установить, подскажет `buysmarter doctor`."
 
 
 def _constraints_md(result: RecommendResult) -> list[str]:
     c = result.constraints
     city_note = " (по умолчанию)" if result.city_defaulted else ""
     lines = [
-        "## Parsed request",
+        "## Запрос",
         "",
-        f"- **Category:** {c.category}",
-        f"- **City:** {c.city or '-'}{city_note}",
-        f"- **Budget:** {_fmt_price(c.budget_max) if c.budget_max else 'без лимита'}",
+        f"- **Категория:** {c.category}",
+        f"- **Город:** {c.city or '-'}{city_note}",
+        f"- **Бюджет:** {_fmt_price(c.budget_max) if c.budget_max else 'без лимита'}",
     ]
     if c.required_features:
-        lines.append(f"- **Required:** {', '.join(c.required_features)}")
+        lines.append(f"- **Нужно:** {', '.join(c.required_features)}")
     if c.excluded_brands:
-        lines.append(f"- **Excluded:** {', '.join(c.excluded_brands)}")
+        lines.append(f"- **Без брендов:** {', '.join(c.excluded_brands)}")
     for note in (skipped_llm_note(result), unavailable_sources_note(result)):
         if note:
             lines += ["", f"_{note}_"]
@@ -102,34 +112,36 @@ def _best_md(result: RecommendResult) -> list[str]:
     # M4: `best` is barred ONLY via assemble_recommendation's all-barred
     # fallback (nothing trustworthy left to prefer) — must be visible.
     barred = is_barred(best)
-    title = f"⚠ {cand.title}" if barred else cand.title
+    title = clean_title(cand.title)
+    title = f"⚠ {title}" if barred else title
     lines = [
         "",
-        "## Best pick",
+        f"## {BEST_ROLE}",
         "",
-        f"### 🥇 {title}  [{cand.source}]",
+        f"### 🥇 {title}  [{source_label(cand.source)}]",
         "",
-        f"- **Score:** {best.total_score:.0f}/100",
-        f"- **Confidence:** {best.confidence:.0%}",
-        f"- **Price:** {_fmt_price(cand.price)}",
+        f"- **Баллы:** {best.total_score:.0f}/100",
+        f"- **Уверенность:** {best.confidence:.0%}",
+        f"- **Цена:** {_fmt_price(cand.price)}",
     ]
     if barred:
         lines.append("- **⚠ все кандидаты под подозрением — проверьте вручную**")
     if best.review_penalty > 0:
-        lines.append(f"- **Penalty:** отзывы (−{best.review_penalty:.0f})")
+        lines.append(f"- **Штраф:** отзывы (−{best.review_penalty:.0f})")
     if cand.best_seller:
         lines.append(f"- **Продавец:** {cand.best_seller}")
     if cand.url:
-        lines.append(f"- **URL:** {cand.url}")
-    lines += ["", "| Axis | Score | Why |", "| --- | ---: | --- |"]
+        lines.append(f"- **Ссылка:** {cand.url}")
+    lines += ["", "| Ось | Баллы | Почему |", "| --- | ---: | --- |"]
     for axis in best.axes:
         lines.append(
-            f"| {axis.name} | {axis.score:.1f}/{axis.max_score:.0f} | {axis.explanation} |"
+            f"| {axis_label(axis.name)} | {axis.score:.1f}/{axis.max_score:.0f} "
+            f"| {explain(axis.explanation)} |"
         )
     if best.pros:
-        lines += ["", "**+** " + "  **+** ".join(best.pros)]
+        lines += ["", "**+** " + "  **+** ".join(map(pro_con, best.pros))]
     if best.cons:
-        lines += ["", "**-** " + "  **-** ".join(best.cons)]
+        lines += ["", "**-** " + "  **-** ".join(map(pro_con, best.cons))]
     return lines
 
 
@@ -153,9 +165,9 @@ def _alternatives_md(result: RecommendResult) -> list[str]:
         return []
     lines = [
         "",
-        "## Alternatives",
+        "## Другие варианты",
         "",
-        "| Role | Source | Product | Price | Score |",
+        "| Роль | Маркетплейс | Товар | Цена | Баллы |",
         "| --- | --- | --- | ---: | ---: |",
     ]
     seen: set[str] = set()
@@ -166,7 +178,8 @@ def _alternatives_md(result: RecommendResult) -> list[str]:
         seen.add(key)
         c = scored.candidate
         lines.append(
-            f"| {ROLE_LABELS.get(role, role)} | {c.source} | {_md_link(c.title, c.url)} | "
+            f"| {ROLE_LABELS.get(role, role)} | {source_label(c.source)} | "
+            f"{_md_link(clean_title(c.title), c.url)} | "
             f"{_fmt_price(c.price)} | {scored.total_score:.0f} |"
         )
     return lines
@@ -186,9 +199,9 @@ def _top_md(result: RecommendResult, top: int) -> list[str]:
         return []
     lines = [
         "",
-        f"## Top candidates (top {len(ranked)})",
+        f"## Лучшие предложения (топ {len(ranked)})",
         "",
-        "| # | Source | Product | Price | Score | Tier |",
+        "| # | Маркетплейс | Товар | Цена | Баллы | Бренд |",
         "| ---: | --- | --- | ---: | ---: | --- |",
     ]
     for i, scored in enumerate(ranked, start=1):
@@ -196,22 +209,24 @@ def _top_md(result: RecommendResult, top: int) -> list[str]:
         # See cli.main._render_top: a barred candidate (suspicious price,
         # dup-price-gap, mimicry, review-summary counterfeit) stays in the
         # table but gets a visible "⚠" marker — it can never win any role.
-        title_text = f"⚠ {c.title}" if is_barred(scored) else c.title
+        title_text = clean_title(c.title)
+        title_text = f"⚠ {title_text}" if is_barred(scored) else title_text
         lines.append(
-            f"| {i} | {c.source} | {_md_link(title_text, c.url)} | {_fmt_price(c.price)} | "
+            f"| {i} | {source_label(c.source)} | {_md_link(title_text, c.url)} | "
+            f"{_fmt_price(c.price)} | "
             f"{scored.total_score:.0f} | {_tier_cell(c)} |"
         )
     return lines
 
 
-def _used_row(listing: UsedListing) -> str:
+def _used_row(listing: UsedListing, brands: set[str]) -> str:
     title = listing.title
     if listing.canonical:
         title = f"{title} → {listing.canonical}"
     saving_cell = "—" if listing.standalone else f"-{_fmt_price(listing.saving)}"
     return (
         f"| {_md_link(title, listing.url)} | {_fmt_price(listing.price)} | "
-        f"{saving_cell} | {listing.city or '-'} | {listing.con} |"
+        f"{saving_cell} | {listing.city or '-'} | {used_con(listing, brands)} |"
     )
 
 
@@ -221,18 +236,19 @@ def _used_md(result: RecommendResult) -> list[str]:
         return []
     lines = [
         "",
-        "## Б/у на OLX",
+        f"## {USED_SECTION}",
         "",
-        "| Listing | Price | Saving vs new | City | Con |",
+        "| Объявление | Цена | Дешевле нового на | Город | Минус |",
         "| --- | ---: | ---: | --- | --- |",
     ]
-    lines += [_used_row(listing) for listing in used]
+    brands = checked_brands(s.candidate for s in result.recommendation.ranked)
+    lines += [_used_row(listing, brands) for listing in used]
     return lines
 
 
 def render_markdown(result: RecommendResult, top: int = 8) -> str:
     """Render the whole recommendation as a markdown report string."""
-    parts = ["# buy-smarter recommendation", ""]
+    parts = [REPORT_TITLE, ""]
     parts += _constraints_md(result)
     parts += _best_md(result)
     parts += _review_summary_md(result)
@@ -241,7 +257,7 @@ def render_markdown(result: RecommendResult, top: int = 8) -> str:
     parts += _used_md(result)
     rejected = result.recommendation.rejected_count
     if rejected:
-        parts += ["", f"_{rejected} candidate(s) rejected by hard filters._"]
+        parts += ["", f"_Не прошли фильтры: {rejected}._"]
         reasons = result.recommendation.rejected_reasons
         if reasons:
             parts += [f"_Отсеяно: {format_rejected_reasons(reasons)}_"]
@@ -251,16 +267,17 @@ def render_markdown(result: RecommendResult, top: int = 8) -> str:
 def render_no_substance_markdown(exc: NoSubstanceMatch) -> str:
     """Markdown for the honest empty-pool case (mirrors the CLI console output)."""
     lines = [
-        "# buy-smarter recommendation",
+        REPORT_TITLE,
         "",
         exc.message(),
     ]
     if exc.alternatives:
-        lines += ["", "| Product | Price | Rating |", "| --- | ---: | ---: |"]
+        lines += ["", "| Товар | Цена | Рейтинг |", "| --- | ---: | ---: |"]
         for cand in exc.alternatives:
             rating = f"{cand.rating:.1f}" if cand.rating is not None else "-"
             lines.append(
-                f"| {_md_link(cand.title, cand.url)} | {_fmt_price(cand.price)} | {rating} |"
+                f"| {_md_link(clean_title(cand.title), cand.url)} | {_fmt_price(cand.price)} "
+                f"| {rating} |"
             )
     return "\n".join(lines) + "\n"
 

@@ -4,6 +4,7 @@ import re
 from typing import TYPE_CHECKING
 
 from buysmarter.knowledge.ingredients import composition_text
+from buysmarter.ranking.audience import other_audience
 from buysmarter.ranking.models import (
     Candidate,
     QueryConstraints,
@@ -100,7 +101,7 @@ def apply_hard_filters(
 def _listing_rejection(
     candidate: Candidate, constraints: QueryConstraints, excluded_brands: set[str]
 ) -> str | None:
-    """Reject on the listing itself: budget, excluded/unknown brand, availability."""
+    """Reject on the listing itself: budget, excluded/unknown brand, availability, audience."""
     if constraints.budget_max is not None and candidate.price > constraints.budget_max:
         return f"price exceeds budget: {candidate.price} > {constraints.budget_max}"
     if candidate.brand and candidate.brand.lower() in excluded_brands:
@@ -109,6 +110,11 @@ def _listing_rejection(
         return "unknown brand (trusted-brands-only)"
     if not candidate.availability:
         return "not available"
+    if constraints.gender:
+        listing = " ".join([candidate.title, *candidate.category_path])
+        other = other_audience(constraints.gender, listing)
+        if other is not None:
+            return f"other audience: {other}"
     return None
 
 

@@ -82,15 +82,34 @@ _LOW_INFO_WORDS = (
     "хорош", "пойдет", "подойдет", "годно", "бомба", "кайф", "вау",
 )  # fmt: skip
 _RATING_ONLY_RE = re.compile(r"(поставил|ставлю|оцениваю)\s+\d?\s*(звезд|балл|★)", re.IGNORECASE)
+# A reviewer calling the item a fake (RU + KK): "подделка", "реплика", "копия",
+# "паль", "фейк", "не оригинал", "жалған" (fake), "көшірме" (copy), "түпнұсқа емес".
+_FAKE_STEMS = r"подделк|реплик|копи|фейк|паль"
+_FAKE_NOUNS = f"(?:{_FAKE_STEMS})"
+# "копия" alone is too common ("копия гарантии"): only a copy of a brand / an original.
+_COUNTERFEIT_PATTERN = (
+    r"подделк|реплик|\bпаль\b|\bпал[её]н\w*|\bфейк|\bfake\b|\breplica\b"
+    r"|(?:это|просто|китайск\w*|явн\w*|дешев\w*|обычн\w*|хорош\w*)\s+копи[яюи]\w*"
+    r"|\bкопи[яюи]\w*\s+(?:оригинал|бренд|фирм)\w*"
+    r"|не\s*оригинал(?!\w*\s+(?:дизайн|вид|цвет|стиль|подход))|не\s+original"
+    r"|жалған|көшірме|түпнұсқа\s+емес"
+)
+_COUNTERFEIT_RE = re.compile(_COUNTERFEIT_PATTERN, re.IGNORECASE)
 _DEFECT_RE = re.compile(
-    r"брак|сломал|не\s+работает|вышел\s+из\s+строя|разболтал|рассыпался|дефект"
-    r"|некачественн|пален|подделка|не\s+оригинал",
+    r"брак|сломал|не\s+работает|вышел\s+из\s+строя|разболтал|рассыпался|развалил|дефект"
+    r"|некачественн|" + _COUNTERFEIT_PATTERN,
     re.IGNORECASE,
 )
 
-# Praise that names a defect only to deny it: "без брака", "не подделка", "не сломался".
+# Praise that names a defect only to deny it: "без брака", "не подделка", "не похоже на
+# подделку", "ни разу не встретил подделки", "думал подделка, но оригинал".
 _NEGATED_DEFECT_RE = re.compile(
-    r"\b(без|нет|ни)\s+((одного|единого)\s+)?(брак|дефект|подделк)\w*|\bне\s+(сломал|подделка|брак)\w*",
+    r"\b(без|нет|ни)\s+((одного|единого)\s+)?(брак|дефект|" + _FAKE_STEMS + r")\w*"
+    r"|\bне\s+(сломал|подделка|реплика|копия|паль|фейк|брак)\w*"
+    r"|\bне\s+(похож\w*|заметил\w*|встретил\w*|увидел\w*|нашл?[её]л?\w*)(\s+\w+){0,2}?\s+"
+    + _FAKE_NOUNS
+    + r"\w*"
+    r"|\b(думал\w*|боял\w*|сомнева\w*|переживал\w*|опасал\w*)[^.!?]{0,40}?" + _FAKE_NOUNS + r"\w*",
     re.IGNORECASE,
 )
 
@@ -228,6 +247,16 @@ def filter_junk(reviews: list[RawReview]) -> tuple[list[RawReview], float]:
 def count_defect_complaints(reviews: list[RawReview]) -> int:
     """Number of reviews complaining about a defect, a fake or a non-original item."""
     return sum(1 for review in reviews if _is_defect_complaint(review))
+
+
+def count_counterfeit_mentions(reviews: list[RawReview]) -> int:
+    """Number of reviews saying or suspecting the item is a fake/copy/not original."""
+    return sum(1 for review in reviews if is_counterfeit_text(_normalize(_review_body(review))))
+
+
+def is_counterfeit_text(text: str) -> bool:
+    """True when normalized ``text`` calls the item a fake ("не подделка" excluded)."""
+    return _COUNTERFEIT_RE.search(_NEGATED_DEFECT_RE.sub(" ", text)) is not None
 
 
 def _is_defect_complaint(review: RawReview) -> bool:

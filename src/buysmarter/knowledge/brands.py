@@ -13,7 +13,7 @@ them in ``CategoryKnowledge``.
 import re
 from collections.abc import Iterator
 
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr, field_validator
 
 Tier = str  # "A" | "B" | "C"
 
@@ -23,6 +23,29 @@ class BrandBook(BaseModel):
 
     tiers: dict[str, Tier] = Field(default_factory=dict)
     aliases: dict[str, str] = Field(default_factory=dict)
+    # Cheapest genuine new item of each canonical brand in this category (KZT), as its
+    # official store / authorized retailers in Kazakhstan sell it: the anti-counterfeit
+    # price reference. A marketplace may undercut it a little, never by a lot.
+    price_floors: dict[str, int] = Field(default_factory=dict)
+    # Each canonical brand's own store / official distributors as marketplace sellers.
+    official_sellers: dict[str, list[str]] = Field(default_factory=dict)
+    # Each canonical brand's official KZ store page listing this category
+    # (``services.official_stores`` reads its JSON-LD for prices and products).
+    official_stores: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("official_stores")
+    @classmethod
+    def _https_stores_only(cls, stores: dict[str, str]) -> dict[str, str]:
+        """Store URLs come from LLM output: keep only https links."""
+        return {b: u for b, u in stores.items() if u.lower().startswith("https://")}
+
+    @field_validator("aliases")
+    @classmethod
+    def _drop_short_aliases(cls, aliases: dict[str, str]) -> dict[str, str]:
+        """Drop 1-2 letter aliases that read as ordinary words ("Он" -> On, "on"):
+        whole-word matching would turn a pronoun in any title into a trusted brand.
+        Latin ones with a capital ("LG", "HP", "Mi") are real brand marks and stay."""
+        return {a: c for a, c in aliases.items() if not _is_word_like_short(a.strip())}
 
     # Lazily-built, cached (canonical, stripped+folded needle) index for
     # ``mimicry`` — computed once per instance instead of per call.
@@ -43,6 +66,19 @@ class BrandBook(BaseModel):
             if _contains_word(haystack, canonical):
                 return canonical, tier
         return None, None
+
+    def title_brand(self, title: str) -> str | None:
+        """The known brand a title names as its own, ignoring "для Xiaomi"-style
+        compatibility mentions (an accessory or a case is not that brand's product)."""
+        return self.resolve(_COMPATIBILITY_RE.sub(" ", title))[0]
+
+    def is_official_seller(self, brand: str | None, seller: str | None) -> bool:
+        """True when ``seller`` is one of ``brand``'s own stores / official distributors."""
+        if not brand or not seller:
+            return False
+        # Exact name only: "Nike Outlet KZ" containing "Nike" is how a fake shop names itself.
+        name = _seller_key(seller)
+        return bool(name) and name in map(_seller_key, self.official_sellers.get(brand, []))
 
     def _mimicry_candidates(self) -> list[tuple[str, str]]:
         """Cached (canonical, stripped+folded needle) list, longest needle first."""
@@ -91,6 +127,28 @@ class BrandBook(BaseModel):
                 if start_is_run_start and end_is_run_end and start_run != end_run:
                     return canonical_name
         return None
+
+
+_MIN_ALIAS_LEN = 2
+
+
+def _is_word_like_short(alias: str) -> bool:
+    """A 1-2 letter alias that is not a Latin brand mark: Cyrillic, or all lowercase."""
+    if len(alias) > _MIN_ALIAS_LEN:
+        return False
+    return not alias.isascii() or alias == alias.lower()
+
+
+# "для Xiaomi", "for iPhone", "совместим с Philips": a brand the product fits, not its maker.
+_COMPATIBILITY_RE = re.compile(
+    r"\b(?:для|for|совместим\w*\s+с|compatible\s+with)\s+[\w.+-]+",
+    re.IGNORECASE,
+)
+
+
+def _seller_key(name: str) -> str:
+    """Lowercase alnum-only form, so "PUMA official" / "Puma-Official" compare equal."""
+    return re.sub(r"[^\w]|_", "", name.lower())
 
 
 def _contains_word(haystack_lower: str, needle: str) -> bool:

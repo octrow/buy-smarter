@@ -39,8 +39,22 @@ from buysmarter.knowledge.store import (
 from buysmarter.llm.adapter import LlmConfigError, LlmError, current_route
 from buysmarter.llm.ingredients import extract_ingredients
 from buysmarter.llm.prompts import parse_query, parse_query_naive
-from buysmarter.llm.relevance import accessory_reason, filter_relevant
+from buysmarter.llm.relevance import (
+    KEEP_THRESHOLD,
+    USED_KEEP_THRESHOLD,
+    accessory_reason,
+    filter_relevant,
+)
 from buysmarter.llm.review_summary import ReviewSummary
+from buysmarter.normalize.candidate import attach_reference_prices
+from buysmarter.ranking.audience import (
+    is_apparel,
+    is_size_phrase,
+    other_audience,
+    query_audience,
+    query_size,
+    strip_size,
+)
 from buysmarter.ranking.engine import rank
 from buysmarter.ranking.filters import NO_SUBSTANCE_REASON, apply_hard_filters
 from buysmarter.ranking.models import (
@@ -65,6 +79,7 @@ from buysmarter.services.matching import (
     dedupe_cross_source,
     used_market,
 )
+from buysmarter.services.official_stores import official_candidates
 from buysmarter.services.phone_specs import enrich_with_kimovil, is_smartphone_category
 from buysmarter.services.review_pass import review_pass
 
@@ -361,7 +376,7 @@ async def recommend(
     with stage("query parse"):
         base_constraints = parsed if parsed is not None else await _parse(query, use_llm)
     resolved_city, city_defaulted = await resolve_city(base_constraints.city, city)
-    constraints = _apply_overrides(base_constraints, resolved_city, budget, trusted_only)
+    constraints = _apply_overrides(base_constraints, resolved_city, budget, trusted_only, query)
     requested = sources or ["kaspi"]
     # off the loop: picking Ozon's browser may launch one to probe it
     active = await asyncio.to_thread(resolve_sources, requested, source, ozon_source, olx_source)
@@ -378,6 +393,8 @@ async def recommend(
                 active, constraints.category, city_id, book, constraints.budget_max, substance_plan
             )
         new_candidates, persist_rows = merge_new_goods(collected)
+        with stage("official stores"):
+            new_candidates += await official_candidates(book, constraints)
         # Attach 30-day price history (from prior runs' snapshots) before ranking
         # so the price axis can reward a genuine dip; best-effort, no-op keyless.
         await attach_price_history(new_candidates)
@@ -392,6 +409,8 @@ async def recommend(
             )
         used_candidates = cast(list[Candidate], collected.get("olx") or [])
         deduped, notes = dedupe_cross_source(new_candidates, model_book)
+        deduped = attach_reference_prices(deduped, book, model_book)
+        used_candidates = await _filter_used(used_candidates, constraints, use_llm)
         if is_smartphone_category(constraints.category):
             with stage("kimovil"):
                 await enrich_with_kimovil(deduped)
@@ -444,10 +463,42 @@ async def recommend(
     )
 
 
+async def _filter_used(
+    used: list[Candidate], constraints: QueryConstraints, use_llm: bool
+) -> list[Candidate]:
+    """Drop OLX ads for another audience or off the category ("туфли" in a sneaker search).
+
+    No fail-open floor here: an empty OLX section is fine, a wrong one is not.
+    """
+    if constraints.gender:
+        used = [u for u in used if other_audience(constraints.gender, u.title) is None]
+    if not used:
+        return used
+    return await _filter_relevant_candidates(
+        used, constraints.category, use_llm, min_keep=0, keep_threshold=USED_KEEP_THRESHOLD
+    )
+
+
 def _apply_overrides(
-    constraints: QueryConstraints, city: str | None, budget: int | None, trusted_only: bool
+    constraints: QueryConstraints,
+    city: str | None,
+    budget: int | None,
+    trusted_only: bool,
+    query: str = "",
 ) -> QueryConstraints:
     updates: dict[str, Any] = {}
+    text = " ".join([query, constraints.category, *constraints.required_features])
+    if constraints.gender is None and (gender := query_audience(text)):
+        updates["gender"] = gender
+    if constraints.size is None and (size := query_size(text)):
+        updates["size"] = size
+    if query_size(constraints.category):
+        updates["category"] = strip_size(constraints.category) or constraints.category
+    features = [
+        f for f in constraints.required_features if not (is_apparel(text) and is_size_phrase(f))
+    ]
+    if len(features) != len(constraints.required_features):
+        updates["required_features"] = features
     if city:
         updates["city"] = city
     if budget is not None:
@@ -517,10 +568,10 @@ def _accessory_drops(
 
 
 async def _llm_drops(
-    candidates: list[Candidate], category: str
+    candidates: list[Candidate], category: str, keep_threshold: float = KEEP_THRESHOLD
 ) -> tuple[list[Candidate], list[Drop]]:
     """LLM pass: classify surviving candidates, split into kept + dropped."""
-    flags = await filter_relevant(category, [c.title for c in candidates])
+    flags = await filter_relevant(category, [c.title for c in candidates], keep_threshold)
     kept = [c for c, keep in zip(candidates, flags, strict=True) if keep]
     dropped = [(c, _LLM_DROP_REASON) for c, keep in zip(candidates, flags, strict=True) if not keep]
     for cand, _ in dropped:
@@ -529,16 +580,16 @@ async def _llm_drops(
 
 
 def _restore_min(
-    kept: list[Candidate], dropped: list[Drop]
+    kept: list[Candidate], dropped: list[Drop], min_keep: int = _MIN_RELEVANT_CANDIDATES
 ) -> tuple[list[Candidate], list[Candidate]]:
     """Fail-open guard: never let the pool fall below the minimum.
 
     If filtering left fewer than the floor, the highest-rated dropped candidates
     are added back until the floor is met. Returns ``(pool, restored)``.
     """
-    if len(kept) >= _MIN_RELEVANT_CANDIDATES or not dropped:
+    if len(kept) >= min_keep or not dropped:
         return kept, []
-    need = _MIN_RELEVANT_CANDIDATES - len(kept)
+    need = min_keep - len(kept)
     best_first = sorted(
         (c for c, _ in dropped),
         key=lambda c: (c.rating or 0.0, c.review_count or 0),
@@ -568,6 +619,8 @@ async def _filter_relevant_candidates(
     category: str,
     use_llm: bool,
     protected_ids: set[str] | None = None,
+    min_keep: int = _MIN_RELEVANT_CANDIDATES,
+    keep_threshold: float = KEEP_THRESHOLD,
 ) -> list[Candidate]:
     """Drop accessories/non-products before ranking; never below the floor.
 
@@ -583,9 +636,9 @@ async def _filter_relevant_candidates(
     protected = [c for c in candidates if c.source_product_id in protected_ids]
     rest = [c for c in candidates if c.source_product_id not in protected_ids]
     kept, dropped = _accessory_drops(rest, category)
-    if use_llm and len(kept) > _MIN_RELEVANT_CANDIDATES:
-        kept, llm_dropped = await _llm_drops(kept, category)
+    if use_llm and len(kept) > min_keep:
+        kept, llm_dropped = await _llm_drops(kept, category, keep_threshold)
         dropped.extend(llm_dropped)
-    pool, restored = _restore_min(kept, dropped)
+    pool, restored = _restore_min(kept, dropped, min_keep)
     _log_drop_summary(dropped, restored, len(pool))
     return protected + pool

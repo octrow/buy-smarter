@@ -6,13 +6,19 @@ cheapest live offer, falling back to the search-card price; availability is
 simply "do we have a usable price".
 """
 
+from typing import NamedTuple
+
 from market_sources.base import RawOffer, RawProduct
 
 from buysmarter.knowledge.brands import BrandBook
+from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.ranking.models import Candidate
 
-# Spec keys Kaspi uses for the brand; first hit wins.
-_BRAND_KEYS = ("Бренд", "Производитель", "Brand")
+# Spec keys that name the brand; first hit wins.
+_BRAND_KEYS = ("Бренд", "Brand")
+# "Производитель" is often a country ("Китай") or a factory, not a brand: it counts
+# only when the brand book knows it, never as evidence against the title's brand.
+_MAKER_KEY = "Производитель"
 
 _MIN_SELLER_REVIEWS = 20
 _MAX_PRICE_PREMIUM = 1.10  # seller may cost up to 10% over the cheapest offer
@@ -46,10 +52,17 @@ def _is_trusted_seller(offer: RawOffer) -> bool:
     )
 
 
-def _brand_from_specs(specs: dict[str, str]) -> str | None:
+def _raw_brand(specs: dict[str, str], product: RawProduct, book: BrandBook | None) -> str | None:
+    """The listing's own brand field: specs, else the search card's, else a known maker."""
     for key in _BRAND_KEYS:
         if specs.get(key):
             return specs[key]
+    card_brand = getattr(product, "brand", None)
+    if card_brand:
+        return str(card_brand)
+    maker = specs.get(_MAKER_KEY)
+    if maker and (book is None or book.resolve(maker)[0] is not None):
+        return maker
     return None
 
 
@@ -67,26 +80,74 @@ def _pick_price(product: RawProduct, offers: list[RawOffer]) -> float | None:
     return product.price
 
 
-def _resolve_brand(
-    raw_brand: str | None, title: str, book: BrandBook | None
-) -> tuple[str | None, str | None]:
-    """Resolve canonical brand + trust tier from the brand field, then title."""
+# Brand-field values that mean "no brand" (Kaspi writes "Без бренда" for no-name goods).
+_NO_BRAND_VALUES = frozenset(
+    {"без бренда", "нет бренда", "no brand", "noname", "no name", "ноунейм"}
+)
+
+
+class _Brand(NamedTuple):
+    name: str | None
+    tier: str | None
+    from_title: bool = False
+    # A known brand the title names although the card's own brand field says otherwise.
+    claimed: str | None = None
+
+
+def _is_no_brand(raw_brand: str) -> bool:
+    return raw_brand.strip().lower() in _NO_BRAND_VALUES
+
+
+def _resolve_brand(raw_brand: str | None, title: str, book: BrandBook | None) -> _Brand:
+    """Canonical brand + tier, trusting the card's brand field over the title.
+
+    The title is a fallback only when the card has no brand field at all. A card
+    whose brand field is unknown or "Без бренда" while its title names a known
+    brand ("PODPODOSHVOI ... yeezy", "XAN Air Jordan 4") is how a counterfeit
+    looks: it keeps no tier and the title's brand is returned as ``claimed``.
+    # ponytail: a genuine sub-label in the brand field ("Jordan" for Nike) unknown
+    # to the book reads as a claim too; teach the book that alias when it shows up.
+    """
+    explicit_none = raw_brand is not None and _is_no_brand(raw_brand)
+    raw = None if explicit_none else raw_brand
     if book is None:
-        return raw_brand, None
-    canonical, tier = book.resolve(raw_brand or "")
-    if canonical is None:
-        canonical, tier = book.resolve(title)
-    return canonical or raw_brand, tier
+        return _Brand(raw, None)
+    if raw:
+        canonical, tier = book.resolve(raw)
+        if canonical is not None:
+            return _Brand(canonical, tier)
+        claimed = book.title_brand(title)
+        return _Brand(raw, None, claimed=claimed if claimed != raw else None)
+    named = book.title_brand(title)
+    if explicit_none:
+        return _Brand(None, None, claimed=named)
+    if named is None:
+        return _Brand(None, None)
+    return _Brand(named, book.tiers.get(named), from_title=True)
 
 
 def _mimic_brand(
-    book: BrandBook | None, title: str, raw_brand: str | None, brand: str | None
+    book: BrandBook | None, title: str, raw_brand: str | None, brand: _Brand
 ) -> str | None:
-    """A brand the title (or brand field) mimics, unless it is the resolved brand itself."""
+    """A brand the listing pretends to be: claimed in the title against the card's
+    brand field, or spelled to dodge the brand check ("J BL"), unless it is its own."""
     if book is None:
         return None
+    if brand.claimed is not None:
+        return brand.claimed
     mimic = book.mimicry(title) or book.mimicry(raw_brand or "")
-    return mimic if mimic is not None and mimic != brand else None
+    return mimic if mimic is not None and mimic != brand.name else None
+
+
+def _is_official_seller(
+    product: RawProduct, offers: list[RawOffer], brand: str | None, book: BrandBook | None
+) -> bool:
+    """Sold by the brand's own store / official partner (marketplace flag or seller name)."""
+    if getattr(product, "official_partner", None):
+        return True
+    if book is None:
+        return False
+    return any(book.is_official_seller(brand, o.seller) for o in offers if _is_live(o))
 
 
 def to_candidate(
@@ -108,16 +169,17 @@ def to_candidate(
     specs = specs or {}
     offers = offers or []
     price = _pick_price(product, offers)
-    raw_brand = _brand_from_specs(specs)
-    brand, brand_tier = _resolve_brand(raw_brand, product.title, book)
+    raw_brand = _raw_brand(specs, product, book)
+    brand = _resolve_brand(raw_brand, product.title, book)
     has_price = bool(price and price > 0)
     best = _best_offer(offers)
     return Candidate(
         source=product.source,
         source_product_id=product.product_id,
         title=product.title,
-        brand=brand,
-        brand_tier=brand_tier,
+        brand=brand.name,
+        brand_tier=brand.tier,
+        brand_from_title=brand.from_title,
         price=int(price) if price and has_price else 0,
         rating=product.rating,
         review_count=product.review_count,
@@ -127,6 +189,36 @@ def to_candidate(
         offer_count=len(offers),
         best_seller=_pick_best_seller(offers),
         mimic_brand=_mimic_brand(book, product.title, raw_brand, brand),
+        official_seller=_is_official_seller(product, offers, brand.name, book),
+        category_path=list(getattr(product, "category_path", None) or []),
         delivery_date=best.delivery_date if best else None,
         delivery_cost=best.delivery_cost if best else None,
     )
+
+
+def attach_reference_prices(
+    candidates: list[Candidate], book: BrandBook | None, model_book: ModelBook | None
+) -> list[Candidate]:
+    """Copies of ``candidates`` carrying the genuine-item price they are judged against.
+
+    The model's official price when the title resolves to a known model of the
+    candidate's own brand, else the brand's cheapest genuine item (``price_floors``).
+    Untouched when there is no knowledge for the candidate.
+    """
+    return [_with_reference(c, book, model_book) for c in candidates]
+
+
+def _with_reference(
+    candidate: Candidate, book: BrandBook | None, model_book: ModelBook | None
+) -> Candidate:
+    if candidate.brand_tier is None or candidate.brand is None:
+        return candidate
+    entry = model_book.resolve_entry(candidate.title) if model_book else None
+    if entry is not None and entry.reference_price and entry.brand == candidate.brand:
+        return candidate.model_copy(
+            update={"reference_price": entry.reference_price, "reference_kind": "model"}
+        )
+    floor = book.price_floors.get(candidate.brand) if book else None
+    if floor:
+        return candidate.model_copy(update={"reference_price": floor, "reference_kind": "brand"})
+    return candidate

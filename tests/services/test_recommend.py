@@ -663,7 +663,7 @@ def test_dedupe_cross_source_dup_price_gap_order_independent_all_permutations():
     gap, text, display_gap = results[0]
     assert gap == pytest.approx(2.0)
     assert display_gap == pytest.approx(2.0)
-    assert "kaspi" in text and "100,000" in text
+    assert "kaspi" in text and "100\xa0000" in text
 
 
 def test_dedupe_cross_source_zero_price_duplicate_never_wins_as_cheaper() -> None:
@@ -1418,7 +1418,7 @@ async def test_fetch_top_reviews_collects_stats_when_source_provides_them():
     kaspi = _StatsKaspi({"k1": _reviews("k1", 4)}, {"k1": stats})
     recommendation = assemble_recommendation([_scored("k1", 90.0)], 0)
 
-    reviews_by_id, stats_by_id = await review_mod._fetch_top_reviews(kaspi, recommendation)
+    reviews_by_id, stats_by_id, _all = await review_mod._fetch_top_reviews(kaspi, recommendation)
 
     assert len(reviews_by_id[("kaspi", "k1")]) == 4
     assert stats_by_id[("kaspi", "k1")] is stats
@@ -1428,7 +1428,7 @@ async def test_fetch_top_reviews_without_stats_api_yields_no_stats():
     kaspi = _MultiReviewKaspi({"k1": _reviews("k1", 4)})
     recommendation = assemble_recommendation([_scored("k1", 90.0)], 0)
 
-    reviews_by_id, stats_by_id = await review_mod._fetch_top_reviews(kaspi, recommendation)
+    reviews_by_id, stats_by_id, _all = await review_mod._fetch_top_reviews(kaspi, recommendation)
 
     assert len(reviews_by_id[("kaspi", "k1")]) == 4
     assert stats_by_id == {}

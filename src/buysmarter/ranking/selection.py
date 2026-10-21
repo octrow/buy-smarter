@@ -223,6 +223,17 @@ def _premium_pool(
     return [s for s in premium if _identity(s) in top_quartile_ids] or premium
 
 
+def _identified(eligible: list[ScoredCandidate]) -> list[ScoredCandidate]:
+    """Listings naming their brand, when there are any.
+
+    A card titled just "Кроссовки мужские на осень" (no brand, no model) cannot be
+    checked or compared, so it takes no role while named products compete; in a
+    no-name-only pool everyone is unnamed and stays eligible.
+    """
+    named = [s for s in eligible if s.candidate.brand]
+    return named or eligible
+
+
 def _pick_alternatives(
     best: ScoredCandidate, pool: list[ScoredCandidate], full: list[ScoredCandidate]
 ) -> dict[str, ScoredCandidate]:
@@ -236,7 +247,9 @@ def _pick_alternatives(
     # visible, but must never be endorsed as "best budget/value/premium"
     # (docs/PLAN.md "Ranking-фиксы", anti-counterfeit).
     claims = _RoleClaims(best)
-    eligible = [s for s in pool if _identity(s) not in claims.used and not _is_barred_from_roles(s)]
+    eligible = _identified(
+        [s for s in pool if _identity(s) not in claims.used and not _is_barred_from_roles(s)]
+    )
 
     # Only candidates close to the best score qualify for "best value" — a
     # low-scoring, suspiciously cheap product must not win on score/price

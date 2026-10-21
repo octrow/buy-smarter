@@ -33,6 +33,15 @@ def test_a_doubled_first_word_is_dropped_and_the_rest_kept():
     assert clean_title("Кроссовки IFORA белый") == "Кроссовки IFORA белый"
 
 
+def test_a_category_word_repeated_a_few_words_later_is_dropped():
+    assert clean_title("Кроссовки Puma Кроссовки Anzarun 2 Lite") == "Puma Кроссовки Anzarun 2 Lite"
+    assert clean_title("Кроссовки Мужские кроссовки PODPODOSHVOI") == (
+        "Мужские кроссовки PODPODOSHVOI"
+    )
+    assert clean_title("Кроссовки Nike Air Max кроссовок") == "Кроссовки Nike Air Max кроссовок"
+    assert clean_title("Для дома для сада") == "Для дома для сада"  # too short to be a category
+
+
 def test_confidence_hint_names_the_missing_data():
     cand = Candidate(source="kaspi", source_product_id="1", title="x", price=1, rating=4.5)
     hint = confidence_hint(cand)

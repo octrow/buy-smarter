@@ -19,6 +19,7 @@ from buysmarter.knowledge.ingredients import IngredientBook
 from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.knowledge.store import COMPOSITION_DRIVEN, SPEC_DRIVEN, save_knowledge
 from buysmarter.llm.adapter import generate
+from buysmarter.services.official_stores import verify_store_floors
 
 # Deep-knowledge task (reason over an arbitrary category's brand landscape) —
 # opus is a conscious choice per the model policy documented in llm/adapter.py.
@@ -80,7 +81,12 @@ _WEB_RESEARCH_GUIDE = (
     "category (e.g. spaced-out or homoglyph spellings of a real brand). "
     "These must NOT get a tier — note in your reasoning that mimicked/"
     "counterfeit spellings belong in NEITHER `tiers` NOR `aliases`;\n"
-    "4. current model lines with their codes/SKUs.\n\n"
+    "4. current model lines with their codes/SKUs;\n"
+    "5. for each tier A/B brand, its official Kazakhstan online store (e.g. "
+    "puma.kz, adidas.kz) and the URL of that store's catalog page for this "
+    "category, sorted by price ascending when the site supports it; and the "
+    "seller names of its official store / distributor on Kaspi.kz and Ozon.kz;\n"
+    "6. the official KZ price of the model lines you list.\n\n"
     "Base tiers, aliases and model entries on what your searches actually "
     "confirm; still omit anything you cannot verify this way.\n\n"
 )
@@ -93,15 +99,27 @@ _SCHEMA_GUIDE = (
     '  - "B" = solid mid-tier, INCLUDING CIS-region brands sold on Kaspi.kz / '
     "Wildberries (e.g. reputable local/regional makers);\n"
     '  - "C" = budget but genuinely decent — do NOT include pure noname brands;\n'
+    "  tiers rate trust and authenticity, not price: a big retailer's own budget "
+    "brand with verified sellers is B, not C;\n"
     "- `aliases`: map alternate spellings to the canonical brand name, INCLUDING "
     'Cyrillic transliterations (e.g. "Сяоми" -> "Xiaomi", "Филипс" -> '
-    '"Philips") and sub-brand names (e.g. "Mijia" -> "Xiaomi").\n\n'
+    '"Philips") and sub-brand names sold under their own label (e.g. "Mijia" -> '
+    '"Xiaomi"). NEVER alias a product line or model to its brand ("Yeezy", '
+    '"Jordan", "Air Max", "iPhone" are models: they go to `model_book`), since '
+    "counterfeits put exactly those names in their titles. No alias of 1-2 "
+    'letters and no alias that is an ordinary word ("Он", "NB");\n'
+    "- `official_stores`: canonical brand -> URL of the brand's official KZ store "
+    "catalog page for this category (omit when the brand has no KZ store);\n"
+    "- `official_sellers`: canonical brand -> seller/shop names of the brand's "
+    "own store or official distributors on Kaspi.kz / Ozon.kz (omit if unknown).\n\n"
     "`model_book`:\n"
     "- `entries`: a list of well-known model lines, each with:\n"
     "  - `canonical`: the clean product/model name;\n"
     "  - `brand`: its canonical brand (matching a brand_book tier key);\n"
     '  - `codes`: model codes / SKUs (e.g. "MEO703", "F300", "RL-670");\n'
-    "  - `aliases`: common marketplace/OLX title variants for the same model.\n\n"
+    "  - `aliases`: common marketplace/OLX title variants for the same model;\n"
+    "  - `reference_price`: official price of a genuine item in Kazakhstan, KZT "
+    "integer, or null when unknown.\n\n"
     "`category_type`: classify the category as one of:\n"
     f'  - "{SPEC_DRIVEN}" (default) — ranked on specs + brand (electronics, '
     "appliances, tools, irrigators...);\n"
@@ -196,6 +214,8 @@ async def learn_category(category: str, *, web_search: bool = True) -> CategoryK
     """Generate a category's knowledge and save it: ``learn-category`` for the desktop app."""
     knowledge = await generate_category_knowledge(category, web_search=web_search)
     brand, model, category_type, ingredient = knowledge
+    brand = await verify_store_floors(brand, category)
+    knowledge = (brand, model, category_type, ingredient)
     await save_knowledge(
         category,
         brand,

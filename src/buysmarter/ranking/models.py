@@ -19,6 +19,12 @@ class QueryConstraints(BaseModel):
     preferred_marketplaces: list[str] = Field(default_factory=list)
     usage_notes: str | None = None
     trusted_brands_only: bool = False
+    # Who the product is for, from the query ("мужские кроссовки" -> "male"):
+    # a listing marked for another audience is rejected (``filters``). None == any.
+    gender: str | None = None
+    # Clothing/shoe size the user asked for ("42", "XL"). Marketplace cards do not
+    # say which sizes are in stock, so it is reported as unverified, never filtered.
+    size: str | None = None
 
 
 class PriceHistory(BaseModel):
@@ -76,6 +82,18 @@ class Candidate(BaseModel):
     # Smartphones only: Kimovil's overall index (0-100) for this model, averaged into
     # the specs axis (services.phone_specs). None == not a phone or no confident match.
     kimovil_index: float | None = None
+    # The brand was read from the title only (the card had no brand field): a
+    # weaker signal than a brand field, since counterfeits name a brand in the title.
+    brand_from_title: bool = False
+    # Lowest price of a genuine item (KZT) to compare this listing against: the
+    # model's official price when the model is known, else the brand's cheapest
+    # genuine item in the category (official stores). None == no knowledge.
+    reference_price: int | None = None
+    reference_kind: str | None = None  # "model" | "brand"
+    # Sold by the brand itself or its official distributor/partner.
+    official_seller: bool = False
+    # The marketplace's own category path ("Обувь > Мужская обувь > ..."), if any.
+    category_path: list[str] = Field(default_factory=list)
 
 
 class AxisScore(BaseModel):

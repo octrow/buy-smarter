@@ -47,7 +47,7 @@ async def test_done_job_carries_the_report_and_the_best_offer(
     job = await store.get(job_id)
 
     assert job.status is JobStatus.DONE
-    assert job.result["report_markdown"].startswith("# buy-smarter recommendation")
+    assert job.result["report_markdown"].startswith("# buy-smarter: рекомендация")
     assert job.result["best"]["title"] == "Waterpik WP-100 ирригатор"
     assert job.result["best"]["axes"][0]["name"] == "brand"
     assert calls == [

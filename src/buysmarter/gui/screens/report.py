@@ -26,12 +26,15 @@ from PySide6.QtWidgets import (
 from buysmarter.cli.report import format_rejected_reasons
 from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.labels import (
+    USED_SECTION,
     axis_label,
+    checked_brands,
     clean_title,
     confidence_hint,
     explain,
     pro_con,
     source_label,
+    used_con,
 )
 from buysmarter.gui.prefs_fields import kzt
 from buysmarter.gui.screens.alternatives import (
@@ -181,12 +184,13 @@ def text_table(
     return table
 
 
-def _used_row(listing: UsedListing) -> list[str]:
+def _used_row(listing: UsedListing, brands: set[str]) -> list[str]:
     title = f"{listing.title} → {listing.canonical}" if listing.canonical else listing.title
     standalone = listing.standalone or not listing.matched_title
     saving = "—" if listing.standalone else kzt(listing.saving)
     compared = "—" if standalone else clean_title(listing.matched_title or "")
-    return [title, kzt(listing.price), saving, compared, listing.city or "—", listing.con]
+    con = used_con(listing, brands)
+    return [title, kzt(listing.price), saving, compared, listing.city or "—", con]
 
 
 def _summary_lines(summary: ReviewSummary) -> list[tuple[str, str]]:
@@ -281,7 +285,7 @@ class ReportScreen(QScrollArea):
             self.rejected = _group("Отсеяно", _label(rejected_line(result), role="muted"))
             layout.addWidget(self.rejected)
         if result.used_listings:
-            layout.addWidget(self._used_section(result.used_listings))
+            layout.addWidget(self._used_section(result))
         if lines := could_not_verify(result, run):
             notes = _label("\n".join(lines), state="warning")
             layout.addWidget(_group("Не удалось проверить", notes))
@@ -416,9 +420,11 @@ class ReportScreen(QScrollArea):
     def _sources(result: RecommendResult) -> set[str]:
         return {s.candidate.source for s in result.recommendation.ranked}
 
-    def _used_section(self, used: list[UsedListing]) -> QGroupBox:
+    def _used_section(self, result: RecommendResult) -> QGroupBox:
+        used = result.used_listings
+        brands = checked_brands(s.candidate for s in result.recommendation.ranked)
         headers = ["Объявление", "Цена", "Дешевле нового на", "Сравнили с", "Город", "Минус"]
-        table = text_table(headers, [_used_row(u) for u in used], stretch=0)
+        table = text_table(headers, [_used_row(u, brands) for u in used], stretch=0)
         table.cellDoubleClicked.connect(lambda row, _col: open_offer(used[row].url))
         self.used = table
-        return _group("Б/у на OLX", table, _label(_USED_HINT, role="caption"))
+        return _group(USED_SECTION, table, _label(_USED_HINT, role="caption"))

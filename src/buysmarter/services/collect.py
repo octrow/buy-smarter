@@ -234,10 +234,18 @@ async def _brand_targeted_products(
             card
             for card in cards
             if book.resolve(card.title)[0] == canonical
+            and _card_brand_agrees(card, book, canonical)
             and (jargon_only or title_matches_category(card.title, category))
         ]
         found.extend(matched[:_BRAND_SEARCH_TOP_N])
     return found
+
+
+def _card_brand_agrees(card: RawProduct, book: BrandBook, canonical: str) -> bool:
+    """False when the card's own brand field names someone else ("FASHION" selling
+    "Yeezy"): a brand search must not recruit look-alikes as that brand's recall."""
+    card_brand = getattr(card, "brand", None)
+    return not card_brand or book.resolve(card_brand)[0] == canonical
 
 
 # Substance-targeted recall (docs/PLAN.md "Composition-driven категории"): a

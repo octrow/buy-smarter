@@ -22,7 +22,7 @@ async def test_heuristic_runs_without_llm() -> None:
 
 
 async def test_llm_pass_drops_flagged_candidates(monkeypatch) -> None:
-    async def _fake_filter(category, titles):
+    async def _fake_filter(category, titles, keep_threshold=0.25):
         # Drop the second surviving candidate.
         return [t != "Батарея-пылесос noname" for t in titles]
 
@@ -42,7 +42,7 @@ async def test_llm_pass_drops_flagged_candidates(monkeypatch) -> None:
 async def test_llm_pass_skipped_when_pool_small(monkeypatch) -> None:
     called = False
 
-    async def _fake_filter(category, titles):
+    async def _fake_filter(category, titles, keep_threshold=0.25):
         nonlocal called
         called = True
         return [True] * len(titles)
@@ -55,7 +55,7 @@ async def test_llm_pass_skipped_when_pool_small(monkeypatch) -> None:
 
 
 async def test_never_drops_below_three(monkeypatch) -> None:
-    async def _drop_all(category, titles):
+    async def _drop_all(category, titles, keep_threshold=0.25):
         return [False] * len(titles)
 
     monkeypatch.setattr(svc, "filter_relevant", _drop_all)

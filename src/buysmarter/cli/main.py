@@ -21,6 +21,7 @@ from buysmarter.cli.report import (
     skipped_llm_note,
     unavailable_sources_note,
 )
+from buysmarter.i18n import USED_SECTION, checked_brands, kzt, used_con
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.generate import (
     EXTRACT_KNOWLEDGE_MODEL,
@@ -51,6 +52,7 @@ from buysmarter.services.doctor import (
     pass_ozon_check,
 )
 from buysmarter.services.matching import UsedListing
+from buysmarter.services.official_stores import verify_store_floors
 from buysmarter.services.ozon_browser import setup_browser
 from buysmarter.services.price_tracking import CategoryRefresh, ProductHistory
 from buysmarter.services.price_tracking import product_history as run_product_history
@@ -81,7 +83,7 @@ def _render_constraints(c: QueryConstraints, city_defaulted: bool = False) -> No
     lines = [
         f"[bold]Category:[/bold] {c.category}",
         f"[bold]City:[/bold] {c.city or '-'}{city_note}",
-        f"[bold]Budget:[/bold] {f'{c.budget_max:,} ₸' if c.budget_max else 'без лимита'}",
+        f"[bold]Budget:[/bold] {f'{kzt(c.budget_max)}' if c.budget_max else 'без лимита'}",
     ]
     if c.required_features:
         lines.append(f"[bold]Required:[/bold] {', '.join(c.required_features)}")
@@ -102,7 +104,7 @@ def _render_best(best: ScoredCandidate) -> None:
         f"🥇 [bold]{escape(title)}[/bold]  [dim]\\[{escape(cand.source)}][/dim]\n"
         f"Score: [bold]{best.total_score:.0f}[/bold]/100   "
         f"Confidence: [bold]{best.confidence:.0%}[/bold]\n"
-        f"Price: [bold]{cand.price:,} ₸[/bold]"
+        f"Price: [bold]{kzt(cand.price)}[/bold]"
     )
     if barred:
         header += "\n[bold red]все кандидаты под подозрением — проверьте вручную[/bold red]"
@@ -167,7 +169,7 @@ def _render_alternatives(alts: dict[str, ScoredCandidate]) -> None:
             ROLE_LABELS.get(role, role),
             scored.candidate.source,
             _product_cell(scored.candidate.title, scored.candidate.url),
-            f"{scored.candidate.price:,} ₸",
+            f"{kzt(scored.candidate.price)}",
             f"{scored.total_score:.0f}",
         )
     console.print(table)
@@ -204,17 +206,18 @@ def _render_top(scored: list[ScoredCandidate], top: int) -> None:
             str(i),
             c.source,
             _product_cell(title_text, c.url),
-            f"{c.price:,} ₸",
+            f"{kzt(c.price)}",
             f"{s.total_score:.0f}",
             _tier_cell(c),
         )
     console.print(table)
 
 
-def _render_used(used: list[UsedListing]) -> None:
+def _render_used(used: list[UsedListing], ranked: list[ScoredCandidate]) -> None:
     if not used:
         return
-    table = Table(title="Б/у на OLX", show_header=True, header_style="bold")
+    brands = checked_brands(s.candidate for s in ranked)
+    table = Table(title=USED_SECTION, show_header=True, header_style="bold")
     table.add_column("Listing")
     table.add_column("Price", justify="right")
     table.add_column("Saving vs new", justify="right")
@@ -222,13 +225,13 @@ def _render_used(used: list[UsedListing]) -> None:
     table.add_column("Con")
     for listing in used:
         title = f"{listing.title} → {listing.canonical}" if listing.canonical else listing.title
-        saving_cell = "—" if listing.standalone else f"-{listing.saving:,} ₸"
+        saving_cell = "—" if listing.standalone else f"-{kzt(listing.saving)}"
         table.add_row(
             _product_cell(title, listing.url),
-            f"{listing.price:,} ₸",
+            f"{kzt(listing.price)}",
             saving_cell,
             escape(listing.city or "-"),
-            escape(listing.con),
+            escape(used_con(listing, brands)),
         )
     console.print(table)
 
@@ -242,7 +245,7 @@ def _render(result: RecommendResult, top: int) -> None:
     _render_review_summary(result.review_summary)
     _render_alternatives(result.recommendation.alternatives)
     _render_top(result.recommendation.ranked, top)
-    _render_used(result.used_listings)
+    _render_used(result.used_listings, result.recommendation.ranked)
     if result.recommendation.rejected_count:
         console.print(
             f"[dim]{result.recommendation.rejected_count} candidate(s) "
@@ -272,7 +275,7 @@ def _render_no_substance(exc: NoSubstanceMatch) -> None:
     table.add_column("Rating", justify="right")
     for cand in exc.alternatives:
         rating = f"{cand.rating:.1f}" if cand.rating is not None else "-"
-        table.add_row(_product_cell(cand.title, cand.url), f"{cand.price:,} ₸", rating)
+        table.add_row(_product_cell(cand.title, cand.url), f"{kzt(cand.price)}", rating)
     console.print(table)
 
 
@@ -458,6 +461,7 @@ async def _run_learn_category(
     brand, model, category_type, ingredient = await generate_category_knowledge(
         category, web_search=web_search
     )
+    brand = await verify_store_floors(brand, category)
     await save_knowledge(
         category,
         brand,
@@ -532,9 +536,9 @@ def _render_refresh(result: CategoryRefresh) -> None:
     for change in result.drops:
         table.add_row(
             escape(change.title[:50]),
-            f"{change.old_price:,} ₸",
-            f"{change.new_price:,} ₸",
-            f"[green]{change.delta:,} ₸[/green]",
+            f"{kzt(change.old_price)}",
+            f"{kzt(change.new_price)}",
+            f"[green]{kzt(change.delta)}[/green]",
         )
     console.print(table)
 
@@ -561,7 +565,7 @@ def _render_history(entry: ProductHistory) -> None:
     table.add_column("Min price", justify="right")
     table.add_column("Offers", justify="right")
     for snap in entry.snapshots:
-        table.add_row(snap.captured_at, f"{snap.min_price:,} ₸", str(snap.offer_count))
+        table.add_row(snap.captured_at, f"{kzt(snap.min_price)}", str(snap.offer_count))
     console.print(table)
 
 

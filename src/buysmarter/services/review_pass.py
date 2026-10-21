@@ -3,8 +3,10 @@ review axes, re-sort, then summarize the best pick and check required features i
 """
 
 import asyncio
+import inspect
 import logging
 from collections.abc import Sequence
+from typing import NamedTuple
 
 from market_sources.base import ProductSource, RawReview, RawReviewStats
 
@@ -16,13 +18,18 @@ from buysmarter.ranking.models import (
     ScoredCandidate,
 )
 from buysmarter.ranking.penalties import (
+    apply_counterfeit_mentions,
     apply_defect_penalty,
     apply_requirement_checks,
     apply_review_trust,
     apply_summary_penalty,
 )
 from buysmarter.ranking.review_requirements import naive_requirement_checks
-from buysmarter.ranking.review_trust import count_defect_complaints, review_trust
+from buysmarter.ranking.review_trust import (
+    count_counterfeit_mentions,
+    count_defect_complaints,
+    review_trust,
+)
 from buysmarter.ranking.selection import assemble_recommendation
 
 logger = logging.getLogger(__name__)
@@ -30,7 +37,8 @@ logger = logging.getLogger(__name__)
 
 # Review-trust re-score / summarization only pay for reviews on the top ranked
 # Kaspi candidates (Kaspi's review endpoint is cheap; Ozon's is browser-heavy).
-_REVIEW_TRUST_TOP_N = 5
+# Each costs two calls (default + negative page) for the counterfeit check.
+_REVIEW_TRUST_TOP_N = 6
 _REVIEW_SOURCE = "kaspi"
 _REVIEW_FETCH_CONCURRENCY = 3  # parallel trust-pass review fetches
 
@@ -53,37 +61,66 @@ async def _reviews_and_stats(
     return result
 
 
-async def _fetch_top_reviews(
-    source: ProductSource, recommendation: Recommendation
-) -> tuple[ReviewsById, StatsById]:
+async def _negative_reviews(source: ProductSource, product_id: str) -> list[RawReview]:
+    """The low-rated reviews page, where "подделка/реплика" complaints live.
+
+    The default page is sorted by popularity and is mostly praise. Sources
+    without a negative filter (older adapters, test doubles) give nothing.
+    """
+    reviews = getattr(source, "reviews", None)
+    if reviews is None or "negative" not in inspect.signature(reviews).parameters:
+        return []
+    try:
+        result: list[RawReview] = await reviews(product_id, negative=True)
+        return result
+    except Exception as exc:  # noqa: BLE001 - a review fetch must not kill the run
+        logger.warning("Negative review fetch failed for %s: %r", product_id, exc)
+        return []
+
+
+def _union(first: list[RawReview], second: list[RawReview]) -> list[RawReview]:
+    """Both review lists without the reviews they share."""
+    seen = {(r.author, r.text) for r in first}
+    return first + [r for r in second if (r.author, r.text) not in seen]
+
+
+class _Fetched(NamedTuple):
+    reviews: ReviewsById
+    stats: StatsById
+    # Default page + negative page, for counting "подделка/реплика" mentions.
+    all_reviews: ReviewsById
+
+
+async def _fetch_top_reviews(source: ProductSource, recommendation: Recommendation) -> _Fetched:
     """Fetch reviews (and stats) for the top ranked Kaspi candidates, best-effort per id."""
     top = [s for s in recommendation.ranked if s.candidate.source == _REVIEW_SOURCE]
     semaphore = asyncio.Semaphore(_REVIEW_FETCH_CONCURRENCY)
 
     async def fetch(
         scored: ScoredCandidate,
-    ) -> tuple[list[RawReview], RawReviewStats | None] | None:
+    ) -> tuple[list[RawReview], RawReviewStats | None, list[RawReview]] | None:
+        product_id = scored.candidate.source_product_id
         async with semaphore:
             try:
-                return await _reviews_and_stats(source, scored.candidate.source_product_id)
+                reviews, stats = await _reviews_and_stats(source, product_id)
             except Exception as exc:  # noqa: BLE001 - a review fetch must not kill the run
-                logger.warning(
-                    "Review fetch failed for %s: %r", scored.candidate.source_product_id, exc
-                )
+                logger.warning("Review fetch failed for %s: %r", product_id, exc)
                 return None
+            return reviews, stats, await _negative_reviews(source, product_id)
 
     selected = top[:_REVIEW_TRUST_TOP_N]
     fetched = await asyncio.gather(*(fetch(scored) for scored in selected))
-    reviews_by_id: ReviewsById = {}
-    stats_by_id: StatsById = {}
-    for scored, result in zip(selected, fetched, strict=True):
-        if result is None:
+    result = _Fetched({}, {}, {})
+    for scored, outcome in zip(selected, fetched, strict=True):
+        if outcome is None:
             continue
-        reviews, stats = result
-        reviews_by_id[_candidate_key(scored)] = reviews
+        reviews, stats, negative = outcome
+        key = _candidate_key(scored)
+        result.reviews[key] = reviews
+        result.all_reviews[key] = _union(reviews, negative)
         if stats is not None:
-            stats_by_id[_candidate_key(scored)] = stats
-    return reviews_by_id, stats_by_id
+            result.stats[key] = stats
+    return result
 
 
 def _apply_review_trust(
@@ -114,6 +151,34 @@ def _apply_review_trust(
     if not adjusted:
         return recommendation
     rescored = [adjusted.get(_candidate_key(s), s) for s in recommendation.ranked]
+    return assemble_recommendation(
+        rescored, recommendation.rejected_count, recommendation.rejected_reasons
+    )
+
+
+_REVIEWS_NOT_LOADED_CON = "тексты отзывов не загрузились — подделку по отзывам не проверить"
+
+
+def _counterfeit_check(scored: ScoredCandidate, fetched: _Fetched) -> ScoredCandidate:
+    """Counterfeit mentions over a fetched candidate's reviews, or a con when none loaded."""
+    key = _candidate_key(scored)
+    reviews = fetched.all_reviews.get(key)
+    if reviews is None:
+        return scored
+    if not reviews:
+        if scored.candidate.review_count:
+            return scored.model_copy(update={"cons": [*scored.cons, _REVIEWS_NOT_LOADED_CON]})
+        return scored
+    stats = fetched.stats.get(key)
+    total = (stats.total if stats else None) or scored.candidate.review_count or len(reviews)
+    return apply_counterfeit_mentions(scored, count_counterfeit_mentions(reviews), total)
+
+
+def _apply_counterfeit_checks(recommendation: Recommendation, fetched: _Fetched) -> Recommendation:
+    """Bar candidates whose reviews call them fakes, then re-assemble when anything changed."""
+    rescored = [_counterfeit_check(s, fetched) for s in recommendation.ranked]
+    if all(new is old for new, old in zip(rescored, recommendation.ranked, strict=True)):
+        return recommendation
     return assemble_recommendation(
         rescored, recommendation.rejected_count, recommendation.rejected_reasons
     )
@@ -266,8 +331,10 @@ async def review_pass(
     reviews_by_id: ReviewsById = {}
     kaspi = active.get(_REVIEW_SOURCE)
     if kaspi is not None:
-        reviews_by_id, stats_by_id = await _fetch_top_reviews(kaspi, recommendation)
-        recommendation = _apply_review_trust(recommendation, reviews_by_id, stats_by_id)
+        fetched = await _fetch_top_reviews(kaspi, recommendation)
+        reviews_by_id = fetched.reviews
+        recommendation = _apply_review_trust(recommendation, reviews_by_id, fetched.stats)
+        recommendation = _apply_counterfeit_checks(recommendation, fetched)
     review_summary = None
     missing_note = None
     if with_review_summary and use_llm:

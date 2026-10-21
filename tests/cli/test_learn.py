@@ -4,6 +4,7 @@ No network/LLM: the generation/extraction coroutines are monkeypatched; the stor
 suite's tmp SQLite (tests/conftest.py).
 """
 
+import pytest
 from typer.testing import CliRunner
 
 from buysmarter.cli import main
@@ -17,6 +18,16 @@ from buysmarter.knowledge.models_book import ModelBook, ModelEntry
 from buysmarter.knowledge.store import get_stored_books, resolve_composition
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def _no_price_research(monkeypatch) -> None:
+    """The official-store check fetches live pages: off in these tests."""
+
+    async def _same(book: BrandBook, category: str) -> BrandBook:
+        return book
+
+    monkeypatch.setattr(main, "verify_store_floors", _same)
 
 
 def _stub_books() -> tuple[BrandBook, ModelBook]:

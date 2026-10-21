@@ -99,8 +99,8 @@ async def test_recommend_tool_returns_markdown_with_sections(monkeypatch) -> Non
     tool = await _get_tool("recommend")
     out = await tool.fn("нужен ирригатор", city="Алматы")
 
-    assert "# buy-smarter recommendation" in out
-    assert "## Best pick" in out
+    assert "# buy-smarter: рекомендация" in out
+    assert "## Лучший выбор" in out
     assert "Waterpik WP-100" in out
 
 

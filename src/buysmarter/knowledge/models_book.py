@@ -32,6 +32,9 @@ class ModelEntry(BaseModel):
     brand: str
     aliases: list[str] = Field(default_factory=list)
     codes: list[str] = Field(default_factory=list)
+    # Official price of a genuine item of this model in Kazakhstan (KZT), if known:
+    # a far cheaper "Air Jordan 4" is a replica even when the brand's floor is low.
+    reference_price: int | None = None
 
     def matches_code(self, normalized_title: str) -> bool:
         """True if any of this entry's codes appears as a digit-bounded token.
