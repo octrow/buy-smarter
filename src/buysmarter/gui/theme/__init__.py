@@ -132,6 +132,7 @@ QCheckBox::indicator {{ width: 16px; height: 16px; border: 1px solid {p["border_
 QCheckBox::indicator:hover {{ border-color: {p["accent"]}; }}
 QCheckBox::indicator:checked {{ background: {p["accent"]}; border-color: {p["accent"]}; image: url("{(_ASSETS / p["check_icon"]).as_posix()}"); }}
 QCheckBox::indicator:disabled {{ background: {p["window"]}; border-color: {p["border"]}; }}
+QCheckBox::indicator:checked:disabled {{ background: {p["disabled"]}; border-color: {p["disabled"]}; }}
 QCheckBox:focus {{ color: {p["accent"]}; }}
 
 QTableView {{ background: {p["surface"]}; alternate-background-color: {p["window"]}; border: 1px solid {p["border"]}; border-radius: {r}px; gridline-color: {p["border"]}; selection-background-color: {p["accent_soft"]}; selection-color: {p["text"]}; outline: 0; }}

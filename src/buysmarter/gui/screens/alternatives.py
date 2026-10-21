@@ -11,6 +11,7 @@ from PySide6.QtCore import (
 )
 
 from buysmarter.cli.report import ROLE_LABELS
+from buysmarter.gui.prefs_fields import kzt
 from buysmarter.ranking.models import Recommendation, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
 
@@ -73,7 +74,7 @@ class AlternativesModel(QAbstractTableModel):
                 title = f"⚠ {cand.title}" if is_barred(scored) else cand.title
                 return title, title
             case 3:
-                return f"{cand.price:,} ₸", cand.price
+                return kzt(cand.price), cand.price
             case 4:
                 return f"{scored.total_score:.0f}", scored.total_score
         name = self._axes[column - len(_FIXED_COLUMNS)]

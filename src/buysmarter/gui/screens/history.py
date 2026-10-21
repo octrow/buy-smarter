@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter.gui.bridge import CoreRunner, Job
-from buysmarter.gui.prefs_fields import store_warning
+from buysmarter.gui.prefs_fields import kzt, store_warning
 from buysmarter.gui.progress import Progress
 from buysmarter.gui.screens.report import text_table
 from buysmarter.gui.theme import SPACE, set_state
@@ -38,7 +38,7 @@ def refresh_summary(results: list[CategoryRefresh]) -> str:
 
 def _history_group(entry: ProductHistory) -> QGroupBox:
     rows = [
-        [s.captured_at.replace("T", " "), f"{s.min_price:,} ₸", str(s.offer_count)]
+        [s.captured_at.replace("T", " "), kzt(s.min_price), str(s.offer_count)]
         for s in entry.snapshots
     ]
     box = QGroupBox(f"{entry.title}  [{entry.source}]")

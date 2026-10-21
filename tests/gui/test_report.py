@@ -35,7 +35,7 @@ def test_best_pick_shows_each_axis_as_score_over_max_with_its_reason(qtbot, resu
     assert rows == [["price", "20.0/25", "ниже медианы рынка"], ["specs", "18.0/20", "IPX7 есть"]]
     assert [axes.cellWidget(r, 2).value() for r in range(2)] == [80, 90]  # the bars
     labels = _texts(screen).splitlines()
-    for text in ("Philips Sonicare Power Flosser", "kaspi", "88/100", "80%", "38,000 ₸"):
+    for text in ("Philips Sonicare Power Flosser", "kaspi", "88/100", "80%", "38\xa0000 ₸"):
         assert text in labels
     assert {"Score", "Confidence", "Price"} <= set(labels)
 
@@ -44,7 +44,7 @@ def test_alternatives_sort_by_price_and_filter_to_one_marketplace(qtbot, result)
     screen = _shown(qtbot, result)
     proxy = screen.alternatives_proxy
     proxy.sort(3, Qt.SortOrder.AscendingOrder)
-    assert _column(proxy, 3) == ["19,000 ₸", "35,000 ₸", "38,000 ₸"]
+    assert _column(proxy, 3) == ["19\xa0000 ₸", "35\xa0000 ₸", "38\xa0000 ₸"]
     assert _column(proxy, 0) == ["Best budget", "", ""]
 
     screen.marketplace.setCurrentText("ozon")
@@ -69,7 +69,7 @@ def test_rejected_used_and_could_not_verify_sections(qtbot, result):
     assert "3 candidate(s) rejected by hard filters." in text
     assert "Отсеяно: дороже бюджета ×2, исключённый бренд ×1" in text
     assert screen.used.item(0, 0).text() == "ирригатор xiaomi б/у"
-    assert screen.used.item(0, 2).text() == "-10,000 ₸"
+    assert screen.used.item(0, 2).text() == "-10\xa0000 ₸"
     assert "ozon: пропущен" in text
     assert "AI выключен" in text
 

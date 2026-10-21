@@ -4,7 +4,7 @@ import asyncio
 import threading
 
 from buysmarter.gui.bridge import USER_ERROR
-from buysmarter.gui.screens.search import STATE_LABELS, SearchScreen
+from buysmarter.gui.screens.search import STAGE_LABELS, STATE_LABELS, SearchScreen, stage_label
 from buysmarter.ranking.models import Candidate, QueryConstraints
 from buysmarter.services.collect import _safe
 from buysmarter.services.recommend import NoSubstanceMatch
@@ -85,7 +85,10 @@ def test_nothing_to_recommend_is_shown_as_a_message(qtbot, runner):
     screen.query.setText("ирригатор")
     screen.start()
     qtbot.waitUntil(screen.start_button.isEnabled, timeout=WAIT_MS)
-    assert screen.message.text() == "No recommendation: no candidates passed the filters"
+    assert (
+        screen.message.text()
+        == "Не нашлось подходящих предложений: no candidates passed the filters"
+    )
 
 
 def test_empty_query_does_not_start(qtbot, runner):
@@ -168,7 +171,7 @@ def test_no_substance_match_shows_the_core_message(qtbot, runner):
     screen.query.setText("адапален")
     screen.start()
     qtbot.waitUntil(screen.start_button.isEnabled, timeout=WAIT_MS)
-    assert screen.message.text() == f"{exc.message()}\n• Effaclar Duo — 9,000 ₸ [kaspi]"
+    assert screen.message.text() == f"{exc.message()}\n• Effaclar Duo — 9\xa0000 ₸ [kaspi]"
 
 
 def test_form_values_and_saved_excluded_brands_reach_the_core(qtbot, runner, result):
@@ -219,3 +222,48 @@ def test_preferences_arriving_after_the_checks_keep_an_unavailable_source_untick
     screen.set_unavailable({"ozon": "no browser"})
     screen.apply_prefs({"marketplaces": ["kaspi", "ozon"]})
     assert not screen.sources["ozon"].isChecked()
+
+
+def test_core_stage_names_read_in_russian_and_an_unknown_one_reads_generic():
+    assert stage_label("query parse") == STAGE_LABELS["query parse"]
+    assert stage_label("collect[ozon]") == STAGE_LABELS["collect"]
+    assert stage_label("something new") == "Работаю"
+
+
+def test_a_running_search_shows_it_is_busy_and_how_long_it_has_run(qtbot, runner):
+    started = threading.Event()
+
+    async def hangs(query, **kwargs):
+        await _ozon_hangs(started)
+
+    screen = SearchScreen(runner, recommend=hangs)
+    qtbot.addWidget(screen)
+    screen.query.setText("ирригатор")
+    screen.start()
+    qtbot.waitUntil(started.is_set, timeout=WAIT_MS)
+    want = f"{STAGE_LABELS['collect']}… "
+    qtbot.waitUntil(lambda: screen.stage.text().startswith(want), timeout=WAIT_MS)
+    assert screen.stage.text().endswith(" с")
+    assert screen.busy.isVisibleTo(screen) and screen.start_button.text() == "Ищу…"
+
+    screen.cancel()
+    qtbot.waitUntil(screen.start_button.isEnabled, timeout=WAIT_MS)
+    assert not screen.busy.isVisibleTo(screen) and screen.stage.text() == ""
+    assert screen.start_button.text() == "Найти"
+
+
+def test_health_checks_landing_mid_search_keep_the_marketplace_statuses(qtbot, runner):
+    started = threading.Event()
+
+    async def hangs(query, **kwargs):
+        await _ozon_hangs(started)
+
+    screen = SearchScreen(runner, recommend=hangs)
+    qtbot.addWidget(screen)
+    screen.query.setText("ирригатор")
+    screen.start()
+    qtbot.waitUntil(started.is_set, timeout=WAIT_MS)
+    screen.set_unavailable({})
+    assert screen.status["olx"].text() == STATE_LABELS["waiting"]
+    screen.cancel()
+    qtbot.waitUntil(screen.start_button.isEnabled, timeout=WAIT_MS)

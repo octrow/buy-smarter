@@ -42,7 +42,7 @@ def test_history_lists_seeded_snapshots_newest_first(qtbot, runner):
     qtbot.waitUntil(lambda: screen.results.widget() is not None, timeout=WAIT_MS)
     titles, rows = _shown_rows(screen)
     assert titles == ["Waterpik WP-660  [kaspi]"]
-    assert rows == [["35,500 ₸", "3"], ["37,000 ₸", "2"], ["40,000 ₸", "1"]]
+    assert rows == [["35\xa0500 ₸", "3"], ["37\xa0000 ₸", "2"], ["40\xa0000 ₸", "1"]]
 
 
 def test_unknown_product_says_there_is_no_history(qtbot, runner):

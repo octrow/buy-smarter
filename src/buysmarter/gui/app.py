@@ -8,6 +8,7 @@ from collections.abc import Callable, Mapping
 from types import TracebackType
 from typing import Any, cast
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication,
@@ -37,7 +38,7 @@ logger = logging.getLogger(__name__)
 _TITLE = "buy-smarter"
 DESKTOP_ENTRY = "buysmarter"  # packaging/linux/buysmarter.desktop
 _MIN_SIZE = (960, 640)
-_SIDEBAR_WIDTH = 180
+_SIDEBAR_WIDTH = 200
 _SHELL_TIMEOUT_S = 5
 
 
@@ -86,6 +87,9 @@ class MainWindow(QMainWindow):
         self.sidebar = QListWidget()
         self.sidebar.setObjectName("sidebar")
         self.sidebar.setFixedWidth(_SIDEBAR_WIDTH)
+        # A long or bold item must elide, never grow a scroll bar under the navigation.
+        self.sidebar.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.sidebar.setTextElideMode(Qt.TextElideMode.ElideRight)
         self.stack = QStackedWidget()
         screens = (
             ("Поиск", self.search),

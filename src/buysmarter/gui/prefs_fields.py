@@ -15,6 +15,8 @@ EXCLUDED_BRANDS = "excluded_brands"
 
 SOURCE_LABELS = {"kaspi": "Kaspi", "ozon": "Ozon", "olx": "OLX"}
 BUDGET_MAX = 100_000_000
+# Russian digit grouping, "40 000 ₸" (a no-break space), for every price the app shows.
+MONEY_LOCALE = QLocale(QLocale.Language.Russian, QLocale.Country.Kazakhstan)
 _BUDGET_STEP = 1_000
 STORE_OFF = (
     "Хранилище выключено: настройки не сохранятся, истории цен нет. "
@@ -32,18 +34,23 @@ def as_list(value: Any) -> list[str]:
 
 def as_budget(value: Any) -> int:
     """A stored budget (int or "40 000") in KZT; 0 means no limit."""
-    digits = str(value or "").replace(" ", "")
+    digits = "".join(str(value or "").split())  # also drops the no-break space of "40 000"
     return min(int(digits), BUDGET_MAX) if digits.isdigit() else 0
 
 
 def budget_box() -> QSpinBox:
     box = QSpinBox(maximum=BUDGET_MAX, singleStep=_BUDGET_STEP, suffix=" ₸")
-    box.setLocale(QLocale.c())  # "40,000 ₸", as the report tables and the CLI write prices
+    box.setLocale(MONEY_LOCALE)
     box.setSpecialValueText("без лимита")
     box.setGroupSeparatorShown(True)
     # QSS horizontal padding does not reach a spin box's text: inset it like a QLineEdit's.
     box.lineEdit().setTextMargins(SPACE["sm"], 0, SPACE["sm"], 0)
     return box
+
+
+def kzt(amount: int) -> str:
+    """A price in tenge as the app shows it: ``kzt(40000) == "40\xa0000 ₸"``."""
+    return f"{MONEY_LOCALE.toString(amount)} ₸"
 
 
 def store_warning() -> QLabel:

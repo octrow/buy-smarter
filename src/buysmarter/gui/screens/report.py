@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter.cli.report import format_rejected_reasons
+from buysmarter.gui.prefs_fields import kzt
 from buysmarter.gui.screens.alternatives import (
     SCORE_COLUMN,
     URL_ROLE,
@@ -47,7 +48,7 @@ def open_offer(url: str | None) -> None:
 
 def constraints_line(c: QueryConstraints, city_defaulted: bool) -> str:
     city = f"{c.city or '-'}{' (по умолчанию)' if city_defaulted else ''}"
-    budget = f"{c.budget_max:,} ₸" if c.budget_max else "без лимита"
+    budget = kzt(c.budget_max) if c.budget_max else "без лимита"
     parts = [f"Category: {c.category}", f"City: {city}", f"Budget: {budget}"]
     if c.required_features:
         parts.append(f"Required: {', '.join(c.required_features)}")
@@ -141,8 +142,8 @@ def text_table(headers: list[str], rows: list[list[str]]) -> QTableWidget:
 
 def _used_row(listing: UsedListing) -> list[str]:
     title = f"{listing.title} → {listing.canonical}" if listing.canonical else listing.title
-    saving = "—" if listing.standalone else f"-{listing.saving:,} ₸"
-    return [title, f"{listing.price:,} ₸", saving, listing.city or "-", listing.con]
+    saving = "—" if listing.standalone else f"-{kzt(listing.saving)}"
+    return [title, kzt(listing.price), saving, listing.city or "-", listing.con]
 
 
 def _group(title: str, *widgets: QWidget) -> QGroupBox:
@@ -194,7 +195,7 @@ class ReportScreen(QScrollArea):
         metrics.setSpacing(SPACE["xxl"])
         metrics.addWidget(_metric(f"{best.total_score:.0f}/100", "Score", "bestScore"))
         metrics.addWidget(_metric(f"{best.confidence:.0%}", "Confidence", "bestConfidence"))
-        metrics.addWidget(_metric(f"{cand.price:,} ₸", "Price", "bestPrice"))
+        metrics.addWidget(_metric(kzt(cand.price), "Price", "bestPrice"))
         metrics.addStretch(1)
         if url := cand.url:
             self.open_best = QPushButton("Открыть на маркетплейсе")
