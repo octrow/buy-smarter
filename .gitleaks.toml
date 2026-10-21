@@ -2,5 +2,10 @@
 useDefault = true
 
 [allowlist]
-description = "Saved public marketplace responses used as parser fixtures"
+description = "Parser fixtures (saved public marketplace responses) and fake test keys"
 paths = ['''tests/samples/''']
+# Fake LLM keys the tests store and expect to see masked; none is a real key.
+regexes = [
+  '''sk-proj-(SECRETKEY|GUISECRET)123456''',
+  '''sk-env-1234567890?''',
+]
