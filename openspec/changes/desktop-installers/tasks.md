@@ -10,7 +10,7 @@
 
 ## 2. Windows
 
-- [ ] 2.1 Inno Setup script: per-user install, Start-menu entry, uninstaller; CI installs it silently and self-tests the installed app
+- [x] 2.1 Inno Setup script: per-user install, Start-menu entry, uninstaller; CI installs it silently and self-tests the installed app
 
 ## 3. macOS
 
