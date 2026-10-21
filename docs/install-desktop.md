@@ -8,7 +8,7 @@ Python on your machine.
 
 | Your system | Recommended | Also possible |
 |---|---|---|
-| macOS | install script | `buysmarter-<version>-macos-arm64.app.zip` (unsigned, see below) |
+| macOS | install script | `buysmarter-<version>-macos-arm64.dmg` (unsigned, see below) |
 | Windows | `buysmarter-<version>-windows-x64-setup.exe` | `…-windows-x64.zip`, install script |
 | Ubuntu / Debian | `buysmarter_<version>_amd64.deb` | install script |
 | Other Linux | install script | `buysmarter-<version>-linux-x64.tar.gz` |
@@ -53,6 +53,12 @@ To update, install the newer `.deb` the same way.
 Download `buysmarter-<version>-windows-x64-setup.exe` and run it. It installs for your user only, so it does
 not ask for administrator rights, and adds buy-smarter to the Start menu. If SmartScreen warns, see below.
 Remove it in **Settings → Apps**. Your history, settings and keys stay. To update, run the newer setup.
+
+## macOS: the disk image
+
+Open `buysmarter-<version>-macos-arm64.dmg` and drag buy-smarter onto the Applications folder next to it.
+The first launch needs the Gatekeeper steps below, because the app is not signed. To remove it, move it from
+Applications to the Trash. On a Mac the install script is still the easiest route: no Gatekeeper prompt.
 
 ## Ready-made build
 

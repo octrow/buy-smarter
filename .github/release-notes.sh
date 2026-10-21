@@ -21,7 +21,7 @@ cat <<NOTES
 |---|---|
 | Ubuntu / Debian | \`buysmarter_${version}_amd64.deb\`: open it, or \`sudo apt install ./buysmarter_${version}_amd64.deb\` |
 | Windows | \`buysmarter-${version}-windows-x64-setup.exe\` (or the \`.zip\` to run without installing) |
-| macOS (Apple silicon) | \`buysmarter-${version}-macos-arm64.app.zip\` |
+| macOS (Apple silicon) | \`buysmarter-${version}-macos-arm64.dmg\` (or the \`.app.zip\`) |
 | Other Linux | \`buysmarter-${version}-linux-x64.tar.gz\` |
 
 The builds are unsigned: see [Installing the desktop app](https://github.com/octrow/buy-smarter/blob/v${version}/docs/install-desktop.md)

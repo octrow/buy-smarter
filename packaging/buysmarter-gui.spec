@@ -63,4 +63,13 @@ exe = EXE(
 coll = COLLECT(exe, a.binaries, a.datas, name=NAME)
 
 if sys.platform == "darwin":
-    app = BUNDLE(coll, name=f"{NAME}.app", bundle_identifier="io.github.octrow.buysmarter")
+    from importlib.metadata import version
+
+    app = BUNDLE(
+        coll,
+        name=f"{NAME}.app",
+        icon=os.path.join(SPECPATH, "macos", "buysmarter.icns"),
+        bundle_identifier="io.github.octrow.buysmarter",
+        version=version("buysmarter"),
+        info_plist={"CFBundleDisplayName": "buy-smarter", "NSHighResolutionCapable": True},
+    )

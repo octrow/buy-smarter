@@ -1,5 +1,5 @@
 # A PyInstaller one-dir desktop build per OS → its --self-test → an archive artifact (desktop-<os>),
-# plus the Ubuntu .deb and the Windows setup, each installed and self-tested.
+# plus the Ubuntu .deb, the Windows setup and the macOS .dmg, each installed (or mounted) and self-tested.
 # release.yml calls it on a tag and attaches the archives to the release it creates; run it by hand
 # (workflow_dispatch) for a dry run that only builds and self-tests.
 name: desktop
@@ -79,6 +79,21 @@ jobs:
           $u = Start-Process "$app\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
           Start-Sleep -Seconds 3  # the uninstaller finishes in a copy of itself
           if ($u.ExitCode -or (Test-Path "$app\buysmarter.exe")) { "uninstall left the app behind"; exit 1 }
+
+      - name: macOS disk image, mounted and self-tested from it
+        if: runner.os == 'macOS'
+        run: |
+          arch="$(echo "$RUNNER_ARCH" | tr '[:upper:]' '[:lower:]')"
+          dmg="out/buysmarter-$(uv version --short)-macos-$arch.dmg"
+          stage="$(mktemp -d)"
+          ditto dist/buysmarter.app "$stage/buysmarter.app"  # keeps the framework symlinks
+          ln -s /Applications "$stage/Applications"         # drag the app onto it
+          mkdir -p out
+          hdiutil create -volname buy-smarter -srcfolder "$stage" -fs HFS+ -format UDZO -ov "$dmg"
+          mnt="$(hdiutil attach -nobrowse -readonly "$dmg" | awk -F '\t' '/\/Volumes\// {print $NF}')"
+          test -L "$mnt/Applications"
+          "$mnt/buysmarter.app/Contents/MacOS/buysmarter" --self-test
+          hdiutil detach "$mnt"
 
       - name: archive
         id: archive
