@@ -102,6 +102,15 @@ def _no_live_claude(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_live_browser(monkeypatch, tmp_path):
+    """No test launches a browser or sees the developer's Ozon session: none installed or saved."""
+    from buysmarter.services import ozon_browser
+
+    monkeypatch.setattr(ozon_browser, "launches", lambda browser: False)
+    monkeypatch.setenv("OZON_STATE_PATH", str(tmp_path / "ozon_state.json"))
+
+
+@pytest.fixture(autouse=True)
 def _no_live_kimovil(monkeypatch, tmp_path):
     """Smartphone queries never reach kimovil.com: every lookup is a miss, cached in tmp."""
     from market_sources.kimovil.source import KimovilSource

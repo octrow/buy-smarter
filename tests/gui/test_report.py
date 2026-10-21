@@ -82,6 +82,14 @@ def test_a_keyless_run_says_ai_is_not_configured_and_where_to_add_a_key(qtbot, r
     assert "Ключ можно добавить в Настройках" in text
 
 
+def test_ozon_without_a_browser_says_so_and_points_to_settings(qtbot, result):
+    result = result.model_copy(update={"unavailable_sources": ["ozon"]})
+    run = SearchRun("ирригатор", True, {"kaspi": "done", "ozon": "skipped", "olx": "done"})
+    text = _texts(_shown(qtbot, result, run))
+    assert "ozon: пропущен — нет браузера; что сделать, смотрите в Настройках" in text
+    assert "не выбран или поиск до него не дошёл" not in text
+
+
 def test_could_not_verify_is_hidden_when_everything_ran(qtbot, result):
     result = result.model_copy(update={"review_summary": _summary()})
     assert "Не удалось проверить" not in _texts(_shown(qtbot, result))

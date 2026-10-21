@@ -317,5 +317,14 @@ def test_a_keyless_run_ends_the_parsed_request_with_the_skipped_steps() -> None:
     )
 
 
+def test_ozon_skipped_for_lack_of_a_browser_is_noted_with_what_to_do() -> None:
+    result = _result().model_copy(update={"unavailable_sources": ["ozon"]})
+    md = render_markdown(result, top=8)
+    section = md.split("## Parsed request\n", 1)[1].split("\n## ", 1)[0]
+    assert section.rstrip().endswith(
+        "_Skipped ozon: no browser to run it. `buysmarter doctor` says what to install or set up._"
+    )
+
+
 def test_a_run_with_llm_has_no_skipped_steps_note() -> None:
     assert "without LLM" not in render_markdown(_result(), top=8)

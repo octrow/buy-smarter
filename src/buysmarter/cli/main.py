@@ -18,6 +18,7 @@ from buysmarter.cli.report import (
     format_rejected_reasons,
     save_report,
     skipped_llm_note,
+    unavailable_sources_note,
 )
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.generate import (
@@ -42,8 +43,14 @@ from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.collect import ALL_SOURCES, select_sources
-from buysmarter.services.doctor import doctor_checks, llm_check, pass_ozon_check
+from buysmarter.services.doctor import (
+    INSTALL_BROWSER,
+    doctor_checks,
+    llm_check,
+    pass_ozon_check,
+)
 from buysmarter.services.matching import UsedListing
+from buysmarter.services.ozon_browser import setup_browser
 from buysmarter.services.price_tracking import CategoryRefresh, ProductHistory
 from buysmarter.services.price_tracking import product_history as run_product_history
 from buysmarter.services.price_tracking import refresh_tracked as run_refresh_tracked
@@ -227,8 +234,9 @@ def _render_used(used: list[UsedListing]) -> None:
 
 def _render(result: RecommendResult, top: int) -> None:
     _render_constraints(result.constraints, result.city_defaulted)
-    if note := skipped_llm_note(result):
-        console.print(f"[yellow]{escape(note)}[/yellow]")
+    for note in (skipped_llm_note(result), unavailable_sources_note(result)):
+        if note:
+            console.print(f"[yellow]{escape(note)}[/yellow]")
     _render_best(result.recommendation.best)
     _render_review_summary(result.review_summary)
     _render_alternatives(result.recommendation.alternatives)
@@ -575,6 +583,9 @@ def history(
 @app.command("ozon-setup")
 def ozon_setup() -> None:
     """Open a visible browser, pass Ozon's anti-bot check once, and save the session."""
+    if setup_browser() is None:
+        console.print(f"[red]Нет браузера для Ozon: {escape(INSTALL_BROWSER)}[/red]")
+        raise typer.Exit(code=1)
     console.print("Откроется окно браузера. Дождитесь результатов поиска Ozon…")
     if not asyncio.run(pass_ozon_check()):
         console.print("[red]Не удалось получить сессию Ozon за отведённое время.[/red]")

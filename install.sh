@@ -71,9 +71,10 @@ uv tool install --reinstall --python "$PYTHON" "$SPEC"
 uv tool update-shell >/dev/null 2>&1 || true
 BIN="$(uv tool dir --bin)/$CMD"
 
-# 3. Ozon needs a browser; optional, so ask (Playwright's Chromium, ~150 MB)
+# 3. Ozon needs a browser; optional. Google Chrome needs only `ozon-setup` (doctor says so),
+# otherwise ask about Playwright's Chromium (~150 MB)
 TOOL_PY="$(uv tool dir)/$NAME/bin/python"
-if has_tty && ! "$BIN" doctor 2>/dev/null | grep -q '^Playwright Chromium *ok'; then
+if has_tty && ! "$BIN" doctor 2>/dev/null | grep -Eq '^Ozon browser +(ok|missing +Ozon off until set up)'; then
   printf 'Install the browser for Ozon.kz now (~150 MB)? [y/N] '
   read -r answer </dev/tty || answer=n
   case "$answer" in [yY]*) "$TOOL_PY" -m playwright install chromium || warn "Browser not installed; Ozon stays off." ;; esac

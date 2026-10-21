@@ -13,31 +13,27 @@ from sqlalchemy.engine import make_url
 from buysmarter.config import get_settings
 from buysmarter.db.schema import schema_is_current
 from buysmarter.llm.adapter import current_route, route_label
+from buysmarter.services import ozon_browser
+from buysmarter.services.ozon_browser import CHROME, LABELS, channel, search_browser, setup_browser
 
-OZON_BROWSER = "Playwright Chromium"  # the row whose failure turns Ozon off
+OZON_BROWSER = "Ozon browser"  # the row whose failure turns Ozon off
 _OZON_SETUP_PROBE_QUERY = "смартфон"
+INSTALL_BROWSER = (
+    "install Google Chrome (https://www.google.com/chrome/), "
+    f'or run `"{sys.executable}" -m playwright install chromium`'
+)
 
 
 async def pass_ozon_check() -> bool:
     """Open a visible browser to pass Ozon's anti-bot check once; True when the session is saved."""
-    browser = OzonBrowser(base_url=get_settings().ozon_base_url, state_path=ozon_state_path())
-    return await browser.bootstrap(browser.composer_url(search_path(_OZON_SETUP_PROBE_QUERY)))
-
-
-def _chromium_installed() -> bool:
-    import playwright
-    from playwright.sync_api import sync_playwright
-
-    # A headless launch, not a path check: the container ships only the headless shell.
-    # The slim image has no Playwright driver at all, and launching without it logs a traceback.
-    if not (Path(playwright.__file__).parent / "driver").is_dir():
+    browser = setup_browser()
+    if browser is None:
         return False
-    try:
-        with sync_playwright() as p:
-            p.chromium.launch().close()
-            return True
-    except Exception:
-        return False
+    settings = get_settings()
+    session = OzonBrowser(
+        base_url=settings.ozon_base_url, state_path=ozon_state_path(), channel=channel(browser)
+    )
+    return await session.bootstrap(session.composer_url(search_path(_OZON_SETUP_PROBE_QUERY)))
 
 
 class Check(NamedTuple):
@@ -74,16 +70,22 @@ def llm_check() -> Check:
     return Check("LLM", route is not None, hint, route_label(route) if route else "")
 
 
+def ozon_browser_check() -> Check:
+    """The browser Ozon will run on, or why Ozon is off."""
+    if browser := search_browser():
+        return Check(OZON_BROWSER, True, "", LABELS[browser])
+    if ozon_browser.launches(CHROME):  # headless Chrome passes Variti only with a saved session
+        hint = "Ozon off until set up; run `buysmarter ozon-setup` (opens Google Chrome once)"
+        return Check(OZON_BROWSER, False, hint)
+    return Check(OZON_BROWSER, False, f"Ozon off; {INSTALL_BROWSER}")
+
+
 def doctor_checks() -> list[Check]:
     """One row for every optional piece the pipeline can use."""
     return [
         _storage_check(get_settings().database_url),
         llm_check(),
-        Check(
-            OZON_BROWSER,
-            _chromium_installed(),
-            f'Ozon off; run `"{sys.executable}" -m playwright install chromium`',
-        ),
+        ozon_browser_check(),
         Check(
             "Ozon session",
             ozon_state_path().exists(),

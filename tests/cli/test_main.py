@@ -314,32 +314,39 @@ def test_recommend_rejects_nonpositive_top(top: str) -> None:
     assert result.exit_code == 2
 
 
-def test_ozon_setup_reports_success_and_saves_to_the_default_path(monkeypatch, tmp_path) -> None:
-    from market_sources.ozon.browser import OzonBrowser
+def _fake_ozon_browser(monkeypatch, passes: bool) -> list[dict]:
+    from buysmarter.services import doctor, ozon_browser
 
+    made: list[dict] = []
+
+    class FakeOzonBrowser:
+        def __init__(self, **kwargs):
+            made.append(kwargs)
+
+        def composer_url(self, path):
+            return f"https://www.ozon.kz/api/composer-api.bx/page/json/v2?url={path}"
+
+        async def bootstrap(self, probe_url):
+            assert "search" in probe_url
+            return passes
+
+    monkeypatch.setattr(ozon_browser, "launches", lambda browser: browser == "chromium")
+    monkeypatch.setattr(doctor, "OzonBrowser", FakeOzonBrowser)
+    return made
+
+
+def test_ozon_setup_reports_success_and_saves_to_the_default_path(monkeypatch, tmp_path) -> None:
     state = tmp_path / "ozon.json"
     monkeypatch.setenv("OZON_STATE_PATH", str(state))
-
-    async def fake_bootstrap(self, probe_url, *args, **kwargs):
-        assert self.state_path == state
-        assert "search" in probe_url or "composer-api" in probe_url
-        return True
-
-    monkeypatch.setattr(OzonBrowser, "bootstrap", fake_bootstrap)
+    made = _fake_ozon_browser(monkeypatch, passes=True)
     result = runner.invoke(main.app, ["ozon-setup"])
     assert result.exit_code == 0
     assert "сохранена" in result.output
+    assert [(kw["state_path"], kw["channel"]) for kw in made] == [(state, None)]
 
 
-def test_ozon_setup_exits_nonzero_on_timeout(monkeypatch, tmp_path) -> None:
-    from market_sources.ozon.browser import OzonBrowser
-
-    monkeypatch.setenv("OZON_STATE_PATH", str(tmp_path / "ozon.json"))
-
-    async def fake_bootstrap(self, probe_url, *args, **kwargs):
-        return False
-
-    monkeypatch.setattr(OzonBrowser, "bootstrap", fake_bootstrap)
+def test_ozon_setup_exits_nonzero_on_timeout(monkeypatch) -> None:
+    _fake_ozon_browser(monkeypatch, passes=False)
     result = runner.invoke(main.app, ["ozon-setup"])
     assert result.exit_code == 1
     assert "Не удалось" in result.output

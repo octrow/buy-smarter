@@ -13,6 +13,11 @@
 
 - **`channel` lives in market-sources** as `PlaywrightSession(channel: str | None = None)`. The default `None` keeps every other consumer unchanged. Alternative: subclass in buy-smarter. Rejected: the launch call is private to the session.
 - **Detecting Chrome.** Use Playwright's own resolution: attempt a launch with `channel="chrome"` and catch the "executable doesn't exist" error once per process. That gives one source of truth and no per-OS path tables. The result is cached for the process.
+- **Chrome only with a saved session (re-plan after the gate, 2026-10-21).** Anonymous headless Chrome got 403 twice
+  where the bundled headless shell passed; with a session saved by `ozon-setup` Chrome passed. Order: Chrome when a
+  saved session exists, else bundled Chromium, else Ozon off (hint: `ozon-setup` when Chrome exists, install Chrome
+  otherwise). `ozon-setup` opens Chrome when installed. The probe result is cached per process; the session file is
+  checked on every call, so a setup run from the GUI takes effect without a restart.
 - **Stealth args unchanged.** The current `LAUNCH_ARGS` apply to both channels.
 - **Saved Ozon state.** The Playwright `storage_state` file is browser-agnostic JSON, so a session saved under Chromium keeps working under Chrome.
 

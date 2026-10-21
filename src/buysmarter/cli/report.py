@@ -65,6 +65,16 @@ def skipped_llm_note(result: RecommendResult) -> str | None:
     )
 
 
+def unavailable_sources_note(result: RecommendResult) -> str | None:
+    """The marketplaces left out for lack of a browser, or None when every selected one ran."""
+    if not result.unavailable_sources:
+        return None
+    return (
+        f"Skipped {', '.join(result.unavailable_sources)}: no browser to run it. "
+        "`buysmarter doctor` says what to install or set up."
+    )
+
+
 def _constraints_md(result: RecommendResult) -> list[str]:
     c = result.constraints
     city_note = " (по умолчанию)" if result.city_defaulted else ""
@@ -79,8 +89,9 @@ def _constraints_md(result: RecommendResult) -> list[str]:
         lines.append(f"- **Required:** {', '.join(c.required_features)}")
     if c.excluded_brands:
         lines.append(f"- **Excluded:** {', '.join(c.excluded_brands)}")
-    if note := skipped_llm_note(result):
-        lines += ["", f"_{note}_"]
+    for note in (skipped_llm_note(result), unavailable_sources_note(result)):
+        if note:
+            lines += ["", f"_{note}_"]
     return lines
 
 

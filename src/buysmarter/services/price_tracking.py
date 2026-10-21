@@ -2,6 +2,7 @@
 show one product's stored price history (the `refresh` and `history` commands).
 """
 
+import asyncio
 import logging
 
 from pydantic import BaseModel, Field
@@ -101,7 +102,7 @@ async def refresh_category(category: str) -> CategoryRefresh:
     persistence records a new snapshot per product and compares it to the prior
     one to surface price movements.
     """
-    active = resolve_sources(list(ALL_SOURCES), None, None, None)
+    active = await asyncio.to_thread(resolve_sources, list(ALL_SOURCES), None, None, None)
     city, _ = await resolve_city(None, None)
     city_id = kaspi_city_id(city)
     try:

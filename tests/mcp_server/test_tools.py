@@ -209,3 +209,10 @@ async def test_compare_survives_specs_failure(monkeypatch) -> None:
     assert "red" in out
     assert "bad" in out
     assert "error" in out.lower()
+
+
+def test_ozon_without_a_browser_is_a_clear_error():
+    import pytest
+
+    with pytest.raises(ValueError, match="no browser"):
+        server._source_for("ozon")

@@ -7,7 +7,7 @@ import inspect
 import logging
 import re
 import time
-from collections.abc import Awaitable, Iterable, Iterator, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import cast
@@ -47,6 +47,7 @@ from buysmarter.services.matching import (
     strip_latin_tokens,
     title_matches_category,
 )
+from buysmarter.services.ozon_browser import channel, search_browser
 
 logger = logging.getLogger(__name__)
 
@@ -571,12 +572,23 @@ def resolve_sources(
     so both are wired in explicitly here.
     """
     settings = get_settings()
-    factories = {
+    factories: dict[str, Callable[[], ProductSource | None]] = {
         "kaspi": lambda: kaspi or KaspiSource(KaspiClient(proxy=settings.kaspi_proxy)),
-        "ozon": lambda: ozon or OzonSource(OzonBrowser(base_url=settings.ozon_base_url)),
+        "ozon": lambda: ozon or _ozon_source(settings.ozon_base_url),
         "olx": lambda: olx or OlxSource(),
     }
-    return {name: factories[name]() for name in names if name in factories}
+    built = {name: factories[name]() for name in names if name in factories}
+    return {name: source for name, source in built.items() if source is not None}
+
+
+def _ozon_source(base_url: str) -> ProductSource | None:
+    """Ozon on the selected browser; None (Ozon left out) when there is none to use."""
+    # ponytail: the first call probes browsers synchronously (~1 s per launch, once per process)
+    # on the event loop; make the probe async if that pause ever shows.
+    browser = search_browser()
+    if browser is None:
+        return None
+    return OzonSource(OzonBrowser(base_url=base_url, channel=channel(browser)))
 
 
 async def _safe[T](name: str, coro: Awaitable[T]) -> T | None:

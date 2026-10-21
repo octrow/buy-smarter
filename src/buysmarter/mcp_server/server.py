@@ -10,21 +10,15 @@ subprocess by default (that would be wasteful and can deadlock a nested CLI);
 Run over stdio with ``uv run python -m buysmarter.mcp_server``.
 """
 
+import asyncio
 import logging
-from collections.abc import Callable
 
 from fastmcp import FastMCP
 from market_sources.base import ProductSource, RawProduct
-from market_sources.kaspi.client import KaspiClient
-from market_sources.kaspi.source import KaspiSource
-from market_sources.olx.source import OlxSource
-from market_sources.ozon.browser import OzonBrowser
-from market_sources.ozon.source import OzonSource
 
 from buysmarter.cli.report import render_markdown, render_no_substance_markdown
-from buysmarter.config import get_settings
 from buysmarter.memory import prefs
-from buysmarter.services.collect import ALL_SOURCES, select_sources
+from buysmarter.services.collect import ALL_SOURCES, resolve_sources, select_sources
 from buysmarter.services.recommend import NoSubstanceMatch
 from buysmarter.services.recommend import recommend as run_recommend
 
@@ -44,20 +38,13 @@ _KASPI_CITY_IDS = {
 
 
 def _source_for(name: str) -> ProductSource:
-    """Instantiate a single marketplace adapter by name.
-
-    ``Settings`` supplies the Kaspi proxy / Ozon base URL explicitly (the library
-    would otherwise fall back to ``KASPI_PROXY`` / ``OZON_BASE_URL``).
-    """
-    settings = get_settings()
-    factories: dict[str, Callable[[], ProductSource]] = {
-        "kaspi": lambda: KaspiSource(KaspiClient(proxy=settings.kaspi_proxy)),
-        "ozon": lambda: OzonSource(OzonBrowser(base_url=settings.ozon_base_url)),
-        "olx": OlxSource,
-    }
-    if name not in factories:
+    """Instantiate a single marketplace adapter by name, as a recommendation run would."""
+    if name not in ALL_SOURCES:
         raise ValueError(f"unknown source {name!r}; use one of {', '.join(ALL_SOURCES)}")
-    return factories[name]()
+    active = resolve_sources([name], None, None, None)
+    if name not in active:
+        raise ValueError(f"{name} is off: no browser to run it; see `buysmarter doctor`")
+    return active[name]
 
 
 def _kaspi_city_id(city: str | None) -> str | None:
@@ -172,7 +159,7 @@ async def search_products(
         limit: Maximum rows to return.
     """
     source = source.strip().lower()
-    src = _source_for(source)
+    src = await asyncio.to_thread(_source_for, source)  # may probe Ozon's browser
     try:
         city_arg = _kaspi_city_id(city) if source == "kaspi" else None
         products = await src.search(query, city=city_arg)

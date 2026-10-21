@@ -110,7 +110,9 @@ def could_not_verify(result: RecommendResult, run: SearchRun) -> list[str]:
     """Each marketplace or LLM step that did not contribute, and why."""
     lines = []
     for source, state in run.source_states.items():
-        if state == "skipped":
+        if source in result.unavailable_sources:
+            lines.append(f"{source}: пропущен — нет браузера; что сделать, смотрите в Настройках")
+        elif state == "skipped":
             lines.append(f"{source}: пропущен — не выбран или поиск до него не дошёл")
         elif state == "failed":
             lines.append(f"{source}: ошибка — его предложений нет в отчёте (подробности в логе)")

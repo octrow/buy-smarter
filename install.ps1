@@ -62,9 +62,10 @@ if ($LASTEXITCODE -ne 0) { throw "uv could not install $Cmd. See the uv output a
 uv tool update-shell *> $null
 $Bin = Join-Path (uv tool dir --bin) "$Cmd.exe"
 
-# 3. Ozon needs a browser; optional, so ask (Playwright's Chromium, ~150 MB)
+# 3. Ozon needs a browser; optional. Google Chrome needs only `ozon-setup` (doctor says so),
+# otherwise ask about Playwright's Chromium (~150 MB)
 $ToolPy = Join-Path (uv tool dir) "$Name\Scripts\python.exe"
-if ($Interactive -and -not ((& $Bin doctor 2>$null) -match '^Playwright Chromium +ok')) {
+if ($Interactive -and -not ((& $Bin doctor 2>$null) -match '^Ozon browser +(ok|missing +Ozon off until set up)')) {
   $answer = Read-Host "Install the browser for Ozon.kz now (~150 MB)? [y/N]"
   if ($answer -match '^[yY]') {
     & $ToolPy -m playwright install chromium

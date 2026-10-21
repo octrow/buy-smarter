@@ -10,6 +10,7 @@ optional — the CLI must work keyless and without Postgres, and one source
 failing (e.g. an Ozon browser hiccup) must never kill the run.
 """
 
+import asyncio
 import functools
 import logging
 import re
@@ -87,6 +88,8 @@ class RecommendResult(BaseModel):
     review_summary: ReviewSummary | None = None
     # Set when the run went no-LLM because nothing is configured (not on an explicit opt-out).
     skipped_llm_steps: list[str] = Field(default_factory=list)
+    # Selected marketplaces left out for lack of a browser (only Ozon needs one).
+    unavailable_sources: list[str] = Field(default_factory=list)
 
 
 def _no_llm_route() -> bool:
@@ -355,7 +358,9 @@ async def recommend(
         base_constraints = parsed if parsed is not None else await _parse(query, use_llm)
     resolved_city, city_defaulted = await resolve_city(base_constraints.city, city)
     constraints = _apply_overrides(base_constraints, resolved_city, budget, trusted_only)
-    active = resolve_sources(sources or ["kaspi"], source, ozon_source, olx_source)
+    requested = sources or ["kaspi"]
+    # off the loop: picking Ozon's browser may launch one to probe it
+    active = await asyncio.to_thread(resolve_sources, requested, source, ozon_source, olx_source)
     book, model_book, ingredient_book = await _resolve_knowledge(constraints.category, use_llm)
     composition = ingredient_book is not None
     city_id = kaspi_city_id(constraints.city)
@@ -428,6 +433,7 @@ async def recommend(
         city_defaulted=city_defaulted,
         review_summary=review_summary,
         skipped_llm_steps=skipped_llm_steps,
+        unavailable_sources=[name for name in requested if name not in active],
     )
 
 

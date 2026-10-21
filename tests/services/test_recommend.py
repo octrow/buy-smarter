@@ -293,6 +293,27 @@ async def test_multi_source_merge_pools_kaspi_and_ozon() -> None:
     assert pool_sources == {"kaspi", "ozon"}
 
 
+async def test_without_a_browser_ozon_is_skipped_and_kaspi_and_olx_still_run() -> None:
+    # conftest: no browser installed, no saved Ozon session
+    kaspi = FakeSource(
+        "kaspi", [_rp("kaspi", "k1", "Waterpik WP-100 ирригатор портативный", 30000)]
+    )
+    olx = FakeSource("olx", [])
+
+    result = await recommend(
+        "ирригатор портативный, до 40000 тг",
+        use_llm=False,
+        sources=["kaspi", "ozon", "olx"],
+        source=kaspi,
+        olx_source=olx,
+        persist=False,
+    )
+
+    assert result.recommendation.best.candidate.source == "kaspi"
+    assert result.unavailable_sources == ["ozon"]
+    assert olx.queries
+
+
 async def test_one_source_failure_does_not_kill_run() -> None:
     kaspi = FakeSource(
         "kaspi", [_rp("kaspi", "k1", "Waterpik WP-100 ирригатор портативный", 30000)]
