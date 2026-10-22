@@ -8,6 +8,7 @@ from buysmarter.services.understanding import Clarification
 
 _OWN_PLACEHOLDER = "или свой ответ"
 _ANSWER_TEXT = "Ответить"
+_OWN_NAME = "Свой ответ"
 
 
 class ClarificationBox(QFrame):
@@ -23,11 +24,13 @@ class ClarificationBox(QFrame):
         self.question = QLabel(wordWrap=True)
         self.question.setObjectName("sectionTitle")
         self.own = QLineEdit(placeholderText=_OWN_PLACEHOLDER)
+        self.own.setAccessibleName(_OWN_NAME)
         self.own.returnPressed.connect(self._send_own)
         send = QPushButton(_ANSWER_TEXT)
         send.clicked.connect(self._send_own)
-        self._options = QHBoxLayout()
-        self._options.setSpacing(SPACE["sm"])
+        # One option per line: the LLM's options can be long, a row would widen the window.
+        self._options = QVBoxLayout()
+        self._options.setSpacing(SPACE["xs"])
         self.option_buttons: list[QPushButton] = []
         own_row = QHBoxLayout()
         own_row.setSpacing(SPACE["sm"])

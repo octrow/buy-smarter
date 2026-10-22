@@ -40,6 +40,7 @@ def test_a_question_shows_its_options_and_warning(qtbot, runner, result) -> None
     assert [b.text() for b in screen.clarify.option_buttons] == ["духи", "плед"]
     assert "Алкоголь" in screen.clarify.warning.text()
     assert screen.start_button.isEnabled()
+    assert not screen.recent_box.isVisibleTo(screen)
 
 
 def test_a_second_question_replaces_the_first_options(qtbot, runner, result) -> None:
@@ -50,6 +51,23 @@ def test_a_second_question_replaces_the_first_options(qtbot, runner, result) -> 
     assert [b.text() for b in screen.clarify.option_buttons] == ["A"]
     assert screen.clarify._options.count() == 1
     assert not screen.clarify.warning.isVisibleTo(screen)
+
+
+def test_long_options_do_not_widen_the_search_screen(qtbot, runner, result) -> None:
+    screen = _asked(qtbot, runner, result, [])
+    long_options = [
+        "Электрическая зубная щётка с футляром",
+        "Набор косметики для ухода за лицом",
+        "Плед из шерсти мериноса 200x220",
+        "Кофемашина капсульная с капучинатором",
+        "Сертификат в магазин парфюмерии",
+    ]
+
+    screen.clarify.ask(Clarification(kind="open", question="Что ищем?", options=long_options))
+
+    # 600 px: well under the app's default window (1280) minus the sidebar
+    assert screen.clarify.minimumSizeHint().width() < 600
+    assert screen.clarify.own.accessibleName() == "Свой ответ"
 
 
 def test_an_option_button_searches_it_in_the_next_round(qtbot, runner, result) -> None:

@@ -405,6 +405,7 @@ class SearchScreen(QWidget):
         self.message.clear()
         self.report_button.hide()
         self.clarify.hide()
+        self.recent_box.setVisible(bool(self._recent))
         self._asked = None
         self._set_running(True)
         self._run = SearchRun(query, self.use_llm.isChecked(), self._states)
@@ -495,6 +496,7 @@ class SearchScreen(QWidget):
         self._settle()
         if isinstance(result, AskUser):
             self._asked = result.clarification
+            self.recent_box.hide()  # the question takes its place: the screen does not scroll
             self.clarify.ask(result.clarification)
             return
         if isinstance(result, NoRecommendation):

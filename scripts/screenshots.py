@@ -112,11 +112,13 @@ def _grab_clarification(window: object, settle: Callable[[], None], out: Path) -
         restricted_note="Алкоголь: продажа онлайн и доставка ограничены законом.",
     )
     window.search.query.setText("подарок для мамы до 15000")
+    window.search.recent_box.hide()  # as SearchScreen does when the core asks back
     window.search.clarify.ask(asked)
     window._show_screen(window.search)
     settle()
     window.grab().save(str(out / "clarify.png"))
     window.search.clarify.hide()
+    window.search.recent_box.show()
     print("clarify.png")
 
 
