@@ -49,7 +49,7 @@ OLX never enters the ranking; it only feeds the used-market section.
 ## Capabilities
 
 The core flow is the same for every category. What differs are capabilities (CONTEXT.md):
-optional hooks the core calls at fixed points, in registry order (audience, size, fit, benchmark, composition).
+optional hooks the core calls at fixed points, in registry order (audience, size, fit, dims, benchmark, composition).
 A hook a capability does not implement is not called.
 `ranking/` never imports capabilities: the flow hands `rank()` plain weights, predicates and functions (`RankHooks`).
 
@@ -58,6 +58,7 @@ A hook a capability does not implement is not called.
 | audience | request | `constraints.gender`: the parser, or a regex over the query text (step 4) | `query` (4), `reject_listing` on the main pool, OLX ads and official-store offers (10, 14, 17) |
 | size | request | `constraints.size`: the parser, or a regex over the query text for apparel (step 4) | `query` (4: the size leaves the search phrase and apparel features), `notes` (17: "size unverified") |
 | fit | request | `constraints.fit_target`: the parser, or "для/на/под/к <device>" in the query text (step 4) | `query` (4: the device joins the search phrase and leaves the product type), `notes` (17: "подходит к <device>"); the model penalty (17) looks for the whole device model |
+| dims | request | `constraints.dims` (tyre or mattress size: the parser, or a regex over the query for tyres and mattresses), or tyres or a mattress named without a size (step 4) | `query` (4: normalized size into the search phrase, out of the features), `clarify` (6: tyres or a mattress without a size; the answer joins the query, which is read again), `reject_listing` (10, 14, 17: another size of the same kind in the title), `reject_content` (17: the size specs say another size), `notes` (17: "размер не проверен") |
 | benchmark | category | the profile, only with a provider from `BENCHMARK_PROVIDERS` (its parameter, else the provider whose rule takes the product type); without a profile setting, the providers' rule (`set_by: fallback`) | `enrich` (15: Kimovil specs and `benchmark_index`) |
 | composition | category | the profile: the composition capability with an ingredient book (old records: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, may stop the run), `prepare` + `axis` + `notes` (17), `section` (Output) |
 
@@ -70,7 +71,7 @@ Examples:
 - "смартфон iPhone 13" → benchmark by the providers' rule (Kimovil); "чехол на iPhone 15", "держатель телефона" → none.
 - A category with no profile at all → no category capability, every brand scores as unknown.
 
-Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/benchmark`, `capabilities/composition`
+Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/benchmark`, `capabilities/composition`
 
 ## Entry points
 
@@ -105,7 +106,7 @@ Module: `llm/adapter`, `llm/keys`
 Decides: the request intent, the search phrase, the product type, budget, city, required features, excluded brands, condition.
 In: query text. Out: `QueryConstraints`.
 Branches:
-- LLM: one call extracts all fields: intent (product, need, open, multi, service, unclear), `search_phrase` (what the marketplaces get), `product_type` (the profile key without audience, size or theme), `options` to choose from, `restricted`, `condition`, budget range and note, `fit_target` (the device the goods are for). The phrase is forced into Russian; a named model stays in it ("смартфон iPhone 13"), unless the goods are for it ("чехол на iPhone 15": phrase and type "чехол", fit target "iPhone 15"). An empty product type falls back to the naive one; no budget and no budget note from the LLM means the budget rules below decide ("до 50 штук" the LLM missed is still 50 000).
+- LLM: one call extracts all fields: intent (product, need, open, multi, service, unclear), `search_phrase` (what the marketplaces get), `product_type` (the profile key without audience, size or theme), `options` to choose from, `restricted`, `condition`, budget range and note, `fit_target` (the device the goods are for), `dims` (a tyre or mattress size, never a required feature). The phrase is forced into Russian; a named model stays in it ("смартфон iPhone 13"), unless the goods are for it ("чехол на iPhone 15": phrase and type "чехол", fit target "iPhone 15"). An empty product type falls back to the naive one; no budget and no budget note from the LLM means the budget rules below decide ("до 50 штук" the LLM missed is still 50 000).
 - No LLM or LLM error: intent is product (unclear when the phrase has fewer than two letters, an empty phrase included: «хочу до 20к» is never searched as «хочу»); regex takes budget, city and condition (б/у, новый); the rest of the text becomes the search phrase, and the product type is that phrase without audience and size words; no required features on purpose.
 Budget rules (no LLM): another currency ($, ₽, €) gives no budget, only a note; tenge (and Kazakh "теңгеге"), thousands slang ("тыс", "косарь", "мың", "мыңға", "штук" after "до/за"), "млн" (×1 000 000) and "N k" from 10 up are money; Kazakh "дейін" after the amount means "до"; a bare "до N" is money only without a unit after it (м, кг, лет, МЕ, Вт, шт...) and under 1000 means thousands; a fraction is never money ("до 18.5 кг"), "15.000" is 15 000; "30-40 тыс" and "от 30 до 40 тыс" are ranges, a bare "N до M" is not ("iPhone 15 до 500 тыс": 15 stays in the phrase). The money words leave the search phrase.
 The search phrase drives searches, relevance and the substances read from the query; the product type keys the category profile (step 6). The old `category` field is gone from the parse; the HTTP API still shows it as a deprecated copy of the search phrase.
@@ -140,7 +141,8 @@ Decides: final constraints before search.
 - Every capability's `query` hook runs, before the profile is known (the profile key may fall back to the search phrase these hooks rewrite):
   - audience: "мужские", "детские" read from the query text by regex if the parser missed it, for any category;
   - size: "42 размер", "XL" read out and removed from the search phrase; once the size is known, a bare "42" after an apparel word leaves it too ("мужские кроссовки 42" → "мужские кроссовки", so an old record of that name moves under "кроссовки"); size phrases leave the required features for apparel;
-  - fit: "для/на/под/к <device>" read from the query when the parser missed it (the device is Latin with a digit or a known device word such as айфон, Xiaomi, PS5; never a number, a unit or "64GB"); the device joins the search phrase and leaves the product type ("чехол на iPhone 15" → search "чехол iPhone 15", type "чехол").
+  - fit: "для/на/под/к <device>" read from the query when the parser missed it (the device is Latin with a digit or a known device word such as айфон, Xiaomi, PS5; never a number, a unit or "64GB"); the device joins the search phrase and leaves the product type ("чехол на iPhone 15" → search "чехол iPhone 15", type "чехол");
+  - dims: a tyre size ("205/55R16", "205/55 Р16", "ZR16", "R16C" → "205/55 R16") or a mattress size ("160х200", "200 на 160" → "160x200", sides sorted), read for tyres and mattresses only (by word start: "шины", "автошины", "резина", "покрышки", "матрас"; not "машина", "резинка", "наматрасник"); every size form leaves the search phrase and the normalized one is appended; size phrases leave the required features.
 - Features already implied by the search phrase are dropped ("TWS" in "TWS наушники").
 - Condition words (б/у, новый) are dropped: used goods are OLX's job. They set `condition`; "used" adds a report note pointing to the OLX section.
 Then CLI/API overrides apply: budget, trusted brands only.
@@ -224,7 +226,7 @@ Module: `normalize/candidate`
 ### 10. Official stores
 
 Decides: extra candidates from brand sites named in the brand book.
-Each store page is read as schema.org product data; offers a capability's listing check rejects (another audience) are dropped before the per-store cut, then the cheapest in-budget items are added.
+Each store page is read as schema.org product data; offers a capability's listing check rejects (another audience, another tyre or mattress size) are dropped before the per-store cut, then the cheapest in-budget items are added.
 No brand book or no store URLs → nothing added. A store that blocks us → nothing from it.
 Module: `services/official_stores`
 
@@ -259,7 +261,7 @@ Module: `services/matching`, `normalize/candidate`
 ### 14. Filter used listings
 
 Decides: which OLX ads stay. Runs at the same time as step 12: the two LLM passes are one wait.
-- a capability's listing check rejects it (another audience) → drop;
+- a capability's listing check rejects it (another audience, another tyre or mattress size) → drop;
 - relevance threshold 0.35, stricter than step 12, and no floor: an empty section is fine, a wrong one is not.
 - The threshold applies only on the Jev path; the fallback LLM keeps its own list. If both fail, only ads naming the queried model stay. Without LLM only the accessory heuristic runs.
 Module: `services/recommend`, `llm/relevance`
@@ -287,7 +289,7 @@ Decides: score, confidence, pros and cons for every candidate.
 Pure: no DB, no LLM, no network.
 
 **Hard filters** (first failing check names the reason):
-over budget → excluded brand → unknown brand when trusted-only → not available → capability listing checks (other audience) → missing required feature (as capabilities adjust the list: composition drops a bare concentration) → capability content checks (required substance proven absent).
+over budget → excluded brand → unknown brand when trusted-only → not available → capability listing checks (other audience, another size in the title) → missing required feature (as capabilities adjust the list: composition drops a bare concentration) → capability content checks (required substance proven absent; the size specs — width, length, profile, diameter, never "Размер упаковки" — say another size).
 Required features are checked only when the candidate has specs. Ozon cards past the top 4, official-store candidates and apparel variant cards skip the check (they get an "unverified" con). Benchmark (step 15) fills specs for phones, which turns the check on.
 "Proven absent" is decided per candidate: checked, the substance not detected, and a composition text present. Unchecked or no composition text is a data gap, not a rejection.
 Ingredient axis: substance present 25 (0.7 of it with an unknown or other concentration); unchecked 0.3 × 25 = 7.5 for every candidate, with the con "состав не проверен: <substance>?"; checked and absent 0.

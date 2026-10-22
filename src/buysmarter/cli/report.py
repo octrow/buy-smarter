@@ -50,6 +50,7 @@ _REASON_LABELS_RU = {
     "missing required feature(s)": "нет требуемой функции",
     "unknown brand (trusted-brands-only)": "неизвестный бренд",
     "other audience": "для другой аудитории (пол/возраст)",
+    "other size": "другой размер",
 }
 
 

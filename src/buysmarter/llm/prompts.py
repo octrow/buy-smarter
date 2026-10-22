@@ -63,7 +63,9 @@ _FIELDS = (
     "- preferred_marketplaces: e.g. ['kaspi','ozon'], list\n"
     "- usage_notes: short free-text usage context, or null\n"
     "- fit_target: the device the goods are FOR in 'X для/на Y' (a case for iPhone 15, a "
-    "charger for Xiaomi 13): Y verbatim, else null\n\n"
+    "charger for Xiaomi 13): Y verbatim, else null\n"
+    '- dims: a tyre or mattress size the user named, {"tyre": "205/55 R16"} or '
+    '{"mattress": "160x200"}, else {}; never in required_features\n\n'
 )
 _RULES = (
     "CRITICAL: ``search_phrase`` and ``product_type`` MUST be in RUSSIAN — the language of "
@@ -103,6 +105,9 @@ _EXAMPLES = (
     '"required_features": [], "condition": "used", ...}\n'
     'Example: "чехол на iPhone 15" -> {"intent": "product", "search_phrase": "чехол", '
     '"product_type": "чехол", "fit_target": "iPhone 15", ...}\n'
+    'Example: "шины 205/55 R16 зимние" -> {"intent": "product", "search_phrase": '
+    '"зимние шины", "product_type": "шины", "dims": {"tyre": "205/55 R16"}, '
+    '"required_features": [], ...}\n'
     'Example: "шампунь от перхоти" -> {"intent": "need", "need": "перхоть", '
     '"search_phrase": "шампунь от перхоти", "product_type": "шампунь", "options": [], ...}\n'
     'Example: "чем снять боль в спине" -> {"intent": "need", "need": "боль в спине", '
