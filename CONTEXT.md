@@ -37,7 +37,7 @@ Goods whose sale or delivery is limited (prescription medicines, alcohol, tobacc
 _Avoid_: banned, forbidden
 
 **Request intent**:
-What kind of request the user made, decided before any search. **Product**: names the goods ("мужские кроссовки 42"). **Need**: names a problem the goods solve ("шампунь от перхоти"); the need is passed on to capabilities. **Open**: names no goods ("подарок для мамы") and needs a clarification. **Service**: asks for a service, not goods ("ремонт телефона"); no search. **Unclear**: cannot be read; the user is asked to rephrase. Whether the goods are a restricted category is a separate flag, not an intent.
+What kind of request the user made, decided before any search. **Product**: names the goods ("мужские кроссовки 42"). **Need**: names a problem the goods solve ("шампунь от перхоти"); the need is passed on to capabilities. **Open**: names no goods ("подарок для мамы") and needs a clarification. **Multi**: names several goods to compare or buy together ("iPhone 15 или S24", "всё для новорождённого"); in v1 the user picks one to start with. **Service**: asks for a service, not goods ("ремонт телефона"); no search. **Unclear**: cannot be read; the user is asked to rephrase. Whether the goods are a restricted category is a separate flag, not an intent.
 _Avoid_: query type, mode
 
 **Product type**:
