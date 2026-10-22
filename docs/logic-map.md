@@ -159,8 +159,8 @@ In: the product type (the search phrase when the parse gave none) and the search
 Lookup, once per run (`resolve_profile`):
 - a stored record under this exact slug → its profile;
 - else a profile that lists the slug among its synonyms;
-- else an old record keyed by the whole search phrase ("мужские-кроссовки-42"): when it differs from the product type only by audience or size words, it moves under the product type in one UPDATE (a lookup running at the same time just reads it back), the old slug becomes a synonym and children's `parent` follows ("knowledge renamed" in the log); a narrower record ("шампунь-от-перхоти") is used as it is and never moved;
-- a profile found by the first two steps lists such an audience or size variant record as a synonym (books are not merged);
+- else an old record keyed by the whole search phrase ("мужские-кроссовки-42"): when it differs from the product type only by audience or size words, it moves under the product type in one UPDATE (a lookup running at the same time just reads it back), the old slug becomes a synonym and children's `parent` follows ("knowledge renamed" in the log); a narrower record ("шампунь-от-перхоти") or one with composition ("детский-крем": composition profiles are narrow) is never moved;
+- an exact narrower or composition record under the phrase wins even over a profile found by the first two steps ("крем-с-адапаленом" over "крем"); such a profile only lists a plain audience or size variant record as a synonym (books are not merged);
 - else, with LLM, Jev picks the covering stored profile, or one cached LLM call when Jev fails or is unsure ("солнцезащитный крем" → "косметика"); both see the search phrase next to the product type, so "крем" from "крем с адапаленом" still finds an acne profile;
 - no substring matching: "чай" does not find "чайник".
 The found profile's parent (one step) fills fields it does not set; each field keeps its owner (own slug, parent, or the related profile).

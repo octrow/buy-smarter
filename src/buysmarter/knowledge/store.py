@@ -33,6 +33,7 @@ from buysmarter.knowledge.models_book import ModelBook, ModelEntry
 from buysmarter.knowledge.models_book import get_model_book as _seed_model_book
 from buysmarter.knowledge.profile import (
     BRAND_KEY,
+    COMPOSITION,
     COMPOSITION_DRIVEN,
     HEAL_CHECKED_KEY,
     INGREDIENT_KEY,
@@ -288,12 +289,18 @@ def _variant_of(search_phrase: str, slug: str) -> bool:
 async def _old_slug(
     own: CategoryProfile | None, slug: str, old: str, search_phrase: str
 ) -> CategoryProfile | None:
-    """Use, move or list the record keyed by the search phrase; returns the profile to use."""
+    """Use, move or list the record keyed by the search phrase; returns the profile to use.
+
+    A record narrower than the product type ("крем-с-адапаленом"), or one with composition
+    ("детский-крем": composition profiles are narrow by nature), is the query's own exact
+    record: it wins over the product-type profile and is never moved.
+    """
     raw = await load_knowledge(old)
     if raw is None:
         return own
-    if not _variant_of(search_phrase, slug):
-        return own if own is not None else profile_from_record(old, raw)
+    narrow = profile_from_record(old, raw)
+    if not _variant_of(search_phrase, slug) or _has_composition(narrow):
+        return narrow
     if own is None:
         await _rename(old, slug)
         return await load_profile(slug)
@@ -302,6 +309,10 @@ async def _old_slug(
         logger.info("knowledge synonym: %s listed under %s", old, own.slug)
         return await load_profile(own.slug) or own
     return own
+
+
+def _has_composition(profile: CategoryProfile) -> bool:
+    return bool(profile.capabilities and COMPOSITION in profile.capabilities)
 
 
 async def _rename(old: str, new: str) -> None:

@@ -142,3 +142,37 @@ def test_the_llm_fallback_prompt_carries_the_phrase() -> None:
     prompt = store_mod.match_category_prompt("крем", ["средства-от-акне"], "крем с адапаленом")
 
     assert "крем с адапаленом" in prompt
+
+
+async def _composition_record(slug: str) -> None:
+    await save_knowledge(
+        slug,
+        BrandBook(tiers={"Galderma": "A"}),
+        ModelBook(),
+        "opus",
+        category_type="composition_driven",
+        ingredient_book=IngredientBook(substances=[ActiveSubstance(canonical="адапален")]),
+    )
+
+
+async def test_an_exact_narrower_record_wins_over_the_product_type_profile() -> None:
+    """Review: with a «крем» record (learned from the GUI or a rename), «крем с адапаленом»
+    got the generic profile and lost composition; on main the phrase found its own record."""
+    await _composition_record("крем с адапаленом")
+    await _put_raw("крем", {"brand_book": {"tiers": {"Nivea": "B"}}})
+
+    resolved = await resolve_profile("крем", search_phrase="крем с адапаленом", use_llm=False)
+
+    assert resolved.ingredient_book is not None
+    assert resolved.brand_book_owner == "крем-с-адапаленом"
+
+
+async def test_a_composition_record_is_never_moved_even_as_an_audience_variant() -> None:
+    """Composition profiles are narrow by nature: «детский-крем» keeps its own record."""
+    await _composition_record("детский крем")
+
+    resolved = await resolve_profile("крем", search_phrase="детский крем", use_llm=False)
+
+    assert await _slugs() == {"детский-крем"}
+    assert resolved.ingredient_book is not None
+    assert resolved.brand_book_owner == "детский-крем"
