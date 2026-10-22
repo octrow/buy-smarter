@@ -4,6 +4,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Fixed
+- OLX: a model the LLM names for an ad is dropped when its model number, line or storage contradicts the ad's title
+  (every «iPhone 13» ad was once named «Apple iPhone 17 Pro Max»), so such a name is never learned as an alias nor
+  shown.
+
 ## [0.6.0] - 2026-10-22
 
 ### Changed

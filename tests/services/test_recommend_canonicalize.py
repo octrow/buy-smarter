@@ -190,3 +190,16 @@ async def test_an_alias_learned_under_an_inheriting_category_goes_to_the_parent(
     assert parent["brand_book"] == parent_brands.model_dump(mode="json")
     child = await load_knowledge("ирригатор-xiaomi") or {}
     assert "model_book" not in child and "brand_book" not in child
+
+
+def test_an_llm_canonical_for_another_model_number_is_neither_learned_nor_shown() -> None:
+    from buysmarter.services.matching import _learn_aliases
+
+    book = ModelBook(entries=[ModelEntry(canonical="Apple iPhone 17 Pro Max", brand="Apple")])
+    titles = ["iPhone 13 128GB - Б/У", "iphone 13 pro Shark Store", "iphone 13 Shark Store"]
+    canonicals = ["Apple iPhone 17 Pro Max", "Apple iPhone 13", "Apple iPhone 13"]
+
+    updated, labels = _learn_aliases(book, titles, canonicals)
+
+    assert updated is None
+    assert labels == {"iphone 13 Shark Store": "Apple iPhone 13"}

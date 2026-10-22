@@ -620,7 +620,9 @@ def _learn_aliases(
     display_labels: dict[str, str] = {}
     learned = False
     for title, canonical in zip(titles, canonicals, strict=True):
-        if canonical is None:
+        # The LLM once named every "iPhone 13" ad "Apple iPhone 17 Pro Max": learned, that
+        # alias would mismatch the ad on every later run.
+        if canonical is None or _variants_conflict(title, canonical):
             continue
         entry = entries_by_canonical.get(canonical)
         if entry is None:
