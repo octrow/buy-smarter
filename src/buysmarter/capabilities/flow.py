@@ -10,7 +10,13 @@ from collections.abc import Callable
 from dataclasses import replace
 from typing import Any
 
-from buysmarter.capabilities.base import Capability, CapabilityContext, Rejected, overrides
+from buysmarter.capabilities.base import (
+    Capability,
+    CapabilityContext,
+    Question,
+    Rejected,
+    overrides,
+)
 from buysmarter.capabilities.weights import combine
 from buysmarter.knowledge.profile import ResolvedProfile
 from buysmarter.ranking.engine import DEFAULT_WEIGHTS
@@ -36,6 +42,13 @@ class ActiveCapabilities:
 
     def _with(self, hook: str) -> Active:
         return [(cap, ctx) for cap, ctx in self.items if overrides(cap, hook)]
+
+    def question(self) -> Question | None:
+        """The first question a capability asks before the search, in registry order."""
+        for cap, ctx in self._with("clarify"):
+            if (asked := cap.clarify(ctx)) is not None:
+                return asked
+        return None
 
     def searches(self) -> list[tuple[str, list[str]]]:
         """Every extra Kaspi search, as ``(query, title needles)``."""

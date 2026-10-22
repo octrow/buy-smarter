@@ -46,6 +46,14 @@ class Section:
     warnings: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class Question:
+    """What a capability asks before the search (a tyre size), with ready answers."""
+
+    question: str
+    options: list[str] = field(default_factory=list)
+
+
 class Capability:
     """Base of every capability: identity, its axis and weight shifts, neutral hooks.
 
@@ -116,8 +124,8 @@ class Capability:
         """Warnings and flags for the report, after ranking."""
         return None
 
-    def clarify(self, ctx: CapabilityContext) -> str | None:
-        """A question to ask before searching (phase 2; nobody asks in phase 1)."""
+    def clarify(self, ctx: CapabilityContext) -> Question | None:
+        """A parameter the capability cannot judge without, asked before the search."""
         return None
 
 
