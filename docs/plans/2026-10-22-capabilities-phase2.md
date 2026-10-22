@@ -109,8 +109,9 @@ regex без LLM. Поля `QueryConstraints` (`ranking/models.py:11`): `categor
 
 ## Готово, когда
 
-- [x] `QT_QPA_PLATFORM=offscreen uv run pytest -q` зелёный: 1221 passed, 1 skipped (на main до Ф2 — 1076 passed,
-  1 skipped; +145 тестов); покрытие 92.62% (`--cov-fail-under=90`); ruff, `ruff format --check`, `mypy src` чистые.
+- [x] `QT_QPA_PLATFORM=offscreen uv run pytest -q` зелёный: 1233 passed, 1 skipped (на main до Ф2 — 1076 passed,
+  1 skipped; +157 тестов, из них 12 — на находки живого прогона); покрытие 92.67% (`--cov-fail-under=90`); ruff,
+  `ruff format --check`, `mypy src` чистые.
 - [x] Характеризационные тесты Ф1 зелёные; `characterization.json` не тронут, в `test_characterization.py` только
   имя поля во входе (`category=` → `search_phrase=`), ожидаемые значения те же.
 - [x] Каждый повод уточнения покрыт тестом (`tests/services/test_understanding.py`: open, need, multi, service,
@@ -168,6 +169,15 @@ regex без LLM. Поля `QueryConstraints` (`ranking/models.py:11`): `categor
   константа; правило раундов в одной `_may_ask`; тесты на общем `tests/fakes.FakeSource` (добавлено поле
   `searched`); «табакерка» не табак (голый «кальян» по-прежнему даёт предупреждение — дешёвая ошибка); отдельный
   коммит `fix:` для карточки GUI (варианты в столбик, `accessibleName` у поля ответа).
+- **Находки живого прогона владельца** (отдельные коммиты `fix:`):
+  - Ответ LLM не по схеме валидировался как пустой product (все поля со значениями по умолчанию) и попадал в кэш:
+    «подарок для мамы» искал «». Теперь LLM отвечает в `ParsedQuery` (`intent` и `search_phrase` обязательны;
+    новое имя схемы — новый ключ кэша), а product с пустой фразой — `unclear`.
+  - «крем с адапаленом» потерял composition: Jev сравнивал голый «крем». Ключ остался типом товара, но Jev и
+    запасной LLM видят поисковую фразу.
+  - Бюджет, который LLM пропустил («до 50 штук»), берут правила `llm/budget.py` (если нет ни `budget_max`, ни
+    `budget_note`).
+  - Голый размер («мужские кроссовки 42») уходит из фразы, когда размер известен, иначе ленивый перенос не срабатывал.
 - **Длина функций**: `recommend()` в `services/recommend.py`, CLI-команда `recommend` и MCP-инструмент `recommend` и
   до Ф2 были длиннее 50 строк (сигнатура с опциями и докстринг); Ф2 добавила параметры и обработку исходов.
 
