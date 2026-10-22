@@ -49,7 +49,7 @@ gui = [
 ]
 
 [project.scripts]
-buysmarter = "buysmarter.cli.main:app"
+buysmarter = "buysmarter.cli.main:main"
 buysmarter-gui = "buysmarter.gui.__main__:main"
 
 [dependency-groups]

@@ -2,13 +2,14 @@
 
 import logging
 import os
+import signal
 import subprocess
 import sys
 from collections.abc import Callable, Mapping
 from types import TracebackType
 from typing import Any, cast
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, QSocketNotifier, Qt, QTimer
 from PySide6.QtGui import QCloseEvent, QFont, QGuiApplication, QIcon
 from PySide6.QtWidgets import (
     QApplication,
@@ -334,6 +335,46 @@ def install_excepthook(parent: QWidget) -> Callable[..., Any]:
     return previous
 
 
+# Python runs signal handlers only between bytecodes; Qt's C++ loop must hand control back.
+_SIGNAL_POLL_MS = 200
+
+
+def quit_from_terminal(app: QApplication) -> Callable[[], None]:
+    """Ctrl+C (and Ctrl+D on a terminal stdin) quit the app; returns the undo.
+
+    A second Ctrl+C during a slow shutdown falls through to the default handler and kills it.
+    """
+
+    def on_sigint(*_: object) -> None:
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        app.quit()
+
+    previous = signal.signal(signal.SIGINT, on_sigint)
+    ticker = QTimer(app)
+    ticker.timeout.connect(lambda: None)
+    ticker.start(_SIGNAL_POLL_MS)
+    helpers: list[QTimer | QSocketNotifier] = [ticker]
+    if sys.stdin is not None and sys.stdin.isatty():  # a desktop launch has no terminal to read
+        fd = sys.stdin.fileno()
+        notifier = QSocketNotifier(fd, QSocketNotifier.Type.Read, app)
+
+        def on_stdin() -> None:
+            if not os.read(fd, 1024):  # Ctrl+D on an empty line: EOF; typed lines are ignored
+                notifier.setEnabled(False)
+                app.quit()
+
+        notifier.activated.connect(on_stdin)
+        helpers.append(notifier)
+
+    def undo() -> None:
+        signal.signal(signal.SIGINT, previous)
+        ticker.stop()
+        for helper in helpers:
+            helper.deleteLater()
+
+    return undo
+
+
 def run(argv: list[str] | None = None) -> int:
     """Show the main window and run the Qt event loop until it closes; returns the exit code."""
     app = cast(
@@ -346,10 +387,12 @@ def run(argv: list[str] | None = None) -> int:
     runner = CoreRunner()
     window = MainWindow(runner)
     previous_hook = install_excepthook(window)
+    restore_sigint = quit_from_terminal(app)
     window.show()
     try:
         return app.exec()
     finally:
+        restore_sigint()
         sys.excepthook = previous_hook
         runner.shutdown()
 

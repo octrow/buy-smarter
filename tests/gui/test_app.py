@@ -1,9 +1,10 @@
 """The desktop app starts and exits headless."""
 
 import os
+import signal
 import subprocess
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QObject, Qt, QTimer
 from PySide6.QtWidgets import QApplication
 
 from buysmarter.gui import app as gui_app
@@ -219,3 +220,27 @@ def test_opening_a_screen_selects_its_nav_item(qtbot, runner, monkeypatch, resul
     window._show_screen(window.report)
     assert window.sidebar.currentItem().text() == "Отчёт"
     assert window.stack.currentWidget() is window.report
+
+
+class _QuitRecorder(QObject):
+    """Stands in for the app: a real ``exec``/``quit`` would end the shared test QApplication."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.quits = 0
+
+    def quit(self) -> None:
+        self.quits += 1
+
+
+def test_ctrl_c_in_the_terminal_quits_the_app(qapp):
+    before = signal.getsignal(signal.SIGINT)
+    app = _QuitRecorder()
+    undo = gui_app.quit_from_terminal(app)
+    try:
+        os.kill(os.getpid(), signal.SIGINT)
+        assert app.quits == 1
+        assert signal.getsignal(signal.SIGINT) is signal.SIG_DFL  # a second Ctrl+C kills
+    finally:
+        undo()
+    assert signal.getsignal(signal.SIGINT) is before

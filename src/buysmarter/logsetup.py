@@ -1,5 +1,8 @@
 """Central logging setup: rotating file at INFO, console stays at WARNING.
 
+The console gets one short line per record; timestamps, run ids and tracebacks
+go to the file only.
+
 Called once at each entry point (CLI, MCP server) so the rich CLI output isn't
 polluted by INFO-level noise (LLM cache hits/misses, source fetch counts,
 filter drops) while that same noise is captured durably in ``~/.cache/buysmarter/logs/``.
@@ -17,6 +20,7 @@ _DEFAULT_LOG_PATH = Path.home() / ".cache" / "buysmarter" / "logs" / "buysmarter
 _MAX_BYTES = 5 * 1024 * 1024  # 5MB
 _BACKUP_COUNT = 5
 _FORMAT = "%(asctime)s %(levelname)s [%(run_id)s] %(name)s:%(lineno)d: %(message)s"
+_CONSOLE_FORMAT = "%(levelname)s: %(message)s"
 _DEFAULT_FILE_LEVEL = "INFO"
 _DEFAULT_CONSOLE_LEVEL = "WARNING"
 _NOISY_LOGGERS = ("httpx", "mcp")  # seen at INFO in the log file
@@ -78,9 +82,20 @@ def _env_level(var: str, default: str) -> int:
 _MARKER = "_buysmarter_logsetup"
 
 
-def _ours(handler: logging.Handler, level: int) -> logging.Handler:
+class _ConsoleFormatter(logging.Formatter):
+    """One readable line per record: the traceback stays in the log file."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        brief = logging.makeLogRecord(record.__dict__)  # the file handler still needs exc_info
+        brief.exc_info = brief.exc_text = brief.stack_info = None
+        return super().format(brief)
+
+
+def _ours(
+    handler: logging.Handler, level: int, formatter: logging.Formatter | None = None
+) -> logging.Handler:
     handler.setLevel(level)
-    handler.setFormatter(logging.Formatter(_FORMAT))
+    handler.setFormatter(formatter or logging.Formatter(_FORMAT))
     handler.addFilter(_RunIdFilter())
     handler.addFilter(_RedactKeysFilter())
     setattr(handler, _MARKER, True)
@@ -113,7 +128,8 @@ def setup_logging(log_path: Path | str | None = None) -> None:
             path, maxBytes=_MAX_BYTES, backupCount=_BACKUP_COUNT, encoding="utf-8"
         )
         console_level = _env_level("BUYSMARTER_CONSOLE_LOG_LEVEL", _DEFAULT_CONSOLE_LEVEL)
-        handlers = [_ours(file_handler, file_level), _ours(logging.StreamHandler(), console_level)]
+        console = _ours(logging.StreamHandler(), console_level, _ConsoleFormatter(_CONSOLE_FORMAT))
+        handlers = [_ours(file_handler, file_level), console]
 
     root.setLevel(min(h.level for h in handlers))
     for name in _NOISY_LOGGERS:

@@ -1,6 +1,7 @@
 """Typer CLI entry point for buy-smarter."""
 
 import asyncio
+import logging
 import sys
 from pathlib import Path
 
@@ -667,5 +668,21 @@ def gui() -> None:
     raise typer.Exit(code=run_gui())
 
 
+_INTERRUPTED = 130  # typer's exit code for Ctrl+C
+
+
+def main() -> None:
+    """``buysmarter``: the typer app, with a word on Ctrl+C instead of a silent exit."""
+    try:
+        app()
+    except SystemExit as exc:
+        if exc.code == _INTERRUPTED:
+            # Browser calls cut short by Ctrl+C surface as "Future exception was never retrieved"
+            # when the loop is collected; the user asked to stop, so that noise is not news.
+            logging.getLogger("asyncio").setLevel(logging.CRITICAL)
+            console.print("\n[yellow]Остановлено.[/yellow]")
+        raise
+
+
 if __name__ == "__main__":
-    app()
+    main()

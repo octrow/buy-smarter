@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import cast
 
+import httpx
 from market_sources.base import ProductSource, RawOffer, RawProduct
 from market_sources.kaspi.client import KaspiClient
 from market_sources.kaspi.source import KaspiSource
@@ -605,7 +606,12 @@ async def _safe[T](name: str, coro: Awaitable[T]) -> T | None:
         with stage(f"collect[{name}]", source=name):
             result = await coro
     except Exception as exc:  # noqa: BLE001 - one dead source must not abort the pipeline
-        logger.warning("Source %r failed, skipping it: %r", name, exc, exc_info=True)
+        # A server answer (Kaspi's 503 maintenance page) is an outage, not a bug: no stack.
+        if isinstance(exc, httpx.HTTPStatusError):
+            status = exc.response.status_code
+            logger.warning("Source %r failed, skipping it: site answered HTTP %d", name, status)
+        else:
+            logger.warning("Source %r failed, skipping it: %r", name, exc, exc_info=True)
         telemetry.SOURCE_REQUESTS.add(1, {"source": name, "outcome": "error"})
         return None
     telemetry.SOURCE_REQUESTS.add(1, {"source": name, "outcome": "ok"})

@@ -175,3 +175,18 @@ def test_the_redaction_filter_leaves_a_bad_format_call_to_the_handler() -> None:
 
     record = logging.LogRecord("t", logging.WARNING, __file__, 1, "%d items", ("x",), None)
     assert _RedactKeysFilter().filter(record)  # no TypeError out of the logger call
+
+
+def test_console_gets_one_line_while_the_file_keeps_the_traceback(tmp_path, capsys) -> None:
+    log_path = tmp_path / "buysmarter.log"
+    setup_logging(log_path)
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        logging.getLogger("buysmarter.test").warning("source failed", exc_info=True)
+    for handler in logging.getLogger().handlers:
+        handler.flush()
+
+    err = capsys.readouterr().err
+    assert err == "WARNING: source failed\n"
+    assert "Traceback" in log_path.read_text(encoding="utf-8")
