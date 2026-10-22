@@ -29,6 +29,17 @@ from buysmarter.knowledge.brands import get_brand_book as _seed_brand_book
 from buysmarter.knowledge.ingredients import IngredientBook
 from buysmarter.knowledge.models_book import ModelBook, ModelEntry
 from buysmarter.knowledge.models_book import get_model_book as _seed_model_book
+from buysmarter.knowledge.profile import (
+    BRAND_KEY,
+    CATEGORY_TYPE_KEY,
+    INGREDIENT_KEY,
+    MODEL_KEY,
+    SPEC_DRIVEN,
+    composition_keys,
+)
+from buysmarter.knowledge.profile import (
+    COMPOSITION_DRIVEN as COMPOSITION_DRIVEN,
+)
 from buysmarter.llm.adapter import LlmConfigError, LlmError, generate
 from buysmarter.llm.jev import system_one
 from buysmarter.local_store import set_aside
@@ -50,19 +61,13 @@ _MAX_CHOICE_OPTIONS = 255
 
 _DEFAULT_DIR = Path.home() / ".config" / "buysmarter" / "knowledge"
 
-_BRAND_KEY = "brand_book"
-_MODEL_KEY = "model_book"
-_INGREDIENT_KEY = "ingredient_book"
-_CATEGORY_TYPE_KEY = "category_type"
+_BRAND_KEY = BRAND_KEY
+_MODEL_KEY = MODEL_KEY
+_INGREDIENT_KEY = INGREDIENT_KEY
+_CATEGORY_TYPE_KEY = CATEGORY_TYPE_KEY
 _GENERATED_BY = "generated_by"
 _UPDATED_BY = "updated_by"
 _UPDATED_AT = "updated_at"
-
-# Category type (docs/PLAN.md "Composition-driven категории"): a spec-driven
-# category ranks on specs+brand (irrigators, phones); a composition-driven one
-# (cosmetics/pharma/supplements) ranks on the active substance too.
-SPEC_DRIVEN = "spec_driven"
-COMPOSITION_DRIVEN = "composition_driven"
 
 
 def _slug(category: str) -> str:
@@ -116,10 +121,13 @@ async def save_knowledge(
         updates[_BRAND_KEY] = brand_book.model_dump(mode="json")
     if model_book is not None:
         updates[_MODEL_KEY] = model_book.model_dump(mode="json")
-    if category_type is not None:
-        updates[_CATEGORY_TYPE_KEY] = category_type
     if ingredient_book is not None:
         updates[_INGREDIENT_KEY] = ingredient_book.model_dump(mode="json")
+    if category_type is not None:
+        stored = await load_knowledge(category) or {}
+        if ingredient_book is None and stored.get(_INGREDIENT_KEY):
+            ingredient_book = IngredientBook.model_validate(stored[_INGREDIENT_KEY])
+        updates.update(composition_keys(stored, category_type, ingredient_book))
     await update_knowledge(category, updates, generated_by)
 
 

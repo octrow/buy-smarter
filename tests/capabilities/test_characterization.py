@@ -13,6 +13,7 @@ store page fetch.
 """
 
 import json
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +29,7 @@ from buysmarter.llm.adapter import LlmError
 from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services import official_stores
 from buysmarter.services.official_stores import StoreOffer
-from buysmarter.services.recommend import recommend
+from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, recommend
 
 EXPECTED_PATH = Path(__file__).with_name("characterization.json")
 _SCORE_TOLERANCE = 0.01
@@ -37,31 +38,24 @@ _SCORE_TOLERANCE = 0.01
 # --- fakes ------------------------------------------------------------------
 
 
+@dataclass
 class _Source:
     """In-memory marketplace: per-query cards (``main`` otherwise), specs and offers."""
 
-    def __init__(
-        self,
-        name: str,
-        main: list[RawProduct],
-        by_query: dict[str, list[RawProduct]] | None = None,
-        specs: dict[str, dict[str, str]] | None = None,
-        offers: dict[str, list[RawOffer]] | None = None,
-    ) -> None:
-        self.name = name
-        self._main = main
-        self._by_query = by_query or {}
-        self._specs = specs or {}
-        self._offers = offers or {}
+    name: str
+    main: list[RawProduct]
+    by_query: dict[str, list[RawProduct]] = field(default_factory=dict)
+    spec_map: dict[str, dict[str, str]] = field(default_factory=dict)
+    offer_map: dict[str, list[RawOffer]] = field(default_factory=dict)
 
     async def search(self, query: str, city: str | None = None) -> list[RawProduct]:
-        return list(self._by_query.get(query, self._main))
+        return list(self.by_query.get(query, self.main))
 
     async def specs(self, product_id: str) -> dict[str, str]:
-        return dict(self._specs.get(product_id, {}))
+        return dict(self.spec_map.get(product_id, {}))
 
     async def offers(self, product_id: str) -> list[RawOffer]:
-        return list(self._offers.get(product_id, []))
+        return list(self.offer_map.get(product_id, []))
 
     async def reviews(self, product_id: str) -> list[Any]:
         return []
@@ -190,7 +184,7 @@ async def _run(query: str, constraints: QueryConstraints, use_llm: bool, **kw: A
 # --- scenarios --------------------------------------------------------------
 
 
-async def _spec_driven(use_llm: bool, fake: _FakeJev) -> Any:
+async def _spec_driven(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPatch) -> Any:
     await _store(
         "пылесос",
         brand_book=_brands({"Dyson": "A", "Samsung": "B", "Xiaomi": "C"}),
@@ -225,8 +219,8 @@ async def _spec_driven(use_llm: bool, fake: _FakeJev) -> Any:
             _kp("k5", "Аккумулятор для пылесоса Dyson V8", 12000, rating=4.7, review_count=40),
             _kp("k6", "Пылесос игрушечный детский", 5000, rating=4.2, review_count=9),
         ],
-        specs={"k1": {"Тип": "вертикальный"}, "k3": {"Мощность": "1800 Вт"}},
-        offers={"k1": [RawOffer(source="kaspi", product_id="k1", seller="Dyson", price=149000)]},
+        spec_map={"k1": {"Тип": "вертикальный"}, "k3": {"Мощность": "1800 Вт"}},
+        offer_map={"k1": [RawOffer(source="kaspi", product_id="k1", seller="Dyson", price=149000)]},
     )
     constraints = QueryConstraints(category="пылесос", budget_max=200000, city="Алматы")
     return await _run("пылесос до 200000", constraints, use_llm, source=kaspi)
@@ -241,7 +235,7 @@ def _cosmetics_kaspi(by_query: dict[str, list[RawProduct]], main: list[RawProduc
         "ad": {},
         "gm": {"Состав": "вода, глицерин"},
     }
-    return _Source("kaspi", main, by_query=by_query, specs=specs)
+    return _Source("kaspi", main, by_query=by_query, spec_map=specs)
 
 
 _MOISTURIZERS = [
@@ -250,7 +244,9 @@ _MOISTURIZERS = [
 ]
 
 
-async def _composition_extracted(use_llm: bool, fake: _FakeJev) -> Any:
+async def _composition_extracted(
+    use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPatch
+) -> Any:
     await _composition_record("крем-с-адапаленом")
     kaspi = _cosmetics_kaspi(
         {
@@ -265,12 +261,16 @@ async def _composition_extracted(use_llm: bool, fake: _FakeJev) -> Any:
     return await _run("крем с адапаленом", constraints, use_llm, source=kaspi)
 
 
-async def _composition_unchecked(use_llm: bool, fake: _FakeJev) -> Any:
+async def _composition_unchecked(
+    use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPatch
+) -> Any:
     fake.fail_ingredients = True
-    return await _composition_extracted(use_llm, fake)
+    return await _composition_extracted(use_llm, fake, monkeypatch)
 
 
-async def _composition_no_match(use_llm: bool, fake: _FakeJev) -> Any:
+async def _composition_no_match(
+    use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPatch
+) -> Any:
     await _composition_record("крем-с-адапаленом")
     empty: list[RawProduct] = []
     kaspi = _cosmetics_kaspi(
@@ -281,7 +281,9 @@ async def _composition_no_match(use_llm: bool, fake: _FakeJev) -> Any:
     return await _run("крем с адапаленом", constraints, use_llm, source=kaspi)
 
 
-async def _composition_protected(use_llm: bool, fake: _FakeJev) -> Any:
+async def _composition_protected(
+    use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPatch
+) -> Any:
     fake.drop_words = ("гель",)
     await _composition_record("крем-с-адапаленом")
     kaspi = _cosmetics_kaspi(
@@ -405,7 +407,7 @@ def _shoes_kaspi() -> _Source:
     )
 
 
-async def _sneakers(use_llm: bool, fake: _FakeJev) -> Any:
+async def _sneakers(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPatch) -> Any:
     await _store("мужские-кроссовки", brand_book=_SHOE_BRANDS, category_type="spec_driven")
     constraints = QueryConstraints(
         category="мужские кроссовки 42 размер", budget_max=50000, required_features=["42 размер"]
@@ -415,7 +417,7 @@ async def _sneakers(use_llm: bool, fake: _FakeJev) -> Any:
     )
 
 
-async def _sneakers_olx(use_llm: bool, fake: _FakeJev) -> Any:
+async def _sneakers_olx(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPatch) -> Any:
     await _store("мужские-кроссовки", brand_book=_SHOE_BRANDS, category_type="spec_driven")
     olx = _Source(
         "olx",
@@ -425,7 +427,7 @@ async def _sneakers_olx(use_llm: bool, fake: _FakeJev) -> Any:
             _olx("u3", "Кроссовки Adidas Superstar", 12000),
             _olx("u4", "Кроссовки детские Puma", 5000),
         ],
-        specs={pid: _USED for pid in ("u1", "u2", "u3", "u4")},
+        spec_map={pid: _USED for pid in ("u1", "u2", "u3", "u4")},
     )
     constraints = QueryConstraints(category="мужские кроссовки", budget_max=50000)
     return await _run(
@@ -461,7 +463,7 @@ async def _sneakers_official(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.
     return await _run("мужские кроссовки до 50000", constraints, use_llm, source=_shoes_kaspi())
 
 
-async def _two_violations(use_llm: bool, fake: _FakeJev) -> Any:
+async def _two_violations(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPatch) -> Any:
     await _store(
         "наушники",
         brand_book=_brands({"Sony": "A", "JBL": "A", "Marshall": "B", "Soundcore": "B"}),
@@ -512,7 +514,7 @@ async def _two_violations(use_llm: bool, fake: _FakeJev) -> Any:
                 review_count=40,
             ),
         ],
-        specs={
+        spec_map={
             "j1": {"Шумоподавление": "ANC"},
             "s1": {"Шумоподавление": "нет"},
             "s2": {"Шумоподавление": "ANC, адаптивное"},
@@ -524,7 +526,7 @@ async def _two_violations(use_llm: bool, fake: _FakeJev) -> Any:
     return await _run("наушники с ANC до 50000 без JBL", constraints, use_llm, source=kaspi)
 
 
-async def _olx_only(use_llm: bool, fake: _FakeJev) -> Any:
+async def _olx_only(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPatch) -> Any:
     await _store(
         "робот-пылесос",
         brand_book=_brands({"Xiaomi": "B", "Roborock": "A", "Dreame": "A"}),
@@ -545,7 +547,7 @@ async def _olx_only(use_llm: bool, fake: _FakeJev) -> Any:
             _olx("u2", "Робот пылесос Roborock S5", 60000),
             _olx("u3", "Робот пылесос Dreame D9 на запчасти", 8000),
         ],
-        specs={pid: _USED for pid in ("u1", "u2", "u3")},
+        spec_map={pid: _USED for pid in ("u1", "u2", "u3")},
     )
     constraints = QueryConstraints(category="робот пылесос", budget_max=30000)
     return await _run(
@@ -558,7 +560,7 @@ async def _olx_only(use_llm: bool, fake: _FakeJev) -> Any:
     )
 
 
-async def _concentration(use_llm: bool, fake: _FakeJev) -> Any:
+async def _concentration(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPatch) -> Any:
     await _composition_record("крем-с-адапаленом")
     kaspi = _cosmetics_kaspi(
         {
@@ -588,7 +590,6 @@ SCENARIOS: dict[str, Any] = {
     "olx_only": _olx_only,
     "concentration": _concentration,
 }
-_NEEDS_MONKEYPATCH = {"smartphone_kimovil", "sneakers_official_store"}
 
 
 # --- snapshot ---------------------------------------------------------------
@@ -645,15 +646,9 @@ def _error_snapshot(exc: Exception) -> dict[str, Any]:
 async def observe(
     name: str, use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPatch
 ) -> dict[str, Any]:
-    scenario = SCENARIOS[name]
-    args = (use_llm, fake, monkeypatch) if name in _NEEDS_MONKEYPATCH else (use_llm, fake)
     try:
-        result = await scenario(*args)
-    except ValueError as exc:  # NoNewPick
-        return _error_snapshot(exc)
-    except Exception as exc:  # noqa: BLE001 - NoSubstanceMatch, recorded as an outcome
-        if type(exc).__name__ != "NoSubstanceMatch":
-            raise
+        result = await SCENARIOS[name](use_llm, fake, monkeypatch)
+    except (NoNewPick, NoSubstanceMatch) as exc:
         return _error_snapshot(exc)
     return json.loads(json.dumps(_snapshot(result), ensure_ascii=False))
 
