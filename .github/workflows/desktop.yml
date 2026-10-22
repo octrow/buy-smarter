@@ -93,7 +93,7 @@ jobs:
           mnt="$(hdiutil attach -nobrowse -readonly "$dmg" | awk -F '\t' '/\/Volumes\// {print $NF}')"
           test -L "$mnt/Applications"
           "$mnt/buysmarter.app/Contents/MacOS/buysmarter" --self-test
-          hdiutil detach "$mnt"
+          hdiutil detach "$mnt" || { sleep 5; hdiutil detach -force "$mnt"; }  # the self-test can leave the image busy for a moment
 
       - name: archive
         id: archive
