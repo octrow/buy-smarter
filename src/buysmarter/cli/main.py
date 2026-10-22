@@ -18,6 +18,7 @@ from buysmarter.cli.report import (
     DEFAULT_TOP,
     ROLE_LABELS,
     format_rejected_reasons,
+    no_new_pick_text,
     save_report,
     skipped_llm_note,
     unavailable_sources_note,
@@ -58,7 +59,7 @@ from buysmarter.services.ozon_browser import setup_browser
 from buysmarter.services.price_tracking import CategoryRefresh, ProductHistory
 from buysmarter.services.price_tracking import product_history as run_product_history
 from buysmarter.services.price_tracking import refresh_tracked as run_refresh_tracked
-from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
+from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, RecommendResult
 from buysmarter.services.recommend import parse_request as run_parse_request
 from buysmarter.services.recommend import recommend as run_recommend
 
@@ -326,6 +327,11 @@ def recommend(
     except NoSubstanceMatch as exc:
         _render_no_substance(exc)
         raise typer.Exit(code=1) from exc
+    except NoNewPick as exc:
+        text = no_new_pick_text(exc.rejected_reasons, bool(exc.used_listings))
+        console.print(f"[yellow]{escape(text)}[/yellow]")
+        _render_used(exc.used_listings, [])
+        raise typer.Exit(code=0 if exc.used_listings else 1) from exc
     except ValueError as exc:
         console.print(f"[yellow]No recommendation: {escape(str(exc))}[/yellow]")
         raise typer.Exit(code=1) from exc

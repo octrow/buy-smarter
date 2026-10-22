@@ -10,6 +10,8 @@ from typer.testing import CliRunner
 
 from buysmarter.cli import main
 from buysmarter.llm.review_summary import ReviewSummary
+from buysmarter.services.matching import UsedListing
+from buysmarter.services.recommend import NoNewPick
 
 runner = CliRunner()
 
@@ -350,3 +352,31 @@ def test_ozon_setup_exits_nonzero_on_timeout(monkeypatch) -> None:
     result = runner.invoke(main.app, ["ozon-setup"])
     assert result.exit_code == 1
     assert "Не удалось" in result.output
+
+
+def _raise_from_pipeline(monkeypatch, exc: Exception) -> None:
+    async def _fake_pipeline(*args, **kwargs):
+        raise exc
+
+    monkeypatch.setattr(main, "recommend_pipeline", _fake_pipeline)
+    monkeypatch.setattr(main, "setup_logging", lambda *a, **kw: None)
+
+
+def test_nothing_new_in_budget_prints_the_olx_ads_and_succeeds(monkeypatch) -> None:
+    ad = UsedListing(title="iPhone 13 128GB", price=180_000, new_price=373_000, saving=193_000)
+    _raise_from_pipeline(monkeypatch, NoNewPick({"price exceeds budget": 2}, [ad]))
+
+    result = runner.invoke(main.app, ["recommend", "iphone 13 б/у до 250000", "--no-save"])
+
+    assert result.exit_code == 0
+    assert "Новых предложений нет: дороже бюджета ×2. На OLX нашлось:" in result.stdout
+    assert "iPhone 13 128GB" in result.stdout
+
+
+def test_nothing_new_and_nothing_on_olx_is_a_failed_search(monkeypatch) -> None:
+    _raise_from_pipeline(monkeypatch, NoNewPick({"price exceeds budget": 2}, []))
+
+    result = runner.invoke(main.app, ["recommend", "iphone 13 б/у до 250000", "--no-save"])
+
+    assert result.exit_code == 1
+    assert "На OLX тоже ничего." in result.stdout

@@ -7,7 +7,8 @@ from buysmarter.gui.bridge import USER_ERROR
 from buysmarter.gui.screens.search import STAGE_LABELS, STATE_LABELS, SearchScreen, stage_label
 from buysmarter.ranking.models import Candidate, QueryConstraints
 from buysmarter.services.collect import _safe
-from buysmarter.services.recommend import NoSubstanceMatch
+from buysmarter.services.matching import UsedListing
+from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch
 from tests.gui.conftest import WAIT_MS
 
 
@@ -172,6 +173,27 @@ def test_no_substance_match_shows_the_core_message(qtbot, runner):
     screen.start()
     qtbot.waitUntil(screen.start_button.isEnabled, timeout=WAIT_MS)
     assert screen.message.text() == f"{exc.message()}\n• Effaclar Duo — 9\xa0000 ₸ [kaspi]"
+
+
+def test_nothing_new_in_budget_lists_the_olx_ads_instead(qtbot, runner):
+    ads = [
+        UsedListing(title="iPhone 13 128GB", price=180_000, new_price=373_000, saving=193_000),
+        UsedListing(title="iPhone 13 mini", price=150_000, city="Алматы", standalone=True),
+    ]
+
+    async def none(query, **kwargs):
+        raise NoNewPick({"price exceeds budget": 2}, ads)
+
+    screen = SearchScreen(runner, recommend=none)
+    qtbot.addWidget(screen)
+    screen.query.setText("iphone 13 б/у до 250000")
+    screen.start()
+    qtbot.waitUntil(screen.start_button.isEnabled, timeout=WAIT_MS)
+    assert screen.message.text().splitlines() == [
+        "Новых предложений нет: дороже бюджета ×2. На OLX нашлось:",
+        "• iPhone 13 128GB — 180\xa0000 ₸, на 193\xa0000 ₸ дешевле нового",
+        "• iPhone 13 mini — 150\xa0000 ₸ (Алматы)",
+    ]
 
 
 def test_form_values_and_saved_excluded_brands_reach_the_core(qtbot, runner, result):

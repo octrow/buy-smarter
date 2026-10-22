@@ -7,6 +7,7 @@ import pytest
 from market_sources.base import RawOffer, RawProduct
 from market_sources.kaspi.parse import parse_offers, parse_search, parse_specs
 
+from buysmarter.cli.report import no_new_pick_text
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.ranking.models import Candidate
 from buysmarter.services.collect import (
@@ -23,7 +24,7 @@ from buysmarter.services.matching import (
     strip_latin_tokens,
     unbranded_used_listings,
 )
-from buysmarter.services.recommend import recommend
+from buysmarter.services.recommend import NoNewPick, recommend
 
 SAMPLES_DIR = Path(__file__).parent.parent / "samples" / "kaspi"
 
@@ -1655,3 +1656,35 @@ async def test_review_pass_says_why_the_best_pick_has_no_summary(monkeypatch) ->
 
     assert summary is None
     assert note is not None and "мало текстов отзывов" in note
+
+
+async def test_nothing_new_in_budget_still_shows_the_olx_ads_within_it() -> None:
+    kaspi = FakeSource(
+        "kaspi", [_rp("kaspi", "k1", "Waterpik WP-100 ирригатор портативный", 60000)]
+    )
+    olx = FakeSource(
+        "olx",
+        [
+            _rp("olx", "u1", "Waterpik WP-100 ирригатор портативный", 15000),
+            _rp("olx", "u2", "Waterpik WP-100 ирригатор портативный новый", 45000),
+        ],
+        specs_map={"u1": {"condition": "Б/у"}, "u2": {"condition": "Б/у"}},
+    )
+
+    with pytest.raises(NoNewPick) as caught:
+        await recommend(
+            "ирригатор портативный, до 40000 тг",
+            use_llm=False,
+            sources=["kaspi", "olx"],
+            source=kaspi,
+            olx_source=olx,
+            persist=False,
+        )
+
+    no_pick = caught.value
+    assert no_pick.rejected_reasons == {"price exceeds budget": 1}
+    assert [(u.price, u.saving) for u in no_pick.used_listings] == [(15000, 45000)]  # vs new 60000
+    assert no_new_pick_text(no_pick.rejected_reasons, bool(no_pick.used_listings)) == (
+        "Новых предложений нет: дороже бюджета ×1. На OLX нашлось:"
+    )
+    assert isinstance(no_pick, ValueError)

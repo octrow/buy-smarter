@@ -652,12 +652,45 @@ async def used_market(
     use_llm: bool,
 ) -> list[UsedListing]:
     """OLX listings matching the picks, then notable ones within budget."""
+    knowledge = (book, model_book)
+    refs = _reference_candidates(recommendation)
+    pick = recommendation.best.candidate
+    return await _used_listings(refs, pick, used_candidates, constraints, knowledge, use_llm)
+
+
+async def used_market_without_pick(
+    refs: list[Candidate],
+    used_candidates: list[Candidate],
+    constraints: QueryConstraints,
+    book: BrandBook | None,
+    model_book: ModelBook | None,
+    use_llm: bool,
+) -> list[UsedListing]:
+    """When no new product passed: OLX listings within budget, matched against ``refs``.
+
+    ``refs`` are the new products the hard filters rejected (over budget, say): a used one
+    of the same model still shows its saving against them.
+    """
+    knowledge = (book, model_book)
+    listings = await _used_listings(refs, None, used_candidates, constraints, knowledge, use_llm)
+    budget = constraints.budget_max
+    return [listing for listing in listings if budget is None or listing.price <= budget]
+
+
+async def _used_listings(
+    refs: list[Candidate],
+    pick: Candidate | None,
+    used_candidates: list[Candidate],
+    constraints: QueryConstraints,
+    knowledge: tuple[BrandBook | None, ModelBook | None],
+    use_llm: bool,
+) -> list[UsedListing]:
+    """Matched listings, then notable ones; then cheaper no-name ones when there is a pick."""
+    book, model_book = knowledge
     model_book, display_labels = await canonicalize_used_titles(
         constraints.category, book, model_book, used_candidates, use_llm
     )
-    used_listings = match_used_listings(
-        _reference_candidates(recommendation), used_candidates, book, model_book, display_labels
-    )
+    used_listings = match_used_listings(refs, used_candidates, book, model_book, display_labels)
     matched_keys = {ul.url or ul.title for ul in used_listings}
     listings = used_listings + notable_used_listings(
         used_candidates,
@@ -666,12 +699,9 @@ async def used_market(
         exclude=matched_keys,
         category=constraints.category,
     )
+    if pick is None:
+        return listings
     shown = {ul.url or ul.title for ul in listings}
     return listings + unbranded_used_listings(
-        used_candidates,
-        book,
-        recommendation.best.candidate,
-        exclude=shown,
-        category=constraints.category,
-        refs=_reference_candidates(recommendation),
+        used_candidates, book, pick, exclude=shown, category=constraints.category, refs=refs
     )

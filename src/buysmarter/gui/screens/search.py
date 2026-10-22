@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from buysmarter.cli.report import saved_reports
+from buysmarter.cli.report import no_new_pick_text, saved_reports
 from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.prefs_fields import (
     BUDGET,
@@ -40,7 +40,8 @@ from buysmarter.gui.screens.saved import ListReports, report_parts
 from buysmarter.gui.theme import SPACE, bind_icon, set_state
 from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services.collect import ALL_SOURCES
-from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
+from buysmarter.services.matching import UsedListing
+from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, RecommendResult
 from buysmarter.services.recommend import parse_request as run_parse_request
 from buysmarter.services.recommend import recommend as run_recommend
 
@@ -125,6 +126,14 @@ class SearchRun:
     query: str
     use_llm: bool
     source_states: Mapping[str, str]
+
+
+def _used_line(listing: UsedListing) -> str:
+    """One OLX ad for the no-pick message: price, and the saving against a new one when known."""
+    line = f"• {listing.title} — {kzt(listing.price)}"
+    if not listing.standalone and listing.saving > 0:
+        line += f", на {kzt(listing.saving)} дешевле нового"
+    return f"{line} ({listing.city})" if listing.city else line
 
 
 @dataclass(frozen=True)
@@ -394,6 +403,10 @@ class SearchScreen(QWidget):
         except NoSubstanceMatch as exc:
             nearest = [f"• {c.title} — {kzt(c.price)} [{c.source}]" for c in exc.alternatives]
             return NoRecommendation("\n".join([exc.message(), *nearest]))
+        except NoNewPick as exc:
+            text = no_new_pick_text(exc.rejected_reasons, bool(exc.used_listings))
+            ads = [_used_line(u) for u in exc.used_listings]
+            return NoRecommendation("\n".join([text, *ads]))
         except ValidationError:
             raise  # a bug, not "nothing to recommend": the generic message, details in the log
         except ValueError as exc:  # the core's "nothing to recommend" (the CLI prints it too)

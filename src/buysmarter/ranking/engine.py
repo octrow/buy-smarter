@@ -680,6 +680,17 @@ def score(
     )
 
 
+class NoCandidatesPassed(ValueError):
+    """Every candidate failed a hard filter; ``rejected_reasons`` says why (reason key -> count).
+
+    A ``ValueError`` so the callers that only report "nothing to recommend" need no change.
+    """
+
+    def __init__(self, rejected_reasons: dict[str, int]) -> None:
+        self.rejected_reasons = rejected_reasons
+        super().__init__("no candidates passed hard filters")
+
+
 def _reason_key(reason: str) -> str:
     """Compact, aggregable bucket for a hard-filter rejection reason: everything
     before the first ':' (the stable prefix each check writes), or the whole
@@ -708,7 +719,7 @@ def rank(
     required substance a hard filter — a candidate whose состав proves it absent is
     rejected. Spec-driven ranking is the default and is unchanged.
 
-    Raises ValueError if no candidate survives hard filtering.
+    Raises NoCandidatesPassed (a ValueError) if no candidate survives hard filtering.
     """
     passed, rejected = apply_hard_filters(
         candidates,
@@ -717,7 +728,7 @@ def rank(
         substances_verified=substances_verified,
     )
     if not passed:
-        raise ValueError("no candidates passed hard filters")
+        raise NoCandidatesPassed(dict(Counter(_reason_key(reason) for _, reason in rejected)))
 
     market = compute_market_context(passed)
     weights = COMPOSITION_WEIGHTS if composition else DEFAULT_WEIGHTS

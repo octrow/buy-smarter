@@ -60,6 +60,12 @@ def format_rejected_reasons(reasons: dict[str, int]) -> str:
     )
 
 
+def no_new_pick_text(reasons: dict[str, int], has_used: bool) -> str:
+    """What to say when no new product passed: why, and whether OLX has something."""
+    head = f"Новых предложений нет: {format_rejected_reasons(reasons)}."
+    return f"{head} На OLX нашлось:" if has_used else f"{head} На OLX тоже ничего."
+
+
 _fmt_price = kzt  # the GUI's "35 000 ₸" (no-break space), never "35,000"
 
 

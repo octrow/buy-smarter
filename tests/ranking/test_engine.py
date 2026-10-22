@@ -2,7 +2,15 @@
 
 import math
 
-from buysmarter.ranking.engine import DEFAULT_WEIGHTS, compute_market_context, rank, score
+import pytest
+
+from buysmarter.ranking.engine import (
+    DEFAULT_WEIGHTS,
+    NoCandidatesPassed,
+    compute_market_context,
+    rank,
+    score,
+)
 from buysmarter.ranking.filters import _feature_present, apply_hard_filters
 from buysmarter.ranking.flags import COUNTERFEIT_CON, SUSPICIOUS_PRICE_CON
 from buysmarter.ranking.models import (
@@ -1404,3 +1412,13 @@ def test_distinct_variants_keeps_top_scored_per_variant():
     black = _s("4", "Гитара Liewen Toun AR38 черный")
 
     assert distinct_variants([beige, red, other, black], 2) == [beige, other]
+
+
+def test_an_empty_pass_says_why_every_candidate_was_rejected() -> None:
+    over = [_candidate(source_product_id=str(i), price=60_000) for i in range(2)]
+
+    with pytest.raises(NoCandidatesPassed) as caught:
+        rank(over, _constraints(budget_max=40_000))
+
+    assert caught.value.rejected_reasons == {"price exceeds budget": 2}
+    assert isinstance(caught.value, ValueError)  # API, worker and MCP still catch it as before

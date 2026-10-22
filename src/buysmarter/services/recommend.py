@@ -55,7 +55,7 @@ from buysmarter.ranking.audience import (
     query_size,
     strip_size,
 )
-from buysmarter.ranking.engine import rank
+from buysmarter.ranking.engine import NoCandidatesPassed, rank
 from buysmarter.ranking.filters import NO_SUBSTANCE_REASON, apply_hard_filters
 from buysmarter.ranking.models import (
     Candidate,
@@ -78,6 +78,7 @@ from buysmarter.services.matching import (
     apply_cross_notes,
     dedupe_cross_source,
     used_market,
+    used_market_without_pick,
 )
 from buysmarter.services.official_stores import official_candidates
 from buysmarter.services.phone_specs import enrich_with_kimovil, is_smartphone_category
@@ -238,6 +239,20 @@ class NoSubstanceMatch(Exception):
             f"Не найдено товаров с действующим веществом '{subs}' "
             f"(проверено {self.checked} кандидатов). Ближайшие альтернативы без него:"
         )
+
+
+class NoNewPick(ValueError):
+    """No new product passed the hard filters; OLX may still have ads within the budget.
+
+    Carries why the new products were rejected and those ads, so the CLI and the app show them
+    instead of an empty error (``cli.report.no_new_pick_text``). A ``ValueError``: the API,
+    worker and MCP report it as before.
+    """
+
+    def __init__(self, rejected_reasons: dict[str, int], used_listings: list[UsedListing]) -> None:
+        self.rejected_reasons = rejected_reasons
+        self.used_listings = used_listings
+        super().__init__("no candidates passed hard filters")
 
 
 def _guard_substance_pool(
@@ -437,6 +452,12 @@ async def recommend(
                 with_review_summary,
                 constraints.required_features,
             )
+    except NoCandidatesPassed as exc:
+        # rank() is the only raiser, so the pool and the OLX ads are already collected
+        used = await used_market_without_pick(
+            deduped, used_candidates, constraints, book, model_book, use_llm
+        )
+        raise NoNewPick(exc.rejected_reasons, used) from exc
     finally:
         for src in active.values():
             await aclose(src)
