@@ -8,7 +8,10 @@ import asyncio
 from buysmarter.db import repo
 from buysmarter.db.base import async_session
 from buysmarter.knowledge import store as store_mod
-from buysmarter.knowledge.store import load_knowledge, resolve_profile
+from buysmarter.knowledge.brands import BrandBook
+from buysmarter.knowledge.ingredients import ActiveSubstance, IngredientBook
+from buysmarter.knowledge.models_book import ModelBook
+from buysmarter.knowledge.store import load_knowledge, resolve_profile, save_knowledge
 
 _NIKE = {"brand_book": {"tiers": {"Nike": "A"}}}
 
@@ -101,3 +104,41 @@ async def test_no_move_without_a_distinct_product_type(monkeypatch) -> None:
 
     assert same.brand_book_owner == bare.brand_book_owner == "мужские-кроссовки"
     assert await _slugs() == {"мужские-кроссовки"}
+
+
+async def test_the_related_match_sees_the_search_phrase(monkeypatch) -> None:
+    """Live 2026-10-22: «крем с адапаленом» keyed "крем" lost composition: Jev compared bare
+    "крем" with the stored profiles. The key stays the product type; the question carries
+    the phrase, so the acne profile is found."""
+    await save_knowledge(
+        "средства от акне",
+        BrandBook(tiers={"Galderma": "A"}),
+        ModelBook(),
+        "opus",
+        category_type="composition_driven",
+        ingredient_book=IngredientBook(substances=[ActiveSubstance(canonical="адапален")]),
+    )
+    seen: list[str] = []
+
+    async def _jev(state, questions):
+        seen.append(repr(state) + repr(questions))
+        pick = "средства-от-акне" if "адапален" in seen[-1] else "none of these"
+        return {"match": {"type": "choice", "choice": pick, "confidence": 0.95}}
+
+    async def _no_llm(*args, **kwargs):  # pragma: no cover - Jev is confident
+        raise AssertionError("LLM fallback ran")
+
+    monkeypatch.setattr(store_mod, "system_one", _jev)
+    monkeypatch.setattr(store_mod, "generate", _no_llm)
+
+    resolved = await resolve_profile("крем", search_phrase="крем с адапаленом", use_llm=True)
+
+    assert resolved.slug == "крем"
+    assert resolved.ingredient_book is not None
+    assert resolved.brand_book_owner == "средства-от-акне"
+
+
+def test_the_llm_fallback_prompt_carries_the_phrase() -> None:
+    prompt = store_mod.match_category_prompt("крем", ["средства-от-акне"], "крем с адапаленом")
+
+    assert "крем с адапаленом" in prompt

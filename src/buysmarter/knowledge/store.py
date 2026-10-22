@@ -197,7 +197,7 @@ async def resolve_profile(
     if old != slug:
         own = await _old_slug(own, slug, old, search_phrase or "")
     if own is None and use_llm:
-        matched = await _match_related(slug)
+        matched = await _match_related(slug, search_phrase or "")
         if matched is not None:
             logger.info("knowledge matched: %s -> %s", category, matched)
             own = await load_profile(matched)
@@ -398,11 +398,18 @@ class _CategoryMatch(BaseModel):
     index: int | None = None
 
 
-def match_category_prompt(category: str, candidates: list[str]) -> str:
+def _searched(category: str, phrase: str) -> str:
+    """What the shopper searched: the phrase gives the product type its context."""
+    if phrase and _slug(phrase) != _slug(category):
+        return f'"{phrase}" (product type "{category}")'
+    return f'category "{category}"'
+
+
+def match_category_prompt(category: str, candidates: list[str], phrase: str = "") -> str:
     """Build the batched "which stored category covers this one" prompt."""
     numbered = "\n".join(f"{i}. {c}" for i, c in enumerate(candidates))
     return (
-        f'A shopper searched for category "{category}". Below are category '
+        f"A shopper searched for {_searched(category, phrase)}. Below are category "
         "records already stored from prior sessions, each possibly broader or "
         'narrower than the query (e.g. a stored "косметика" covers a query '
         '"солнцезащитный крем", since sunscreen is a cosmetics sub-category). '
@@ -413,29 +420,39 @@ def match_category_prompt(category: str, candidates: list[str]) -> str:
     )
 
 
-def match_category_question(category: str, candidates: list[str]) -> dict[str, Any]:
-    """One Jev Choice over the stored slugs plus an explicit no-match option."""
+def match_category_question(
+    category: str, candidates: list[str], phrase: str = ""
+) -> dict[str, Any]:
+    """One Jev Choice over the stored slugs plus an explicit no-match option.
+
+    ``phrase`` (the search phrase) gives a bare product type its context: "крем" alone
+    matches nothing, "крем с адапаленом" is an acne product.
+    """
     criteria: dict[str, str | None] = {c: None for c in candidates}
     criteria[_NO_MATCH] = "No stored category covers the same products as the query"
-    return {
-        "type": "choice",
-        "instructions": {
-            "query_category": category,
-            "question": "Which stored product category covers the same products as "
-            '`query_category`? A broader category covers a narrower one (a stored "косметика" '
-            'covers "солнцезащитный крем"). Categories may be Russian or English slugs.',
-        },
-        "criteria": criteria,
+    instructions = {
+        "query_category": category,
+        "question": "Which stored product category covers the same products as "
+        '`query_category`? A broader category covers a narrower one (a stored "косметика" '
+        'covers "солнцезащитный крем"). Categories may be Russian or English slugs.',
     }
+    if phrase:
+        instructions["search_phrase"] = phrase
+        instructions["question"] += " `search_phrase` is what the shopper typed: judge by it."
+    return {"type": "choice", "instructions": instructions, "criteria": criteria}
 
 
-async def _match_category_jev(category: str, candidates: list[str]) -> tuple[str | None, bool]:
+async def _match_category_jev(
+    category: str, candidates: list[str], phrase: str = ""
+) -> tuple[str | None, bool]:
     """Jev pick: ``(match_or_None, confident)``. Raises ``LlmError`` / ``LlmConfigError``."""
     if len(candidates) >= _MAX_CHOICE_OPTIONS:
         raise LlmConfigError(f"{len(candidates)} stored categories exceed a Jev Choice")
+    state: dict[str, Any] = {"query_category": category, "stored_categories": candidates}
+    if phrase:
+        state["search_phrase"] = phrase
     answers = await system_one(
-        {"query_category": category, "stored_categories": candidates},
-        {"match": match_category_question(category, candidates)},
+        state, {"match": match_category_question(category, candidates, phrase)}
     )
     try:
         choice, confidence = answers["match"]["choice"], answers["match"]["confidence"]
@@ -445,11 +462,13 @@ async def _match_category_jev(category: str, candidates: list[str]) -> tuple[str
     return matched, confidence >= MATCH_MIN_CONFIDENCE
 
 
-async def _match_category_llm(category: str, candidates: list[str]) -> str | None:
+async def _match_category_llm(category: str, candidates: list[str], phrase: str = "") -> str | None:
     """One batched, cached LLM call picking the covering stored category, or None."""
     try:
         result = await generate(
-            match_category_prompt(category, candidates), _CategoryMatch, model=MATCH_CATEGORY_MODEL
+            match_category_prompt(category, candidates, phrase),
+            _CategoryMatch,
+            model=MATCH_CATEGORY_MODEL,
         )
     except (LlmError, LlmConfigError) as exc:
         logger.warning("category-match LLM call failed (%r); no knowledge match", exc)
@@ -460,17 +479,17 @@ async def _match_category_llm(category: str, candidates: list[str]) -> str | Non
     return candidates[index]
 
 
-async def _match_category(category: str, candidates: list[str]) -> str | None:
+async def _match_category(category: str, candidates: list[str], phrase: str = "") -> str | None:
     """Jev Choice; the LLM only when Jev fails. Below ``MATCH_MIN_CONFIDENCE`` means no match.
 
     The LLM once asked on unsure answers mapped "чехол для iPhone 15" to "смартфон" and found
-    nothing for "кроссовки" or "крем", 40-60 s each.
+    nothing for "кроссовки" or "крем", 40-60 s each. Both see the search phrase (``phrase``).
     """
     try:
-        matched, confident = await _match_category_jev(category, candidates)
+        matched, confident = await _match_category_jev(category, candidates, phrase)
     except (LlmError, LlmConfigError) as exc:
         logger.warning("category-match Jev call failed (%r); falling back to the LLM", exc)
-        return await _match_category_llm(category, candidates)
+        return await _match_category_llm(category, candidates, phrase)
     if confident:
         return matched
     logger.info("category-match Jev unsure for %r; no related category", category)
@@ -490,10 +509,10 @@ async def _by_synonym(slug: str) -> CategoryProfile | None:
     return await load_profile(owner)
 
 
-async def _match_related(slug: str) -> str | None:
-    """A Jev/LLM pick among the other stored profiles."""
+async def _match_related(slug: str, phrase: str) -> str | None:
+    """A Jev/LLM pick among the other stored profiles, judged with the search phrase."""
     records = await _other_records(slug)
-    return await _match_category(slug, list(records)) if records else None
+    return await _match_category(slug, list(records), phrase) if records else None
 
 
 async def _find_related(slug: str, use_llm: bool) -> str | None:
