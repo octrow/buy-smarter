@@ -201,19 +201,14 @@ async def test_jev_confident_no_match_returns_none(monkeypatch) -> None:
     assert await resolve_books("ноутбук", use_llm=True) == (None, None)
 
 
-async def test_jev_unsure_escalates_to_llm(monkeypatch) -> None:
+async def test_jev_unsure_is_no_match_without_asking_the_llm(monkeypatch) -> None:
+    # The LLM behind this fallback answered "чехол для iPhone 15" -> "смартфон" and found
+    # nothing for "кроссовки" and "крем": an unsure Jev now means no related category.
     await save_knowledge("косметика", BrandBook(tiers={"CeraVe": "B"}), ModelBook(), "opus")
     monkeypatch.setattr(store_mod, "system_one", _jev_choice("косметика", 0.51))
-    calls: list[str] = []
-
-    async def _llm(prompt, response_model, *, model=None, **kwargs):
-        calls.append(model)
-        return response_model(index=None)
-
-    monkeypatch.setattr(store_mod, "generate", _llm)
+    monkeypatch.setattr(store_mod, "generate", _llm_must_not_run)
 
     assert await resolve_books("зубная щетка", use_llm=True) == (None, None)
-    assert calls == ["free-stack"]  # the LLM's "no match" wins over Jev's unsure pick
 
 
 def test_jev_question_lists_stored_slugs_and_no_match() -> None:

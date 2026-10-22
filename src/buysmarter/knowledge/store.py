@@ -54,9 +54,9 @@ logger = logging.getLogger(__name__)
 # Matching a parsed category against stored knowledge slugs is a trivial
 # classification task (pick the covering entry from a short list): Jev Choice
 # first; the OmniRoute free-stack LLM (what the old "haiku" alias resolved to)
-# is the fallback when Jev fails or is unsure.
+# is the fallback when Jev fails.
 MATCH_CATEGORY_MODEL = "free-stack"
-# Jev answers below this confidence escalate to the LLM fallback.
+# Jev answers below this confidence mean no related category.
 # ponytail: tuned on 13 hand-labelled queries (wrong answer 0.51, right ones >= 0.73);
 # retune after 50 real runs or at the first miss seen in one.
 MATCH_MIN_CONFIDENCE = 0.7
@@ -392,7 +392,11 @@ async def _match_category_llm(category: str, candidates: list[str]) -> str | Non
 
 
 async def _match_category(category: str, candidates: list[str]) -> str | None:
-    """Jev Choice first; the LLM when Jev fails or answers below ``MATCH_MIN_CONFIDENCE``."""
+    """Jev Choice; the LLM only when Jev fails. Below ``MATCH_MIN_CONFIDENCE`` means no match.
+
+    The LLM once asked on unsure answers mapped "чехол для iPhone 15" to "смартфон" and found
+    nothing for "кроссовки" or "крем", 40-60 s each.
+    """
     try:
         matched, confident = await _match_category_jev(category, candidates)
     except (LlmError, LlmConfigError) as exc:
@@ -400,8 +404,8 @@ async def _match_category(category: str, candidates: list[str]) -> str | None:
         return await _match_category_llm(category, candidates)
     if confident:
         return matched
-    logger.info("category-match Jev unsure for %r; asking the LLM", category)
-    return await _match_category_llm(category, candidates)
+    logger.info("category-match Jev unsure for %r; no related category", category)
+    return None
 
 
 async def _find_related(slug: str, use_llm: bool) -> str | None:
