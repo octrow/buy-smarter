@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 FOREIGN_CURRENCY_NOTE = "бюджет в другой валюте не учтён"
 _THOUSAND = 1000
+_MILLION = 1_000_000
 # "N k" below this is not money: "4K" names a screen resolution.
 _MIN_K_AMOUNT = 10
 
@@ -20,9 +21,13 @@ _MIN_K_AMOUNT = 10
 # fraction. The lookahead also refuses a following digit, so backtracking cannot leave
 # "1" of "18.5" as a number.
 _NUM = r"(?<![\w.,/])(?P<{}>\d{{1,3}}(?:[ \u00a0.,]\d{{3}})+|\d+)(?![.,]?\d)"
-_KZT = r"(?:₸|(?:тг|тенге|теңге)(?!\w))"
-_SLANG = r"(?:тыс\w*\.?|тыщ\w*|косар\w*|мың(?!\w))"
-_MULT = rf"(?P<mult>{_SLANG}|штук\w*|[kк](?!\w))"
+# Russian and Kazakh, with Kazakh case endings ("теңгеге", "мыңға").
+_KZT = r"(?:₸|тг(?!\w)|тенге\w*|теңге\w*)"
+_SLANG = r"(?:тыс\w*\.?|тыщ\w*|косар\w*|мың\w*)"
+_MILLION_WORD = r"(?:млн\.?|миллион\w*)"
+_MULT = rf"(?P<mult>{_SLANG}|{_MILLION_WORD}|штук\w*|[kк](?!\w))"
+# Kazakh "15000 теңгеге дейін": a postposition meaning "до".
+_POST = r"(?P<post>\s*дейін(?!\w))?"
 _PREP = r"(?P<prep>\b(?:до|за|бюджет\w*)\s+)"
 
 _FOREIGN_RE = re.compile(
@@ -41,7 +46,9 @@ _RANGE_RES = (
         rf"{_NUM.format('low')}\s*[-–—]\s*{_NUM.format('high')}{_RANGE_TAIL}", re.IGNORECASE
     ),
 )
-_AMOUNT_RE = re.compile(rf"{_PREP}?{_NUM.format('n')}\s*{_MULT}?\s*(?P<kzt>{_KZT})?", re.IGNORECASE)
+_AMOUNT_RE = re.compile(
+    rf"{_PREP}?{_NUM.format('n')}\s*{_MULT}?\s*(?P<kzt>{_KZT})?{_POST}", re.IGNORECASE
+)
 _BARE_SLANG_RE = re.compile(r"\b(?:до\s+|за\s+)?косар\w*", re.IGNORECASE)
 # After a bare "до N": a unit of measure, so the number is not money.
 _UNIT_RE = re.compile(
@@ -69,13 +76,20 @@ def _cut(query: str, match: re.Match[str]) -> str:
     return " ".join(f"{query[: match.start()]} {query[match.end() :]}".split())
 
 
+def _scale(mult: str | None) -> int:
+    """What a multiplier word means: thousands, or millions for «млн»."""
+    if not mult:
+        return 1
+    return _MILLION if re.fullmatch(_MILLION_WORD, mult, re.IGNORECASE) else _THOUSAND
+
+
 def _range(query: str) -> Budget | None:
     matches = (match for pattern in _RANGE_RES for match in pattern.finditer(query))
     for match in matches:
         mult = match["mult"]
         if not (mult or match["kzt"]) or (mult and mult.lower().startswith("штук")):
             continue
-        scale = _THOUSAND if mult else 1
+        scale = _scale(mult)
         low, high = _number(match["low"]) * scale, _number(match["high"]) * scale
         if low < high:
             return Budget(_cut(query, match), budget_max=high, budget_min=low)
@@ -85,13 +99,15 @@ def _range(query: str) -> Budget | None:
 def _amount_value(query: str, match: re.Match[str]) -> int | None:
     """The money a single amount means, or None when it is not money."""
     value, mult, prep = _number(match["n"]), match["mult"], (match["prep"] or "").strip().lower()
+    if match["post"]:
+        prep = "до"
     if mult:
         word = mult.lower()
         if word.startswith("штук") and not prep:
             return None
         if word in {"k", "к"}:
             return value * _THOUSAND if value >= _MIN_K_AMOUNT or prep in {"до", "за"} else None
-        return value * _THOUSAND
+        return value * _scale(mult)
     if match["kzt"]:
         return value
     if prep != "до" or _UNIT_RE.match(query, match.end()):

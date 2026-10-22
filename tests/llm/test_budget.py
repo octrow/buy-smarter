@@ -140,3 +140,20 @@ def test_a_model_or_size_number_before_до_is_not_a_range(query: str, budget: i
 
 def test_a_range_whose_ends_are_reversed_is_dropped() -> None:
     assert parse_budget("от 50 до 30 тыс").budget_min is None
+
+
+@pytest.mark.parametrize(
+    ("query", "budget", "phrase"),
+    [
+        ("құлаққап 15000 теңгеге дейін", 15_000, "құлаққап"),
+        ("20 мыңға дейін", 20_000, ""),
+        ("смартфон до 1 млн тенге", 1_000_000, "смартфон"),
+        ("ноутбук 1-2 млн", 2_000_000, "ноутбук"),
+    ],
+)
+def test_kazakh_forms_and_millions(query: str, budget: int, phrase: str) -> None:
+    """Decision 10 promised «мың» and «теңге»; «дейін» means «до»; «млн» is ×1 000 000."""
+    parsed = parse_budget(query)
+
+    assert parsed.budget_max == budget
+    assert parsed.text == phrase
