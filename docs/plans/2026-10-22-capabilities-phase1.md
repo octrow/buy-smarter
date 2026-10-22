@@ -135,7 +135,7 @@ stores не переносятся (они не ветки); у `reject` две 
 - [x] `grep -nE "\bis_smartphone_category\b|COMPOSITION_WEIGHTS|ingredient_ctx|kimovil_index|COMPOSITION_DRIVEN|required_substances|NoSubstanceMatch\(" src/buysmarter/services/recommend.py src/buysmarter/ranking/engine.py src/buysmarter/ranking/filters.py` — пусто (реэкспорт `NoSubstanceMatch` — строка импорта, не вызов).
 - [x] `grep -rn "capabilities" src/buysmarter/ranking` — пусто.
 - [x] `services/recommend.py` и `ranking/engine.py` короче 716 и 749 строк (579 и 708); ни один файл не больше 800 (самый большой — `services/matching.py`, 763 после OLX-правок main; `services/collect.py` 737).
-- [ ] Живой прогон: топ-5 и баллы по трём запросам совпадают (допуск 0.01; различия только из-за выдачи площадок — с объяснением).
+- [x] Живой прогон: топ-5 и баллы по трём запросам совпадают (допуск 0.01; различия только из-за выдачи площадок — с объяснением). 2026-10-22, kaspi+olx: топ-5, лучший выбор и баллы по осям совпали во всех трёх запросах (62, 88, 64). У крема «отсеяно» 8 против 9: Jev у порога релевантности то оставляет, то убирает один крем Bioderma без адапалена, на обеих версиях; затем его отсекает фильтр состава.
 - [x] Похожая категория не находится подстрокой; синонимы OLX пишутся в книгу владельца; сохранение не теряет ключи.
 - [x] Карта и зеркало описывают возможности; `tests/test_logic_map.py` зелёный.
 
@@ -175,7 +175,7 @@ stores не переносятся (они не ветки); у `reject` две 
   `_Run` и `_Pool` — по ревью.
 - Удалены мёртвые `store.get_brand_book`/`get_model_book`. Тесты оси и фильтра состава переехали в
   `tests/capabilities/test_composition_axis.py` и `test_composition_filter.py`; общие фейки — `tests/fakes.py`.
-- Шаг 13 (живой прогон) не делался — за владельцем.
+- Шаг 13 (живой прогон) сделал владелец, результат в «Готово, когда».
 
 ## Вне этого шага
 
