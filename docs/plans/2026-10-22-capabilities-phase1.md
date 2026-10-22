@@ -131,10 +131,10 @@ stores не переносятся (они не ветки); у `reject` две 
 ## Готово, когда
 
 - [x] Характеризационные тесты шага 1 (12 сценариев × 2) зелёные без правки ожидаемых значений (`tests/capabilities/characterization.json` не менялся с коммита шага 1).
-- [x] `QT_QPA_PLATFORM=offscreen uv run pytest -q` зелёный (1069 passed, 1 skipped); покрытие ≥ 90% (92.1%); `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run mypy src` чистые.
+- [x] `QT_QPA_PLATFORM=offscreen uv run pytest -q` зелёный (1073 passed, 1 skipped, после ребейза на main); покрытие ≥ 90% (92.0%); `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run mypy src` чистые.
 - [x] `grep -nE "\bis_smartphone_category\b|COMPOSITION_WEIGHTS|ingredient_ctx|kimovil_index|COMPOSITION_DRIVEN|required_substances|NoSubstanceMatch\(" src/buysmarter/services/recommend.py src/buysmarter/ranking/engine.py src/buysmarter/ranking/filters.py` — пусто (реэкспорт `NoSubstanceMatch` — строка импорта, не вызов).
 - [x] `grep -rn "capabilities" src/buysmarter/ranking` — пусто.
-- [x] `services/recommend.py` и `ranking/engine.py` короче 716 и 749 строк (579 и 708); ни один файл не больше 800 (самый большой — `services/collect.py`, 737; `services/matching.py` 732).
+- [x] `services/recommend.py` и `ranking/engine.py` короче 716 и 749 строк (579 и 708); ни один файл не больше 800 (самый большой — `services/matching.py`, 763 после OLX-правок main; `services/collect.py` 737).
 - [ ] Живой прогон: топ-5 и баллы по трём запросам совпадают (допуск 0.01; различия только из-за выдачи площадок — с объяснением).
 - [x] Похожая категория не находится подстрокой; синонимы OLX пишутся в книгу владельца; сохранение не теряет ключи.
 - [x] Карта и зеркало описывают возможности; `tests/test_logic_map.py` зелёный.
