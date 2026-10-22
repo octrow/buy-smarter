@@ -26,6 +26,27 @@ def test_the_query_names_the_audience_and_the_size() -> None:
     assert constraints.required_features == []
 
 
+def test_a_known_bare_size_leaves_the_apparel_search_phrase() -> None:
+    """Live 2026-10-22: «мужские кроссовки 42» kept "42" in the phrase, so the old
+    "мужские-кроссовки" record was never moved under "кроссовки"."""
+    parsed = QueryConstraints(search_phrase="мужские кроссовки 42", size="42")
+
+    constraints = _read("мужские кроссовки 42", parsed)
+
+    assert constraints.search_phrase == "мужские кроссовки"
+    assert constraints.size == "42"
+
+
+def test_a_bare_number_stays_without_a_known_size_or_outside_apparel() -> None:
+    assert _read("", QueryConstraints(search_phrase="кроссовки 42")).search_phrase == (
+        "кроссовки 42"
+    )
+    monitor = QueryConstraints(search_phrase="монитор 27", size="27")
+    assert _read("", monitor).search_phrase == "монитор 27"
+    shoes = QueryConstraints(search_phrase="кроссовки Nike Air 142", size="42")
+    assert _read("", shoes).search_phrase == "кроссовки Nike Air 142"
+
+
 def test_a_size_outside_apparel_is_a_spec_not_a_size() -> None:
     parsed = QueryConstraints(search_phrase="монитор размер 27", required_features=["размер 27"])
 

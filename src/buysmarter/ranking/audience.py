@@ -111,6 +111,12 @@ def strip_audience(text: str) -> str:
     return " ".join(text.split())
 
 
+def strip_named_size(text: str, size: str) -> str:
+    """``text`` without ``size`` as a separate token ("мужские кроссовки 42", size "42")."""
+    pattern = rf"(?<![\w.]){re.escape(size)}(?![\w]|[.,]\d)"
+    return " ".join(re.sub(pattern, " ", text, flags=re.IGNORECASE).split())
+
+
 def has_size(title: str, size: str) -> bool:
     """True when ``title`` names ``size`` as a separate token ("42" is not in "142")."""
     return (

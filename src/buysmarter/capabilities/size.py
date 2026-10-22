@@ -10,7 +10,14 @@ from typing import Any
 from buysmarter.capabilities.audience import query_text
 from buysmarter.capabilities.base import Capability, CapabilityContext
 from buysmarter.knowledge.profile import CapabilitySetting, ResolvedProfile
-from buysmarter.ranking.audience import has_size, is_apparel, is_size_phrase, query_size, strip_size
+from buysmarter.ranking.audience import (
+    has_size,
+    is_apparel,
+    is_size_phrase,
+    query_size,
+    strip_named_size,
+    strip_size,
+)
 from buysmarter.ranking.models import Candidate, QueryConstraints
 
 _SIZE_UNVERIFIED_CON = "размер {size}: наличие не проверено"
@@ -32,9 +39,14 @@ class Size(Capability):
         updates: dict[str, Any] = {}
         if constraints.size is None and (size := query_size(text)):
             updates["size"] = size
-        if query_size(constraints.search_phrase):
-            phrase = constraints.search_phrase
-            updates["search_phrase"] = strip_size(phrase) or phrase
+        phrase = constraints.search_phrase
+        if query_size(phrase):
+            phrase = strip_size(phrase) or phrase
+        # a bare "42" after an apparel word, once the size is known (the parser or the text)
+        if (size := updates.get("size") or constraints.size) and is_apparel(phrase):
+            phrase = strip_named_size(phrase, size) or phrase
+        if phrase != constraints.search_phrase:
+            updates["search_phrase"] = phrase
         features = [
             f for f in constraints.required_features if not (is_apparel(text) and is_size_phrase(f))
         ]

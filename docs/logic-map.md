@@ -138,7 +138,7 @@ Decides: final constraints before search.
 - Restricted goods: when the parse did not set `restricted`, a static whole-word list over the query flags alcohol, tobacco and vapes, weapons (not prescription medicines; "бокал для вина", "кальянный уголь", "травматолог…" are not flagged). The search still runs; `restricted_note` leads the report.
 - Every capability's `query` hook runs, before the profile is known (the profile key may fall back to the search phrase these hooks rewrite):
   - audience: "мужские", "детские" read from the query text by regex if the parser missed it, for any category;
-  - size: "42 размер", "XL" read out and removed from the search phrase; size phrases leave the required features for apparel.
+  - size: "42 размер", "XL" read out and removed from the search phrase; once the size is known, a bare "42" after an apparel word leaves it too ("мужские кроссовки 42" → "мужские кроссовки", so an old record of that name moves under "кроссовки"); size phrases leave the required features for apparel.
 - Features already implied by the search phrase are dropped ("TWS" in "TWS наушники").
 - Condition words (б/у, новый) are dropped: used goods are OLX's job. They set `condition`; "used" adds a report note pointing to the OLX section.
 Then CLI/API overrides apply: budget, trusted brands only.
