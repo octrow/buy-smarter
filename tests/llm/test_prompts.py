@@ -187,3 +187,12 @@ async def test_the_llm_budget_is_kept_when_it_has_one(monkeypatch) -> None:
     monkeypatch.setattr(prompts, "generate", _fake_generate)
 
     assert (await prompts.parse_query("кроссовки до 50 штук")).budget_max == 45_000
+
+
+@pytest.mark.parametrize("query", ["хочу до 20к", "до 50 тыс", "в Алматы до 10000"])
+def test_a_query_with_nothing_but_budget_and_filler_is_unclear(query: str) -> None:
+    """Review: the old fallback to the whole query searched Kaspi for «хочу»."""
+    parsed = prompts.parse_query_naive(query)
+
+    assert parsed.intent == "unclear"
+    assert parsed.search_phrase == ""

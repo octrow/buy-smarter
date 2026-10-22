@@ -188,7 +188,7 @@ def parse_query_naive(user_query: str) -> QueryConstraints:
     the parsed-request panel can flag it as such.
     """
     budget = parse_budget(user_query)
-    phrase = _extract_category(budget.text) or user_query.strip()
+    phrase = _extract_category(budget.text)  # nothing left == unclear, never the whole query
     return QueryConstraints(
         search_phrase=phrase,
         product_type=bare_product_type(phrase),
