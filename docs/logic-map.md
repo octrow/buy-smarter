@@ -116,7 +116,7 @@ Decides: whether the request is searched, or answered with a question (`NeedsCla
 In: the parse, the caller's `answer`, `clarify_round` (0, 1, 2) and `no_clarify`.
 - An `answer` equal to one of the parse's options narrows the request to it: intent product, search phrase and product type from the answer; budget, city and audience stay; no second parse. Any other answer is added to the query, which is parsed again.
 - Restricted goods are flagged here (see step 4), so a question carries the warning too.
-- Asks on: open with options, need with two or more options, multi with two or more products, service, unclear. Open or need without options and without a phrase count as unclear. A need with a phrase and no options ("шампунь от перхоти") is searched.
+- Asks on (blank options dropped first): open with options, need with two or more options, multi with two or more products, service, unclear. Open or need without options and without a phrase count as unclear. A need with a phrase and no options ("шампунь от перхоти") is searched.
 - Last round (2) or `no_clarify`: with options, the first one is searched and reported as `assumed` ("Искал: крем для рук"); without options, `NothingToSearch` (a `ValueError`) with the reason.
 - A capability's `clarify` hook asks after step 6 by the same rules; on the last round the search goes on without the parameter.
 `NeedsClarification` is not a `ValueError`: each entry catches it first. No LLM: the naive parse is always product (unclear without letters), so only capabilities can ask.

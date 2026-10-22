@@ -156,6 +156,17 @@ def test_the_last_round_without_options_has_nothing_to_search(intent: str) -> No
     assert not isinstance(NeedsClarification(Clarification(kind="open", question="?")), ValueError)
 
 
+def test_blank_options_are_never_offered_or_searched() -> None:
+    """Review: ["", "плед"] on the last round searched ""."""
+    settled, assumed = settle_request(
+        _parsed("open", ["", " ", "плед"]), clarify_round=2, no_clarify=False
+    )
+    assert (assumed, settled.search_phrase) == ("плед", "плед")
+    assert _asked(_parsed("open", ["", "плед"])).options == ["плед"]
+    blank_multi = _parsed("multi", ["", " "], search_phrase="коляска")
+    assert settle_request(blank_multi, clarify_round=0, no_clarify=False)[1] is None
+
+
 def test_a_restricted_open_request_carries_the_warning_into_the_question() -> None:
     question = _asked(_parsed("open", ["вино", "коньяк"], restricted="alcohol"))
 

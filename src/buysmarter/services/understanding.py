@@ -105,6 +105,11 @@ _NOTHING: dict[ClarifyKind, str] = {
 }
 
 
+def _options(c: QueryConstraints) -> list[str]:
+    """The parse's options without blanks: an empty one is never offered or searched."""
+    return [option.strip() for option in c.options if option.strip()]
+
+
 def _semantic_kind(c: QueryConstraints) -> ClarifyKind | None:
     """What the parse leaves to ask, or None when the search can go ahead."""
     if c.intent in ("service", "unclear"):
@@ -112,8 +117,8 @@ def _semantic_kind(c: QueryConstraints) -> ClarifyKind | None:
     if c.intent == "product":
         return None if c.search_phrase.strip() else "unclear"  # never search ""
     if c.intent == "open":
-        return "open" if c.options else "unclear"
-    if len(c.options) >= _MIN_CHOICE:
+        return "open" if _options(c) else "unclear"
+    if len(_options(c)) >= _MIN_CHOICE:
         return c.intent
     return None if c.search_phrase.strip() else "unclear"
 
@@ -161,7 +166,7 @@ def settle_request(
     kind = _semantic_kind(c)
     if kind is None:
         return c, None
-    options = c.options if kind in ("open", "need", "multi") else []
+    options = _options(c) if kind in ("open", "need", "multi") else []
     if _may_ask(clarify_round, no_clarify):
         _ask(
             c,
@@ -170,7 +175,7 @@ def settle_request(
             ),
         )
     if options:
-        return choose(c, options[0]), options[0].strip()
+        return choose(c, options[0]), options[0]
     raise NothingToSearch(_NOTHING.get(kind, _NOTHING["unclear"]))
 
 
