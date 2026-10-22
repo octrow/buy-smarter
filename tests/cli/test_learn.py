@@ -177,3 +177,21 @@ def test_learn_file_merges_with_the_own_record_not_a_parent(monkeypatch, tmp_pat
     assert raw["brand_book"]["tiers"] == {"Galderma": "A"}  # no CeraVe from the parent
     assert raw["parent"] == "косметика"
     assert "capabilities" not in raw and "category_type" not in raw  # still inherits
+
+
+def test_learn_file_fails_and_saves_nothing_on_truncated_json(monkeypatch, tmp_path) -> None:
+    import asyncio
+    import json
+
+    async def _truncated(category: str, notes: str):
+        return json.loads('{"models": [{"canonical": "Samsung Galaxy S24"')
+
+    monkeypatch.setattr(main, "extract_category_knowledge", _truncated)
+    notes = tmp_path / "notes.md"
+    notes.write_text("- Samsung Galaxy S24", encoding="utf-8")
+
+    result = runner.invoke(main.app, ["learn", str(notes), "--category", "смартфон"])
+
+    assert result.exit_code == 1
+    assert "Learning from file failed" in result.output
+    assert asyncio.run(get_stored_books("смартфон")) == (None, None)
