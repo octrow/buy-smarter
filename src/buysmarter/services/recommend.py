@@ -600,9 +600,11 @@ def _restore_min(
 
 
 def _log_drop_summary(dropped: list[Drop], restored: list[Candidate], kept_count: int) -> None:
-    """Log how many candidates were dropped and why (count per reason)."""
+    """Log how many candidates were dropped and why (count per reason), and each one restored."""
     if not dropped:
         return
+    for cand in restored:
+        logger.info("relevance: restore %r (to meet the floor)", cand.title)
     counts = Counter(reason for _, reason in dropped)
     breakdown = ", ".join(f"{reason}={n}" for reason, n in counts.most_common())
     logger.info(

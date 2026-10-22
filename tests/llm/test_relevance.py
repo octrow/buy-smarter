@@ -159,3 +159,18 @@ def test_marker_inside_word_does_not_match() -> None:
 
 def test_cyrillic_marker_inside_compound_still_matches() -> None:
     assert accessory_reason("ирригатор", "Микрофильтр Waterpik") is not None
+
+
+async def test_each_title_logs_its_score_against_the_threshold(monkeypatch, caplog) -> None:
+    async def _fake_system_one(state, questions):
+        return _answers(0.92, 0.031)
+
+    monkeypatch.setattr(rel, "system_one", _fake_system_one)
+
+    with caplog.at_level("INFO", logger=rel.__name__):
+        await filter_relevant("робот пылесос", ["Робот", "Батарея"], keep_threshold=0.55)
+
+    assert [r.getMessage() for r in caplog.records] == [
+        "relevance score: 0.920 keep threshold=0.55 category='робот пылесос' title='Робот'",
+        "relevance score: 0.031 drop threshold=0.55 category='робот пылесос' title='Батарея'",
+    ]

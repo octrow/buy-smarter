@@ -194,7 +194,24 @@ async def filter_relevant(
         answers = await system_one(
             {"category": category, "titles": titles}, relevance_questions(len(titles))
         )
-        return [answers[f"t{i}"]["noul"] >= keep_threshold for i in range(len(titles))]
+        scores = [answers[f"t{i}"]["noul"] for i in range(len(titles))]
+        flags = [score >= keep_threshold for score in scores]
     except (LlmError, LlmConfigError, KeyError, TypeError) as exc:
         logger.warning("relevance Jev call failed (%r); falling back to the LLM", exc)
         return await _filter_relevant_llm(category, titles)
+    _log_scores(category, titles, scores, keep_threshold)
+    return flags
+
+
+def _log_scores(category: str, titles: list[str], scores: list[float], threshold: float) -> None:
+    """One line per title: the labelled runs these build up are what the threshold is tuned on."""
+    for title, score in zip(titles, scores, strict=True):
+        verdict = "keep" if score >= threshold else "drop"
+        logger.info(
+            "relevance score: %.3f %s threshold=%.2f category=%r title=%r",
+            score,
+            verdict,
+            threshold,
+            category,
+            title,
+        )

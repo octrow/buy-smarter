@@ -71,3 +71,15 @@ async def test_never_drops_below_three(monkeypatch) -> None:
     assert len(kept) == 3
     restored_ratings = sorted((c.rating for c in kept), reverse=True)
     assert restored_ratings == [4.9, 4.7, 4.2]
+
+
+async def test_a_title_restored_to_meet_the_floor_is_logged(caplog) -> None:
+    pool = [_cand("1", "Аккумулятор для Dyson V8", rating=4.9), _cand("2", "Насадка для Dyson")]
+
+    with caplog.at_level("INFO", logger=svc.__name__):
+        kept = await svc._filter_relevant_candidates(
+            pool, "робот пылесос", use_llm=False, min_keep=1
+        )
+
+    assert [c.title for c in kept] == ["Аккумулятор для Dyson V8"]
+    assert "relevance: restore 'Аккумулятор для Dyson V8' (to meet the floor)" in caplog.messages
