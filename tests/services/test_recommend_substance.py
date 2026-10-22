@@ -98,7 +98,7 @@ def _patch_extraction(monkeypatch) -> None:
     monkeypatch.setattr(svc, "_no_llm_route", lambda: False)  # the fakes stand in for an LLM
 
 
-_CONSTRAINTS = QueryConstraints(category="крем с адапаленом", budget_max=20000)
+_CONSTRAINTS = QueryConstraints(search_phrase="крем с адапаленом", budget_max=20000)
 
 
 async def test_substance_searches_issued_with_equivalence_names(monkeypatch) -> None:
@@ -194,7 +194,7 @@ async def test_spec_driven_category_has_no_substance_recall(monkeypatch) -> None
         use_llm=False,
         source=stub,
         sources=["kaspi"],
-        parsed=QueryConstraints(category="ssd"),
+        parsed=QueryConstraints(search_phrase="ssd"),
         persist=False,
         with_review_summary=False,
     )

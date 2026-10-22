@@ -32,7 +32,9 @@ def test_sostav_text_prefers_composition_key() -> None:
 
 def test_required_substances_from_category_and_features() -> None:
     book = _book()
-    constraints = QueryConstraints(category="крем с адапаленом", required_features=["azelaic acid"])
+    constraints = QueryConstraints(
+        search_phrase="крем с адапаленом", required_features=["azelaic acid"]
+    )
     assert set(required_substances(book, constraints)) == {"адапален", "азелаиновая кислота"}
 
 

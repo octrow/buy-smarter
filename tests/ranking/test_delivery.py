@@ -124,7 +124,7 @@ def test_fast_delivery_becomes_a_pro_on_the_scored_candidate():
     fast = _candidate(delivery_date="2026-10-14", delivery_cost=0.0)
     slow = _candidate(delivery_date="2026-10-20", delivery_cost=1500.0)
 
-    constraints = QueryConstraints(category="ирригатор")
+    constraints = QueryConstraints(search_phrase="ирригатор")
     fast_scored = score(fast, constraints, market, today=TODAY)
     slow_scored = score(slow, constraints, market, today=TODAY)
 

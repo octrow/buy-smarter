@@ -781,7 +781,7 @@ async def _used_listings(
     """Matched listings, then notable ones; then cheaper no-name ones when there is a pick."""
     book, model_book, model_owner = knowledge
     model_book, display_labels = await canonicalize_used_titles(
-        constraints.category, model_owner, model_book, used_candidates, use_llm
+        constraints.search_phrase, model_owner, model_book, used_candidates, use_llm
     )
     used_listings = match_used_listings(refs, used_candidates, book, model_book, display_labels)
     matched_keys = {ul.url or ul.title for ul in used_listings}
@@ -790,11 +790,11 @@ async def _used_listings(
         book,
         constraints.budget_max,
         exclude=matched_keys,
-        category=constraints.category,
+        category=constraints.search_phrase,
     )
     if pick is None:
         return listings
     shown = {ul.url or ul.title for ul in listings}
     return listings + unbranded_used_listings(
-        used_candidates, book, pick, exclude=shown, category=constraints.category, refs=refs
+        used_candidates, book, pick, exclude=shown, category=constraints.search_phrase, refs=refs
     )

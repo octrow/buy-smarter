@@ -9,7 +9,7 @@ async def test_parse_query_passes_free_stack_model(monkeypatch) -> None:
 
     async def _fake_generate(prompt, response_model, *, model=None, **kwargs):
         captured["model"] = model
-        return QueryConstraints(category="irrigator", city="Almaty")
+        return QueryConstraints(search_phrase="irrigator", city="Almaty")
 
     monkeypatch.setattr(prompts, "generate", _fake_generate)
 
@@ -46,7 +46,7 @@ async def test_parse_query_prompt_reaches_generate_unmodified(monkeypatch) -> No
 
     async def _fake_generate(prompt, response_model, *, model=None, **kwargs):
         captured["prompt"] = prompt
-        return QueryConstraints(category="солнцезащитный крем", city=None)
+        return QueryConstraints(search_phrase="солнцезащитный крем", city=None)
 
     monkeypatch.setattr(prompts, "generate", _fake_generate)
 
@@ -81,7 +81,7 @@ async def test_parse_query_reads_the_new_fields(monkeypatch) -> None:
 
     assert parsed.intent == "multi"
     assert parsed.options == ["iPhone 15", "Samsung S24"]
-    assert parsed.category == "смартфон"
+    assert parsed.search_phrase == "смартфон"
 
 
 async def test_an_empty_llm_product_type_falls_back_to_the_naive_one(monkeypatch) -> None:

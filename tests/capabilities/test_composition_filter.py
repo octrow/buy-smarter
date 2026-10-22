@@ -31,12 +31,12 @@ def _cand(pid: str, *, detected=None, specs=None, price=5000, checked=True) -> C
 
 
 def _constraints() -> QueryConstraints:
-    return QueryConstraints(category="крем с адапаленом")
+    return QueryConstraints(search_phrase="крем с адапаленом")
 
 
 def _crem() -> QueryConstraints:
     """A composition query that names no substance."""
-    return QueryConstraints(category="крем")
+    return QueryConstraints(search_phrase="крем")
 
 
 def _axis(scored, name):

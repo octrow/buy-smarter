@@ -116,7 +116,7 @@ async def test_official_candidates_are_the_cheapest_in_budget_trusted_products(m
 
     candidates = await stores.official_candidates(
         _BOOK,
-        QueryConstraints(category="мужские кроссовки", budget_max=35_000),
+        QueryConstraints(search_phrase="мужские кроссовки", budget_max=35_000),
         lambda name: other_audience("male", name),
     )
 

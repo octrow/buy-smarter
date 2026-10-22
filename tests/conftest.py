@@ -205,5 +205,5 @@ def recommend_result():
         pros=["надёжный бренд"],
     )
     rec = Recommendation(best=scored, ranked=[scored])
-    constraints = QueryConstraints(category="ирригатор", city="Алматы", budget_max=40000)
+    constraints = QueryConstraints(search_phrase="ирригатор", city="Алматы", budget_max=40000)
     return RecommendResult(recommendation=rec, constraints=constraints)

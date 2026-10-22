@@ -43,7 +43,7 @@ def test_hard_filter_drops_other_audience_using_the_category_path_too():
         update={"source_product_id": "2", "category_path": ["Обувь", "Мужская обувь"]}
     )
 
-    constraints = QueryConstraints(category="мужские кроссовки", gender=MALE)
+    constraints = QueryConstraints(search_phrase="мужские кроссовки", gender=MALE)
     passed, rejected = apply_hard_filters([women, men], constraints, capability_hooks(constraints))
 
     assert passed == [men]

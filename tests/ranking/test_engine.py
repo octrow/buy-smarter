@@ -48,7 +48,7 @@ def _candidate(**overrides) -> Candidate:
 
 def _constraints(**overrides) -> QueryConstraints:
     defaults = dict(
-        category="irrigator",
+        search_phrase="irrigator",
         city="Almaty",
         budget_max=40_000,
         required_features=["IPX7"],
@@ -1358,7 +1358,7 @@ def test_concentration_feature_not_hard_filtered_when_substance_axis_active():
 
     cand = _candidate(title="Клензит гель адапален", specs={"Состав": "адапален"}, price=5_000)
     constraints = _constraints(
-        category="крем с адапаленом", required_features=["0,1%"], budget_max=10_000
+        search_phrase="крем с адапаленом", required_features=["0,1%"], budget_max=10_000
     )
 
     passed, _ = apply_hard_filters([cand], constraints, composition_hooks(constraints))

@@ -201,7 +201,7 @@ async def _spec_driven(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.Monkey
         spec_map={"k1": {"Тип": "вертикальный"}, "k3": {"Мощность": "1800 Вт"}},
         offer_map={"k1": [RawOffer(source="kaspi", product_id="k1", seller="Dyson", price=149000)]},
     )
-    constraints = QueryConstraints(category="пылесос", budget_max=200000, city="Алматы")
+    constraints = QueryConstraints(search_phrase="пылесос", budget_max=200000, city="Алматы")
     return await _run("пылесос до 200000", constraints, use_llm, source=kaspi)
 
 
@@ -236,7 +236,7 @@ async def _composition_extracted(
         },
         _MOISTURIZERS,
     )
-    constraints = QueryConstraints(category="крем с адапаленом", budget_max=20000)
+    constraints = QueryConstraints(search_phrase="крем с адапаленом", budget_max=20000)
     return await _run("крем с адапаленом", constraints, use_llm, source=kaspi)
 
 
@@ -256,7 +256,7 @@ async def _composition_no_match(
         {"адапален": empty, "Клензит": empty, "Дифферин": empty, "adapalene": empty},
         [*_MOISTURIZERS, _kp("gm", "Крем увлажняющий для лица", 3000, rating=4.1, review_count=7)],
     )
-    constraints = QueryConstraints(category="крем с адапаленом")
+    constraints = QueryConstraints(search_phrase="крем с адапаленом")
     return await _run("крем с адапаленом", constraints, use_llm, source=kaspi)
 
 
@@ -274,7 +274,7 @@ async def _composition_protected(
             _kp("cr", "Крем ночной восстанавливающий", 7000, rating=4.6, review_count=12),
         ],
     )
-    constraints = QueryConstraints(category="крем с адапаленом", budget_max=20000)
+    constraints = QueryConstraints(search_phrase="крем с адапаленом", budget_max=20000)
     return await _run("крем с адапаленом", constraints, use_llm, source=kaspi)
 
 
@@ -335,7 +335,7 @@ async def _smartphone(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyP
         ],
     )
     constraints = QueryConstraints(
-        category="смартфон", budget_max=400000, required_features=["120 Гц"]
+        search_phrase="смартфон", budget_max=400000, required_features=["120 Гц"]
     )
     return await _run("смартфон 120 Гц", constraints, use_llm, source=kaspi)
 
@@ -389,7 +389,9 @@ def _shoes_kaspi() -> FakeSource:
 async def _sneakers(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPatch) -> Any:
     await _store("мужские-кроссовки", brand_book=_SHOE_BRANDS, category_type="spec_driven")
     constraints = QueryConstraints(
-        category="мужские кроссовки 42 размер", budget_max=50000, required_features=["42 размер"]
+        search_phrase="мужские кроссовки 42 размер",
+        budget_max=50000,
+        required_features=["42 размер"],
     )
     return await _run(
         "мужские кроссовки 42 размер до 50000", constraints, use_llm, source=_shoes_kaspi()
@@ -408,7 +410,7 @@ async def _sneakers_olx(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.Monke
         ],
         spec_map={pid: _USED for pid in ("u1", "u2", "u3", "u4")},
     )
-    constraints = QueryConstraints(category="мужские кроссовки", budget_max=50000)
+    constraints = QueryConstraints(search_phrase="мужские кроссовки", budget_max=50000)
     return await _run(
         "мужские кроссовки до 50000",
         constraints,
@@ -438,7 +440,7 @@ async def _sneakers_official(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.
         official_stores={"Puma": "https://puma.kz/men"},
     )
     await _store("мужские-кроссовки", brand_book=book, category_type="spec_driven")
-    constraints = QueryConstraints(category="мужские кроссовки", budget_max=50000)
+    constraints = QueryConstraints(search_phrase="мужские кроссовки", budget_max=50000)
     return await _run("мужские кроссовки до 50000", constraints, use_llm, source=_shoes_kaspi())
 
 
@@ -500,7 +502,10 @@ async def _two_violations(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.Mon
         },
     )
     constraints = QueryConstraints(
-        category="наушники", budget_max=50000, required_features=["ANC"], excluded_brands=["JBL"]
+        search_phrase="наушники",
+        budget_max=50000,
+        required_features=["ANC"],
+        excluded_brands=["JBL"],
     )
     return await _run("наушники с ANC до 50000 без JBL", constraints, use_llm, source=kaspi)
 
@@ -528,7 +533,7 @@ async def _olx_only(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPat
         ],
         spec_map={pid: _USED for pid in ("u1", "u2", "u3")},
     )
-    constraints = QueryConstraints(category="робот пылесос", budget_max=30000)
+    constraints = QueryConstraints(search_phrase="робот пылесос", budget_max=30000)
     return await _run(
         "робот пылесос до 30000",
         constraints,
@@ -551,7 +556,7 @@ async def _concentration(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.Monk
         },
         _MOISTURIZERS,
     )
-    constraints = QueryConstraints(category="крем с адапаленом", required_features=["0,1%"])
+    constraints = QueryConstraints(search_phrase="крем с адапаленом", required_features=["0,1%"])
     return await _run("крем с адапаленом 0,1%", constraints, use_llm, source=kaspi)
 
 

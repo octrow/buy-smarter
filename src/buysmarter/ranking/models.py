@@ -7,10 +7,9 @@ engine output.
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
-from pydantic.json_schema import SkipJsonSchema
+from pydantic import BaseModel, Field
 
 Intent = Literal["product", "need", "open", "multi", "service", "unclear"]
 Restricted = Literal["rx", "alcohol", "tobacco", "weapon"]
@@ -19,12 +18,10 @@ Restricted = Literal["rx", "alcohol", "tobacco", "weapon"]
 class QueryConstraints(BaseModel):
     """Hard + soft constraints extracted from a user request (CONTEXT.md "Request intent").
 
-    ``search_phrase`` is what the marketplaces get, ``product_type`` the category profile
-    key without audience, size or theme. ``category`` is the old name of the search phrase,
-    kept equal to it until every reader moves (hidden from the LLM schema).
+    ``search_phrase`` is what the marketplaces get (and what substances are read from),
+    ``product_type`` the category profile key without audience, size or theme.
     """
 
-    category: SkipJsonSchema[str] = ""
     search_phrase: str = ""
     product_type: str = ""
     intent: Intent = "product"
@@ -52,15 +49,6 @@ class QueryConstraints(BaseModel):
     # Clothing/shoe size the user asked for ("42", "XL"). Marketplace cards do not
     # say which sizes are in stock, so it is reported as unverified, never filtered.
     size: str | None = None
-
-    @model_validator(mode="before")
-    @classmethod
-    def _one_phrase(cls, data: Any) -> Any:
-        """``category`` and ``search_phrase`` carry one value; the new name wins."""
-        if isinstance(data, dict):
-            phrase = data.get("search_phrase") or data.get("category") or ""
-            data = {**data, "search_phrase": phrase, "category": phrase}
-        return data
 
 
 class PriceHistory(BaseModel):

@@ -59,7 +59,7 @@ def test_score_adds_conflict_as_con_without_changing_total():
         max_review_count=0,
         pool_size=2,
     )
-    constraints = QueryConstraints(category="power bank")
+    constraints = QueryConstraints(search_phrase="power bank")
     base = Candidate(
         source="kaspi",
         source_product_id="1",

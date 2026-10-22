@@ -34,7 +34,7 @@ class Benchmark(Capability):
         """The profile decides when it names benchmark; else the phone-stem fallback."""
         if BENCHMARK in profile.capabilities:
             return profile.enabled(BENCHMARK)
-        if is_smartphone_category(constraints.category):
+        if is_smartphone_category(constraints.search_phrase):
             return CapabilitySetting(set_by="fallback")
         return None
 

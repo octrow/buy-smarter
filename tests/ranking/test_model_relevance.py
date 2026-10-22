@@ -39,13 +39,13 @@ def test_budget_numbers_are_not_model_tokens():
 
 
 def test_category_only_query_has_no_tokens_and_no_effect():
-    constraints = QueryConstraints(category="ирригатор")
+    constraints = QueryConstraints(search_phrase="ирригатор")
     scored = score(_candidate("Random irrigator"), constraints, _market())
     assert not any("другая модель" in c for c in scored.cons)
 
 
 def test_mismatched_model_applies_factor_and_con():
-    constraints = QueryConstraints(category="ирригатор")
+    constraints = QueryConstraints(search_phrase="ирригатор")
     base = score(_candidate("Mijia F300 irrigator"), constraints, _market())
     other = score(
         _candidate("Mijia F200 irrigator"),
@@ -71,7 +71,7 @@ def test_model_token_matches_specs_too():
 
 
 def test_rank_threads_query_into_scoring():
-    constraints = QueryConstraints(category="ирригатор")
+    constraints = QueryConstraints(search_phrase="ирригатор")
     candidates = [
         _candidate("Mijia F300 irrigator", source_product_id="a"),
         _candidate("Mijia F200 irrigator", source_product_id="b"),

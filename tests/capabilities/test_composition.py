@@ -8,7 +8,7 @@ from buysmarter.ranking.engine import rank
 from buysmarter.ranking.models import Candidate, QueryConstraints
 from tests.fakes import composition_profile
 
-_QUERY = QueryConstraints(category="крем с адапаленом", required_features=["0,1%"])
+_QUERY = QueryConstraints(search_phrase="крем с адапаленом", required_features=["0,1%"])
 
 
 def _cand(pid: str, title: str, **kw) -> Candidate:

@@ -133,7 +133,7 @@ def _constraints_md(result: RecommendResult) -> list[str]:
     lines = [
         "## Запрос",
         "",
-        f"- **Категория:** {c.category}",
+        f"- **Категория:** {c.search_phrase}",
         f"- **Город:** {c.city or '-'}{city_note}",
         f"- **Бюджет:** {budget_text(c)}",
     ]

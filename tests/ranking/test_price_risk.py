@@ -110,7 +110,7 @@ def test_sneaker_run_regression_genuine_puma_beats_the_fakes():
         ),
     ]
 
-    result = rank(pool, QueryConstraints(category="мужские кроссовки", budget_max=35_000))
+    result = rank(pool, QueryConstraints(search_phrase="мужские кроссовки", budget_max=35_000))
 
     assert result.best.candidate.source_product_id in {"20391612", "11931521"}
     winners = [result.best, *result.alternatives.values()]
@@ -127,7 +127,7 @@ def test_an_unnamed_listing_takes_no_role_while_named_products_compete():
         _sneaker("3", "Кроссовки Anta", 25_890, brand="Anta", brand_tier="B"),
     ]
 
-    result = rank(pool, QueryConstraints(category="мужские кроссовки"))
+    result = rank(pool, QueryConstraints(search_phrase="мужские кроссовки"))
 
     roles = [result.best, *result.alternatives.values()]
     assert all(s.candidate.source_product_id != "2" for s in roles)

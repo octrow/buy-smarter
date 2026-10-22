@@ -144,7 +144,6 @@ def choose(c: QueryConstraints, option: str) -> QueryConstraints:
         update={
             "intent": "product",
             "search_phrase": option,
-            "category": option,
             "product_type": bare_product_type(option),
             "options": [],
         }

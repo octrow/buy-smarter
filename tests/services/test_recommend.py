@@ -209,7 +209,7 @@ async def test_pipeline_produces_recommendation(stub_source: StubKaspiSource) ->
     # Naive parse extracted budget + city, rest became the category.
     assert result.constraints.budget_max == 40000
     assert result.constraints.city == "Almaty"
-    assert "ирригатор" in result.constraints.category
+    assert "ирригатор" in result.constraints.search_phrase
 
     rec = result.recommendation
     assert rec.best.total_score > 0
@@ -1340,7 +1340,7 @@ def test_category_implied_feature_dropped_from_required():
     from buysmarter.ranking.models import QueryConstraints
     from buysmarter.services.recommend import _apply_overrides
 
-    constraints = QueryConstraints(category="TWS наушники", required_features=["TWS", "IPX7"])
+    constraints = QueryConstraints(search_phrase="TWS наушники", required_features=["TWS", "IPX7"])
 
     result = _apply_overrides(constraints, None, None, False)
 
@@ -1351,7 +1351,7 @@ def test_non_category_features_kept_intact():
     from buysmarter.ranking.models import QueryConstraints
     from buysmarter.services.recommend import _apply_overrides
 
-    constraints = QueryConstraints(category="ирригатор", required_features=["IPX7"])
+    constraints = QueryConstraints(search_phrase="ирригатор", required_features=["IPX7"])
 
     result = _apply_overrides(constraints, "Алматы", 40_000, False)
 
@@ -1731,7 +1731,7 @@ def _ads(*prices: int) -> list[Candidate]:
 
 
 async def test_an_olx_ad_far_below_the_others_is_dropped_as_bait() -> None:
-    constraints = QueryConstraints(category="смартфон iPhone 13")
+    constraints = QueryConstraints(search_phrase="смартфон iPhone 13")
     ads = _ads(120_000, 125_000, 126_000, 130_000, 118_000, 35_000)
 
     kept = await _filter_used(ads, constraints, use_llm=False)
@@ -1740,7 +1740,7 @@ async def test_an_olx_ad_far_below_the_others_is_dropped_as_bait() -> None:
 
 
 async def test_too_few_olx_ads_for_a_median_keep_every_price() -> None:
-    constraints = QueryConstraints(category="смартфон iPhone 13")
+    constraints = QueryConstraints(search_phrase="смартфон iPhone 13")
 
     kept = await _filter_used(_ads(120_000, 125_000, 130_000, 35_000), constraints, use_llm=False)
 

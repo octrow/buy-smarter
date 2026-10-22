@@ -201,7 +201,7 @@ def test_form_values_and_saved_excluded_brands_reach_the_core(qtbot, runner, res
 
     async def parse(query, use_llm):
         parsed_for.append((query, use_llm))
-        return QueryConstraints(category="ирригатор", excluded_brands=["Noname"])
+        return QueryConstraints(search_phrase="ирригатор", excluded_brands=["Noname"])
 
     screen = SearchScreen(runner, recommend=_stub_recommend(result, calls), parse=parse)
     qtbot.addWidget(screen)

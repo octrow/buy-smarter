@@ -112,7 +112,7 @@ class IngredientContext(BaseModel):
 
 def required_substances(book: IngredientBook, constraints: QueryConstraints) -> list[str]:
     """Canonical substances the query targets (from category + required features)."""
-    text = " ".join([constraints.category, *constraints.required_features])
+    text = " ".join([constraints.search_phrase, *constraints.required_features])
     return book.resolve_in_text(text)
 
 
@@ -404,7 +404,7 @@ class Composition(Capability):
         """
         book, required = _book(ctx), _required(ctx)
         mark_title_substances(pool, book, required)
-        await extract_ingredients_into(pool, ctx.constraints.category, book, ctx.use_llm)
+        await extract_ingredients_into(pool, ctx.constraints.search_phrase, book, ctx.use_llm)
         if required and ctx.hard_filters is not None:
             guard_substance_pool(pool, required, ctx.hard_filters)
 

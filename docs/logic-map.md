@@ -56,7 +56,7 @@ A hook a capability does not implement is not called.
 | Capability | Level | Switched on by | Hooks it uses (steps) |
 |---|---|---|---|
 | audience | request | `constraints.gender`: the parser, or a regex over the query text (step 4) | `query` (4), `reject_listing` on the main pool, OLX ads and official-store offers (10, 14, 17) |
-| size | request | `constraints.size`: the parser, or a regex over the query text for apparel (step 4) | `query` (4: the size leaves the category and apparel features), `notes` (17: "size unverified") |
+| size | request | `constraints.size`: the parser, or a regex over the query text for apparel (step 4) | `query` (4: the size leaves the search phrase and apparel features), `notes` (17: "size unverified") |
 | benchmark | category | the profile; without a profile setting, a phone stem in the category's first word (`set_by: fallback`) | `enrich` (15: Kimovil specs and `benchmark_index`) |
 | composition | category | the profile: the composition capability with an ingredient book (old records: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, may stop the run), `prepare` + `axis` + `notes` (17), `section` (Output) |
 
@@ -106,9 +106,8 @@ In: query text. Out: `QueryConstraints`.
 Branches:
 - LLM: one call extracts all fields: intent (product, need, open, multi, service, unclear), `search_phrase` (what the marketplaces get), `product_type` (the profile key without audience, size or theme), `options` to choose from, `restricted`, `condition`, budget range and note. The phrase is forced into Russian; a named model stays in it ("смартфон iPhone 13"). An empty product type falls back to the naive one.
 - No LLM or LLM error: intent is product (unclear when the phrase has fewer than two letters); regex takes budget, city and condition (б/у, новый); the rest of the text becomes the search phrase, and the product type is that phrase without audience and size words; no required features on purpose.
-`category` is the old name of the search phrase: the model keeps both equal until every reader moves.
-Budget rules (no LLM): another currency ($, ₽, €) gives no budget, only a note; tenge, thousands slang ("тыс", "косарь", "мың", "штук" after "до/за") and "N k" from 10 up are money; a bare "до N" is money only without a unit after it (м, кг, лет, МЕ, Вт, шт...) and under 1000 means thousands; "30-40 тыс" is a range. The money words leave the category.
-The category string is the key for everything below: knowledge lookup, searches, relevance.
+Budget rules (no LLM): another currency ($, ₽, €) gives no budget, only a note; tenge, thousands slang ("тыс", "косарь", "мың", "штук" after "до/за") and "N k" from 10 up are money; a bare "до N" is money only without a unit after it (м, кг, лет, МЕ, Вт, шт...) and under 1000 means thousands; "30-40 тыс" is a range. The money words leave the search phrase.
+The search phrase drives searches, relevance and the substances read from the query; the product type keys the category profile (step 6). The old `category` field is gone from the parse; the HTTP API still shows it as a deprecated copy of the search phrase.
 Module: `llm/prompts`, `llm/budget`, `services/recommend`
 
 ### 2a. Clarify before searching
@@ -137,10 +136,10 @@ Module: `services/recommend`, `db/repo`
 
 Decides: final constraints before search.
 - Restricted goods: when the parse did not set `restricted`, a static whole-word list over the query flags alcohol, tobacco and vapes, weapons (not prescription medicines; "бокал для вина", "кальянный уголь", "травматолог…" are not flagged). The search still runs; `restricted_note` leads the report.
-- Every capability's `query` hook runs, before the profile is known (the profile key is the category these hooks may rewrite):
+- Every capability's `query` hook runs, before the profile is known (the profile key may fall back to the search phrase these hooks rewrite):
   - audience: "мужские", "детские" read from the query text by regex if the parser missed it, for any category;
-  - size: "42 размер", "XL" read out and removed from the category; size phrases leave the required features for apparel.
-- Features already implied by the category are dropped ("TWS" in "TWS наушники").
+  - size: "42 размер", "XL" read out and removed from the search phrase; size phrases leave the required features for apparel.
+- Features already implied by the search phrase are dropped ("TWS" in "TWS наушники").
 - Condition words (б/у, новый) are dropped: used goods are OLX's job. They set `condition`; "used" adds a report note pointing to the OLX section.
 Then CLI/API overrides apply: budget, trusted brands only.
 Module: `services/recommend`, `services/understanding`, `capabilities/flow`, `capabilities/audience`, `capabilities/size`, `ranking/audience`
@@ -178,7 +177,7 @@ Module: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `
 ### 7. Extra searches (capabilities)
 
 Decides: extra Kaspi searches the active capabilities ask for.
-Composition: the required active substances come from the category and required features, mapped to canonical names by the ingredient book; each substance gets searches by its name and its equivalent product names (at most 5).
+Composition: the required active substances come from the search phrase and required features, mapped to canonical names by the ingredient book; each substance gets searches by its name and its equivalent product names (at most 5).
 No capability asks → none.
 Module: `capabilities/composition`, `services/collect`
 
@@ -188,7 +187,7 @@ Decides: the raw pool.
 All sources run in parallel; one source failing returns nothing for it and the run continues.
 
 **Kaspi**
-- main search by category; plus a search without Latin jargon if the category has it;
+- main search by the search phrase; plus a search without Latin jargon if the phrase has it;
 - extra searches (step 7) first, then brand searches from the brand book (tier A first);
 - targeted hits are kept apart from the main search and are not cut by its card limit;
 - specs for every card except apparel variant cards (no spec page); seller offers for 8 cards, 4 targeted + 4 main, a pool short of its half leaves the rest to the other;
@@ -262,7 +261,7 @@ Module: `services/recommend`, `llm/relevance`
 ### 15. Benchmark (capability enrich)
 
 Decides: a performance index (feeds the specs axis) and model specs in Kaspi wording ("120 Гц").
-The benchmark capability is on by the profile, or by the fallback rule: the first word of the category contains a phone stem (смартфон, телефон, айфон, iphone, smartphone).
+The benchmark capability is on by the profile, or by the fallback rule: the first word of the search phrase contains a phone stem (смартфон, телефон, айфон, iphone, smartphone).
 Its provider today is Kimovil. RAM and storage are not copied: the listing may be another variant.
 The core averages `benchmark_index` into the specs axis without knowing its source.
 Cached; fails open.
@@ -342,7 +341,7 @@ Module: `services/review_pass`, `ranking/review_trust`, `ranking/review_requirem
 ### 20. Persist
 
 Decides: what the next run knows.
-Each Kaspi/Ozon product, its offers and one price snapshot are saved; the category is added to the tracked list for `refresh`.
+Each Kaspi/Ozon product, its offers and one price snapshot are saved; the search phrase is added to the tracked list for `refresh`.
 Always runs: no entry point passes `persist=False`; CLI `--no-save` skips only the markdown report.
 Runs only after a successful ranking: `NoSubstanceMatch` or "no candidates" skips it.
 The snapshot price is min(offers + card price); the candidate price is min(offers).

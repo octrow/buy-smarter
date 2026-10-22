@@ -180,7 +180,7 @@ async def test_an_alias_learned_under_an_inheriting_category_goes_to_the_parent(
     await svc.recommend(
         "ирригатор xiaomi",
         use_llm=True,
-        parsed=QueryConstraints(category="ирригатор xiaomi"),
+        parsed=QueryConstraints(search_phrase="ирригатор xiaomi"),
         sources=["kaspi", "olx"],
         source=FakeSource("kaspi", [new]),
         olx_source=FakeSource("olx", [ad], spec_map={"u1": {"condition": "Б/у"}}),

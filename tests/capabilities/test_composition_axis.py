@@ -35,7 +35,7 @@ def _cand(**overrides) -> Candidate:
 
 
 def _constraints(**overrides) -> QueryConstraints:
-    defaults = dict(category="крем с адапаленом", required_features=[])
+    defaults = dict(search_phrase="крем с адапаленом", required_features=[])
     defaults.update(overrides)
     return QueryConstraints(**defaults)
 
@@ -181,7 +181,7 @@ def test_single_member_group_has_no_equivalence_pro() -> None:
 
 def test_spec_driven_rank_has_no_ingredient_axis() -> None:
     cand = _cand(brand="Xiaomi", brand_tier="C", specs={"waterproof": "IPX7"})
-    rec = rank([cand], _constraints(category="ирригатор"))
+    rec = rank([cand], _constraints(search_phrase="ирригатор"))
     axis_names = {a.name for a in rec.best.axes}
     assert "ingredient" not in axis_names
     assert axis_names == {"brand", "price", "specs", "reviews", "popularity", "availability"}

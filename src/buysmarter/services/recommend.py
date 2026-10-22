@@ -216,7 +216,7 @@ async def _resolve_knowledge(constraints: QueryConstraints, use_llm: bool) -> Re
 
     Keyed by the product type; the search phrase may name an older record (``resolve_profile``).
     """
-    phrase = constraints.category
+    phrase = constraints.search_phrase
     category = constraints.product_type.strip() or phrase
     with stage("knowledge resolve"):
         profile = await resolve_profile(category, use_llm=use_llm, search_phrase=phrase)
@@ -302,7 +302,7 @@ async def _collect(run: _Run, active: dict[str, ProductSource]) -> _Pool:
     with stage("collect"):
         collected = await gather_sources(
             active,
-            constraints.category,
+            constraints.search_phrase,
             constraints.city,
             book,
             constraints.budget_max,
@@ -317,7 +317,7 @@ async def _collect(run: _Run, active: dict[str, ProductSource]) -> _Pool:
     with stage("relevance filter"):
         new_candidates = await _filter_relevant_candidates(
             new_candidates,
-            constraints.category,
+            constraints.search_phrase,
             run.use_llm,
             capabilities.protected(new_candidates),
         )
@@ -425,7 +425,7 @@ async def recommend(
             await aclose(src)
 
     if persist and pool.persist_rows:
-        await save_snapshots(pool.persist_rows, constraints.category)
+        await save_snapshots(pool.persist_rows, constraints.search_phrase)
     apply_cross_notes(recommendation, pool.notes)
     used_listings = await _used_listings(run, pool, recommendation)
     logger.info("stage %s took %.2fs", "total", time.perf_counter() - total_start)
@@ -463,7 +463,7 @@ async def _filter_used(
     if not used:
         return used
     relevant = await _filter_relevant_candidates(
-        used, constraints.category, use_llm, min_keep=0, keep_threshold=USED_KEEP_THRESHOLD
+        used, constraints.search_phrase, use_llm, min_keep=0, keep_threshold=USED_KEEP_THRESHOLD
     )
     return _drop_bait_prices(relevant)
 
@@ -527,7 +527,7 @@ def _word_tokens(text: str) -> list[str]:
 def _drop_category_implied_features(constraints: QueryConstraints) -> QueryConstraints:
     """Drop required features already covered by the category, and condition words.
 
-    The LLM parser turns "TWS наушники" into category="TWS наушники" +
+    The LLM parser turns "TWS наушники" into search_phrase="TWS наушники" +
     required_features=["TWS"] — but a category-defining jargon token is not a
     spec to string-match: Kaspi titles the same product "Наушники Huawei
     Freebuds SE 4" with no "TWS" anywhere, so the hard filter would reject
@@ -537,7 +537,7 @@ def _drop_category_implied_features(constraints: QueryConstraints) -> QueryConst
     hard requirements. A multi-word feature counts as covered when all its words
     are in the category ("iPhone 13" in "смартфон iPhone 13").
     """
-    category_tokens = set(_word_tokens(constraints.category))
+    category_tokens = set(_word_tokens(constraints.search_phrase))
     words = [f.strip().lower() for f in constraints.required_features]
     kept = [
         f

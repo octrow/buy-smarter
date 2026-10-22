@@ -13,8 +13,8 @@ from buysmarter.ranking.models import QueryConstraints
 
 
 def query_text(query: str, constraints: QueryConstraints) -> str:
-    """The text a request capability reads: the raw query, the category, the features."""
-    return " ".join([query, constraints.category, *constraints.required_features])
+    """The text a request capability reads: the raw query, the search phrase, the features."""
+    return " ".join([query, constraints.search_phrase, *constraints.required_features])
 
 
 class Audience(Capability):

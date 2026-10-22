@@ -27,14 +27,14 @@ class Size(Capability):
         return CapabilitySetting(set_by="fallback") if constraints.size else None
 
     def query(self, ctx: CapabilityContext, constraints: QueryConstraints) -> QueryConstraints:
-        """Size from the text, out of the category, and size phrases out of apparel features."""
+        """Size from the text, out of the search phrase; size phrases out of apparel features."""
         text = query_text(ctx.query, constraints)
         updates: dict[str, Any] = {}
         if constraints.size is None and (size := query_size(text)):
             updates["size"] = size
-        if query_size(constraints.category):
-            phrase = strip_size(constraints.category) or constraints.category
-            updates.update(category=phrase, search_phrase=phrase)
+        if query_size(constraints.search_phrase):
+            phrase = constraints.search_phrase
+            updates["search_phrase"] = strip_size(phrase) or phrase
         features = [
             f for f in constraints.required_features if not (is_apparel(text) and is_size_phrase(f))
         ]

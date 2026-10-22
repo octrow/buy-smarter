@@ -89,7 +89,7 @@ def _stub_result() -> RecommendResult:
         ranked=[scored],
         rejected_count=0,
     )
-    constraints = QueryConstraints(category="ирригатор", city="Алматы", budget_max=40000)
+    constraints = QueryConstraints(search_phrase="ирригатор", city="Алматы", budget_max=40000)
     return RecommendResult(recommendation=rec, constraints=constraints, used_listings=[])
 
 

@@ -95,8 +95,8 @@ def test_a_word_starting_like_rubles_is_not_a_currency() -> None:
 
 
 def test_naive_parse_reads_the_budget_and_keeps_units() -> None:
-    assert parse_query_naive("кроссовки до 50 штук").category == "кроссовки"
+    assert parse_query_naive("кроссовки до 50 штук").search_phrase == "кроссовки"
     assert parse_query_naive("кроссовки до 50 штук").budget_max == 50_000
     tree = parse_query_naive("ёлка до 1.8 м")
     assert tree.budget_max is None
-    assert tree.category == "ёлка 1.8 м"
+    assert tree.search_phrase == "ёлка 1.8 м"

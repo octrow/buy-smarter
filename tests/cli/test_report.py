@@ -54,7 +54,7 @@ def _result(n_ranked: int = 5) -> RecommendResult:
             canonical="Xiaomi Water Flosser 2 (MEO705)",
         )
     ]
-    constraints = QueryConstraints(category="ирригатор", city="Almaty", budget_max=40000)
+    constraints = QueryConstraints(search_phrase="ирригатор", city="Almaty", budget_max=40000)
     return RecommendResult(recommendation=rec, constraints=constraints, used_listings=used)
 
 

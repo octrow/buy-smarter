@@ -85,7 +85,7 @@ def open_offer(url: str | None) -> None:
 
 def constraints_line(c: QueryConstraints, city_defaulted: bool) -> str:
     city = f"{c.city or '—'}{' (по умолчанию)' if city_defaulted else ''}"
-    parts = [f"Категория: {c.category}", f"Город: {city}", f"Бюджет: {budget_text(c)}"]
+    parts = [f"Категория: {c.search_phrase}", f"Город: {city}", f"Бюджет: {budget_text(c)}"]
     if c.required_features:
         parts.append(f"Нужно: {', '.join(c.required_features)}")
     if c.excluded_brands:
@@ -309,7 +309,7 @@ class ReportScreen(QScrollArea):
 
     def _knowledge_banner(self, result: RecommendResult) -> QFrame:
         # Learned under the profile key, so the next search finds it (phase 2, decision 13).
-        category = result.constraints.product_type or result.constraints.category
+        category = result.constraints.product_type or result.constraints.search_phrase
         banner = QFrame()
         banner.setObjectName("banner")
         column = QVBoxLayout(banner)

@@ -58,7 +58,7 @@ async def test_every_hook_of_a_bare_capability_is_neutral() -> None:
     from buysmarter.ranking.models import Candidate, QueryConstraints, Recommendation
 
     bare = Capability()
-    constraints = QueryConstraints(category="ноутбук")
+    constraints = QueryConstraints(search_phrase="ноутбук")
     ctx = CapabilityContext(ResolvedProfile(slug="ноутбук"), constraints)
     cand = Candidate(source="kaspi", source_product_id="1", title="Ноутбук", price=1)
     pool = [cand]

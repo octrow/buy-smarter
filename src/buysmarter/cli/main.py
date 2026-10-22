@@ -95,7 +95,7 @@ _QUERY_HELP = 'Natural-language request, e.g. "нужен ирригатор, IP
 def _render_constraints(c: QueryConstraints, city_defaulted: bool = False) -> None:
     city_note = " (по умолчанию)" if city_defaulted else ""
     lines = [
-        f"[bold]Category:[/bold] {c.category}",
+        f"[bold]Category:[/bold] {c.search_phrase}",
         f"[bold]City:[/bold] {c.city or '-'}{city_note}",
         f"[bold]Budget:[/bold] {budget_text(c)}",
     ]
