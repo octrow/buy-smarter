@@ -38,7 +38,15 @@ class ActiveCapabilities:
 
     def __init__(self, constraints: QueryConstraints, items: Active) -> None:
         self.constraints = constraints
-        self.items = [(cap, replace(ctx, hard_filters=self.hard_filters)) for cap, ctx in items]
+        self.items = [
+            (cap, replace(ctx, hard_filters=self.hard_filters, reject_listing=self.reject_listing))
+            for cap, ctx in items
+        ]
+
+    @property
+    def drops_barred(self) -> bool:
+        """True when an active capability hides suspected fakes instead of flagging them."""
+        return any(cap.drops_barred for cap, _ in self.items)
 
     def _with(self, hook: str) -> Active:
         return [(cap, ctx) for cap, ctx in self.items if overrides(cap, hook)]
@@ -49,6 +57,10 @@ class ActiveCapabilities:
             if (asked := cap.clarify(ctx)) is not None:
                 return asked
         return None
+
+    async def candidates(self) -> list[Candidate]:
+        """Extra candidates every active capability brings (official stores)."""
+        return [c for cap, ctx in self._with("candidates") for c in await cap.candidates(ctx)]
 
     def searches(self) -> list[tuple[str, list[str]]]:
         """Every extra Kaspi search, as ``(query, title needles)``."""
@@ -145,6 +157,24 @@ def read_query(
             ctx = CapabilityContext(profile, constraints, use_llm=use_llm, query=query)
             constraints = cap.query(ctx, constraints)
     return constraints
+
+
+def pick_sources(
+    registry: dict[str, Capability],
+    profile: ResolvedProfile,
+    constraints: QueryConstraints,
+    selected: list[str],
+) -> list[str]:
+    """Every capability's ``sources`` hook, in registry order, switched on or not.
+
+    A switch that is off must still remove its source (the used market off drops OLX),
+    so this runs over the whole registry, like ``read_query``.
+    """
+    for cap in registry.values():
+        if overrides(cap, "sources"):
+            ctx = CapabilityContext(profile, constraints)
+            selected = cap.sources(ctx, selected)
+    return selected
 
 
 def activate(

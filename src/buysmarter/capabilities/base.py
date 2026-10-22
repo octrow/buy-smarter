@@ -28,6 +28,8 @@ class CapabilityContext:
 
     ``hard_filters`` is the core's own filter set, given to hooks that must know whether
     a pool would survive ranking (composition's "no product has the substance" check).
+    ``reject_listing`` is every active capability's listing check, for hooks that bring
+    their own listings (official-store offers).
     """
 
     profile: ResolvedProfile
@@ -36,6 +38,7 @@ class CapabilityContext:
     use_llm: bool = True
     query: str = ""
     hard_filters: HardFilters | None = None
+    reject_listing: Callable[[str], str | None] | None = None
 
 
 @dataclass(frozen=True)
@@ -59,6 +62,8 @@ class Capability:
 
     ``axis_name`` names the score axis the capability adds (``None`` == no axis), worth
     ``axis_weight``; ``weight_shifts`` move base axis weights (``capabilities.weights``).
+    ``drops_barred``: the core hides candidates barred from roles (suspected fakes) instead
+    of showing them with a warning.
     """
 
     name: ClassVar[str] = ""
@@ -68,6 +73,7 @@ class Capability:
     level: ClassVar[Literal["category", "request"]] = "category"
     axis_weight: ClassVar[float] = 0.0
     weight_shifts: ClassVar[dict[str, float]] = {}
+    drops_barred: ClassVar[bool] = False
 
     def label(self, params: dict[str, Any]) -> str:
         """The name shown to the user; a capability may add what its parameters say."""
@@ -82,6 +88,14 @@ class Capability:
     def query(self, ctx: CapabilityContext, constraints: QueryConstraints) -> QueryConstraints:
         """Read or rewrite the constraints after parsing, before any search (every capability)."""
         return constraints
+
+    def sources(self, ctx: CapabilityContext, selected: list[str]) -> list[str]:
+        """The marketplaces to query, after the profile (every capability, on or not)."""
+        return selected
+
+    async def candidates(self, ctx: CapabilityContext) -> list[Candidate]:
+        """Extra candidates from outside the marketplaces (official stores)."""
+        return []
 
     def searches(self, ctx: CapabilityContext) -> list[tuple[str, list[str]]]:
         """Extra Kaspi searches: ``(query, title needles)``; a hit must name a needle."""
