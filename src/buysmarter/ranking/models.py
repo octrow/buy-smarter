@@ -70,6 +70,9 @@ class Candidate(BaseModel):
     # any. Empty/None for spec-driven categories — the ingredient axis is skipped.
     detected_substances: list[str] = Field(default_factory=list)
     concentration: str | None = None
+    # The composition got an answer (extraction, or the title names the substance).
+    # False == not checked: a missing substance is then unknown, never proven absent.
+    ingredients_checked: bool = False
     # Known brand this title mimics without genuinely matching (counterfeit signal).
     mimic_brand: str | None = None
     # Pricier duplicate price / this price, when a same-product dedupe found a

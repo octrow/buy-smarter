@@ -194,9 +194,9 @@ async def _extract_ingredients_into(
     """Populate ``detected_substances`` + ``concentration`` on each candidate.
 
     One Jev request over the pool (LLM fallback, see ``llm/ingredients.py``);
-    detected names are mapped to the book's canonical substances. Fail-open — a
-    failure just leaves candidates with no ingredient data, so the axis scores
-    them as "absent" rather than breaking the run.
+    detected names are mapped to the book's canonical substances and added to
+    any the title already confirmed. Only a candidate that got an answer is marked
+    ``ingredients_checked``; a failure leaves the rest unchecked, never "absent".
     """
     if not use_llm or not candidates:
         return
@@ -206,8 +206,28 @@ async def _extract_ingredients_into(
         if det is None:
             continue
         canonicals = [book.canonical_for(s) or s for s in det.substances]
-        cand.detected_substances = list(dict.fromkeys(c for c in canonicals if c))
-        cand.concentration = det.concentration
+        found = [*cand.detected_substances, *canonicals]
+        cand.detected_substances = list(dict.fromkeys(c for c in found if c))
+        cand.concentration = det.concentration or cand.concentration
+        cand.ingredients_checked = True
+
+
+def _mark_title_substances(
+    candidates: list[Candidate], book: IngredientBook, required_substances: list[str]
+) -> None:
+    """A title naming a required substance (or its equivalent) checks it: detected, checked.
+
+    ponytail: plain substring match, so "без адапалена" counts too; add negation
+    handling if such titles show up in real runs.
+    """
+    for canonical in required_substances:
+        needles = [n.lower() for n in book.title_needles_for(canonical)]
+        for cand in candidates:
+            if not any(n in cand.title.lower() for n in needles):
+                continue
+            if canonical not in cand.detected_substances:
+                cand.detected_substances = [*cand.detected_substances, canonical]
+            cand.ingredients_checked = True
 
 
 def _required_substances(book: IngredientBook, constraints: QueryConstraints) -> list[str]:
@@ -353,6 +373,7 @@ async def _verify_substances(
     """Extract состав into the pool; True when the substance filter may bite."""
     if ingredient_book is None:
         return False
+    _mark_title_substances(deduped, ingredient_book, required_substances)
     await _extract_ingredients_into(deduped, constraints.category, ingredient_book, use_llm)
     # A required substance is a hard filter only once extraction actually
     # ran (use_llm) — otherwise absence is unknowable, not proven.
