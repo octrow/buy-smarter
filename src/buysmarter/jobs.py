@@ -14,14 +14,15 @@ from enum import StrEnum
 from functools import lru_cache
 from typing import Any, cast
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from redis.asyncio import Redis
 
 from buysmarter.config import get_settings
-from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
+from buysmarter.ranking.models import ScoredCandidate
 from buysmarter.services.collect import ALL_SOURCES
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import RecommendResult
+from buysmarter.services.understanding import MAX_ROUNDS, Clarification
 
 JOB_TTL_S = 24 * 3600
 DEDUPE_TTL_S = 15 * 60  # prices do not move within 15 minutes; a retry gets the same job
@@ -44,6 +45,52 @@ class RecommendRequest(BaseModel):
     trusted_only: bool = False
     use_llm: bool = Field(default=False, description="LLM query parsing; needs a provider key")
     top: int = Field(default=DEFAULT_TOP, ge=1, le=MAX_TOP)
+    answer: str | None = Field(
+        default=None,
+        max_length=MAX_QUERY_LEN,
+        description="The user's answer to the previous job's clarification: an option or own text",
+    )
+    clarify_round: int = Field(
+        default=0, ge=0, le=MAX_ROUNDS, description="0, then the previous job's round + 1"
+    )
+    no_clarify: bool = Field(default=False, description="Never ask: search the first option")
+
+
+class ParsedRequest(BaseModel):
+    """How the request was read, as the API shows it (a public copy of the internal parse)."""
+
+    category: str = Field(
+        default="",
+        description="Deprecated: the same as ``search_phrase``",
+        json_schema_extra={"deprecated": True},
+    )
+    search_phrase: str = ""
+    product_type: str = ""
+    intent: str = "product"
+    need: str | None = None
+    options: list[str] = Field(default_factory=list)
+    restricted: str | None = None
+    city: str | None = None
+    budget_max: int | None = None
+    budget_min: int | None = None
+    budget_note: str | None = None
+    condition: str | None = None
+    required_features: list[str] = Field(default_factory=list)
+    excluded_brands: list[str] = Field(default_factory=list)
+    preferred_marketplaces: list[str] = Field(default_factory=list)
+    usage_notes: str | None = None
+    trusted_brands_only: bool = False
+    gender: str | None = None
+    size: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _one_phrase(cls, data: Any) -> Any:
+        """A result stored before phase 2 has only ``category``."""
+        if isinstance(data, dict):
+            phrase = data.get("search_phrase") or data.get("category") or ""
+            data = {**data, "search_phrase": phrase, "category": phrase}
+        return data
 
 
 class Axis(BaseModel):
@@ -95,10 +142,23 @@ class RecommendOutcome(BaseModel):
     report_markdown: str
     best: Offer | None = None
     alternatives: dict[str, Offer] = Field(default_factory=dict)
-    constraints: QueryConstraints | None = None
+    constraints: ParsedRequest | None = None
     used_listings: list[UsedListing] = Field(default_factory=list)
     city_defaulted: bool = False
-    reason: str | None = Field(default=None, description="Why nothing was recommended (no_match)")
+    reason: str | None = Field(
+        default=None,
+        description="Why nothing was recommended (no_match); ``needs_clarification`` means "
+        "``clarification`` holds a question: ask the user, then post the request again with "
+        "``answer`` and ``clarify_round`` + 1",
+    )
+    clarification: Clarification | None = None
+    assumed: str | None = Field(
+        default=None, description="The option searched for the user on the last round"
+    )
+    restricted_note: str | None = Field(
+        default=None, description="Restricted goods: the warning to show before the results"
+    )
+    budget_note: str | None = Field(default=None, description="Why a named budget was not used")
     rejected_reasons: dict[str, int] = Field(
         default_factory=dict,
         description="no_match: why the new products failed the filters, reason -> count; "
@@ -112,9 +172,12 @@ class RecommendOutcome(BaseModel):
             report_markdown=report_markdown,
             best=Offer.from_scored(rec.best),
             alternatives={role: Offer.from_scored(s) for role, s in rec.alternatives.items()},
-            constraints=result.constraints,
+            constraints=ParsedRequest.model_validate(result.constraints.model_dump()),
             used_listings=result.used_listings,
             city_defaulted=result.city_defaulted,
+            assumed=result.assumed,
+            restricted_note=result.restricted_note,
+            budget_note=result.constraints.budget_note,
         )
 
 

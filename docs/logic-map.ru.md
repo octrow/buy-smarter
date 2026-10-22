@@ -76,8 +76,8 @@ Composition даёт ровно прежнюю таблицу (ингредие�
 |---|---|---|---|
 | CLI `recommend` | kaspi, ozon, olx | да | на терминале сначала спрашивает уточнение (номер или свой текст, следующий раунд), потом бюджет; без терминала вопрос — код выхода 3, «искать нечего» — 1; `--no-clarify` ищет первый вариант |
 | Десктоп GUI | выбирает пользователь | да | вызывает `recommend()` в процессе; добавляет исключённые бренды из настроек в разбор |
-| MCP `recommend` | kaspi, ozon, olx | **нет** (`parse_with_llm=False`) | передаёт `city or настройка or Алматы` как явный город: город из запроса игнорируется, `city_defaulted` всегда false |
-| HTTP API + воркер | `api_sources`, по умолчанию kaspi + olx (без Ozon) | **нет** (`use_llm=False`) | очередь в Redis, таймаут на задачу, дедупликация запросов |
+| MCP `recommend` | kaspi, ozon, olx | **нет** (`parse_with_llm=False`) | передаёт `city or настройка or Алматы` как явный город: город из запроса игнорируется, `city_defaulted` всегда false; уточнение возвращается markdown с просьбой к хосту спросить человека и вызвать снова с `answer` и `clarify_round` + 1 |
+| HTTP API + воркер | `api_sources`, по умолчанию kaspi + olx (без Ozon) | **нет** (`use_llm=False`) | очередь в Redis, таймаут на задачу, дедупликация запросов; уточнение — `no_match` с `reason="needs_clarification"` и `clarification`, клиент шлёт запрос снова с `answer` и `clarify_round` + 1; `constraints` — публичная `ParsedRequest` (`category` сохранён, устаревший) |
 | прямой вызов | только kaspi | да | для тестов |
 
 Модули: `cli/main`, `cli/clarify`, `gui/screens/search`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`

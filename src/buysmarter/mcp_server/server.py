@@ -18,6 +18,7 @@ from market_sources.base import ProductSource, RawProduct
 from market_sources.cities import kaspi_city_id, olx_city_id
 
 from buysmarter.cli.report import (
+    render_clarification_markdown,
     render_markdown,
     render_no_new_pick_markdown,
     render_no_substance_markdown,
@@ -27,6 +28,7 @@ from buysmarter.memory import prefs
 from buysmarter.services.collect import ALL_SOURCES, resolve_sources, select_sources
 from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch
 from buysmarter.services.recommend import recommend as run_recommend
+from buysmarter.services.understanding import Clarification, NeedsClarification
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +87,9 @@ async def recommend(
     trusted_only: bool = False,
     top: int = 8,
     parse_with_llm: bool = False,
+    answer: str | None = None,
+    clarify_round: int = 0,
+    no_clarify: bool = False,
 ) -> str:
     """Recommend the best product for a shopping need, with an explained ranking.
 
@@ -109,6 +114,16 @@ async def recommend(
         parse_with_llm: Leave ``False`` — you (the MCP client) already pass
             structured city/budget, so the fast naive parser is used. Set
             ``True`` only to force server-side LLM parsing of ``query``.
+        answer: The human's answer to a clarification this tool returned: one of
+            its options verbatim, or their own words.
+        clarify_round: 0 at first; the returned clarification says which to pass next.
+        no_clarify: Never ask back: search the first option of an ambiguous request.
+
+    Clarify open requests yourself before calling ("подарок для мамы" → ask what kind of
+    gift and pass a concrete product). Without ``parse_with_llm`` only an unreadable query
+    and restricted goods (a warning, never a refusal) are detected here. When the tool
+    returns a clarification, ask the human and call again with ``answer`` and
+    ``clarify_round`` as it says.
     """
     resolved_city = city or await prefs.get("city") or _DEFAULT_CITY
     try:
@@ -123,7 +138,12 @@ async def recommend(
             use_llm=parse_with_llm,
             trusted_only=trusted_only,
             sources=selected,
+            answer=answer,
+            clarify_round=clarify_round,
+            no_clarify=no_clarify,
         )
+    except NeedsClarification as exc:
+        return _clarification_markdown(exc.clarification)
     except NoSubstanceMatch as exc:
         return render_no_substance_markdown(exc)
     except NoNewPick as exc:
@@ -131,6 +151,15 @@ async def recommend(
     except ValueError as exc:
         return f"No recommendation: {exc}"
     return render_markdown(result, max(top, 1))
+
+
+def _clarification_markdown(clarification: Clarification) -> str:
+    """The question for the host to put to the human, and how to call back."""
+    return (
+        render_clarification_markdown(clarification)
+        + "\nAsk the human this question, then call `recommend` again with the same query, "
+        + f"`answer` = their choice or words, `clarify_round={clarification.round + 1}`.\n"
+    )
 
 
 @mcp.tool

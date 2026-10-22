@@ -2,8 +2,18 @@
 
 import pytest
 from fakeredis import FakeAsyncRedis
+from pydantic import ValidationError
 
-from buysmarter.jobs import JobStatus, JobStore, RecommendRequest, dedupe_key, rate_limit
+from buysmarter.jobs import (
+    TERMINAL,
+    JobStatus,
+    JobStore,
+    ParsedRequest,
+    RecommendOutcome,
+    RecommendRequest,
+    dedupe_key,
+    rate_limit,
+)
 
 
 @pytest.fixture
@@ -87,3 +97,50 @@ async def test_rate_limit_allows_up_to_the_limit_then_says_when_to_retry(store) 
     assert results[:3] == [None, None, None]
     assert 0 < results[3] <= 600
     assert await rate_limit(store.redis, "5.6.7.8", limit=3, window_s=600) is None
+
+
+def test_a_stored_outcome_from_before_phase_2_still_validates() -> None:
+    """Results live in Redis for 24 h: one written by the previous version must still load."""
+    stored = {
+        "report_markdown": "# buy-smarter: рекомендация",
+        "constraints": {"category": "ирригатор", "city": "Алматы", "budget_max": 40000},
+        "city_defaulted": False,
+    }
+
+    outcome = RecommendOutcome.model_validate(stored)
+
+    assert outcome.constraints is not None
+    assert outcome.constraints.category == outcome.constraints.search_phrase == "ирригатор"
+    assert outcome.constraints.intent == "product"
+    assert outcome.clarification is None and outcome.assumed is None
+
+
+def test_the_outcome_carries_the_new_parse_fields_and_notes(recommend_result) -> None:
+    constraints = recommend_result.constraints.model_copy(
+        update={"product_type": "ирригатор", "budget_note": "бюджет в другой валюте не учтён"}
+    )
+    result = recommend_result.model_copy(
+        update={
+            "constraints": constraints,
+            "assumed": "ирригатор",
+            "restricted_note": "Алкоголь: ...",
+        }
+    )
+
+    outcome = RecommendOutcome.from_result(result, "# report")
+
+    assert isinstance(outcome.constraints, ParsedRequest)
+    assert outcome.constraints.product_type == "ирригатор"
+    assert outcome.constraints.category == constraints.search_phrase
+    assert outcome.assumed == "ирригатор"
+    assert outcome.restricted_note == "Алкоголь: ..."
+    assert outcome.budget_note == "бюджет в другой валюте не учтён"
+
+
+def test_still_three_terminal_statuses() -> None:
+    assert {s.value for s in TERMINAL} == {"done", "no_match", "failed"}
+
+
+def test_clarify_round_is_bounded() -> None:
+    with pytest.raises(ValidationError):
+        RecommendRequest(query="подарок", clarify_round=3)

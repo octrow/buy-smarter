@@ -10,6 +10,7 @@ from buysmarter import worker
 from buysmarter.jobs import JobStatus, JobStore, RecommendRequest
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch
+from buysmarter.services.understanding import Clarification, NeedsClarification, NothingToSearch
 
 
 @pytest.fixture
@@ -59,8 +60,47 @@ async def test_done_job_carries_the_report_and_the_best_offer(
             "use_llm": False,
             "trusted_only": False,
             "sources": ["kaspi"],
+            "answer": None,
+            "clarify_round": 0,
+            "no_clarify": False,
         }
     ]
+
+
+async def test_a_question_is_a_no_match_with_the_clarification(store, monkeypatch) -> None:
+    """No new status: clients that wait for done/no_match/failed keep working."""
+    asked = Clarification(
+        kind="open", question="Что именно ищем?", options=["духи", "плед"], round=1
+    )
+
+    async def ask():
+        raise NeedsClarification(asked)
+
+    calls = _pipeline(monkeypatch, ask)
+    job_id = await _queued(store, answer="подарок", clarify_round=1, no_clarify=False)
+
+    await worker.run_job(store, job_id)
+    job = await store.get(job_id)
+
+    assert job.status is JobStatus.NO_MATCH
+    assert job.result["reason"] == "needs_clarification"
+    assert job.result["clarification"]["options"] == ["духи", "плед"]
+    assert "Что именно ищем?" in job.result["report_markdown"]
+    assert (calls[0]["answer"], calls[0]["clarify_round"]) == ("подарок", 1)
+
+
+async def test_nothing_to_search_is_a_no_match_with_its_reason(store, monkeypatch) -> None:
+    async def service():
+        raise NothingToSearch("Это услуга, а не товар.")
+
+    _pipeline(monkeypatch, service)
+    job_id = await _queued(store)
+
+    await worker.run_job(store, job_id)
+    job = await store.get(job_id)
+
+    assert job.status is JobStatus.NO_MATCH
+    assert job.result["reason"] == "Это услуга, а не товар."
 
 
 async def test_missing_substance_is_a_no_match_with_its_own_report(store, monkeypatch) -> None:

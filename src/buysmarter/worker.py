@@ -24,6 +24,7 @@ except ModuleNotFoundError as exc:
 from buysmarter import logsetup, telemetry
 from buysmarter.cli.report import (
     REPORT_TITLE,
+    render_clarification_markdown,
     render_markdown,
     render_no_new_pick_markdown,
     render_no_substance_markdown,
@@ -31,6 +32,10 @@ from buysmarter.cli.report import (
 from buysmarter.config import get_settings
 from buysmarter.jobs import Job, JobStatus, JobStore, RecommendOutcome, get_redis
 from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, recommend
+from buysmarter.services.understanding import NeedsClarification
+
+# ``RecommendOutcome.reason`` of a job that stopped at a question.
+NEEDS_CLARIFICATION = "needs_clarification"
 
 logger = logging.getLogger(__name__)
 
@@ -116,9 +121,19 @@ async def _execute(job: Job) -> tuple[JobStatus, dict[str, Any] | None, str | No
                 use_llm=req.use_llm,
                 trusted_only=req.trusted_only,
                 sources=req.sources,
+                answer=req.answer,
+                clarify_round=req.clarify_round,
+                no_clarify=req.no_clarify,
             ),
             timeout_s,
         )
+    except NeedsClarification as exc:  # not a ValueError: a question, not "nothing found"
+        outcome = RecommendOutcome(
+            report_markdown=render_clarification_markdown(exc.clarification),
+            reason=NEEDS_CLARIFICATION,
+            clarification=exc.clarification,
+        )
+        return JobStatus.NO_MATCH, outcome.model_dump(mode="json"), None
     except NoSubstanceMatch as exc:
         outcome = RecommendOutcome(
             report_markdown=render_no_substance_markdown(exc), reason=exc.message()

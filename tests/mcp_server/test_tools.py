@@ -15,6 +15,7 @@ from buysmarter.ranking.models import (
 )
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoNewPick, RecommendResult
+from buysmarter.services.understanding import Clarification, NeedsClarification
 
 _EXPECTED_TOOLS = {
     "recommend",
@@ -49,6 +50,9 @@ async def test_recommend_signature_matches_contract() -> None:
         "trusted_only",
         "top",
         "parse_with_llm",
+        "answer",
+        "clarify_round",
+        "no_clarify",
     }
     # LLM parsing must default OFF (the MCP client is the conversational brain).
     assert params["parse_with_llm"].default is False
@@ -103,6 +107,26 @@ async def test_recommend_tool_returns_markdown_with_sections(monkeypatch) -> Non
     assert "# buy-smarter: рекомендация" in out
     assert "## Лучший выбор" in out
     assert "Waterpik WP-100" in out
+
+
+async def test_recommend_tool_asks_the_host_to_ask_the_human(monkeypatch) -> None:
+    asked = Clarification(
+        kind="multi", question="С чего начнём?", options=["iPhone 15", "S24"], round=1
+    )
+    seen: dict = {}
+
+    async def ask(query, **kwargs):
+        seen.update(kwargs)
+        raise NeedsClarification(asked)
+
+    monkeypatch.setattr(server, "run_recommend", ask)
+
+    tool = await _get_tool("recommend")
+    out = await tool.fn("iPhone 15 или S24", city="Алматы", answer="iPhone", clarify_round=1)
+
+    assert "С чего начнём?" in out and "1. iPhone 15" in out
+    assert "answer" in out and "clarify_round=2" in out
+    assert (seen["answer"], seen["clarify_round"], seen["no_clarify"]) == ("iPhone", 1, False)
 
 
 async def test_recommend_tool_reports_value_error_gracefully(monkeypatch) -> None:

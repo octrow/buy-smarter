@@ -30,6 +30,7 @@ from buysmarter.ranking.models import Candidate, QueryConstraints
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, RecommendResult
+from buysmarter.services.understanding import Clarification
 
 __all__ = ["ROLE_LABELS"]  # re-exported for the console renderer
 REPORT_TITLE = "# buy-smarter: рекомендация"
@@ -313,6 +314,17 @@ def render_markdown(result: RecommendResult, top: int = 8) -> str:
         if reasons:
             parts += [f"_Отсеяно: {format_rejected_reasons(reasons)}_"]
     return "\n".join(parts) + "\n"
+
+
+def render_clarification_markdown(clarification: Clarification) -> str:
+    """A question instead of a ranking: the warning, the question, the numbered options."""
+    lines = [REPORT_TITLE, ""]
+    if clarification.restricted_note:
+        lines += [f"> ⚠ {clarification.restricted_note}", ""]
+    lines.append(clarification.question)
+    if clarification.options:
+        lines += ["", *(f"{n}. {o}" for n, o in enumerate(clarification.options, 1))]
+    return "\n".join(lines) + "\n"
 
 
 def render_no_substance_markdown(exc: NoSubstanceMatch) -> str:
