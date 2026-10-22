@@ -1,7 +1,7 @@
 """Repo tests on the suite's tmp SQLite store (tests/conftest.py), emptied per test."""
 
 import pytest
-from market_sources.base import RawProduct
+from market_sources.base import RawProduct, RawReview
 from sqlalchemy import text
 
 from buysmarter.db import repo
@@ -119,3 +119,33 @@ async def test_set_preferences_keeps_none_of_them_when_one_cannot_be_stored(sess
         await repo.set_preferences(session, {"city": "Astana", "budget": object()})
     await session.rollback()
     assert await repo.get_all_preferences(session) == {}
+
+
+async def test_reviews_are_stored_for_their_product(session) -> None:
+    product = await repo.upsert_product(
+        session, RawProduct(source="kaspi", product_id="rev-1", title="Irrigator")
+    )
+    raws = [
+        RawReview(source="kaspi", product_id="rev-1", author="Айгуль", rating=5, text="ok"),
+        RawReview(source="kaspi", product_id="rev-1", rating=2, created_at="2026-10-01"),
+    ]
+
+    stored = await repo.add_reviews(session, product.id, raws)
+
+    assert [(r.product_id, r.author, r.rating, r.date) for r in stored] == [
+        (product.id, "Айгуль", 5, None),
+        (product.id, None, 2, "2026-10-01"),
+    ]
+
+
+async def test_review_count_history_skips_unknown_counts_oldest_first(session) -> None:
+    product = await repo.upsert_product(
+        session, RawProduct(source="kaspi", product_id="rc-1", title="Irrigator")
+    )
+    for count in (10, None, 25):
+        await repo.add_price_snapshot(session, product.id, 9_000, 1, review_count=count)
+
+    history = await repo.review_count_history(session, product.id)
+
+    assert [count for _, count in history] == [10, 25]
+    assert history[0][0] <= history[1][0]
