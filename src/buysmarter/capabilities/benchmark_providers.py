@@ -34,12 +34,16 @@ _PREPOSITIONS = frozenset({"для", "на", "к", "под", "от", "с"})
 _PHONE_WORDS = frozenset({"смартфон", "смартфоны", "телефон", "телефоны", "smartphone"})
 # A brand line names a phone only as the first word: "чехол на iPhone 15" is a case.
 _PHONE_FIRST_WORDS = frozenset({"iphone", "айфон", "айфоны"})
+# Phones Kimovil does not rank: push-button and landline ones.
+_NOT_SMARTPHONES = frozenset({"кнопочный", "стационарный"})
 
 
 def is_phone_type(product_type: str) -> bool:
     """A phone itself, judged without an LLM by the words before the first preposition."""
     words = re.findall(r"[\w-]+", product_type.lower())
-    head = takewhile(lambda word: word not in _PREPOSITIONS, words)
+    head = list(takewhile(lambda word: word not in _PREPOSITIONS, words))
+    if _NOT_SMARTPHONES.intersection(head):
+        return False
     return bool(words) and (words[0] in _PHONE_FIRST_WORDS or any(w in _PHONE_WORDS for w in head))
 
 

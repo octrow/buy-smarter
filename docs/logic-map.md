@@ -262,7 +262,7 @@ Module: `services/recommend`, `llm/relevance`
 ### 15. Benchmark (capability enrich)
 
 Decides: a performance index (feeds the specs axis) and model specs in Kaspi wording ("120 Гц").
-The benchmark capability is on only with a provider (`capabilities/benchmark_providers`; today only Kimovil). The profile names it (with the provider as a parameter, or the rule picks one), else the rule alone, over the product type (the search phrase when the parse gave none): смартфон(ы), телефон(ы) or smartphone as a whole word before the first preposition (для, на, к, под, от, с), or iphone/айфон as the first word. "мобильный телефон" → yes; "чехол для телефона", "держатель телефона", "радиотелефон", "телефонный кабель" → no. RAM and storage are not copied: the listing may be another variant.
+The benchmark capability is on only with a provider (`capabilities/benchmark_providers`; today only Kimovil). The profile names it (with the provider as a parameter, or the rule picks one), else the rule alone, over the product type (the search phrase when the parse gave none): смартфон(ы), телефон(ы) or smartphone as a whole word before the first preposition (для, на, к, под, от, с), or iphone/айфон as the first word. "мобильный телефон" → yes; "чехол для телефона", "держатель телефона", "радиотелефон", "телефонный кабель", "кнопочный телефон", "стационарный телефон" → no. RAM and storage are not copied: the listing may be another variant.
 The core averages `benchmark_index` into the specs axis without knowing its source.
 Cached; fails open.
 Module: `capabilities/benchmark`, `capabilities/benchmark_providers`, `services/phone_specs`
