@@ -182,6 +182,8 @@ class SearchScreen(QWidget):
         self._list_reports = list_reports
         self._query_action: QAction | None = None
         self._asked: Clarification | None = None
+        # The answer and round the last search ran with, for ``rerun``.
+        self._last_rounds: tuple[str | None, int] = (None, 0)
         self._build()
 
     def _build(self) -> None:
@@ -376,6 +378,10 @@ class SearchScreen(QWidget):
         """A new search from the form: any earlier question is dropped."""
         self._launch()
 
+    def rerun(self) -> None:
+        """The last search again with its answer and round (after learning a category)."""
+        self._launch(*self._last_rounds)
+
     def _answer(self, reply: str) -> None:
         """The user answered the question: an option goes back as ``answer``, own text
         joins the query; either way the next round runs."""
@@ -409,6 +415,7 @@ class SearchScreen(QWidget):
         self._asked = None
         self._set_running(True)
         self._run = SearchRun(query, self.use_llm.isChecked(), self._states)
+        self._last_rounds = (answer, clarify_round)
         rounds: dict[str, Any] = {"answer": answer} if answer is not None else {}
         if clarify_round:
             rounds["clarify_round"] = clarify_round

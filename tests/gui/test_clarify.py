@@ -155,3 +155,24 @@ def test_learning_a_category_learns_the_product_type(qtbot, runner, result) -> N
 
     screen.learn_button.click()
     qtbot.waitUntil(lambda: learned == ["кроссовки"], timeout=WAIT_MS)
+
+
+def test_a_rerun_after_learning_keeps_the_answer_and_the_round(qtbot, runner, result) -> None:
+    """Review: «Изучить категорию» then a rerun asked the answered question again."""
+    from buysmarter.gui import app as gui_app
+
+    calls: list = []
+    window = gui_app.MainWindow(runner)
+    qtbot.addWidget(window)
+    window.search._recommend = _asks_once(result, calls)
+    window.search.query.setText("подарок маме")
+    window.search.start()
+    qtbot.waitUntil(lambda: window.search.clarify.isVisibleTo(window.search), timeout=WAIT_MS)
+    with qtbot.waitSignal(window.search.report_ready, timeout=WAIT_MS):
+        window.search.clarify.option_buttons[0].click()
+
+    with qtbot.waitSignal(window.search.report_ready, timeout=WAIT_MS):
+        window.report.rerun_requested.emit()
+
+    _query, kwargs = calls[2]
+    assert (kwargs["answer"], kwargs["clarify_round"]) == ("духи", 1)

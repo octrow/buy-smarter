@@ -226,9 +226,9 @@ class MainWindow(QMainWindow):
         event.accept()
 
     def _rerun(self) -> None:
-        """Search again with the form as it was (after learning the category)."""
+        """Search again as the last search ran: the form, its answer and round (after learning)."""
         self._show_screen(self.search)
-        self.search.start()
+        self.search.rerun()
 
 
 def _nav_header(title: str) -> QListWidgetItem:
