@@ -27,6 +27,7 @@ class Benchmark(Capability):
     """Kimovil's index and model specs for phones."""
 
     name = BENCHMARK
+    title = "Бенчмарк"
 
     def setting(
         self, profile: ResolvedProfile, constraints: QueryConstraints

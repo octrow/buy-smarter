@@ -27,6 +27,8 @@ class Size(Capability):
     """Read the size out of the query; flag listings that do not name it."""
 
     name = "size"
+    title = "Размер"
+    level = "request"
 
     def setting(
         self, profile: ResolvedProfile, constraints: QueryConstraints

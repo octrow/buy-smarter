@@ -12,7 +12,7 @@ plain weights, predicates and functions and passes those to ``rank()``.
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 from buysmarter.knowledge.profile import CapabilitySetting, ResolvedProfile
 from buysmarter.ranking.models import AxisScore, Candidate, QueryConstraints, Recommendation
@@ -63,6 +63,9 @@ class Capability:
 
     name: ClassVar[str] = ""
     axis_name: ClassVar[str | None] = None
+    jev_question: ClassVar[str | None] = None
+    title: ClassVar[str] = ""
+    level: ClassVar[Literal["category", "request"]] = "category"
     axis_weight: ClassVar[float] = 0.0
     weight_shifts: ClassVar[dict[str, float]] = {}
 

@@ -370,6 +370,7 @@ class Composition(Capability):
     """The active substance decides: search, read, filter and score by it."""
 
     name = COMPOSITION
+    title = "Состав"
     axis_name = "ingredient"
     # A cheap generic with the same substance and concentration is genuinely equivalent
     # to the pricey brand, so the substance leads and brand drops sharply.

@@ -21,6 +21,8 @@ class Audience(Capability):
     """Reject listings marked for another audience."""
 
     name = "audience"
+    title = "Для кого"
+    level = "request"
 
     def setting(
         self, profile: ResolvedProfile, constraints: QueryConstraints
