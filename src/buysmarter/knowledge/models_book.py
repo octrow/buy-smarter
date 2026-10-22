@@ -60,7 +60,14 @@ class ModelEntry(BaseModel):
         prefixes like "Revyline RL 220" inside "RL2200"); canonical products are
         reached via their codes or aliases, both of which are boundary-safe.
         """
-        return any(n in normalized_title for n in map(_normalize, self.aliases) if n)
+        return self.alias_match_len(normalized_title) > 0
+
+    def alias_match_len(self, normalized_title: str) -> int:
+        """Length of the longest alias found in the title, 0 when none is."""
+        return max(
+            (len(n) for n in map(_normalize, self.aliases) if n and n in normalized_title),
+            default=0,
+        )
 
 
 class ModelBook(BaseModel):
@@ -83,10 +90,9 @@ class ModelBook(BaseModel):
         for entry in self.entries:
             if entry.matches_code(normalized):
                 return entry
-        for entry in self.entries:
-            if entry.matches_alias(normalized):
-                return entry
-        return None
+        # The longest alias wins: "S24 FE" over "S24", whatever order the entries were learned in.
+        best = max(self.entries, key=lambda e: e.alias_match_len(normalized), default=None)
+        return best if best is not None and best.matches_alias(normalized) else None
 
     def describe(self, title: str) -> str | None:
         """Human label for a resolved title: "Canonical (CODE)" or ``None``."""
