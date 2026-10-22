@@ -29,6 +29,7 @@ from buysmarter.capabilities import REGISTRY
 from buysmarter.capabilities.classify import ensure_profile
 from buysmarter.capabilities.composition import INGREDIENTS_UNCHECKED
 from buysmarter.capabilities.composition import NoSubstanceMatch as NoSubstanceMatch  # re-export
+from buysmarter.capabilities.exclude import strip_exclusions
 from buysmarter.capabilities.flow import ActiveCapabilities, activate, read_query
 from buysmarter.capabilities.provenance import CapabilityState, capability_states
 from buysmarter.config import get_settings
@@ -326,7 +327,7 @@ async def _collect(run: _Run, active: dict[str, ProductSource]) -> _Pool:
         new_candidates, used = await asyncio.gather(
             _filter_relevant_candidates(
                 new_candidates,
-                constraints.search_phrase,
+                relevance_phrase(constraints),
                 run.use_llm,
                 capabilities.protected(new_candidates),
             ),
@@ -457,6 +458,12 @@ async def recommend(
     )
 
 
+def relevance_phrase(constraints: QueryConstraints) -> str:
+    """What the relevance filter judges: the search phrase without "без сульфатов", which
+    is not a property every product must name."""
+    return strip_exclusions(constraints.search_phrase, constraints.exclude_substances)
+
+
 def _keep_listing(text: str) -> str | None:
     return None
 
@@ -475,7 +482,7 @@ async def _filter_used(
     if not used:
         return used
     relevant = await _filter_relevant_candidates(
-        used, constraints.search_phrase, use_llm, min_keep=0, keep_threshold=USED_KEEP_THRESHOLD
+        used, relevance_phrase(constraints), use_llm, min_keep=0, keep_threshold=USED_KEEP_THRESHOLD
     )
     return _drop_bait_prices(relevant)
 

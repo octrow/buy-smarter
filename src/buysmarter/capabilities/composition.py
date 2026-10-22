@@ -14,6 +14,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from buysmarter.capabilities.base import Capability, CapabilityContext, HardFilters, Section
+from buysmarter.capabilities.exclude import strip_exclusions
 from buysmarter.knowledge.ingredients import (
     IngredientBook,
     composition_text,
@@ -111,8 +112,12 @@ class IngredientContext(BaseModel):
 
 
 def required_substances(book: IngredientBook, constraints: QueryConstraints) -> list[str]:
-    """Canonical substances the query targets (from category + required features)."""
+    """Canonical substances the query targets (search phrase + required features).
+
+    "без сульфатов" names a substance the goods must not have, so it is left out.
+    """
     text = " ".join([constraints.search_phrase, *constraints.required_features])
+    text = strip_exclusions(text, constraints.exclude_substances)
     return book.resolve_in_text(text)
 
 

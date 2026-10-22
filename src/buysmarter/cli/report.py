@@ -51,6 +51,7 @@ _REASON_LABELS_RU = {
     "unknown brand (trusted-brands-only)": "неизвестный бренд",
     "other audience": "для другой аудитории (пол/возраст)",
     "other size": "другой размер",
+    "excluded substance": "содержит исключённое вещество",
 }
 
 

@@ -164,7 +164,9 @@ async def test_new_and_used_relevance_passes_run_at_the_same_time(monkeypatch) -
         searches=lambda: [], reject_listing=lambda text: None, protected=lambda cands: set()
     )
     run = SimpleNamespace(
-        constraints=SimpleNamespace(search_phrase="пылесос", city="almaty", budget_max=None),
+        constraints=SimpleNamespace(
+            search_phrase="пылесос", city="almaty", budget_max=None, exclude_substances=[]
+        ),
         profile=SimpleNamespace(brand_book=None, model_book=None),
         capabilities=capabilities,
         use_llm=True,
