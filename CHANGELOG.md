@@ -5,6 +5,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Unreleased]
 
 ### Fixed
+- A brand after a compatibility word is the device the item fits, not its maker: «Чехол для Apple iPhone 15»,
+  «Ремешок на Apple Watch» and «Кабель к iPhone 15 Pro» are no longer flagged «возможная подделка под Apple», and a
+  case with no brand field no longer borrows Apple's trust tier from its title.
 - OLX: a model the LLM names for an ad is dropped when its model number, line or storage contradicts the ad's title
   (every «iPhone 13» ad was once named «Apple iPhone 17 Pro Max»), so such a name is never learned as an alias nor
   shown.

@@ -219,3 +219,49 @@ def test_delivery_is_none_without_offers():
     c = to_candidate(_product())
     assert c.delivery_date is None
     assert c.delivery_cost is None
+
+
+_PHONE_BOOK = BrandBook(
+    tiers={"Apple": "A", "Samsung": "A", "CeraVe": "A"},
+    aliases={"iPhone": "Apple", "Galaxy": "Samsung"},
+)
+
+
+def test_brand_after_a_compatibility_word_is_the_target_not_a_mimic():
+    # "Чехол для Apple iPhone 15" fits an iPhone; it does not pretend to be Apple (#24).
+    titles = [
+        ("Чехол для Apple iPhone 15", "Cubic"),
+        ("Ремешок на Apple Watch", "Без бренда"),
+        ("Зарядка для Samsung Galaxy", "Baseus"),
+        ("Кабель к iPhone 15 Pro", "Hoco"),
+    ]
+    for title, brand in titles:
+        candidate = to_candidate(_product(title=title, brand=brand), book=_PHONE_BOOK)
+        assert candidate.mimic_brand is None, title
+        assert candidate.brand_tier is None, title
+
+
+def test_compatibility_target_gives_no_brand_from_the_title():
+    candidate = to_candidate(_product(title="Чехол на iPhone 15 силиконовый"), book=_PHONE_BOOK)
+
+    assert (candidate.brand, candidate.brand_tier) == (None, None)
+
+
+def test_a_known_brand_outside_a_compatibility_mention_is_still_a_mimic():
+    for title, brand in [("Чехол Apple", "NoName"), ("Apple iPhone 15 копия", "Xin")]:
+        candidate = to_candidate(_product(title=title, brand=brand), book=_PHONE_BOOK)
+        assert candidate.mimic_brand == "Apple", title
+
+
+def test_a_brand_after_a_purpose_word_still_names_the_maker():
+    candidate = to_candidate(_product(title="Крем для лица CeraVe 52 мл"), book=_PHONE_BOOK)
+
+    assert (candidate.brand, candidate.brand_tier) == ("CeraVe", "A")
+
+
+def test_a_capacity_after_na_is_not_a_compatibility_target():
+    book = BrandBook(tiers={"Xiaomi": "C"}, aliases={})
+
+    candidate = to_candidate(_product(title="Повербанк на 20000 mAh Xiaomi"), book=book)
+
+    assert candidate.brand == "Xiaomi"

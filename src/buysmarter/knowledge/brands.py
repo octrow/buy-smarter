@@ -139,9 +139,15 @@ def _is_word_like_short(alias: str) -> bool:
     return not alias.isascii() or alias == alias.lower()
 
 
-# "для Xiaomi", "for iPhone", "совместим с Philips": a brand the product fits, not its maker.
+# "для Apple iPhone 15", "на Apple Watch", "совместим с Philips": the device the product
+# fits, not its maker. The target is a Latin word and the Latin/digit words after it,
+# else one word, so "Крем для лица CeraVe" and "Повербанк на 20000 mAh Xiaomi" keep theirs.
+# ponytail: a Cyrillic brand before a Latin model ("для Сяоми Redmi") still reads Redmi;
+# strip the whole run when such titles show up.
+_LATIN_WORD = r"[\w.+'-]*[a-z0-9][\w.+'-]*"
 _COMPATIBILITY_RE = re.compile(
-    r"\b(?:для|for|совместим\w*\s+с|compatible\s+with)\s+[\w.+-]+",
+    r"\b(?:для|на|под|к|for|совместим\w*\s+с|compatible\s+with)\s+"
+    rf"(?:[a-z][\w.+'-]*(?:\s+{_LATIN_WORD})*|[\w.+-]+)",
     re.IGNORECASE,
 )
 
