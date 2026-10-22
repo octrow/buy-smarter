@@ -18,6 +18,7 @@ import statistics
 import time
 from collections import Counter
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any, cast
 
 from market_sources.base import ProductSource
@@ -27,7 +28,7 @@ from buysmarter import telemetry
 from buysmarter.capabilities import REGISTRY
 from buysmarter.capabilities.composition import INGREDIENTS_UNCHECKED
 from buysmarter.capabilities.composition import NoSubstanceMatch as NoSubstanceMatch  # re-export
-from buysmarter.capabilities.flow import activate, read_query
+from buysmarter.capabilities.flow import ActiveCapabilities, activate, read_query
 from buysmarter.config import get_settings
 from buysmarter.db.base import async_session
 from buysmarter.db.repo import (
@@ -52,6 +53,7 @@ from buysmarter.ranking.models import (
     Recommendation,
 )
 from buysmarter.services.collect import (
+    ProductRow,
     aclose,
     attach_price_history,
     gather_sources,
@@ -62,6 +64,7 @@ from buysmarter.services.collect import (
     stage,
 )
 from buysmarter.services.matching import (
+    CrossSourceNote,
     UsedListing,
     apply_cross_notes,
     dedupe_cross_source,
@@ -202,6 +205,112 @@ async def _resolve_knowledge(category: str, use_llm: bool) -> ResolvedProfile:
     return profile
 
 
+@dataclass(frozen=True)
+class _Run:
+    """One run's settled request: what every stage after the parse reads."""
+
+    query: str
+    constraints: QueryConstraints
+    profile: ResolvedProfile
+    capabilities: ActiveCapabilities
+    use_llm: bool
+
+
+@dataclass
+class _Pool:
+    """The collected goods: the deduped new pool, its cross-source notes, the OLX ads."""
+
+    deduped: list[Candidate]
+    notes: dict[tuple[str, str], CrossSourceNote]
+    used: list[Candidate]
+    persist_rows: list[ProductRow]
+
+
+async def _constraints(
+    query: str,
+    parsed: QueryConstraints | None,
+    city: str | None,
+    budget: int | None,
+    trusted_only: bool,
+    use_llm: bool,
+) -> tuple[QueryConstraints, bool]:
+    """Parse (or reuse ``parsed``), resolve the city, let capabilities read the query, overrides."""
+    with stage("query parse"):
+        base_constraints = parsed if parsed is not None else await _parse(query, use_llm)
+    resolved_city, city_defaulted = await resolve_city(base_constraints.city, city)
+    constraints = read_query(REGISTRY, base_constraints, query=query, use_llm=use_llm)
+    return _apply_overrides(constraints, resolved_city, budget, trusted_only), city_defaulted
+
+
+async def _collect(run: _Run, active: dict[str, ProductSource]) -> _Pool:
+    """Sources → merge → official stores → history → relevance → dedupe; OLX ads filtered."""
+    constraints, capabilities = run.constraints, run.capabilities
+    book, model_book = run.profile.brand_book, run.profile.model_book
+    with stage("collect"):
+        collected = await gather_sources(
+            active,
+            constraints.category,
+            kaspi_city_id(constraints.city),
+            book,
+            constraints.budget_max,
+            capabilities.searches(),
+        )
+    new_candidates, persist_rows = merge_new_goods(collected)
+    with stage("official stores"):
+        new_candidates += await official_candidates(book, constraints, capabilities.reject_listing)
+    # Attach 30-day price history (from prior runs' snapshots) before ranking
+    # so the price axis can reward a genuine dip; best-effort, no-op keyless.
+    await attach_price_history(new_candidates)
+    with stage("relevance filter"):
+        new_candidates = await _filter_relevant_candidates(
+            new_candidates,
+            constraints.category,
+            run.use_llm,
+            capabilities.protected(new_candidates),
+        )
+    deduped, notes = dedupe_cross_source(new_candidates, model_book)
+    deduped = attach_reference_prices(deduped, book, model_book)
+    used = await _filter_used(
+        cast(list[Candidate], collected.get("olx") or []),
+        constraints,
+        run.use_llm,
+        capabilities.reject_listing,
+    )
+    return _Pool(deduped, notes, used, persist_rows)
+
+
+async def _rank(
+    run: _Run, pool: _Pool, active: dict[str, ProductSource], with_review_summary: bool
+) -> tuple[Recommendation, ReviewSummary | None, str | None]:
+    """Capabilities enrich the pool, ``rank``, then the review pass (sources still open)."""
+    await run.capabilities.enrich(pool.deduped)
+    with stage("ranking"):
+        recommendation = rank(
+            pool.deduped, run.constraints, query=run.query, hooks=run.capabilities.rank_hooks()
+        )
+    # Second pass: fetch reviews for the top Kaspi picks, discount fake-looking review
+    # axes, re-sort, then summarize the (possibly changed) best pick from its own source.
+    with stage("review summaries"):
+        return await review_pass(
+            recommendation,
+            active,
+            run.use_llm,
+            with_review_summary,
+            run.constraints.required_features,
+        )
+
+
+async def _used_listings(
+    run: _Run, pool: _Pool, recommendation: Recommendation | None
+) -> list[UsedListing]:
+    """The OLX section: against the ranking, or, with no new pick, against the rejected pool."""
+    profile = run.profile
+    knowledge = (profile.brand_book, profile.model_book, run.use_llm, profile.model_book_owner)
+    if recommendation is None:
+        return await used_market_without_pick(pool.deduped, pool.used, run.constraints, *knowledge)
+    return await used_market(recommendation, pool.used, run.constraints, *knowledge)
+
+
 @_measured
 async def recommend(
     query: str,
@@ -231,98 +340,31 @@ async def recommend(
     total_start = time.perf_counter()
     skipped_llm_steps = list(NO_LLM_STEPS) if use_llm and _no_llm_route() else []
     use_llm = use_llm and not skipped_llm_steps
-    with stage("query parse"):
-        base_constraints = parsed if parsed is not None else await _parse(query, use_llm)
-    resolved_city, city_defaulted = await resolve_city(base_constraints.city, city)
-    constraints = read_query(REGISTRY, base_constraints, query=query, use_llm=use_llm)
-    constraints = _apply_overrides(constraints, resolved_city, budget, trusted_only)
+    constraints, city_defaulted = await _constraints(
+        query, parsed, city, budget, trusted_only, use_llm
+    )
     requested = sources or ["kaspi"]
     # off the loop: picking Ozon's browser may launch one to probe it
     active = await asyncio.to_thread(resolve_sources, requested, source, ozon_source, olx_source)
     profile = await _resolve_knowledge(constraints.category, use_llm)
-    book, model_book = profile.brand_book, profile.model_book
     capabilities = activate(REGISTRY, profile, constraints, query=query, use_llm=use_llm)
-    city_id = kaspi_city_id(constraints.city)
-
-    review_summary: ReviewSummary | None = None
-    review_summary_note: str | None = None
+    run = _Run(query, constraints, profile, capabilities, use_llm)
     try:
-        with stage("collect"):
-            collected = await gather_sources(
-                active,
-                constraints.category,
-                city_id,
-                book,
-                constraints.budget_max,
-                capabilities.searches(),
-            )
-        new_candidates, persist_rows = merge_new_goods(collected)
-        with stage("official stores"):
-            new_candidates += await official_candidates(
-                book, constraints, capabilities.reject_listing
-            )
-        # Attach 30-day price history (from prior runs' snapshots) before ranking
-        # so the price axis can reward a genuine dip; best-effort, no-op keyless.
-        await attach_price_history(new_candidates)
-        with stage("relevance filter"):
-            new_candidates = await _filter_relevant_candidates(
-                new_candidates,
-                constraints.category,
-                use_llm,
-                capabilities.protected(new_candidates),
-            )
-        used_candidates = cast(list[Candidate], collected.get("olx") or [])
-        deduped, notes = dedupe_cross_source(new_candidates, model_book)
-        deduped = attach_reference_prices(deduped, book, model_book)
-        used_candidates = await _filter_used(
-            used_candidates, constraints, use_llm, capabilities.reject_listing
+        pool = await _collect(run, active)
+        recommendation, review_summary, review_summary_note = await _rank(
+            run, pool, active, with_review_summary
         )
-        await capabilities.enrich(deduped)
-        with stage("ranking"):
-            recommendation = rank(
-                deduped, constraints, query=query, hooks=capabilities.rank_hooks()
-            )
-        # Second pass (still inside the try so sources stay open): fetch reviews
-        # for the top Kaspi picks, discount fake-looking review axes, re-sort,
-        # then summarize the (possibly changed) best pick from its own source.
-        with stage("review summaries"):
-            recommendation, review_summary, review_summary_note = await review_pass(
-                recommendation,
-                active,
-                use_llm,
-                with_review_summary,
-                constraints.required_features,
-            )
     except NoCandidatesPassed as exc:
         # rank() is the only raiser, so the pool and the OLX ads are already collected
-        used = await used_market_without_pick(
-            deduped,
-            used_candidates,
-            constraints,
-            book,
-            model_book,
-            use_llm,
-            profile.model_book_owner,
-        )
-        raise NoNewPick(exc.rejected_reasons, used) from exc
+        raise NoNewPick(exc.rejected_reasons, await _used_listings(run, pool, None)) from exc
     finally:
         for src in active.values():
             await aclose(src)
 
-    if persist and persist_rows:
-        await save_snapshots(persist_rows, constraints.category)
-
-    apply_cross_notes(recommendation, notes)
-
-    used_listings = await used_market(
-        recommendation,
-        used_candidates,
-        constraints,
-        book,
-        model_book,
-        use_llm,
-        profile.model_book_owner,
-    )
+    if persist and pool.persist_rows:
+        await save_snapshots(pool.persist_rows, constraints.category)
+    apply_cross_notes(recommendation, pool.notes)
+    used_listings = await _used_listings(run, pool, recommendation)
     logger.info("stage %s took %.2fs", "total", time.perf_counter() - total_start)
     return RecommendResult(
         recommendation=recommendation,
@@ -331,7 +373,7 @@ async def recommend(
         city_defaulted=city_defaulted,
         review_summary=review_summary,
         review_summary_note=review_summary_note,
-        knowledge_missing=book is None and model_book is None,
+        knowledge_missing=profile.brand_book is None and profile.model_book is None,
         skipped_llm_steps=skipped_llm_steps,
         unavailable_sources=[name for name in requested if name not in active],
         ingredients_unchecked=capabilities.flags(recommendation).get(INGREDIENTS_UNCHECKED, False),
