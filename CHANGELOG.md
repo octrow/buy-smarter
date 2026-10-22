@@ -25,6 +25,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   are no longer merged as one product.
 - OLX: «iPhone 13 Pro» and «Pro Max» ads are no longer matched to the plain iPhone 13 (likewise Mini, Plus, Ultra,
   Lite).
+- A listing whose title names the queried model («Iphone 13 128 gb midnight» for «смартфон iPhone 13») is no longer
+  dropped by the relevance check, which scored such titles anywhere from 0.2 to 0.6 from run to run.
 - OLX aliases learned for a borrowed composition category («крем с адапаленом» using «косметика») no longer create a
   spec-driven record under the query that hid the substance search from then on: only the model book is written,
   to the profile that owns it. Records this bug already created are healed once on read: they become children of

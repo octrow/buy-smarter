@@ -68,6 +68,7 @@ from buysmarter.services.matching import (
     UsedListing,
     apply_cross_notes,
     dedupe_cross_source,
+    names_query_model,
     used_market,
     used_market_without_pick,
 )
@@ -503,10 +504,18 @@ def _accessory_drops(
 async def _llm_drops(
     candidates: list[Candidate], category: str, keep_threshold: float = KEEP_THRESHOLD
 ) -> tuple[list[Candidate], list[Drop]]:
-    """LLM pass: classify surviving candidates, split into kept + dropped."""
-    flags = await filter_relevant(category, [c.title for c in candidates], keep_threshold)
-    kept = [c for c, keep in zip(candidates, flags, strict=True) if keep]
-    dropped = [(c, _LLM_DROP_REASON) for c, keep in zip(candidates, flags, strict=True) if not keep]
+    """LLM pass: classify surviving candidates, split into kept + dropped.
+
+    A title naming the queried model ("iPhone 13" for "смартфон iPhone 13") skips it: Jev scores
+    such titles 0.2-0.6 from call to call and dropped real ads.
+    # ponytail: an accessory naming the model ("Стекло iPhone 13") the marker pre-pass missed now
+    # stays; send named titles to Jev with a lower threshold if one shows up in a report.
+    """
+    named = [c for c in candidates if names_query_model(category, c.title)]
+    rest = [c for c in candidates if not names_query_model(category, c.title)]
+    flags = await filter_relevant(category, [c.title for c in rest], keep_threshold)
+    kept = named + [c for c, keep in zip(rest, flags, strict=True) if keep]
+    dropped = [(c, _LLM_DROP_REASON) for c, keep in zip(rest, flags, strict=True) if not keep]
     for cand, _ in dropped:
         logger.info("relevance: drop %r (%s)", cand.title, _LLM_DROP_REASON)
     return kept, dropped

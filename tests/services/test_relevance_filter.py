@@ -83,3 +83,23 @@ async def test_a_title_restored_to_meet_the_floor_is_logged(caplog) -> None:
 
     assert [c.title for c in kept] == ["Аккумулятор для Dyson V8"]
     assert "relevance: restore 'Аккумулятор для Dyson V8' (to meet the floor)" in caplog.messages
+
+
+async def test_a_title_naming_the_queried_model_skips_the_llm_pass(monkeypatch) -> None:
+    async def _drop_all(category, titles, keep_threshold=0.25):
+        return [False] * len(titles)
+
+    monkeypatch.setattr(svc, "filter_relevant", _drop_all)
+
+    pool = [
+        _cand("1", "iPhone 13 128gb 75%/рассрочка/baribarshop"),
+        _cand("2", "Iphone 13 128 gb midnight"),
+        _cand("3", "Смартфон iPhone 13"),
+        _cand("4", "iPhone 11 128GB Black"),
+        _cand("5", "iPhone 12 128GB Black"),
+        _cand("6", "Смартфон Vivo y12"),
+    ]
+    kept = await svc._filter_relevant_candidates(
+        pool, "смартфон iPhone 13", use_llm=True, min_keep=1
+    )
+    assert [c.source_product_id for c in kept] == ["1", "2", "3"]

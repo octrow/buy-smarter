@@ -156,6 +156,12 @@ def _title_tokens(title: str) -> set[str]:
     return words | {name + number for name, number in _NAME_NUMBER.findall(title.lower())}
 
 
+def names_query_model(category: str, title: str) -> bool:
+    """The title carries every numbered model the query names ("iPhone 13" in "Iphone 13 128gb")."""
+    wanted = _name_numbers(category).items()
+    return bool(wanted) and wanted <= _name_numbers(title).items()
+
+
 def _model_numbers_conflict(a: str, b: str) -> bool:
     """Both titles number the same name word, differently ("iPhone 12" vs "iPhone 13")."""
     na, nb = _name_numbers(a), _name_numbers(b)
