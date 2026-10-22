@@ -175,10 +175,28 @@ def _storage_gb(title: str) -> int | None:
     return max(sizes, default=None)
 
 
+# Line words that make another model of the same number: "iPhone 13 Pro" is not "iPhone 13".
+_LINE_WORDS = frozenset({"pro", "max", "mini", "plus", "ultra", "lite"})
+
+
+def _line_words(title: str) -> set[str]:
+    return set(re.findall(r"[a-z]+", title.lower())) & _LINE_WORDS
+
+
+def _lines_conflict(a: str, b: str) -> bool:
+    """Same numbered model ("iphone 13" in both), different line ("Pro Max" vs none)."""
+    shared_model = _name_numbers(a).items() & _name_numbers(b).items()
+    return bool(shared_model) and _line_words(a) != _line_words(b)
+
+
 def _variants_conflict(a: str, b: str) -> bool:
-    """Another model number ("iPhone 12" vs "13") or another storage ("128Gb" vs "512Gb")."""
+    """Another model number ("iPhone 12" vs "13"), line ("13 Pro" vs "13") or storage."""
     sa, sb = _storage_gb(a), _storage_gb(b)
-    return _model_numbers_conflict(a, b) or (sa is not None and sb is not None and sa != sb)
+    return (
+        _model_numbers_conflict(a, b)
+        or _lines_conflict(a, b)
+        or (sa is not None and sb is not None and sa != sb)
+    )
 
 
 def _token_overlap(a: str, b: str) -> float:

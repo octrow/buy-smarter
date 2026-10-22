@@ -11,6 +11,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - OLX: the saving is counted against a new product with the same storage («128 GB» against 128 GB, not 512 GB);
   an ad whose storage no new product has shows without a saving. Kaspi and Ozon listings with different storage
   are no longer merged as one product.
+- OLX: «iPhone 13 Pro» and «Pro Max» ads are no longer matched to the plain iPhone 13 (likewise Mini, Plus, Ultra,
+  Lite).
 
 ## [0.5.0] - 2026-10-22
 

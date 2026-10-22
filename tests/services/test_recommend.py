@@ -1800,3 +1800,14 @@ def test_new_listings_with_different_storage_are_not_merged() -> None:
     kept, _ = dedupe_cross_source([a, b])
 
     assert len(kept) == 2
+
+
+def test_a_used_pro_is_not_matched_to_the_plain_model() -> None:
+    plain = _cand("kaspi", "k1", "Смартфон Apple iPhone 13 128Gb черный", "Apple", 288535)
+    used_pro = _cand("olx", "u1", "IPhone 13 pro в отличном состоянии", "Apple", 190000)
+    used_pro_max = _cand("olx", "u2", "iPhone 13 Pro Max 128 ГБ Sierra Blue", "Apple", 199990)
+    used_plain = _cand("olx", "u3", "iphone 13 Shark Store", "Apple", 165000)
+
+    listings = match_used_listings([plain], [used_pro, used_pro_max, used_plain], None)
+
+    assert [listing.title for listing in listings] == ["iphone 13 Shark Store"]
