@@ -5,7 +5,7 @@ Input products/offers/reviews are the raw source-shaped Pydantic models from
 ``market_sources.base`` (or any object exposing the same attributes).
 """
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -257,10 +257,17 @@ async def upsert_category_knowledge(
     return row
 
 
-async def rename_category_knowledge(session: AsyncSession, old: str, new: str) -> bool:
-    """Move the record ``old`` to the slug ``new`` in one UPDATE; False when ``old`` is gone.
+RecordEdit = Callable[[str, dict[str, Any]], dict[str, Any] | None]
 
-    Raises ``IntegrityError`` when ``new`` already exists (another writer was first).
+
+async def rename_category_knowledge(
+    session: AsyncSession, old: str, new: str, edit: RecordEdit
+) -> bool:
+    """Move the record ``old`` to ``new`` and apply ``edit`` to every record, in one transaction.
+
+    ``edit(slug, payload)`` returns a record's new payload (the moved record's synonyms, a
+    child's ``parent``) or ``None`` to leave it. False when ``old`` is gone (another writer
+    was first); ``IntegrityError`` when ``new`` already exists. Any failure rolls it all back.
     """
     stmt = (
         update(CategoryKnowledge)
@@ -270,11 +277,17 @@ async def rename_category_knowledge(session: AsyncSession, old: str, new: str) -
     )
     try:
         result = await session.execute(stmt)
+        if getattr(result, "rowcount", 0) != 1:
+            await session.rollback()
+            return False
+        for row in (await session.execute(select(CategoryKnowledge))).scalars():
+            if (payload := edit(row.category, dict(row.schema_json))) is not None:
+                row.schema_json = payload
         await session.commit()
     except Exception:
         await session.rollback()
         raise
-    return bool(getattr(result, "rowcount", 0) == 1)
+    return True
 
 
 async def list_category_slugs(session: AsyncSession) -> list[str]:

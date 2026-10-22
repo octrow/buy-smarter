@@ -149,3 +149,38 @@ async def test_review_count_history_skips_unknown_counts_oldest_first(session) -
 
     assert [count for _, count in history] == [10, 25]
     assert history[0][0] <= history[1][0]
+
+
+async def test_a_rename_and_its_record_edits_commit_together(session) -> None:
+    await repo.upsert_category_knowledge(session, "мужские-кроссовки", {"synonyms": []})
+    await repo.upsert_category_knowledge(session, "беговые", {"parent": "мужские-кроссовки"})
+
+    def edit(slug: str, payload: dict) -> dict | None:
+        if payload.get("parent") == "мужские-кроссовки":
+            return {**payload, "parent": "кроссовки"}
+        return {**payload, "synonyms": ["мужские-кроссовки"]} if slug == "кроссовки" else None
+
+    assert await repo.rename_category_knowledge(session, "мужские-кроссовки", "кроссовки", edit)
+    assert (await repo.get_category_knowledge(session, "беговые"))["parent"] == "кроссовки"
+    assert (await repo.get_category_knowledge(session, "кроссовки"))["synonyms"] == [
+        "мужские-кроссовки"
+    ]
+
+
+async def test_a_failing_edit_rolls_the_rename_back(session) -> None:
+    """Review: the UPDATE committed first, so a failed retarget left children's parent dangling."""
+    await repo.upsert_category_knowledge(session, "мужские-кроссовки", {})
+    await repo.upsert_category_knowledge(session, "беговые", {"parent": "мужские-кроссовки"})
+
+    def broken(slug: str, payload: dict) -> dict | None:
+        raise RuntimeError("store hiccup")
+
+    with pytest.raises(RuntimeError):
+        await repo.rename_category_knowledge(session, "мужские-кроссовки", "кроссовки", broken)
+
+    async with async_session() as fresh:
+        assert set(await repo.list_category_slugs(fresh)) == {"мужские-кроссовки", "беговые"}
+
+
+async def test_a_rename_of_a_gone_record_is_false(session) -> None:
+    assert not await repo.rename_category_knowledge(session, "нет", "кроссовки", lambda s, p: None)

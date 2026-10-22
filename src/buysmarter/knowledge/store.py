@@ -315,29 +315,37 @@ def _has_composition(profile: CategoryProfile) -> bool:
     return bool(profile.capabilities and COMPOSITION in profile.capabilities)
 
 
+def _retarget(old: str, new: str) -> repo.RecordEdit:
+    """The record edits of a rename: ``old`` becomes a synonym of ``new``, children follow."""
+    stamp = {_UPDATED_BY: _RENAME_WRITER, _UPDATED_AT: datetime.now(UTC).isoformat()}
+
+    def edit(slug: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+        if slug == new:
+            synonyms = [s for s in payload.get(SYNONYMS_KEY) or [] if s != old]
+            return {**payload, SYNONYMS_KEY: [*synonyms, old], **stamp}
+        if payload.get(PARENT_KEY) == old:
+            return {**payload, PARENT_KEY: new, **stamp}
+        return None
+
+    return edit
+
+
 async def _rename(old: str, new: str) -> None:
-    """Move ``old`` to ``new`` once (one UPDATE), list it as a synonym, re-point children.
+    """Move ``old`` to ``new`` once, list it as a synonym and re-point children, atomically.
 
     A lookup running at the same time finds the record already moved (no row, or ``new``
     taken): it only reads ``new`` back.
     """
     try:
         async with async_session() as session:
-            moved = await repo.rename_category_knowledge(session, old, new)
+            moved = await repo.rename_category_knowledge(session, old, new, _retarget(old, new))
     except IntegrityError:
         moved = False
     except Exception as exc:  # noqa: BLE001 - the store is optional
         logger.warning("Knowledge store unavailable (%r); %s not renamed", exc, old)
         return
-    if not moved:
-        return
-    stored = await load_knowledge(new) or {}
-    synonyms = [s for s in stored.get(SYNONYMS_KEY) or [] if s != old]
-    await update_knowledge(new, {SYNONYMS_KEY: [*synonyms, old]}, _RENAME_WRITER)
-    for child, raw in (await _stored_records()).items():
-        if raw.get(PARENT_KEY) == old:
-            await update_knowledge(child, {PARENT_KEY: new}, _RENAME_WRITER)
-    logger.info("knowledge renamed: %s -> %s", old, new)
+    if moved:
+        logger.info("knowledge renamed: %s -> %s", old, new)
 
 
 def _with_seed_books(resolved: ResolvedProfile, category: str) -> ResolvedProfile:
