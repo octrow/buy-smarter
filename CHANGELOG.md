@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-22
+
 ### Changed
 - Category knowledge is read as a category profile: books, the capabilities switched on (composition, benchmark) and
   an optional parent the profile inherits missing fields from (ADR-0005, phase 1). The ranking with an exact category
