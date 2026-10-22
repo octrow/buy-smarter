@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 from buysmarter.cli import main
 from buysmarter.knowledge import generate as generate_module
 from buysmarter.knowledge.brands import BrandBook
+from buysmarter.knowledge.generate import CategoryKnowledge
 from buysmarter.knowledge.ingredients import (
     ActiveSubstance,
     EquivalentProduct,
@@ -43,7 +44,7 @@ def _stub_books() -> tuple[BrandBook, ModelBook]:
 def test_learn_category_generates_saves_and_summarizes(monkeypatch) -> None:
     async def _fake_generate(category: str, *, web_search: bool = True):
         brand, model = _stub_books()
-        return brand, model, "spec_driven", IngredientBook()
+        return CategoryKnowledge(brand, model, "spec_driven", IngredientBook())
 
     monkeypatch.setattr(generate_module, "generate_category_knowledge", _fake_generate)
 
@@ -69,7 +70,7 @@ def test_learn_category_no_web_flag_disables_web_search(monkeypatch) -> None:
     async def _fake_generate(category: str, *, web_search: bool = True):
         seen["web_search"] = web_search
         brand, model = _stub_books()
-        return brand, model, "spec_driven", IngredientBook()
+        return CategoryKnowledge(brand, model, "spec_driven", IngredientBook())
 
     monkeypatch.setattr(generate_module, "generate_category_knowledge", _fake_generate)
 
@@ -99,7 +100,7 @@ def test_learn_category_composition_driven_saves_ingredient_book(monkeypatch) ->
     )
 
     async def _fake_generate(category: str, *, web_search: bool = True):
-        return BrandBook(), ModelBook(), "composition_driven", ingredient
+        return CategoryKnowledge(BrandBook(), ModelBook(), "composition_driven", ingredient)
 
     monkeypatch.setattr(generate_module, "generate_category_knowledge", _fake_generate)
 
@@ -127,7 +128,7 @@ def test_learn_file_merges_user_notes_over_stored(monkeypatch, tmp_path) -> None
 
     async def _fake_extract(category: str, notes: str):
         # User's notes promote Xiaomi to B and add Roborock.
-        return (
+        return CategoryKnowledge(
             BrandBook(tiers={"Xiaomi": "B", "Roborock": "A"}, aliases={}),
             ModelBook(entries=[]),
             "spec_driven",
@@ -165,7 +166,9 @@ def test_learn_file_merges_with_the_own_record_not_a_parent(monkeypatch, tmp_pat
     asyncio.run(update_knowledge("крем-от-акне", {"parent": "косметика"}, "user"))
 
     async def _fake_extract(category: str, notes: str):
-        return BrandBook(tiers={"Galderma": "A"}), ModelBook(), "spec_driven", IngredientBook()
+        return CategoryKnowledge(
+            BrandBook(tiers={"Galderma": "A"}), ModelBook(), "spec_driven", IngredientBook()
+        )
 
     monkeypatch.setattr(main, "extract_category_knowledge", _fake_extract)
     notes = tmp_path / "notes.md"

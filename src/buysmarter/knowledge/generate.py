@@ -14,13 +14,20 @@ Two entry points, both routed through the mandatory LLM cache (``llm.adapter``):
 
 import asyncio
 import re
+from typing import Any, NamedTuple
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
+from buysmarter.capabilities.benchmark import BENCHMARK
+from buysmarter.capabilities.benchmark_providers import (
+    BENCHMARK_PROVIDERS,
+    PROVIDER_KEY,
+    ProviderName,
+)
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import IngredientBook, merge_ingredient_books
 from buysmarter.knowledge.models_book import ModelBook
-from buysmarter.knowledge.profile import COMPOSITION_DRIVEN, SPEC_DRIVEN
+from buysmarter.knowledge.profile import COMPOSITION_DRIVEN, SPEC_DRIVEN, CapabilitySetting
 from buysmarter.knowledge.store import merge_brand_books, merge_model_books, save_knowledge
 from buysmarter.llm.adapter import generate
 from buysmarter.services.official_stores import verify_store_floors
@@ -36,13 +43,21 @@ class CategoryKnowledgeResult(BaseModel):
     """LLM response envelope: the books + type for one product category.
 
     ``category_type`` classifies the category (docs/PLAN.md); ``ingredient_book``
-    is populated only for ``composition_driven`` categories (cosmetics/pharma).
+    is populated only for ``composition_driven`` categories (cosmetics/pharma);
+    ``benchmark_provider`` names a provider from the registry (an enum in the schema),
+    and anything else reads as none.
     """
 
     brand_book: BrandBook
     model_book: ModelBook
     category_type: str = SPEC_DRIVEN
     ingredient_book: IngredientBook = Field(default_factory=IngredientBook)
+    benchmark_provider: ProviderName | None = None
+
+    @field_validator("benchmark_provider", mode="before")
+    @classmethod
+    def _known_provider(cls, value: Any) -> Any:
+        return value if value in BENCHMARK_PROVIDERS else None
 
     @model_validator(mode="before")
     @classmethod
@@ -142,6 +157,9 @@ _SCHEMA_GUIDE = (
     "  - `equivalents`: known products sharing this substance, each `{name, "
     "concentration}` — the generic-equivalence group (e.g. Клензит == Differin "
     "== Адаклин by adapalene 0.1%).\n\n"
+    "`benchmark_provider`: a performance-index source for the category's models, one of "
+    + ", ".join(f'"{key}" ({p.jev_question})' for key, p in BENCHMARK_PROVIDERS.items())
+    + ", or null when none applies (most categories).\n\n"
     "Prefer real, verifiable brands, models and substances over guesses. Omit "
     "anything you are unsure exists."
 )
@@ -173,7 +191,24 @@ def extract_prompt(category: str, notes: str) -> str:
     )
 
 
-CategoryKnowledge = tuple[BrandBook, ModelBook, str, IngredientBook]
+class CategoryKnowledge(NamedTuple):
+    """What learning returns: both books, the category type, ingredients, the provider."""
+
+    brand: BrandBook
+    model: ModelBook
+    category_type: str
+    ingredient: IngredientBook
+    benchmark_provider: str | None = None
+
+
+def _knowledge(result: Any) -> CategoryKnowledge:
+    return CategoryKnowledge(
+        result.brand_book,
+        result.model_book,
+        _normalize_type(result.category_type, result.ingredient_book),
+        result.ingredient_book,
+        result.benchmark_provider,
+    )
 
 
 # Web-search calls are slower than a pure-reasoning one — give the CLI enough
@@ -206,27 +241,32 @@ async def generate_category_knowledge(
         )
     else:
         result = await generate(prompt, CategoryKnowledgeResult, model=GENERATE_KNOWLEDGE_MODEL)
-    return (
-        result.brand_book,  # type: ignore[attr-defined]
-        result.model_book,  # type: ignore[attr-defined]
-        _normalize_type(result.category_type, result.ingredient_book),  # type: ignore[attr-defined]
-        result.ingredient_book,  # type: ignore[attr-defined]
-    )
+    return _knowledge(result)
+
+
+def learned_benchmark(provider: str | None) -> dict[str, Any]:
+    """Learning's benchmark setting: on with its provider, or off (phase 3, decision 10)."""
+    params = {PROVIDER_KEY: provider} if provider else {}
+    setting = CapabilitySetting(enabled=provider is not None, params=params)
+    return {BENCHMARK: setting.model_dump(mode="json")}
 
 
 async def learn_category(category: str, *, web_search: bool = True) -> CategoryKnowledge:
-    """Generate a category's knowledge and save it: ``learn-category`` for the desktop app."""
+    """Generate a category's knowledge and save it (CLI ``learn-category``, GUI, auto-learning).
+
+    Composition and benchmark are written as learned capabilities, merged by name: a
+    user's own choice stays (``update_knowledge``).
+    """
     knowledge = await generate_category_knowledge(category, web_search=web_search)
-    brand, model, category_type, ingredient = knowledge
-    brand = await verify_store_floors(brand, category)
-    knowledge = (brand, model, category_type, ingredient)
+    knowledge = knowledge._replace(brand=await verify_store_floors(knowledge.brand, category))
     await save_knowledge(
         category,
-        brand,
-        model,
+        knowledge.brand,
+        knowledge.model,
         GENERATE_KNOWLEDGE_MODEL,
-        category_type=category_type,
-        ingredient_book=ingredient,
+        category_type=knowledge.category_type,
+        ingredient_book=knowledge.ingredient,
+        capabilities=learned_benchmark(knowledge.benchmark_provider),
     )
     return knowledge
 
@@ -235,12 +275,7 @@ async def _extract_chunk(category: str, notes: str) -> CategoryKnowledge:
     result = await generate(
         extract_prompt(category, notes), CategoryKnowledgeResult, model=EXTRACT_KNOWLEDGE_MODEL
     )
-    return (
-        result.brand_book,  # type: ignore[attr-defined]
-        result.model_book,  # type: ignore[attr-defined]
-        _normalize_type(result.category_type, result.ingredient_book),  # type: ignore[attr-defined]
-        result.ingredient_book,  # type: ignore[attr-defined]
-    )
+    return _knowledge(result)
 
 
 # A sonnet answer is cut off at ~12.8k output tokens: ~30 phone models broke the JSON,
@@ -281,11 +316,14 @@ async def extract_category_knowledge(category: str, notes: str) -> CategoryKnowl
     chunk fails the whole extraction.
     """
     parts = await asyncio.gather(*(_extract_chunk(category, c) for c in split_notes(notes)))
-    brand, model, category_type, ingredient = parts[0]
-    for part_brand, part_model, part_type, part_ingredient in parts[1:]:
-        brand = merge_brand_books(brand, part_brand)
-        model = merge_model_books(model, part_model)
-        ingredient = merge_ingredient_books(ingredient, part_ingredient)
-        if part_type == COMPOSITION_DRIVEN:
-            category_type = COMPOSITION_DRIVEN
-    return brand, model, category_type, ingredient
+    knowledge = parts[0]
+    for part in parts[1:]:
+        knowledge = knowledge._replace(
+            brand=merge_brand_books(knowledge.brand, part.brand),
+            model=merge_model_books(knowledge.model, part.model),
+            ingredient=merge_ingredient_books(knowledge.ingredient, part.ingredient),
+            benchmark_provider=knowledge.benchmark_provider or part.benchmark_provider,
+        )
+        if part.category_type == COMPOSITION_DRIVEN:
+            knowledge = knowledge._replace(category_type=COMPOSITION_DRIVEN)
+    return knowledge

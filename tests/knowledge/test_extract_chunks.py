@@ -59,15 +59,14 @@ def test_long_notes_are_split_and_merged(monkeypatch) -> None:
     prompts = _patch(monkeypatch)
     total = MAX_MODELS_PER_CHUNK * 2 + 5
 
-    brand, model, category_type, ingredient = asyncio.run(
-        extract_category_knowledge("смартфон", _notes(total))
-    )
+    knowledge = asyncio.run(extract_category_knowledge("смартфон", _notes(total)))
 
     assert len(prompts) == 3
-    assert sorted(e.canonical for e in model.entries) == sorted(f"Phone {i}" for i in range(total))
-    assert set(brand.tiers) == {"B1", "B2", "B3"}
-    assert category_type == "composition_driven"  # only the first chunk said so
-    assert [s.canonical for s in ingredient.substances] == ["адапален"]
+    entries = knowledge.model.entries
+    assert sorted(e.canonical for e in entries) == sorted(f"Phone {i}" for i in range(total))
+    assert set(knowledge.brand.tiers) == {"B1", "B2", "B3"}
+    assert knowledge.category_type == "composition_driven"  # only the first chunk said so
+    assert [s.canonical for s in knowledge.ingredient.substances] == ["адапален"]
 
 
 def test_preamble_and_section_heading_reach_every_chunk(monkeypatch) -> None:

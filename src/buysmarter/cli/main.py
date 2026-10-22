@@ -34,6 +34,7 @@ from buysmarter.knowledge.generate import (
     EXTRACT_KNOWLEDGE_MODEL,
     GENERATE_KNOWLEDGE_MODEL,
     extract_category_knowledge,
+    learned_benchmark,
 )
 from buysmarter.knowledge.generate import learn_category as learn_category_knowledge
 from buysmarter.knowledge.ingredients import IngredientBook, merge_ingredient_books
@@ -503,7 +504,7 @@ def learn_category(
 ) -> None:
     """Generate a BrandBook + ModelBook for a category via the LLM and save it."""
     try:
-        brand, model, category_type, ingredient = asyncio.run(
+        brand, model, category_type, ingredient, _ = asyncio.run(
             learn_category_knowledge(category, web_search=web)
         )
     except Exception as exc:  # noqa: BLE001 - surface a clean CLI error
@@ -549,7 +550,7 @@ async def _run_learn_file(
     file: Path, category: str
 ) -> tuple[BrandBook, ModelBook, str, IngredientBook]:
     notes = file.read_text(encoding="utf-8")
-    new_brand, new_model, new_type, new_ingredient = await extract_category_knowledge(
+    new_brand, new_model, new_type, new_ingredient, provider = await extract_category_knowledge(
         category, notes
     )
     # The category's own record only: a parent's or a related category's knowledge
@@ -573,6 +574,8 @@ async def _run_learn_file(
         EXTRACT_KNOWLEDGE_MODEL,
         category_type=COMPOSITION_DRIVEN if composition else None,
         ingredient_book=merged_ingredient if composition else None,
+        # notes that name no provider say nothing about benchmark: it stays as stored
+        capabilities=learned_benchmark(provider) if provider else None,
     )
     shown_type = COMPOSITION_DRIVEN if composition else new_type
     return merged_brand, merged_model, shown_type, merged_ingredient

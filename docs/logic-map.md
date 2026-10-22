@@ -369,7 +369,7 @@ Module: `services/recommend`, `capabilities/composition`, `cli/report`
 
 ### Learning a category
 
-Builds category knowledge: brand book, model book, category type, ingredient book.
+Builds category knowledge: brand book, model book, category type, ingredient book, and the benchmark provider (only one from the registry, an enum in the answer schema). Composition and benchmark are written as learned capabilities, merged by name: a user's choice stays. From notes (`learn --file`) benchmark is written only when the notes name a provider.
 - `learn-category` (CLI) or the button on the report screen (GUI); both run `learn_category`.
 - One strong-model call, grounded by web search when the `claude` CLI is present.
 - Official store prices are checked on real pages and kept as brand price floors.

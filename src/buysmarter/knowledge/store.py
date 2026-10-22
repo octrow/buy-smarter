@@ -122,6 +122,7 @@ async def save_knowledge(
     *,
     category_type: str | None = None,
     ingredient_book: IngredientBook | None = None,
+    capabilities: dict[str, Any] | None = None,
 ) -> None:
     """Merge the given books into a category's stored record (best-effort: failures are logged).
 
@@ -143,6 +144,8 @@ async def save_knowledge(
         if ingredient_book is None and stored.get(INGREDIENT_KEY):
             ingredient_book = IngredientBook.model_validate(stored[INGREDIENT_KEY])
         updates.update(composition_keys(stored, category_type, ingredient_book))
+    if capabilities:
+        updates[CAPABILITIES_KEY] = {**updates.get(CAPABILITIES_KEY, {}), **capabilities}
     await update_knowledge(category, updates, generated_by)
 
 

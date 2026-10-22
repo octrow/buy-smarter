@@ -8,10 +8,13 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from buysmarter.capabilities.benchmark import BENCHMARK
+from buysmarter.capabilities.benchmark_providers import PROVIDER_KEY
 from buysmarter.cli import main
 from buysmarter.knowledge import generate as generate_module
 from buysmarter.knowledge import store as store_mod
 from buysmarter.knowledge.brands import BrandBook
+from buysmarter.knowledge.generate import CategoryKnowledge
 from buysmarter.knowledge.ingredients import ActiveSubstance, IngredientBook
 from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.knowledge.profile import COMPOSITION, CapabilitySetting, merge_capabilities
@@ -96,7 +99,7 @@ async def test_learning_keeps_the_users_choice(monkeypatch) -> None:
     await _user_off("крем-от-акне")
 
     async def _knowledge(category: str, *, web_search: bool = True):
-        return BrandBook(), ModelBook(), "composition_driven", _BOOK
+        return CategoryKnowledge(BrandBook(), ModelBook(), "composition_driven", _BOOK)
 
     async def _same(book: BrandBook, category: str) -> BrandBook:
         return book
@@ -117,7 +120,7 @@ def test_the_cli_learn_category_goes_through_learn_category(monkeypatch) -> None
 
     async def _learn(category: str, *, web_search: bool = True):
         seen.append(category)
-        return BrandBook(), ModelBook(), "spec_driven", IngredientBook()
+        return CategoryKnowledge(BrandBook(), ModelBook(), "spec_driven", IngredientBook())
 
     monkeypatch.setattr(main, "learn_category_knowledge", _learn)
 
@@ -131,7 +134,7 @@ async def test_learning_from_notes_keeps_the_users_choice(monkeypatch, tmp_path:
     await _user_off("крем-от-акне")
 
     async def _extract(category: str, notes: str):
-        return BrandBook(), ModelBook(), "composition_driven", _BOOK
+        return CategoryKnowledge(BrandBook(), ModelBook(), "composition_driven", _BOOK)
 
     monkeypatch.setattr(main, "extract_category_knowledge", _extract)
     notes = tmp_path / "notes.md"
@@ -140,6 +143,29 @@ async def test_learning_from_notes_keeps_the_users_choice(monkeypatch, tmp_path:
     await main._run_learn_file(notes, "крем-от-акне")
 
     assert await _user_choice("крем-от-акне") is False
+
+
+async def test_notes_naming_a_provider_switch_benchmark_on_and_silent_notes_leave_it(
+    monkeypatch, tmp_path: Path
+) -> None:
+    async def _extract(category: str, notes: str):
+        provider = "kimovil" if "kimovil" in notes else None
+        return CategoryKnowledge(
+            BrandBook(), ModelBook(), "spec_driven", IngredientBook(), provider
+        )
+
+    monkeypatch.setattr(main, "extract_category_knowledge", _extract)
+    notes = tmp_path / "notes.md"
+
+    notes.write_text("Samsung, Xiaomi", encoding="utf-8")
+    await main._run_learn_file(notes, "смартфон")
+    assert BENCHMARK not in ((await load_knowledge("смартфон")) or {}).get("capabilities", {})
+
+    notes.write_text("kimovil", encoding="utf-8")
+    await main._run_learn_file(notes, "смартфон")
+    stored = (await load_knowledge("смартфон"))["capabilities"][BENCHMARK]
+    assert stored["enabled"] is True
+    assert stored["params"] == {PROVIDER_KEY: "kimovil"}
 
 
 async def test_jev_writes_keep_the_users_choice() -> None:
