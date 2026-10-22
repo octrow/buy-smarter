@@ -1,6 +1,11 @@
 """Tests for product-identity knowledge: ModelBook code/alias resolution."""
 
-from buysmarter.knowledge.models_book import IRRIGATOR_MODEL_BOOK, get_model_book
+from buysmarter.knowledge.models_book import (
+    IRRIGATOR_MODEL_BOOK,
+    ModelBook,
+    ModelEntry,
+    get_model_book,
+)
 
 
 def test_bare_code_resolves_to_canonical():
@@ -76,3 +81,15 @@ def test_empty_alias_or_code_does_not_match_every_title():
 
     book = ModelBook(entries=[ModelEntry(canonical="X", brand="B", aliases=["", " "], codes=[""])])
     assert book.resolve("anything at all") is None
+
+
+def test_the_longest_matching_alias_wins_over_the_first_entry() -> None:
+    book = ModelBook(
+        entries=[
+            ModelEntry(canonical="Samsung Galaxy S24", brand="Samsung", aliases=["S24"]),
+            ModelEntry(canonical="Samsung Galaxy S24 FE", brand="Samsung", aliases=["S24 FE"]),
+        ]
+    )
+
+    assert book.resolve("Samsung Galaxy S24 FE 128") == "Samsung Galaxy S24 FE"
+    assert book.resolve("Samsung Galaxy S24 256") == "Samsung Galaxy S24"
