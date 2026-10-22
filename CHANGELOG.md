@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - The review summary asks the LLM for the shopper text only (pros, cons, complaints, verdict, red flags); Jev alone
   decides counterfeit suspicion, reliability and the required-feature checks, as it already overrode them. A shorter
   answer: the review stage took 23 s on a live run. `ReviewSummary.negative_share_estimate`, read nowhere, is gone.
+- `learn` reads long notes in chunks of 10 list items, each headed by the notes' intro, and merges the answers: notes
+  listing ~30 phone models no longer get a cut-off LLM answer. Short notes are still one call with the same prompt.
 
 ## [0.6.1] - 2026-10-23
 

@@ -12,13 +12,16 @@ Two entry points, both routed through the mandatory LLM cache (``llm.adapter``):
   text, so it uses ``sonnet``.
 """
 
+import asyncio
+import re
+
 from pydantic import BaseModel, Field, model_validator
 
 from buysmarter.knowledge.brands import BrandBook
-from buysmarter.knowledge.ingredients import IngredientBook
+from buysmarter.knowledge.ingredients import IngredientBook, merge_ingredient_books
 from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.knowledge.profile import COMPOSITION_DRIVEN, SPEC_DRIVEN
-from buysmarter.knowledge.store import save_knowledge
+from buysmarter.knowledge.store import merge_brand_books, merge_model_books, save_knowledge
 from buysmarter.llm.adapter import generate
 from buysmarter.services.official_stores import verify_store_floors
 
@@ -228,8 +231,7 @@ async def learn_category(category: str, *, web_search: bool = True) -> CategoryK
     return knowledge
 
 
-async def extract_category_knowledge(category: str, notes: str) -> CategoryKnowledge:
-    """Extract books + type + ingredients from user research notes (sonnet, cached)."""
+async def _extract_chunk(category: str, notes: str) -> CategoryKnowledge:
     result = await generate(
         extract_prompt(category, notes), CategoryKnowledgeResult, model=EXTRACT_KNOWLEDGE_MODEL
     )
@@ -239,3 +241,51 @@ async def extract_category_knowledge(category: str, notes: str) -> CategoryKnowl
         _normalize_type(result.category_type, result.ingredient_book),  # type: ignore[attr-defined]
         result.ingredient_book,  # type: ignore[attr-defined]
     )
+
+
+# A sonnet answer is cut off at ~12.8k output tokens: ~30 phone models broke the JSON,
+# so long notes go to the LLM in chunks of at most this many top-level list items.
+MAX_MODELS_PER_CHUNK = 10
+_LIST_ITEM = re.compile(r"([-*+]|\d+[.)])\s")
+
+
+def split_notes(notes: str, max_items: int = MAX_MODELS_PER_CHUNK) -> list[str]:
+    """Split notes into chunks of at most ``max_items`` top-level list items each.
+
+    The preamble (lines before the first list item) heads every chunk, and a chunk
+    that starts mid-section repeats the section's ``#`` heading. Notes with up to
+    ``max_items`` items come back whole, so their prompt and cached answer stay as is.
+    """
+    lines = notes.splitlines()
+    starts = [i for i, line in enumerate(lines) if _LIST_ITEM.match(line)]
+    if len(starts) <= max_items:
+        return [notes]
+    preamble = lines[: starts[0]]
+    chunks: list[list[str]] = [[]]
+    count, heading = 0, ""
+    for line in lines[starts[0] :]:
+        is_heading, is_item = line.startswith("#"), bool(_LIST_ITEM.match(line))
+        if count >= max_items and (is_heading or is_item):
+            chunks.append([] if is_heading or not heading else [heading])
+            count = 0
+        heading = line if is_heading else heading
+        count += is_item
+        chunks[-1].append(line)
+    return ["\n".join(preamble + chunk) for chunk in chunks]
+
+
+async def extract_category_knowledge(category: str, notes: str) -> CategoryKnowledge:
+    """Extract books + type + ingredients from user research notes (sonnet, cached).
+
+    Long notes are extracted chunk by chunk (``split_notes``) and merged; any failed
+    chunk fails the whole extraction.
+    """
+    parts = await asyncio.gather(*(_extract_chunk(category, c) for c in split_notes(notes)))
+    brand, model, category_type, ingredient = parts[0]
+    for part_brand, part_model, part_type, part_ingredient in parts[1:]:
+        brand = merge_brand_books(brand, part_brand)
+        model = merge_model_books(model, part_model)
+        ingredient = merge_ingredient_books(ingredient, part_ingredient)
+        if part_type == COMPOSITION_DRIVEN:
+            category_type = COMPOSITION_DRIVEN
+    return brand, model, category_type, ingredient
