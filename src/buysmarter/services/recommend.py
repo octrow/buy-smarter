@@ -73,7 +73,15 @@ from buysmarter.services.matching import (
 )
 from buysmarter.services.official_stores import official_candidates
 from buysmarter.services.review_pass import review_pass
-from buysmarter.services.understanding import restricted_kind, restricted_note
+from buysmarter.services.understanding import (
+    NeedsClarification,
+    NothingToSearch,
+    apply_answer,
+    ask_capability,
+    restricted_kind,
+    restricted_note,
+    settle_request,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +113,8 @@ class RecommendResult(BaseModel):
     ingredients_unchecked: bool = False
     # Restricted goods (alcohol, vapes...): the warning shown before the results.
     restricted_note: str | None = None
+    # The option searched for the user on the last clarification round ("крем для рук").
+    assumed: str | None = None
 
 
 def _no_llm_route() -> bool:
@@ -186,6 +196,12 @@ def _measured[**P](
             outcome = "ok"
             telemetry.OFFERS_RANKED.record(len(result.recommendation.ranked))
             return result
+        except NeedsClarification:
+            outcome = "clarify"
+            raise
+        except NothingToSearch:
+            outcome = "nothing_to_search"
+            raise
         except (NoSubstanceMatch, NoNewPick):
             outcome = "no_match"
             raise
@@ -229,19 +245,46 @@ class _Pool:
     persist_rows: list[ProductRow]
 
 
+@dataclass(frozen=True)
+class _Clarify:
+    """The caller's side of a clarification: its answer, the round, whether to ask at all."""
+
+    answer: str | None = None
+    round: int = 0
+    no_clarify: bool = False
+
+
+async def _understand(
+    query: str, parsed: QueryConstraints | None, use_llm: bool, ask: _Clarify
+) -> tuple[str, QueryConstraints, str | None]:
+    """Parse (or reuse ``parsed``), take the answer, flag restricted goods, settle questions.
+
+    Returns the query (with the user's own answer added), the constraints and the option
+    assumed on the last round. Raises ``NeedsClarification`` or ``NothingToSearch``.
+    """
+    with stage("query parse"):
+        base = parsed if parsed is not None else await _parse(query, use_llm)
+        answer = (ask.answer or "").strip()
+        if answer and (chosen := apply_answer(base, answer)) is not None:
+            base = chosen
+        elif answer:
+            query = f"{query} {answer}"
+            base = await _parse(query, use_llm)
+    if base.restricted is None and (kind := restricted_kind(query)):
+        base = base.model_copy(update={"restricted": kind})
+    base, assumed = settle_request(base, clarify_round=ask.round, no_clarify=ask.no_clarify)
+    return query, base, assumed
+
+
 async def _constraints(
     query: str,
-    parsed: QueryConstraints | None,
+    base_constraints: QueryConstraints,
     city: str | None,
     budget: int | None,
     trusted_only: bool,
     use_llm: bool,
 ) -> tuple[QueryConstraints, bool]:
-    """Parse (or reuse ``parsed``), resolve the city, let capabilities read the query, overrides."""
-    with stage("query parse"):
-        base_constraints = parsed if parsed is not None else await _parse(query, use_llm)
-    if base_constraints.restricted is None and (kind := restricted_kind(query)):
-        base_constraints = base_constraints.model_copy(update={"restricted": kind})
+    """Resolve the city, let capabilities read the query, apply the caller's overrides."""
     resolved_city, city_defaulted = await resolve_city(base_constraints.city, city)
     constraints = read_query(REGISTRY, base_constraints, query=query, use_llm=use_llm)
     return _apply_overrides(constraints, resolved_city, budget, trusted_only), city_defaulted
@@ -331,6 +374,9 @@ async def recommend(
     persist: bool = True,
     parsed: QueryConstraints | None = None,
     with_review_summary: bool = True,
+    answer: str | None = None,
+    clarify_round: int = 0,
+    no_clarify: bool = False,
 ) -> RecommendResult:
     """Run the full multi-source recommend pipeline.
 
@@ -341,18 +387,25 @@ async def recommend(
     ``parsed`` lets a caller reuse a constraints parse it already did (the CLI
     parses once to decide whether to prompt for a budget, then passes the
     result back in here instead of parsing the query a second time).
+
+    Before any search the request may need a clarification (``NeedsClarification``):
+    the caller asks the user and calls again with ``answer`` and ``clarify_round + 1``;
+    ``no_clarify`` searches the first option instead (``services.understanding``).
     """
     total_start = time.perf_counter()
     skipped_llm_steps = list(NO_LLM_STEPS) if use_llm and _no_llm_route() else []
     use_llm = use_llm and not skipped_llm_steps
+    ask = _Clarify(answer, clarify_round, no_clarify)
+    query, understood, assumed = await _understand(query, parsed, use_llm, ask)
     constraints, city_defaulted = await _constraints(
-        query, parsed, city, budget, trusted_only, use_llm
+        query, understood, city, budget, trusted_only, use_llm
     )
+    profile = await _resolve_knowledge(constraints.category, use_llm)
+    capabilities = activate(REGISTRY, profile, constraints, query=query, use_llm=use_llm)
+    ask_capability(capabilities.question(), constraints, ask.round, ask.no_clarify)
     requested = sources or ["kaspi"]
     # off the loop: picking Ozon's browser may launch one to probe it
     active = await asyncio.to_thread(resolve_sources, requested, source, ozon_source, olx_source)
-    profile = await _resolve_knowledge(constraints.category, use_llm)
-    capabilities = activate(REGISTRY, profile, constraints, query=query, use_llm=use_llm)
     run = _Run(query, constraints, profile, capabilities, use_llm)
     try:
         pool = await _collect(run, active)
@@ -383,6 +436,7 @@ async def recommend(
         unavailable_sources=[name for name in requested if name not in active],
         ingredients_unchecked=capabilities.flags(recommendation).get(INGREDIENTS_UNCHECKED, False),
         restricted_note=restricted_note(constraints.restricted),
+        assumed=assumed,
     )
 
 
@@ -449,8 +503,16 @@ def _apply_overrides(
 
 
 # Item condition is not a spec: "б/у" as a hard feature rejects every new Kaspi
-# product, and the used market is OLX's job, which always runs.
-_CONDITION_WORDS = frozenset({"б/у", "бу", "б.у.", "used", "новый", "новое", "new"})
+# product, and the used market is OLX's job, which always runs. It sets ``condition``.
+_CONDITION_WORDS = {
+    "б/у": "used",
+    "бу": "used",
+    "б.у.": "used",
+    "used": "used",
+    "новый": "new",
+    "новое": "new",
+    "new": "new",
+}
 
 
 def _word_tokens(text: str) -> list[str]:
@@ -471,14 +533,19 @@ def _drop_category_implied_features(constraints: QueryConstraints) -> QueryConst
     are in the category ("iPhone 13" in "смартфон iPhone 13").
     """
     category_tokens = set(_word_tokens(constraints.category))
+    words = [f.strip().lower() for f in constraints.required_features]
     kept = [
         f
-        for f in constraints.required_features
-        if f.strip().lower() not in _CONDITION_WORDS and not set(_word_tokens(f)) <= category_tokens
+        for f, word in zip(constraints.required_features, words, strict=True)
+        if word not in _CONDITION_WORDS and not set(_word_tokens(f)) <= category_tokens
     ]
     if len(kept) == len(constraints.required_features):
         return constraints
-    return constraints.model_copy(update={"required_features": kept})
+    updates: dict[str, Any] = {"required_features": kept}
+    conditions = [_CONDITION_WORDS[w] for w in words if w in _CONDITION_WORDS]
+    if constraints.condition is None and conditions:
+        updates["condition"] = conditions[0]
+    return constraints.model_copy(update=updates)
 
 
 # Category-relevance filter (drop non-products before ranking). Marketplace

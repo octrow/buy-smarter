@@ -25,6 +25,15 @@ def test_condition_words_are_not_features() -> None:
     assert _features("смартфон iPhone 13", ["б/у", "Б/У", "used", "новый", "IPX7"]) == ["IPX7"]
 
 
+def test_a_dropped_condition_word_sets_the_condition() -> None:
+    """Decision 18: «б/у» leaves the features but is no longer lost."""
+    used = QueryConstraints(category="iphone 13", required_features=["б/у", "128 ГБ"])
+    new = QueryConstraints(category="iphone 13", required_features=["новый"])
+
+    assert _drop_category_implied_features(used).condition == "used"
+    assert _drop_category_implied_features(new).condition == "new"
+
+
 def test_category_and_search_phrase_stay_one_value() -> None:
     """Until ``category`` is removed, old callers and new ones read the same phrase."""
     old = QueryConstraints(category="мужские кроссовки")

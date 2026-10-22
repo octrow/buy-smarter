@@ -43,8 +43,10 @@ class FakeSource:
     by_query: dict[str, list[RawProduct]] = field(default_factory=dict)
     spec_map: dict[str, dict[str, str]] = field(default_factory=dict)
     offer_map: dict[str, list[RawOffer]] = field(default_factory=dict)
+    searched: list[str] = field(default_factory=list)
 
     async def search(self, query: str, city: str | None = None) -> list[RawProduct]:
+        self.searched.append(query)
         return list(self.by_query.get(query, self.main))
 
     async def specs(self, product_id: str) -> dict[str, str]:

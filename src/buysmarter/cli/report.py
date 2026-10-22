@@ -26,7 +26,7 @@ from buysmarter.i18n import (
     source_label,
     used_con,
 )
-from buysmarter.ranking.models import Candidate
+from buysmarter.ranking.models import Candidate, QueryConstraints
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, RecommendResult
@@ -101,6 +101,31 @@ def unavailable_sources_note(result: RecommendResult) -> str | None:
     return f"Пропущено ({names}): нет браузера. Что установить, подскажет `buysmarter doctor`."
 
 
+USED_CONDITION_NOTE = "Вы искали б/у — смотрите раздел «Б/у на OLX»."
+
+
+def request_notes(result: RecommendResult) -> list[str]:
+    """What the run read differently from the words: the assumed option, budget, condition."""
+    c = result.constraints
+    notes = []
+    if result.assumed:
+        notes.append(f"Искал: {result.assumed} — уточните запрос, если нужно другое.")
+    if c.budget_note:
+        notes.append(f"{c.budget_note[:1].upper()}{c.budget_note[1:]}.")
+    if c.condition == "used":
+        notes.append(USED_CONDITION_NOTE)
+    return notes
+
+
+def budget_text(c: QueryConstraints) -> str:
+    """The budget line: "без лимита", "до N" or "от N до M"."""
+    if not c.budget_max:
+        return "без лимита"
+    if c.budget_min:
+        return f"от {_fmt_price(c.budget_min)} до {_fmt_price(c.budget_max)}"
+    return _fmt_price(c.budget_max)
+
+
 def _constraints_md(result: RecommendResult) -> list[str]:
     c = result.constraints
     city_note = " (по умолчанию)" if result.city_defaulted else ""
@@ -109,13 +134,14 @@ def _constraints_md(result: RecommendResult) -> list[str]:
         "",
         f"- **Категория:** {c.category}",
         f"- **Город:** {c.city or '-'}{city_note}",
-        f"- **Бюджет:** {_fmt_price(c.budget_max) if c.budget_max else 'без лимита'}",
+        f"- **Бюджет:** {budget_text(c)}",
     ]
     if c.required_features:
         lines.append(f"- **Нужно:** {', '.join(c.required_features)}")
     if c.excluded_brands:
         lines.append(f"- **Без брендов:** {', '.join(c.excluded_brands)}")
     notes = (
+        *request_notes(result),
         skipped_llm_note(result),
         unavailable_sources_note(result),
         ingredients_unchecked_note(result),

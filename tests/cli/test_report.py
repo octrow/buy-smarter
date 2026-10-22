@@ -77,6 +77,25 @@ def test_restricted_note_is_the_first_line_under_the_title() -> None:
     assert lines[1] == "> ⚠ Алкоголь: доставка ограничена."
 
 
+def test_the_report_says_what_it_assumed_and_read_differently() -> None:
+    base = _result()
+    constraints = base.constraints.model_copy(
+        update={
+            "budget_min": 30000,
+            "budget_note": "бюджет в другой валюте не учтён",
+            "condition": "used",
+        }
+    )
+    result = base.model_copy(update={"assumed": "крем для рук", "constraints": constraints})
+
+    md = render_markdown(result, top=2)
+
+    assert "Искал: крем для рук" in md
+    assert "Бюджет в другой валюте не учтён." in md
+    assert "Вы искали б/у" in md
+    assert "**Бюджет:** от 30" in md
+
+
 def test_top_limits_rows_to_requested_n() -> None:
     md = render_markdown(_result(n_ranked=5), top=2)
     assert len(_top_rows(md)) == 2

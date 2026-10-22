@@ -17,11 +17,13 @@ The Russian mirror is `docs/logic-map.ru.md`; this file is the source of truth.
 query text
   │
   ├─ 1  LLM route ............ is there an LLM at all?
-  ├─ 2  parse ................ text → constraints (category, budget, city, features)
+  ├─ 2  parse ................ text → constraints (intent, search phrase, product type, budget...)
+  ├─ 2a clarify .............. ambiguous request → a question instead of a ranking
   ├─ 3  city ................. override > query > stored preference > Алматы
   ├─ 4  clean constraints .... capabilities read the query (audience, size); implied features out
   ├─ 5  sources .............. Kaspi / Ozon (needs a browser) / OLX
-  ├─ 6  category profile ..... books, capabilities, who owns each; capabilities switched on
+  ├─ 6  category profile ..... books, capabilities, who owns each; capabilities switched on;
+  │                            a capability may ask (runs before step 5: no browser for a question)
   ├─ 7  extra searches ....... from capabilities (composition: substances)
   ├─ 8  collect .............. three marketplaces in parallel
   ├─ 9  normalize ............ raw card → Candidate
@@ -109,6 +111,18 @@ Budget rules (no LLM): another currency ($, ₽, €) gives no budget, only a no
 The category string is the key for everything below: knowledge lookup, searches, relevance.
 Module: `llm/prompts`, `llm/budget`, `services/recommend`
 
+### 2a. Clarify before searching
+
+Decides: whether the request is searched, or answered with a question (`NeedsClarification`) or a final "nothing to search" (`NothingToSearch`).
+In: the parse, the caller's `answer`, `clarify_round` (0, 1, 2) and `no_clarify`.
+- An `answer` equal to one of the parse's options narrows the request to it: intent product, search phrase and product type from the answer; budget, city and audience stay; no second parse. Any other answer is added to the query, which is parsed again.
+- Restricted goods are flagged here (see step 4), so a question carries the warning too.
+- Asks on: open with options, need with two or more options, multi with two or more products, service, unclear. Open or need without options and without a phrase count as unclear. A need with a phrase and no options ("шампунь от перхоти") is searched.
+- Last round (2) or `no_clarify`: with options, the first one is searched and reported as `assumed` ("Искал: крем для рук"); without options, `NothingToSearch` (a `ValueError`) with the reason.
+- A capability's `clarify` hook asks after step 6 by the same rules; on the last round the search goes on without the parameter.
+`NeedsClarification` is not a `ValueError`: each entry catches it first. No LLM: the naive parse is always product (unclear without letters), so only capabilities can ask.
+Module: `services/understanding`, `services/recommend`, `capabilities/flow`
+
 ### 3. Resolve the city
 
 Decides: which city the search and delivery dates are for.
@@ -127,7 +141,7 @@ Decides: final constraints before search.
   - audience: "мужские", "детские" read from the query text by regex if the parser missed it, for any category;
   - size: "42 размер", "XL" read out and removed from the category; size phrases leave the required features for apparel.
 - Features already implied by the category are dropped ("TWS" in "TWS наушники").
-- Condition words (б/у, новый) are dropped: used goods are OLX's job.
+- Condition words (б/у, новый) are dropped: used goods are OLX's job. They set `condition`; "used" adds a report note pointing to the OLX section.
 Then CLI/API overrides apply: budget, trusted brands only.
 Module: `services/recommend`, `services/understanding`, `capabilities/flow`, `capabilities/audience`, `capabilities/size`, `ranking/audience`
 
@@ -152,7 +166,7 @@ The found profile's parent (one step) fills fields it does not set; each field k
 Books nothing stored provides fall back to the static seed (irrigators), owned by the query's slug.
 Old records are read through an adapter: `category_type: composition_driven` becomes the composition capability. Saving merges into the record, and the old keys are still written (until phase 3).
 An old record that is a copy left by the pre-profile alias save (no capabilities, no parent, its brand book equal to a related composition profile's) is healed once: it becomes that profile's child and its aliases move to the parent. Every check marks the record, so Jev is asked once.
-Then capabilities are switched on (see Capabilities).
+Then capabilities are switched on (see Capabilities), and a capability's `clarify` hook may ask (step 2a). This step runs before step 5, so a question never starts a browser.
 No LLM: exact slug and synonyms only.
 Fails: never blocks. Missing knowledge sets `knowledge_missing` and weakens the brand axis.
 The run does not learn a whole category; it logs a hint to run `learn-category`.
@@ -346,7 +360,7 @@ Module: `services/matching`, `llm/canonicalize`
 ### Output
 
 `RecommendResult`: the ranking, the constraints used, used listings, and flags the UI shows as warnings:
-`restricted_note` (first line of the report), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `ingredients_unchecked` (set by the composition capability's report section: a ranked candidate whose composition was not checked, "Состав не проверен у N из M — вещество не подтверждено").
+`restricted_note` (first line of the report), `assumed` (the option searched on the last clarification round), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `ingredients_unchecked` (set by the composition capability's report section: a ranked candidate whose composition was not checked, "Состав не проверен у N из M — вещество не подтверждено").
 Every surface renders the same result.
 Module: `services/recommend`, `capabilities/composition`, `cli/report`
 

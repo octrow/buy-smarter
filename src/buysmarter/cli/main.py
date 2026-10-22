@@ -17,8 +17,10 @@ from buysmarter import local_store
 from buysmarter.cli.report import (
     DEFAULT_TOP,
     ROLE_LABELS,
+    budget_text,
     format_rejected_reasons,
     no_new_pick_text,
+    request_notes,
     save_report,
     skipped_llm_note,
     unavailable_sources_note,
@@ -85,7 +87,7 @@ def _render_constraints(c: QueryConstraints, city_defaulted: bool = False) -> No
     lines = [
         f"[bold]Category:[/bold] {c.category}",
         f"[bold]City:[/bold] {c.city or '-'}{city_note}",
-        f"[bold]Budget:[/bold] {f'{kzt(c.budget_max)}' if c.budget_max else 'без лимита'}",
+        f"[bold]Budget:[/bold] {budget_text(c)}",
     ]
     if c.required_features:
         lines.append(f"[bold]Required:[/bold] {', '.join(c.required_features)}")
@@ -242,7 +244,8 @@ def _render(result: RecommendResult, top: int) -> None:
     if result.restricted_note:
         console.print(f"[bold yellow]⚠ {escape(result.restricted_note)}[/bold yellow]")
     _render_constraints(result.constraints, result.city_defaulted)
-    for note in (skipped_llm_note(result), unavailable_sources_note(result)):
+    notes = (*request_notes(result), skipped_llm_note(result), unavailable_sources_note(result))
+    for note in notes:
         if note:
             console.print(f"[yellow]{escape(note)}[/yellow]")
     _render_best(result.recommendation.best)

@@ -32,7 +32,7 @@ _MIN_CHOICE = 2
 # Whole words only: "винный бокал" and "кальянный уголь" are not the goods themselves.
 _RESTRICTED_RES: dict[Restricted, re.Pattern[str]] = {
     "tobacco": re.compile(
-        r"(?<!\w)(?:вейп\w*|жиж[аиуе]|электронн\w* сигарет\w*|сигарет\w*|табак\w*|"
+        r"(?<!\w)(?:вейп\w*|жиж[аиуе]|электронн\w* сигарет\w*|сигарет\w*|табак(?:а|у|ом)?|"
         r"кальян(?:а|ы|ов)?)(?!\w)",
         re.IGNORECASE,
     ),
@@ -118,22 +118,22 @@ def _semantic_kind(c: QueryConstraints) -> ClarifyKind | None:
     return None if c.search_phrase.strip() else "unclear"
 
 
-def _ask(
-    c: QueryConstraints, kind: ClarifyKind, options: list[str], clarify_round: int
-) -> NoReturn:
+def _may_ask(clarify_round: int, no_clarify: bool) -> bool:
+    return clarify_round < MAX_ROUNDS and not no_clarify
+
+
+def _ask(c: QueryConstraints, asked: Clarification) -> NoReturn:
     # ponytail: the LLM may ask too often; review these lines after 50 live queries and
     # tighten the prompt's "ask only when a search would be a guess" rule if it does.
     logger.info(
-        "clarify: %s round %d options=%s for %r", kind, clarify_round, options, c.search_phrase
+        "clarify: %s round %d options=%s for %r",
+        asked.kind,
+        asked.round,
+        asked.options,
+        c.search_phrase,
     )
     raise NeedsClarification(
-        Clarification(
-            kind=kind,
-            question=_QUESTIONS[kind],
-            options=options,
-            round=clarify_round,
-            restricted_note=restricted_note(c.restricted),
-        )
+        asked.model_copy(update={"restricted_note": restricted_note(c.restricted)})
     )
 
 
@@ -163,8 +163,13 @@ def settle_request(
     if kind is None:
         return c, None
     options = c.options if kind in ("open", "need", "multi") else []
-    if clarify_round < MAX_ROUNDS and not no_clarify:
-        _ask(c, kind, options, clarify_round)
+    if _may_ask(clarify_round, no_clarify):
+        _ask(
+            c,
+            Clarification(
+                kind=kind, question=_QUESTIONS[kind], options=options, round=clarify_round
+            ),
+        )
     if options:
         return choose(c, options[0]), options[0].strip()
     raise NothingToSearch(_NOTHING.get(kind, _NOTHING["unclear"]))
@@ -183,14 +188,14 @@ def ask_capability(
     question: Question | None, c: QueryConstraints, clarify_round: int, no_clarify: bool
 ) -> None:
     """Ask a capability's question while rounds are left; on the last one search without it."""
-    if question is None or no_clarify or clarify_round >= MAX_ROUNDS:
+    if question is None or not _may_ask(clarify_round, no_clarify):
         return
-    raise NeedsClarification(
+    _ask(
+        c,
         Clarification(
             kind="capability",
             question=question.question,
             options=list(question.options),
             round=clarify_round,
-            restricted_note=restricted_note(c.restricted),
-        )
+        ),
     )
