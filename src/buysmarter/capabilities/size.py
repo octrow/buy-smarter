@@ -33,7 +33,8 @@ class Size(Capability):
         if constraints.size is None and (size := query_size(text)):
             updates["size"] = size
         if query_size(constraints.category):
-            updates["category"] = strip_size(constraints.category) or constraints.category
+            phrase = strip_size(constraints.category) or constraints.category
+            updates.update(category=phrase, search_phrase=phrase)
         features = [
             f for f in constraints.required_features if not (is_apparel(text) and is_size_phrase(f))
         ]

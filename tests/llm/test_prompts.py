@@ -60,5 +60,71 @@ def test_parse_query_prompt_keeps_named_model_in_category() -> None:
     translate-neutral-forms rule ate the model, so every source searched "смартфон"."""
     prompt = prompts.parse_query_prompt("iphone 13 б/у")
 
-    assert '"category": "смартфон iPhone 13"' in prompt
+    assert '"search_phrase": "смартфон iPhone 13"' in prompt
     assert "condition" in prompt.lower() and "б/у" in prompt
+
+
+async def test_parse_query_reads_the_new_fields(monkeypatch) -> None:
+    async def _fake_generate(prompt, response_model, *, model=None, **kwargs):
+        return response_model.model_validate(
+            {
+                "intent": "multi",
+                "search_phrase": "смартфон",
+                "product_type": "смартфон",
+                "options": ["iPhone 15", "Samsung S24"],
+            }
+        )
+
+    monkeypatch.setattr(prompts, "generate", _fake_generate)
+
+    parsed = await prompts.parse_query("iPhone 15 или S24")
+
+    assert parsed.intent == "multi"
+    assert parsed.options == ["iPhone 15", "Samsung S24"]
+    assert parsed.category == "смартфон"
+
+
+async def test_an_empty_llm_product_type_falls_back_to_the_naive_one(monkeypatch) -> None:
+    async def _fake_generate(prompt, response_model, *, model=None, **kwargs):
+        return response_model.model_validate({"search_phrase": "мужские кроссовки 42 размер"})
+
+    monkeypatch.setattr(prompts, "generate", _fake_generate)
+
+    parsed = await prompts.parse_query("мужские кроссовки 42 размер")
+
+    assert parsed.product_type == "кроссовки"
+
+
+def test_prompt_teaches_every_intent_and_the_budget_rules() -> None:
+    prompt = prompts.parse_query_prompt("подарок для мамы")
+
+    for word in ("product", "need", "open", "multi", "service", "unclear"):
+        assert f'"intent": "{word}"' in prompt
+    assert "шампунь от перхоти" in prompt  # a need with one product type: no question
+    assert "product_type" in prompt and "restricted" in prompt and "condition" in prompt
+    assert "до 2 м" in prompt and "4K" in prompt  # units and resolutions are not money
+
+
+def test_naive_parse_is_a_product_with_a_bare_product_type() -> None:
+    parsed = prompts.parse_query_naive("мужские кроссовки 42 размер до 50 штук")
+
+    assert parsed.intent == "product"
+    assert parsed.search_phrase == "мужские кроссовки 42 размер"
+    assert parsed.product_type == "кроссовки"
+    assert parsed.budget_max == 50_000
+
+
+def test_naive_parse_without_letters_is_unclear() -> None:
+    assert prompts.parse_query_naive("???").intent == "unclear"
+    assert prompts.parse_query_naive("1").intent == "unclear"
+
+
+def test_naive_parse_reads_the_condition() -> None:
+    assert prompts.parse_query_naive("iphone 13 б/у").condition == "used"
+    assert prompts.parse_query_naive("новый iphone 13").condition == "new"
+    assert prompts.parse_query_naive("iphone 13").condition is None
+
+
+def test_naive_parse_keeps_the_budget_range_and_note() -> None:
+    assert prompts.parse_query_naive("ноутбук 30-40 тыс").budget_min == 30_000
+    assert prompts.parse_query_naive("айфон до 500$").budget_note is not None

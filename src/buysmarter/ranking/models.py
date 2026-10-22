@@ -7,16 +7,40 @@ engine output.
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
+
+Intent = Literal["product", "need", "open", "multi", "service", "unclear"]
+Restricted = Literal["rx", "alcohol", "tobacco", "weapon"]
 
 
 class QueryConstraints(BaseModel):
-    """Hard + soft constraints extracted from a user request."""
+    """Hard + soft constraints extracted from a user request (CONTEXT.md "Request intent").
 
-    category: str
+    ``search_phrase`` is what the marketplaces get, ``product_type`` the category profile
+    key without audience, size or theme. ``category`` is the old name of the search phrase,
+    kept equal to it until every reader moves (hidden from the LLM schema).
+    """
+
+    category: SkipJsonSchema[str] = ""
+    search_phrase: str = ""
+    product_type: str = ""
+    intent: Intent = "product"
+    # The problem a ``need`` request names ("перхоть"), passed on to capabilities.
+    need: str | None = None
+    # Products to choose between: a ``multi`` request's items, a need's product types.
+    options: list[str] = Field(default_factory=list)
+    restricted: Restricted | None = None
     city: str | None = None
     budget_max: int | None = None
+    # Shown only in phase 2 (not a filter).
+    budget_min: int | None = None
+    # Why a budget named in the query was not used ("бюджет в другой валюте не учтён").
+    budget_note: str | None = None
+    # "used" or "new" when the query says so; not a feature.
+    condition: str | None = None
     required_features: list[str] = Field(default_factory=list)
     excluded_brands: list[str] = Field(default_factory=list)
     preferred_marketplaces: list[str] = Field(default_factory=list)
@@ -28,6 +52,15 @@ class QueryConstraints(BaseModel):
     # Clothing/shoe size the user asked for ("42", "XL"). Marketplace cards do not
     # say which sizes are in stock, so it is reported as unverified, never filtered.
     size: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _one_phrase(cls, data: Any) -> Any:
+        """``category`` and ``search_phrase`` carry one value; the new name wins."""
+        if isinstance(data, dict):
+            phrase = data.get("search_phrase") or data.get("category") or ""
+            data = {**data, "search_phrase": phrase, "category": phrase}
+        return data
 
 
 class PriceHistory(BaseModel):

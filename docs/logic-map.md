@@ -99,11 +99,12 @@ Module: `llm/adapter`, `llm/keys`
 
 ### 2. Parse the request
 
-Decides: the category, budget, city, required features, excluded brands.
+Decides: the request intent, the search phrase, the product type, budget, city, required features, excluded brands, condition.
 In: query text. Out: `QueryConstraints`.
 Branches:
-- LLM: one call extracts all fields. Category is forced into Russian; a named model stays in the category ("смартфон iPhone 13"); condition words (б/у) go to usage notes.
-- No LLM or LLM error: regex takes budget and city; the rest of the text becomes the category; no required features on purpose.
+- LLM: one call extracts all fields: intent (product, need, open, multi, service, unclear), `search_phrase` (what the marketplaces get), `product_type` (the profile key without audience, size or theme), `options` to choose from, `restricted`, `condition`, budget range and note. The phrase is forced into Russian; a named model stays in it ("смартфон iPhone 13"). An empty product type falls back to the naive one.
+- No LLM or LLM error: intent is product (unclear when the phrase has fewer than two letters); regex takes budget, city and condition (б/у, новый); the rest of the text becomes the search phrase, and the product type is that phrase without audience and size words; no required features on purpose.
+`category` is the old name of the search phrase: the model keeps both equal until every reader moves.
 Budget rules (no LLM): another currency ($, ₽, €) gives no budget, only a note; tenge, thousands slang ("тыс", "косарь", "мың", "штук" after "до/за") and "N k" from 10 up are money; a bare "до N" is money only without a unit after it (м, кг, лет, МЕ, Вт, шт...) and under 1000 means thousands; "30-40 тыс" is a range. The money words leave the category.
 The category string is the key for everything below: knowledge lookup, searches, relevance.
 Module: `llm/prompts`, `llm/budget`, `services/recommend`

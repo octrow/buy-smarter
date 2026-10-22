@@ -23,3 +23,27 @@ def test_condition_words_are_not_features() -> None:
     """«б/у» is not a spec: it would reject every new Kaspi product; the used
     market is OLX's job, which always runs."""
     assert _features("смартфон iPhone 13", ["б/у", "Б/У", "used", "новый", "IPX7"]) == ["IPX7"]
+
+
+def test_category_and_search_phrase_stay_one_value() -> None:
+    """Until ``category`` is removed, old callers and new ones read the same phrase."""
+    old = QueryConstraints(category="мужские кроссовки")
+    new = QueryConstraints(search_phrase="мужские кроссовки", product_type="кроссовки")
+
+    assert old.search_phrase == old.category == "мужские кроссовки"
+    assert new.category == "мужские кроссовки"
+    assert old.intent == "product" and old.options == [] and old.restricted is None
+
+
+def test_a_stored_parse_without_the_new_fields_validates() -> None:
+    stored = {"category": "ирригатор", "city": "Almaty", "budget_max": 40000}
+
+    parsed = QueryConstraints.model_validate(stored)
+
+    assert parsed.search_phrase == "ирригатор"
+    assert parsed.product_type == "" and parsed.budget_min is None
+
+
+def test_the_llm_schema_has_no_category() -> None:
+    """The LLM fills ``search_phrase``; a second name for it would invite two answers."""
+    assert "category" not in QueryConstraints.model_json_schema()["properties"]

@@ -92,6 +92,13 @@ def strip_size(text: str) -> str:
     return " ".join(_SIZE_RE.sub(" ", text).split())
 
 
+def strip_audience(text: str) -> str:
+    """``text`` without its audience words ("мужские", "для детей")."""
+    for pattern in _AUDIENCE_RES.values():
+        text = re.sub(rf"(?:\bдля\s+)?(?:{pattern.pattern})", " ", text, flags=re.IGNORECASE)
+    return " ".join(text.split())
+
+
 def has_size(title: str, size: str) -> bool:
     """True when ``title`` names ``size`` as a separate token ("42" is not in "142")."""
     return (
