@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-23
+
 ### Changed
 - The review summary asks the LLM for the shopper text only (pros, cons, complaints, verdict, red flags); Jev alone
   decides counterfeit suspicion, reliability and the required-feature checks, as it already overrode them. A shorter
