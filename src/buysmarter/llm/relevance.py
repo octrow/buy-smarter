@@ -49,12 +49,21 @@ KEEP_THRESHOLD = 0.25
 USED_KEEP_THRESHOLD = 0.35
 
 # Noul criteria shared by every title question (Jev reads instructions literally,
-# so what counts as "no" is spelled out).
+# so what counts as "no" is spelled out). Every word of the category is a required
+# property: without that Jev kept over-ear and wired headphones for "tws наушники".
+# On 514 labelled titles (5 runs each) this cut false keeps 16.4 -> 10.8 per run
+# (TWS categories 3.4 -> 0) for 1.2 false drops (Chiruca "полуботинки" for "мужские
+# кроссовки", a "портативный … стационарный" irrigator).
+# ponytail: generic wording, no per-category word lists; add them only if a category's
+# form-factor words are still ignored in the relevance score log.
 _RELEVANCE_CRITERIA = {
     "true": "A standalone product of the category `category` that the shopper would buy "
-    "as the main item",
+    "as the main item; it has every property the words of `category` name (type, form factor, "
+    "connection, purpose)",
     "false": "An accessory, spare part, consumable, nozzle, battery, charger, case, filter, "
-    "a different product type, or an unrelated item",
+    "a different product type, an unrelated item, or a product that lacks or contradicts a "
+    "property named in `category` (wired when it says wireless, over-ear when it says in-ear, "
+    "another model number when it names one)",
 }
 
 # Accessory / spare-part / consumable markers (lowercased stems). Russian stems

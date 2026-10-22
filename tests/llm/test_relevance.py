@@ -57,6 +57,13 @@ def test_questions_point_at_each_title() -> None:
     assert "accessory" in questions["t0"]["criteria"]["false"]
 
 
+def test_criteria_make_category_words_required() -> None:
+    # "tws наушники" must reject over-ear and wired headphones (live 2026-10-22 misses).
+    criteria = relevance_questions(1)["t0"]["criteria"]
+    assert "form factor" in criteria["true"]
+    assert "contradicts a property named in `category`" in criteria["false"]
+
+
 async def test_filter_relevant_thresholds_nouls(monkeypatch) -> None:
     captured: dict = {}
 
