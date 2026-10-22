@@ -11,7 +11,7 @@ from typing import NamedTuple
 from pydantic import BaseModel
 
 from buysmarter.i18n import kzt
-from buysmarter.knowledge.brands import BrandBook
+from buysmarter.knowledge.brands import LINE_WORDS, BrandBook
 from buysmarter.knowledge.models_book import ModelBook, ModelEntry
 from buysmarter.knowledge.store import get_stored_books, merge_model_books, save_knowledge
 from buysmarter.llm.canonicalize import CANONICALIZE_MODEL, canonicalize_titles
@@ -181,14 +181,13 @@ def _storage_gb(title: str) -> int | None:
     return max(sizes, default=None)
 
 
-# Line words that make another model: "iPhone 13 Pro" is not "iPhone 13", "S24 Ultra" not "S24".
-_LINE_WORDS = frozenset({"pro", "max", "mini", "plus", "ultra", "lite"})
-_GLUED_PLUS = re.compile(r"(?<=\w)\+")  # "Pro+", "S24+" read as "plus"
+# Line words (``LINE_WORDS``) make another model: "S24 Ultra" is not "S24", "Pro+" not "Pro".
+_GLUED_PLUS = re.compile(r"(?<=\w)\+(?!\d)")  # "Pro+", "S24+" read as "plus"; "8+256" does not
 
 
 def _line_words(title: str) -> set[str]:
     words = re.findall(r"[a-z]+", _GLUED_PLUS.sub(" plus", title.lower()))
-    return set(words) & _LINE_WORDS
+    return set(words) & LINE_WORDS
 
 
 def _lines_conflict(a: str, b: str) -> bool:

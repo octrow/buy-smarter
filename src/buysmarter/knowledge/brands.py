@@ -70,7 +70,21 @@ class BrandBook(BaseModel):
     def title_brand(self, title: str) -> str | None:
         """The known brand a title names as its own, ignoring "для Xiaomi"-style
         compatibility mentions (an accessory or a case is not that brand's product)."""
-        return self.resolve(_COMPATIBILITY_RE.sub(" ", title))[0]
+        return self.resolve(_COMPATIBILITY_RE.sub(self._drop_device, title))[0]
+
+    def _drop_device(self, match: re.Match[str]) -> str:
+        """Keep what follows the device in a compatibility mention ("для iPhone Apple AirPods").
+
+        The device is the first word; a second one when the first is a brand of the book
+        ("Apple iPhone", "Samsung Galaxy"); then model numbers and line words ("15 Pro").
+        """
+        words = match.group("target").split()
+        cut = 1
+        if cut < len(words) and words[0].lower() in {b.lower() for b in self.tiers}:
+            cut += 1
+        while cut < len(words) and _is_model_word(words[cut]):
+            cut += 1
+        return " " + " ".join(words[cut:])
 
     def is_official_seller(self, brand: str | None, seller: str | None) -> bool:
         """True when ``seller`` is one of ``brand``'s own stores / official distributors."""
@@ -140,16 +154,25 @@ def _is_word_like_short(alias: str) -> bool:
 
 
 # "для Apple iPhone 15", "на Apple Watch", "совместим с Philips": the device the product
-# fits, not its maker. The target is a Latin word and the Latin/digit words after it,
-# else one word, so "Крем для лица CeraVe" and "Повербанк на 20000 mAh Xiaomi" keep theirs.
+# fits, not its maker. The target starts with a Latin word (``BrandBook._drop_device``
+# trims it to the device), else it is one word, so "Крем для лица CeraVe" and
+# "Повербанк на 20000 mAh Xiaomi" keep their maker. «под Nike» is left alone: on a
+# no-brand card it means a replica.
 # ponytail: a Cyrillic brand before a Latin model ("для Сяоми Redmi") still reads Redmi;
-# strip the whole run when such titles show up.
+# strip the model too when such titles show up.
 _LATIN_WORD = r"[\w.+'-]*[a-z0-9][\w.+'-]*"
 _COMPATIBILITY_RE = re.compile(
-    r"\b(?:для|на|под|к|for|совместим\w*\s+с|compatible\s+with)\s+"
-    rf"(?:[a-z][\w.+'-]*(?:\s+{_LATIN_WORD})*|[\w.+-]+)",
+    r"\b(?:для|на|к|for|совместим\w*\s+с|compatible\s+with)\s+"
+    rf"(?P<target>[a-z][\w.+'-]*(?:\s+{_LATIN_WORD})*|[\w.+-]+)",
     re.IGNORECASE,
 )
+# Words that name another model of the same line: "iPhone 13 Pro" is not "iPhone 13".
+LINE_WORDS = frozenset({"pro", "max", "mini", "plus", "ultra", "lite"})
+
+
+def _is_model_word(word: str) -> bool:
+    """A model number ("15", "S24") or a line word ("Pro") inside a device name."""
+    return any(ch.isdigit() for ch in word) or word.lower() in LINE_WORDS
 
 
 def _seller_key(name: str) -> str:

@@ -1843,6 +1843,15 @@ def test_a_pro_and_its_plus_are_not_merged() -> None:
     assert len(kept) == 3
 
 
+def test_ram_plus_storage_is_not_a_plus_model() -> None:
+    a = _cand("kaspi", "k1", "Xiaomi Redmi Note 13 8+256GB черный", "Xiaomi", 110000)
+    b = _cand("ozon", "o1", "Xiaomi Redmi Note 13 8/256GB черный", "Xiaomi", 112000)
+
+    kept, _ = dedupe_cross_source([a, b])
+
+    assert len(kept) == 1
+
+
 def test_two_cards_inside_one_source_are_not_merged() -> None:
     first = _cand("kaspi", "k1", "Vivo TWS Air 3 наушники", "Vivo", 3_208)
     second = _cand("kaspi", "k2", "Vivo TWS Air 3 наушники", "Vivo", 11_186)

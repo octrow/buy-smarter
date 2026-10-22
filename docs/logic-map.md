@@ -193,7 +193,7 @@ Decides: one `Candidate` per card.
 - Available = has a usable price.
 - Brand resolved through the brand book (spec field first, then title) with its tier; `brand_from_title` marks a brand read only from the title.
 - Brand mimicry ("J BL") and official seller are flagged here.
-- A brand after a compatibility word ("для", "на", "под", "к", "for", "совместим с") is the device the item fits: it is neither the brand nor a mimic ("Чехол для Apple iPhone 15").
+- A device after a compatibility word ("для", "на", "к", "for", "совместим с") is what the item fits: it is neither the brand nor a mimic ("Чехол для Apple iPhone 15"). The device is a Latin word, plus the next one after a brand of the book, plus model numbers and line words; a brand after it is still read ("для iPhone Apple AirPods").
 No I/O.
 Module: `normalize/candidate`
 

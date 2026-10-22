@@ -265,3 +265,27 @@ def test_a_capacity_after_na_is_not_a_compatibility_target():
     candidate = to_candidate(_product(title="Повербанк на 20000 mAh Xiaomi"), book=book)
 
     assert candidate.brand == "Xiaomi"
+
+
+def test_the_items_own_brand_after_the_device_is_still_read():
+    # Only the device is the target: the maker after it stays (#24 review).
+    fake = to_candidate(
+        _product(title="Наушники для iPhone Apple AirPods Pro 2", brand="Без бренда"),
+        book=_PHONE_BOOK,
+    )
+    case = to_candidate(
+        _product(title="Чехол на Samsung Galaxy S24 Ultra Spigen"),
+        book=BrandBook(tiers={"Samsung": "A", "Spigen": "B"}, aliases={"Galaxy": "Samsung"}),
+    )
+
+    assert fake.mimic_brand == "Apple"
+    assert (case.brand, case.brand_tier) == ("Spigen", "B")
+
+
+def test_a_replica_pod_brand_is_still_a_mimic():
+    # «под Nike» on a no-brand card reads as a replica, not compatibility.
+    candidate = to_candidate(
+        _product(title="Кроссовки под Nike Air Force 1", brand="Без бренда"), book=_SNEAKER_BOOK
+    )
+
+    assert candidate.mimic_brand == "Nike"

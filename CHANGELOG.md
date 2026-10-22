@@ -9,7 +9,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   (Russian or Latin names) instead of Almaty and Astana only; MCP `search_products` passes the city to OLX too.
 - A brand after a compatibility word is the device the item fits, not its maker: «Чехол для Apple iPhone 15»,
   «Ремешок на Apple Watch» and «Кабель к iPhone 15 Pro» are no longer flagged «возможная подделка под Apple», and a
-  case with no brand field no longer borrows Apple's trust tier from its title.
+  case with no brand field no longer borrows Apple's trust tier from its title. Only the device is skipped: in
+  «Наушники для iPhone Apple AirPods» Apple is still read, and «под Nike» on a no-brand card still reads as a replica.
 - OLX: when both relevance classifiers (Jev and the fallback LLM) fail, only ads naming the queried model stay;
   the used section no longer fills with every ad the search returned.
 - Candidates kept for a confirmed substance count towards the relevance floor, so five matching gels no longer bring
