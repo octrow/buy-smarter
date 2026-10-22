@@ -9,10 +9,9 @@ model, propose a brand-new canonical when the title clearly names a real model
 absent from the book, or give up (``None``) when it's unidentifiable.
 
 Matching is a Jev Choice per title (known models + "none of these", one request);
-a pick at ``MATCH_MIN_CONFIDENCE`` or above is taken. Everything else — Jev
-unsure, Jev saying "none", or any Jev failure — goes to the previous batched,
-cached LLM call, which can also *generate* a new canonical name. After a
-confident Jev "none", the LLM may only suggest a new name, never a known model.
+a pick at ``MATCH_MIN_CONFIDENCE`` or above is taken, anything else stays ``None``.
+Only a failed Jev call falls back to the batched, cached LLM call, which can also
+*generate* a new canonical name.
 
 Callers decide what to do with each verdict: a canonical that IS one of the
 ``known_models`` is the strongest signal (equivalent to a resolve hit) and its
@@ -149,40 +148,18 @@ async def _canonicalize_llm(
 async def canonicalize_titles(
     category: str, known_models: list[str], titles: list[str]
 ) -> list[str | None]:
-    """Resolve each unresolved ``titles`` entry to a canonical name, or ``None``.
+    """Resolve each unresolved ``titles`` entry to a known canonical name, or ``None``.
 
-    Jev's confident known-model picks stand; every other title goes to the LLM in
-    one batch. Fail-open: no titles, or every call failing, leaves ``None`` —
-    canonicalization is a nice-to-have display/learning aid, never a hard
-    dependency of matching.
+    Jev's confident picks only; an unsure or "none" answer leaves ``None``. The LLM runs
+    only when Jev itself fails: asked on every unsure title it cost 40-60 s per run and once
+    named every "iPhone 13" ad "Apple iPhone 17 Pro Max". Its labels were display-only.
+    With no known models there is nothing to pick from and no call is made.
     """
-    if not titles:
-        return []
+    if not titles or not known_models:
+        return [None] * len(titles)
     try:
         picks = await _canonicalize_jev(category, known_models, titles)
     except (LlmError, LlmConfigError, KeyError, TypeError) as exc:
         logger.warning("canonicalize Jev call failed (%r); falling back to the LLM", exc)
         return await _canonicalize_llm(category, known_models, titles)
-
-    rest = [i for i, (match, sure) in enumerate(picks) if not (match and sure)]
-    if not rest:
-        return [match if sure else None for match, sure in picks]
-    suggested = await _canonicalize_llm(category, known_models, [titles[i] for i in rest])
-    return _merge_picks(picks, dict(zip(rest, suggested, strict=True)), known_models)
-
-
-def _merge_picks(
-    picks: list[tuple[str | None, bool]],
-    suggested: dict[int, str | None],
-    known_models: list[str],
-) -> list[str | None]:
-    """Jev's confident picks, the LLM's suggestion for the rest.
-
-    A title Jev was sure matches no known model keeps ``None`` when the LLM
-    names a known model anyway (Jev's veto).
-    """
-    canonicals: list[str | None] = [match if sure else None for match, sure in picks]
-    for i, canonical in suggested.items():
-        vetoed = picks[i][1] and canonical in known_models
-        canonicals[i] = None if vetoed else canonical
-    return canonicals
+    return [match if sure else None for match, sure in picks]

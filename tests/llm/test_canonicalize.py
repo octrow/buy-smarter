@@ -130,38 +130,29 @@ async def test_confident_jev_matches_skip_llm(monkeypatch) -> None:
     ]
 
 
-async def test_only_unmatched_titles_go_to_llm(monkeypatch) -> None:
-    sent: list[str] = []
-
-    async def _llm(prompt, response_model, *, model=None, **kwargs):
-        sent.append(prompt)
-        return CanonicalizeResult(
-            mappings=[
-                CanonicalMapping(index=0, canonical="Xiaomi Water Flosser 1 (MEO701)", is_new=True),
-                CanonicalMapping(index=1, canonical="Xiaomi F300"),  # Jev was unsure: allowed
-            ]
-        )
+async def test_unsure_and_no_match_titles_stay_unresolved_without_the_llm(monkeypatch) -> None:
+    async def _llm_must_not_run(*args, **kwargs):
+        raise AssertionError("LLM ran although Jev answered")
 
     monkeypatch.setattr(
         canon,
         "system_one",
         _jev_picks(("Xiaomi F300", 0.95), (canon._NO_MATCH, 0.9), ("Xiaomi F300", 0.5)),
     )
-    monkeypatch.setattr(canon, "generate", _llm)
+    monkeypatch.setattr(canon, "generate", _llm_must_not_run)
 
     result = await canonicalize_titles(
         "ирригатор", ["Xiaomi F300"], ["ксиоми ф300", "Mijia MEO701", "Ирригатор Xiaomi"]
     )
 
-    assert result == ["Xiaomi F300", "Xiaomi Water Flosser 1 (MEO701)", "Xiaomi F300"]
-    assert "ксиоми ф300" not in sent[0]
+    assert result == ["Xiaomi F300", None, None]
 
 
-async def test_llm_cannot_overrule_confident_jev_no_match(monkeypatch) -> None:
-    async def _llm(prompt, response_model, *, model=None, **kwargs):
-        return CanonicalizeResult(mappings=[CanonicalMapping(index=0, canonical="Xiaomi F300")])
+async def test_no_known_models_makes_no_call(monkeypatch) -> None:
+    async def _must_not_run(*args, **kwargs):
+        raise AssertionError("a model ran with nothing to pick from")
 
-    monkeypatch.setattr(canon, "system_one", _jev_picks((canon._NO_MATCH, 0.95)))
-    monkeypatch.setattr(canon, "generate", _llm)
+    monkeypatch.setattr(canon, "system_one", _must_not_run)
+    monkeypatch.setattr(canon, "generate", _must_not_run)
 
-    assert await canonicalize_titles("ирригатор", ["Xiaomi F300"], ["Revyline RL 610"]) == [None]
+    assert await canonicalize_titles("ирригатор", [], ["Mijia MEO701"]) == [None]
