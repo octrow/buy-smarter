@@ -8,7 +8,8 @@ from fakeredis import FakeAsyncRedis
 
 from buysmarter import worker
 from buysmarter.jobs import JobStatus, JobStore, RecommendRequest
-from buysmarter.services.recommend import NoSubstanceMatch
+from buysmarter.services.matching import UsedListing
+from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch
 
 
 @pytest.fixture
@@ -89,6 +90,29 @@ async def test_empty_pool_after_filters_is_a_no_match(store, monkeypatch) -> Non
     job = await store.get(job_id)
     assert job.status is JobStatus.NO_MATCH
     assert job.result["reason"] == "no candidates passed hard filters"
+
+
+async def test_nothing_new_is_a_no_match_with_the_reasons_and_the_olx_ads(
+    store, monkeypatch
+) -> None:
+    ad = UsedListing(title="iPhone 13 128GB", price=180_000, new_price=373_000, saving=193_000)
+
+    async def nothing_new():
+        raise NoNewPick({"price exceeds budget": 2}, [ad])
+
+    _pipeline(monkeypatch, nothing_new)
+    job_id = await _queued(store)
+
+    await worker.run_job(store, job_id)
+    job = await store.get(job_id)
+
+    assert job.status is JobStatus.NO_MATCH
+    assert job.result["reason"] == "no candidates passed hard filters"
+    assert job.result["rejected_reasons"] == {"price exceeds budget": 2}
+    assert job.result["used_listings"][0]["title"] == "iPhone 13 128GB"
+    report = job.result["report_markdown"]
+    assert "Новых предложений нет: дороже бюджета ×2. На OLX нашлось:" in report
+    assert "iPhone 13 128GB" in report
 
 
 async def test_a_crash_is_failed_internal_without_the_traceback(store, monkeypatch, caplog) -> None:

@@ -269,9 +269,9 @@ class NoSubstanceMatch(Exception):
 class NoNewPick(ValueError):
     """No new product passed the hard filters; OLX may still have ads within the budget.
 
-    Carries why the new products were rejected and those ads, so the CLI and the app show them
-    instead of an empty error (``cli.report.no_new_pick_text``). A ``ValueError``: the API,
-    worker and MCP report it as before.
+    Carries why the new products were rejected and those ads, so the CLI, the app, the API jobs
+    and MCP show them instead of an empty error (``cli.report.no_new_pick_text``). A
+    ``ValueError``, so a caller that does not know it still reports "nothing to recommend".
     """
 
     def __init__(self, rejected_reasons: dict[str, int], used_listings: list[UsedListing]) -> None:
@@ -323,7 +323,7 @@ def _measured[**P](
             outcome = "ok"
             telemetry.OFFERS_RANKED.record(len(result.recommendation.ranked))
             return result
-        except NoSubstanceMatch:
+        except (NoSubstanceMatch, NoNewPick):
             outcome = "no_match"
             raise
         finally:

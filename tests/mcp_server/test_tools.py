@@ -13,7 +13,8 @@ from buysmarter.ranking.models import (
     Recommendation,
     ScoredCandidate,
 )
-from buysmarter.services.recommend import RecommendResult
+from buysmarter.services.matching import UsedListing
+from buysmarter.services.recommend import NoNewPick, RecommendResult
 
 _EXPECTED_TOOLS = {
     "recommend",
@@ -113,6 +114,34 @@ async def test_recommend_tool_reports_value_error_gracefully(monkeypatch) -> Non
     tool = await _get_tool("recommend")
     out = await tool.fn("ерунда", city="Алматы")
     assert out.startswith("No recommendation:")
+
+
+async def test_recommend_tool_shows_the_olx_ads_when_nothing_new_passes(monkeypatch) -> None:
+    ad = UsedListing(title="iPhone 13 128GB", price=180_000, url="https://olx.kz/1")
+
+    async def nothing_new(query, **kwargs):
+        raise NoNewPick({"price exceeds budget": 2}, [ad])
+
+    monkeypatch.setattr(server, "run_recommend", nothing_new)
+
+    tool = await _get_tool("recommend")
+    out = await tool.fn("iphone 13 до 250000", city="Алматы")
+
+    assert "Новых предложений нет: дороже бюджета ×2. На OLX нашлось:" in out
+    assert "[iPhone 13 128GB](https://olx.kz/1)" in out
+
+
+async def test_recommend_tool_says_olx_is_empty_too(monkeypatch) -> None:
+    async def nothing_at_all(query, **kwargs):
+        raise NoNewPick({"price exceeds budget": 2}, [])
+
+    monkeypatch.setattr(server, "run_recommend", nothing_at_all)
+
+    tool = await _get_tool("recommend")
+    out = await tool.fn("iphone 13 до 250000", city="Алматы")
+
+    assert "На OLX тоже ничего." in out
+    assert "| Объявление |" not in out
 
 
 # --- preferences (the suite's tmp store) -----------------------------------

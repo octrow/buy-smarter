@@ -84,6 +84,19 @@ async def test_recommend_without_a_substance_match_is_its_own_outcome() -> None:
     assert _sample("buysmarter_recommend_duration_seconds_count", outcome="no_match") == count + 1
 
 
+async def test_nothing_new_passing_is_a_no_match_not_an_error() -> None:
+    @svc._measured
+    async def fake_recommend():
+        raise svc.NoNewPick({"price exceeds budget": 1}, [])
+
+    count = _sample("buysmarter_recommend_duration_seconds_count", outcome="no_match")
+
+    with pytest.raises(svc.NoNewPick):
+        await fake_recommend()
+
+    assert _sample("buysmarter_recommend_duration_seconds_count", outcome="no_match") == count + 1
+
+
 async def test_llm_calls_are_counted_as_cache_hits_and_misses(monkeypatch) -> None:
     from pydantic import BaseModel
 

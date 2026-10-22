@@ -244,6 +244,8 @@ curl -s 'localhost:8000/history?q=wp-100'
 
 - Statuses: `queued` → `running` → `done`, `no_match` (no product has the required substance, or nothing passed the
   filters) or `failed` (`timeout`, `internal`). Jobs are kept for 24 hours.
+- A `no_match` where no new product passed the filters has `result.rejected_reasons` (reason → count) and
+  `result.used_listings` (the OLX ads within the budget, possibly empty); `report_markdown` shows both.
 - The same request within 15 minutes returns the same job (200). Each client may start 10 new jobs per 10 minutes,
   then gets 429 with `Retry-After` (`BUYSMARTER_RATE_LIMIT_JOBS`, `BUYSMARTER_RATE_LIMIT_WINDOW_S`).
 - `BUYSMARTER_API_KEYS=k1,k2` requires `X-API-Key`. `BUYSMARTER_SOURCES` lists the marketplaces the API accepts:

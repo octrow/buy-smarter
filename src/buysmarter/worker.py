@@ -22,10 +22,15 @@ except ModuleNotFoundError as exc:
     sys.exit(f"{exc.name} is missing: the worker needs `pip install buysmarter[server]`")
 
 from buysmarter import logsetup, telemetry
-from buysmarter.cli.report import REPORT_TITLE, render_markdown, render_no_substance_markdown
+from buysmarter.cli.report import (
+    REPORT_TITLE,
+    render_markdown,
+    render_no_new_pick_markdown,
+    render_no_substance_markdown,
+)
 from buysmarter.config import get_settings
 from buysmarter.jobs import Job, JobStatus, JobStore, RecommendOutcome, get_redis
-from buysmarter.services.recommend import NoSubstanceMatch, recommend
+from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, recommend
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +122,14 @@ async def _execute(job: Job) -> tuple[JobStatus, dict[str, Any] | None, str | No
     except NoSubstanceMatch as exc:
         outcome = RecommendOutcome(
             report_markdown=render_no_substance_markdown(exc), reason=exc.message()
+        )
+        return JobStatus.NO_MATCH, outcome.model_dump(mode="json"), None
+    except NoNewPick as exc:
+        outcome = RecommendOutcome(
+            report_markdown=render_no_new_pick_markdown(exc),
+            reason=str(exc),
+            rejected_reasons=exc.rejected_reasons,
+            used_listings=exc.used_listings,
         )
         return JobStatus.NO_MATCH, outcome.model_dump(mode="json"), None
     except ValueError as exc:  # the ranking engine's "no candidates passed hard filters"

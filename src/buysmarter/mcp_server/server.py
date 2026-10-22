@@ -16,11 +16,15 @@ import logging
 from fastmcp import FastMCP
 from market_sources.base import ProductSource, RawProduct
 
-from buysmarter.cli.report import render_markdown, render_no_substance_markdown
+from buysmarter.cli.report import (
+    render_markdown,
+    render_no_new_pick_markdown,
+    render_no_substance_markdown,
+)
 from buysmarter.i18n import kzt
 from buysmarter.memory import prefs
 from buysmarter.services.collect import ALL_SOURCES, resolve_sources, select_sources
-from buysmarter.services.recommend import NoSubstanceMatch
+from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch
 from buysmarter.services.recommend import recommend as run_recommend
 
 logger = logging.getLogger(__name__)
@@ -134,6 +138,8 @@ async def recommend(
         )
     except NoSubstanceMatch as exc:
         return render_no_substance_markdown(exc)
+    except NoNewPick as exc:
+        return render_no_new_pick_markdown(exc)
     except ValueError as exc:
         return f"No recommendation: {exc}"
     return render_markdown(result, max(top, 1))

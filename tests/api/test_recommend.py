@@ -10,6 +10,8 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from buysmarter import worker
 from buysmarter.api import main, recommend
 from buysmarter.jobs import JobStore
+from buysmarter.services.matching import UsedListing
+from buysmarter.services.recommend import NoNewPick
 
 
 @pytest.fixture
@@ -65,6 +67,23 @@ def test_the_worker_finishes_the_job_and_get_shows_the_outcome(client) -> None:
     assert job["result"]["best"]["title"] == "Waterpik WP-100 ирригатор"
     assert job["request"]["sources"] == ["kaspi", "olx"]
     assert job["finished_at"] is not None
+
+
+def test_nothing_new_shows_the_reasons_and_the_olx_ads(client, monkeypatch) -> None:
+    ad = UsedListing(title="iPhone 13 128GB", price=180_000, url="https://olx.kz/1")
+
+    async def nothing_new(query, **kwargs):
+        raise NoNewPick({"price exceeds budget": 2}, [ad])
+
+    monkeypatch.setattr(worker, "recommend", nothing_new)
+    job_id = _post(client).json()["job_id"]
+
+    job = _poll(client, job_id)
+
+    assert job["status"] == "no_match"
+    assert job["result"]["rejected_reasons"] == {"price exceeds budget": 2}
+    assert job["result"]["used_listings"][0]["url"] == "https://olx.kz/1"
+    assert "На OLX нашлось:" in job["result"]["report_markdown"]
 
 
 def test_unknown_job_is_404(client) -> None:

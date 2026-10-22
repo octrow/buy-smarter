@@ -99,6 +99,11 @@ class RecommendOutcome(BaseModel):
     used_listings: list[UsedListing] = Field(default_factory=list)
     city_defaulted: bool = False
     reason: str | None = Field(default=None, description="Why nothing was recommended (no_match)")
+    rejected_reasons: dict[str, int] = Field(
+        default_factory=dict,
+        description="no_match: why the new products failed the filters, reason -> count; "
+        "``used_listings`` then holds the OLX ads within the budget",
+    )
 
     @classmethod
     def from_result(cls, result: RecommendResult, report_markdown: str) -> "RecommendOutcome":

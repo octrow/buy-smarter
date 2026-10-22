@@ -29,7 +29,7 @@ from buysmarter.i18n import (
 from buysmarter.ranking.models import Candidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.matching import UsedListing
-from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
+from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, RecommendResult
 
 __all__ = ["ROLE_LABELS"]  # re-exported for the console renderer
 REPORT_TITLE = "# buy-smarter: рекомендация"
@@ -251,7 +251,11 @@ def _used_row(listing: UsedListing, brands: set[str]) -> str:
 
 
 def _used_md(result: RecommendResult) -> list[str]:
-    used = result.used_listings
+    brands = checked_brands(s.candidate for s in result.recommendation.ranked)
+    return _used_table(result.used_listings, brands)
+
+
+def _used_table(used: list[UsedListing], brands: set[str]) -> list[str]:
     if not used:
         return []
     lines = [
@@ -261,7 +265,6 @@ def _used_md(result: RecommendResult) -> list[str]:
         "| Объявление | Цена | Дешевле нового на | Город | Минус |",
         "| --- | ---: | ---: | --- | --- |",
     ]
-    brands = checked_brands(s.candidate for s in result.recommendation.ranked)
     lines += [_used_row(listing, brands) for listing in used]
     return lines
 
@@ -299,6 +302,13 @@ def render_no_substance_markdown(exc: NoSubstanceMatch) -> str:
                 f"| {_md_link(clean_title(cand.title), cand.url)} | {_fmt_price(cand.price)} "
                 f"| {rating} |"
             )
+    return "\n".join(lines) + "\n"
+
+
+def render_no_new_pick_markdown(exc: NoNewPick) -> str:
+    """Markdown for "no new product passed": the reasons and the OLX ads within the budget."""
+    text = no_new_pick_text(exc.rejected_reasons, bool(exc.used_listings))
+    lines = [REPORT_TITLE, "", text, *_used_table(exc.used_listings, set())]
     return "\n".join(lines) + "\n"
 
 
