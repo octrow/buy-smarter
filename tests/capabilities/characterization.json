@@ -1,0 +1,4044 @@
+{
+ "composition_extracted[llm]": {
+  "best": "kl",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong ingredient",
+   "strong brand",
+   "strong price",
+   "strong reviews",
+   "strong popularity",
+   "strong availability",
+   "дженерик-аналог Дифферин крем по той же формуле"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "ingredient",
+      25.0,
+      25.0,
+      "действующее вещество присутствует (0,1%)"
+     ],
+     [
+      "brand",
+      8.0,
+      10.0,
+      "Клензит is a tier-B brand"
+     ],
+     [
+      "price",
+      21.79,
+      25.0,
+      "price 6000 vs trusted-brand median 7500 (ratio 0.80) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      11.28,
+      12.0,
+      "rating 4.7/5 across 90 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      3.0,
+      3.0,
+      "90 reviews = 100% of kaspi pool max (90)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:kl",
+    "specs": {
+     "Состав": "адапален 0,1%, карбомер"
+    },
+    "total": 86.57
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      25.0,
+      25.0,
+      "действующее вещество присутствует (0,3%)"
+     ],
+     [
+      "brand",
+      10.0,
+      10.0,
+      "Galderma is a tier-A brand"
+     ],
+     [
+      "price",
+      15.36,
+      25.0,
+      "price 9000 vs trusted-brand median 7500 (ratio 1.20) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      9.68,
+      12.0,
+      "rating 4.9/5 across 40 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      1.33,
+      3.0,
+      "40 reviews = 44% of kaspi pool max (90)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.7,
+    "id": "kaspi:df",
+    "specs": {
+     "Состав": "adapalene 0,3%"
+    },
+    "total": 78.87
+   }
+  ],
+  "rejected_count": 2,
+  "rejected_reasons": {
+   "нет требуемого вещества": 2
+  },
+  "roles": {
+   "best_value": "df"
+  },
+  "used_listings": []
+ },
+ "composition_extracted[no-llm]": {
+  "best": "kl",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong price",
+   "strong availability",
+   "дженерик-аналог Дифферин крем по той же формуле"
+  ],
+  "ingredients_unchecked": true,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "ingredient",
+      17.5,
+      25.0,
+      "вещество есть, концентрация неизвестна"
+     ],
+     [
+      "brand",
+      8.0,
+      10.0,
+      "Клензит is a tier-B brand"
+     ],
+     [
+      "price",
+      21.79,
+      25.0,
+      "price 6000 vs trusted-brand median 7500 (ratio 0.80)"
+     ],
+     [
+      "reviews",
+      9.59,
+      12.0,
+      "rating 4.7/5 across 90 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      1.35,
+      3.0,
+      "90 reviews = 45% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:kl",
+    "specs": {
+     "Состав": "адапален 0,1%, карбомер"
+    },
+    "total": 75.73
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      17.5,
+      25.0,
+      "вещество есть, концентрация неизвестна"
+     ],
+     [
+      "brand",
+      10.0,
+      10.0,
+      "Galderma is a tier-A brand"
+     ],
+     [
+      "price",
+      15.36,
+      25.0,
+      "price 9000 vs trusted-brand median 7500 (ratio 1.20)"
+     ],
+     [
+      "reviews",
+      8.23,
+      12.0,
+      "rating 4.9/5 across 40 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      0.6,
+      3.0,
+      "40 reviews = 20% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:df",
+    "specs": {
+     "Состав": "adapalene 0,3%"
+    },
+    "total": 69.19
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      5.5,
+      10.0,
+      "Garnier is a tier-C brand"
+     ],
+     [
+      "price",
+      25.0,
+      25.0,
+      "price 4000 vs trusted-brand median 7500 (ratio 0.53)"
+     ],
+     [
+      "reviews",
+      9.72,
+      12.0,
+      "rating 4.5/5 across 200 reviews (discounted: tier-C brand)"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      2.7,
+      3.0,
+      "200 reviews = 100% of kaspi pool max (200) (discounted: tier-C brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:ga",
+    "specs": {
+     "Состав": "вода, салициловая кислота 2%"
+    },
+    "total": 67.92
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      10.0,
+      10.0,
+      "Bioderma is a tier-A brand"
+     ],
+     [
+      "price",
+      8.93,
+      25.0,
+      "price 12000 vs trusted-brand median 7500 (ratio 1.60)"
+     ],
+     [
+      "reviews",
+      8.93,
+      12.0,
+      "rating 4.8/5 across 60 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      0.9,
+      3.0,
+      "60 reviews = 30% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:bio",
+    "specs": {
+     "Состав": "вода, глицерин, ниацинамид"
+    },
+    "total": 53.76
+   }
+  ],
+  "rejected_count": 0,
+  "rejected_reasons": {},
+  "roles": {
+   "best_premium": "bio",
+   "best_value": "ga"
+  },
+  "used_listings": []
+ },
+ "composition_no_match[llm]": {
+  "alternatives": [
+   "bio",
+   "ga",
+   "gm"
+  ],
+  "checked": 3,
+  "error": "NoSubstanceMatch",
+  "message": "Не найдено товаров с действующим веществом 'адапален' (проверено 3 кандидатов). Ближайшие альтернативы без него:",
+  "substances": [
+   "адапален"
+  ]
+ },
+ "composition_no_match[no-llm]": {
+  "best": "ga",
+  "best_cons": [
+   "состав не проверен: адапален?",
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong price",
+   "strong reviews",
+   "strong popularity",
+   "strong availability"
+  ],
+  "ingredients_unchecked": true,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      5.5,
+      10.0,
+      "Garnier is a tier-C brand"
+     ],
+     [
+      "price",
+      25.0,
+      25.0,
+      "price 4000 vs trusted-brand median 8000 (ratio 0.50) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      9.72,
+      12.0,
+      "rating 4.5/5 across 200 reviews (discounted: tier-C brand)"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      2.7,
+      3.0,
+      "200 reviews = 100% of kaspi pool max (200) (discounted: tier-C brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.7,
+    "id": "kaspi:ga",
+    "specs": {
+     "Состав": "вода, салициловая кислота 2%"
+    },
+    "total": 67.92
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      10.0,
+      10.0,
+      "Bioderma is a tier-A brand"
+     ],
+     [
+      "price",
+      10.54,
+      25.0,
+      "price 12000 vs trusted-brand median 8000 (ratio 1.50) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      8.93,
+      12.0,
+      "rating 4.8/5 across 60 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      0.9,
+      3.0,
+      "60 reviews = 30% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.7,
+    "id": "kaspi:bio",
+    "specs": {
+     "Состав": "вода, глицерин, ниацинамид"
+    },
+    "total": 55.37
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      1.5,
+      10.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      7.5,
+      25.0,
+      "price 3000 vs trusted-brand median 8000 (ratio 0.38) (медиана по 2 товарам с известным брендом — ненадёжна); подозрительно низкая цена для категории"
+     ],
+     [
+      "reviews",
+      1.54,
+      12.0,
+      "rating 4.1/5 across 7 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      0.04,
+      3.0,
+      "7 reviews = 4% of kaspi pool max (200) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:gm",
+    "specs": {
+     "Состав": "вода, глицерин"
+    },
+    "total": 35.58
+   }
+  ],
+  "rejected_count": 0,
+  "rejected_reasons": {},
+  "roles": {
+   "best_value": "bio"
+  },
+  "used_listings": []
+ },
+ "composition_protected[llm]": {
+  "best": "kl",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong ingredient",
+   "strong brand",
+   "strong reviews",
+   "strong popularity",
+   "strong availability"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "ingredient",
+      25.0,
+      25.0,
+      "действующее вещество присутствует (0,1%)"
+     ],
+     [
+      "brand",
+      8.0,
+      10.0,
+      "Клензит is a tier-B brand"
+     ],
+     [
+      "price",
+      18.57,
+      25.0,
+      "price 6000 vs trusted-brand median 6000 (ratio 1.00) (медиана по 1 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      11.28,
+      12.0,
+      "rating 4.7/5 across 90 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      3.0,
+      3.0,
+      "90 reviews = 100% of kaspi pool max (90)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:kl",
+    "specs": {
+     "Состав": "адапален 0,1%, карбомер"
+    },
+    "total": 83.35
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      0.0,
+      25.0,
+      "вещество не найдено, состав не указан"
+     ],
+     [
+      "brand",
+      1.5,
+      10.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      15.89,
+      25.0,
+      "price 7000 vs trusted-brand median 6000 (ratio 1.17) (медиана по 1 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      2.51,
+      12.0,
+      "rating 4.6/5 across 12 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.16,
+      3.0,
+      "12 reviews = 13% of kaspi pool max (90) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "kaspi:cr",
+    "specs": {},
+    "total": 37.56
+   }
+  ],
+  "rejected_count": 3,
+  "rejected_reasons": {
+   "нет требуемого вещества": 3
+  },
+  "roles": {},
+  "used_listings": []
+ },
+ "composition_protected[no-llm]": {
+  "best": "kl",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong availability"
+  ],
+  "ingredients_unchecked": true,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "ingredient",
+      17.5,
+      25.0,
+      "вещество есть, концентрация неизвестна"
+     ],
+     [
+      "brand",
+      8.0,
+      10.0,
+      "Клензит is a tier-B brand"
+     ],
+     [
+      "price",
+      18.57,
+      25.0,
+      "price 6000 vs trusted-brand median 6000 (ratio 1.00)"
+     ],
+     [
+      "reviews",
+      9.59,
+      12.0,
+      "rating 4.7/5 across 90 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      1.35,
+      3.0,
+      "90 reviews = 45% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:kl",
+    "specs": {
+     "Состав": "адапален 0,1%, карбомер"
+    },
+    "total": 72.51
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      5.5,
+      10.0,
+      "Garnier is a tier-C brand"
+     ],
+     [
+      "price",
+      23.93,
+      25.0,
+      "price 4000 vs trusted-brand median 6000 (ratio 0.67)"
+     ],
+     [
+      "reviews",
+      9.72,
+      12.0,
+      "rating 4.5/5 across 200 reviews (discounted: tier-C brand)"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      2.7,
+      3.0,
+      "200 reviews = 100% of kaspi pool max (200) (discounted: tier-C brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:ga",
+    "specs": {
+     "Состав": "вода, салициловая кислота 2%"
+    },
+    "total": 66.85
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      1.5,
+      10.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      25.0,
+      25.0,
+      "price 2500 vs trusted-brand median 6000 (ratio 0.42)"
+     ],
+     [
+      "reviews",
+      2.67,
+      12.0,
+      "rating 4.3/5 across 30 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.18,
+      3.0,
+      "30 reviews = 15% of kaspi pool max (200) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "kaspi:gu",
+    "specs": {},
+    "total": 54.35
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      1.5,
+      10.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      25.0,
+      25.0,
+      "price 3000 vs trusted-brand median 6000 (ratio 0.50)"
+     ],
+     [
+      "reviews",
+      1.54,
+      12.0,
+      "rating 4.1/5 across 7 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      0.04,
+      3.0,
+      "7 reviews = 4% of kaspi pool max (200) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:gm",
+    "specs": {
+     "Состав": "вода, глицерин"
+    },
+    "total": 53.08
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      10.0,
+      10.0,
+      "Bioderma is a tier-A brand"
+     ],
+     [
+      "price",
+      2.5,
+      25.0,
+      "price 12000 vs trusted-brand median 6000 (ratio 2.00)"
+     ],
+     [
+      "reviews",
+      8.93,
+      12.0,
+      "rating 4.8/5 across 60 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      0.9,
+      3.0,
+      "60 reviews = 30% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:bio",
+    "specs": {
+     "Состав": "вода, глицерин, ниацинамид"
+    },
+    "total": 47.33
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      1.5,
+      10.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      15.89,
+      25.0,
+      "price 7000 vs trusted-brand median 6000 (ratio 1.17)"
+     ],
+     [
+      "reviews",
+      2.14,
+      12.0,
+      "rating 4.6/5 across 12 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.07,
+      3.0,
+      "12 reviews = 6% of kaspi pool max (200) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "kaspi:cr",
+    "specs": {},
+    "total": 44.6
+   }
+  ],
+  "rejected_count": 0,
+  "rejected_reasons": {},
+  "roles": {
+   "best_premium": "bio",
+   "best_value": "ga"
+  },
+  "used_listings": []
+ },
+ "composition_unchecked[llm]": {
+  "best": "kl",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong price",
+   "strong availability",
+   "дженерик-аналог Дифферин крем по той же формуле"
+  ],
+  "ingredients_unchecked": true,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "ingredient",
+      17.5,
+      25.0,
+      "вещество есть, концентрация неизвестна"
+     ],
+     [
+      "brand",
+      8.0,
+      10.0,
+      "Клензит is a tier-B brand"
+     ],
+     [
+      "price",
+      21.79,
+      25.0,
+      "price 6000 vs trusted-brand median 7500 (ratio 0.80)"
+     ],
+     [
+      "reviews",
+      9.59,
+      12.0,
+      "rating 4.7/5 across 90 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      1.35,
+      3.0,
+      "90 reviews = 45% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:kl",
+    "specs": {
+     "Состав": "адапален 0,1%, карбомер"
+    },
+    "total": 75.73
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      17.5,
+      25.0,
+      "вещество есть, концентрация неизвестна"
+     ],
+     [
+      "brand",
+      10.0,
+      10.0,
+      "Galderma is a tier-A brand"
+     ],
+     [
+      "price",
+      15.36,
+      25.0,
+      "price 9000 vs trusted-brand median 7500 (ratio 1.20)"
+     ],
+     [
+      "reviews",
+      8.23,
+      12.0,
+      "rating 4.9/5 across 40 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      0.6,
+      3.0,
+      "40 reviews = 20% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:df",
+    "specs": {
+     "Состав": "adapalene 0,3%"
+    },
+    "total": 69.19
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      5.5,
+      10.0,
+      "Garnier is a tier-C brand"
+     ],
+     [
+      "price",
+      25.0,
+      25.0,
+      "price 4000 vs trusted-brand median 7500 (ratio 0.53)"
+     ],
+     [
+      "reviews",
+      9.72,
+      12.0,
+      "rating 4.5/5 across 200 reviews (discounted: tier-C brand)"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      2.7,
+      3.0,
+      "200 reviews = 100% of kaspi pool max (200) (discounted: tier-C brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:ga",
+    "specs": {
+     "Состав": "вода, салициловая кислота 2%"
+    },
+    "total": 67.92
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      10.0,
+      10.0,
+      "Bioderma is a tier-A brand"
+     ],
+     [
+      "price",
+      8.93,
+      25.0,
+      "price 12000 vs trusted-brand median 7500 (ratio 1.60)"
+     ],
+     [
+      "reviews",
+      8.93,
+      12.0,
+      "rating 4.8/5 across 60 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      0.9,
+      3.0,
+      "60 reviews = 30% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:bio",
+    "specs": {
+     "Состав": "вода, глицерин, ниацинамид"
+    },
+    "total": 53.76
+   }
+  ],
+  "rejected_count": 0,
+  "rejected_reasons": {},
+  "roles": {
+   "best_premium": "bio",
+   "best_value": "ga"
+  },
+  "used_listings": []
+ },
+ "composition_unchecked[no-llm]": {
+  "best": "kl",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong price",
+   "strong availability",
+   "дженерик-аналог Дифферин крем по той же формуле"
+  ],
+  "ingredients_unchecked": true,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "ingredient",
+      17.5,
+      25.0,
+      "вещество есть, концентрация неизвестна"
+     ],
+     [
+      "brand",
+      8.0,
+      10.0,
+      "Клензит is a tier-B brand"
+     ],
+     [
+      "price",
+      21.79,
+      25.0,
+      "price 6000 vs trusted-brand median 7500 (ratio 0.80)"
+     ],
+     [
+      "reviews",
+      9.59,
+      12.0,
+      "rating 4.7/5 across 90 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      1.35,
+      3.0,
+      "90 reviews = 45% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:kl",
+    "specs": {
+     "Состав": "адапален 0,1%, карбомер"
+    },
+    "total": 75.73
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      17.5,
+      25.0,
+      "вещество есть, концентрация неизвестна"
+     ],
+     [
+      "brand",
+      10.0,
+      10.0,
+      "Galderma is a tier-A brand"
+     ],
+     [
+      "price",
+      15.36,
+      25.0,
+      "price 9000 vs trusted-brand median 7500 (ratio 1.20)"
+     ],
+     [
+      "reviews",
+      8.23,
+      12.0,
+      "rating 4.9/5 across 40 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      0.6,
+      3.0,
+      "40 reviews = 20% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:df",
+    "specs": {
+     "Состав": "adapalene 0,3%"
+    },
+    "total": 69.19
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      5.5,
+      10.0,
+      "Garnier is a tier-C brand"
+     ],
+     [
+      "price",
+      25.0,
+      25.0,
+      "price 4000 vs trusted-brand median 7500 (ratio 0.53)"
+     ],
+     [
+      "reviews",
+      9.72,
+      12.0,
+      "rating 4.5/5 across 200 reviews (discounted: tier-C brand)"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      2.7,
+      3.0,
+      "200 reviews = 100% of kaspi pool max (200) (discounted: tier-C brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:ga",
+    "specs": {
+     "Состав": "вода, салициловая кислота 2%"
+    },
+    "total": 67.92
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      10.0,
+      10.0,
+      "Bioderma is a tier-A brand"
+     ],
+     [
+      "price",
+      8.93,
+      25.0,
+      "price 12000 vs trusted-brand median 7500 (ratio 1.60)"
+     ],
+     [
+      "reviews",
+      8.93,
+      12.0,
+      "rating 4.8/5 across 60 reviews"
+     ],
+     [
+      "specs",
+      7.5,
+      15.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      0.9,
+      3.0,
+      "60 reviews = 30% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:bio",
+    "specs": {
+     "Состав": "вода, глицерин, ниацинамид"
+    },
+    "total": 53.76
+   }
+  ],
+  "rejected_count": 0,
+  "rejected_reasons": {},
+  "roles": {
+   "best_premium": "bio",
+   "best_value": "ga"
+  },
+  "used_listings": []
+ },
+ "concentration[llm]": {
+  "best": "kl",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong ingredient",
+   "strong brand",
+   "strong price",
+   "strong reviews",
+   "strong specs",
+   "strong popularity",
+   "strong availability",
+   "аналог по действующему веществу: Адаклин гель адапален — в 1.2 раз дешевле"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "ingredient",
+      25.0,
+      25.0,
+      "действующее вещество присутствует (0,1%)"
+     ],
+     [
+      "brand",
+      8.0,
+      10.0,
+      "Клензит is a tier-B brand"
+     ],
+     [
+      "price",
+      21.79,
+      25.0,
+      "price 6000 vs trusted-brand median 7500 (ratio 0.80) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      11.28,
+      12.0,
+      "rating 4.7/5 across 90 reviews"
+     ],
+     [
+      "specs",
+      15.0,
+      15.0,
+      "1/1 required features matched"
+     ],
+     [
+      "popularity",
+      3.0,
+      3.0,
+      "90 reviews = 100% of kaspi pool max (90)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:kl",
+    "specs": {
+     "Состав": "адапален 0,1%, карбомер"
+    },
+    "total": 94.07
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      17.5,
+      25.0,
+      "вещество есть, концентрация 0,3% ≠ 0,1%"
+     ],
+     [
+      "brand",
+      10.0,
+      10.0,
+      "Galderma is a tier-A brand"
+     ],
+     [
+      "price",
+      15.36,
+      25.0,
+      "price 9000 vs trusted-brand median 7500 (ratio 1.20) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      9.68,
+      12.0,
+      "rating 4.9/5 across 40 reviews"
+     ],
+     [
+      "specs",
+      0.0,
+      15.0,
+      "0/1 required features matched"
+     ],
+     [
+      "popularity",
+      1.33,
+      3.0,
+      "40 reviews = 44% of kaspi pool max (90)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.7,
+    "id": "kaspi:df",
+    "specs": {
+     "Состав": "adapalene 0,3%"
+    },
+    "total": 63.87
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      17.5,
+      25.0,
+      "вещество есть, концентрация неизвестна"
+     ],
+     [
+      "brand",
+      1.5,
+      10.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      23.93,
+      25.0,
+      "price 5000 vs trusted-brand median 7500 (ratio 0.67) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      2.19,
+      12.0,
+      "rating 4.3/5 across 10 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      0.0,
+      15.0,
+      "0/1 required features matched"
+     ],
+     [
+      "popularity",
+      0.13,
+      3.0,
+      "10 reviews = 11% of kaspi pool max (90) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "kaspi:ad",
+    "specs": {},
+    "total": 55.25
+   }
+  ],
+  "rejected_count": 2,
+  "rejected_reasons": {
+   "нет требуемого вещества": 2
+  },
+  "roles": {
+   "best_premium": "df"
+  },
+  "used_listings": []
+ },
+ "concentration[no-llm]": {
+  "best": "kl",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong price",
+   "strong specs",
+   "strong availability",
+   "аналог по действующему веществу: Адаклин гель адапален — в 1.2 раз дешевле"
+  ],
+  "ingredients_unchecked": true,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "ingredient",
+      17.5,
+      25.0,
+      "вещество есть, концентрация неизвестна"
+     ],
+     [
+      "brand",
+      8.0,
+      10.0,
+      "Клензит is a tier-B brand"
+     ],
+     [
+      "price",
+      21.79,
+      25.0,
+      "price 6000 vs trusted-brand median 7500 (ratio 0.80)"
+     ],
+     [
+      "reviews",
+      9.59,
+      12.0,
+      "rating 4.7/5 across 90 reviews"
+     ],
+     [
+      "specs",
+      15.0,
+      15.0,
+      "1/1 required features matched"
+     ],
+     [
+      "popularity",
+      1.35,
+      3.0,
+      "90 reviews = 45% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:kl",
+    "specs": {
+     "Состав": "адапален 0,1%, карбомер"
+    },
+    "total": 83.23
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      17.5,
+      25.0,
+      "вещество есть, концентрация неизвестна"
+     ],
+     [
+      "brand",
+      10.0,
+      10.0,
+      "Galderma is a tier-A brand"
+     ],
+     [
+      "price",
+      15.36,
+      25.0,
+      "price 9000 vs trusted-brand median 7500 (ratio 1.20)"
+     ],
+     [
+      "reviews",
+      8.23,
+      12.0,
+      "rating 4.9/5 across 40 reviews"
+     ],
+     [
+      "specs",
+      0.0,
+      15.0,
+      "0/1 required features matched"
+     ],
+     [
+      "popularity",
+      0.6,
+      3.0,
+      "40 reviews = 20% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:df",
+    "specs": {
+     "Состав": "adapalene 0,3%"
+    },
+    "total": 61.69
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      5.5,
+      10.0,
+      "Garnier is a tier-C brand"
+     ],
+     [
+      "price",
+      25.0,
+      25.0,
+      "price 4000 vs trusted-brand median 7500 (ratio 0.53)"
+     ],
+     [
+      "reviews",
+      9.72,
+      12.0,
+      "rating 4.5/5 across 200 reviews (discounted: tier-C brand)"
+     ],
+     [
+      "specs",
+      0.0,
+      15.0,
+      "0/1 required features matched"
+     ],
+     [
+      "popularity",
+      2.7,
+      3.0,
+      "200 reviews = 100% of kaspi pool max (200) (discounted: tier-C brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:ga",
+    "specs": {
+     "Состав": "вода, салициловая кислота 2%"
+    },
+    "total": 60.42
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      17.5,
+      25.0,
+      "вещество есть, концентрация неизвестна"
+     ],
+     [
+      "brand",
+      1.5,
+      10.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      23.93,
+      25.0,
+      "price 5000 vs trusted-brand median 7500 (ratio 0.67)"
+     ],
+     [
+      "reviews",
+      1.87,
+      12.0,
+      "rating 4.3/5 across 10 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      0.0,
+      15.0,
+      "0/1 required features matched"
+     ],
+     [
+      "popularity",
+      0.06,
+      3.0,
+      "10 reviews = 5% of kaspi pool max (200) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "kaspi:ad",
+    "specs": {},
+    "total": 54.86
+   },
+   {
+    "axes": [
+     [
+      "ingredient",
+      7.5,
+      25.0,
+      "состав не проверен — вещество не подтверждено"
+     ],
+     [
+      "brand",
+      10.0,
+      10.0,
+      "Bioderma is a tier-A brand"
+     ],
+     [
+      "price",
+      8.93,
+      25.0,
+      "price 12000 vs trusted-brand median 7500 (ratio 1.60)"
+     ],
+     [
+      "reviews",
+      8.93,
+      12.0,
+      "rating 4.8/5 across 60 reviews"
+     ],
+     [
+      "specs",
+      0.0,
+      15.0,
+      "0/1 required features matched"
+     ],
+     [
+      "popularity",
+      0.9,
+      3.0,
+      "60 reviews = 30% of kaspi pool max (200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:bio",
+    "specs": {
+     "Состав": "вода, глицерин, ниацинамид"
+    },
+    "total": 46.26
+   }
+  ],
+  "rejected_count": 0,
+  "rejected_reasons": {},
+  "roles": {
+   "best_budget": "ga",
+   "best_premium": "df"
+  },
+  "used_listings": []
+ },
+ "olx_only[llm]": {
+  "error": "NoNewPick",
+  "message": "no candidates passed hard filters",
+  "rejected_reasons": {
+   "price exceeds budget": 3
+  },
+  "used_listings": [
+   {
+    "canonical": null,
+    "city": "Алматы",
+    "con": "без гарантии/проверки",
+    "matched_title": "Робот пылесос Xiaomi S10",
+    "new_price": 80000,
+    "price": 25000,
+    "saving": 55000,
+    "standalone": false,
+    "title": "Робот пылесос Xiaomi S10",
+    "url": null
+   }
+  ]
+ },
+ "olx_only[no-llm]": {
+  "error": "NoNewPick",
+  "message": "no candidates passed hard filters",
+  "rejected_reasons": {
+   "price exceeds budget": 3
+  },
+  "used_listings": [
+   {
+    "canonical": null,
+    "city": "Алматы",
+    "con": "без гарантии/проверки",
+    "matched_title": "Робот пылесос Xiaomi S10",
+    "new_price": 80000,
+    "price": 25000,
+    "saving": 55000,
+    "standalone": false,
+    "title": "Робот пылесос Xiaomi S10",
+    "url": null
+   }
+  ]
+ },
+ "smartphone_kimovil[llm]": {
+  "best": "sg",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong reviews",
+   "strong specs",
+   "strong availability"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Samsung is a tier-A brand"
+     ],
+     [
+      "price",
+      10.19,
+      25.0,
+      "price 350000 vs trusted-brand median 230000 (ratio 1.52) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      9.74,
+      12.0,
+      "rating 4.8/5 across 400 reviews"
+     ],
+     [
+      "specs",
+      18.5,
+      20.0,
+      "1/1 required features matched; Kimovil 85/100"
+     ],
+     [
+      "popularity",
+      2.67,
+      8.0,
+      "400 reviews = 33% of kaspi pool max (1200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": 85.0,
+    "confidence": 0.7,
+    "id": "kaspi:sg",
+    "specs": {
+     "Ёмкость аккумулятора": "4500 мАч",
+     "Модель (Kimovil)": "Samsung Galaxy S23",
+     "Частота обновления экрана": "120 Гц"
+    },
+    "total": 76.1
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      20.0,
+      25.0,
+      "Xiaomi is a tier-B brand"
+     ],
+     [
+      "price",
+      25.0,
+      25.0,
+      "price 110000 vs trusted-brand median 230000 (ratio 0.48) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      11.28,
+      12.0,
+      "rating 4.7/5 across 1200 reviews"
+     ],
+     [
+      "specs",
+      0.0,
+      20.0,
+      "0/1 required features matched"
+     ],
+     [
+      "popularity",
+      8.0,
+      8.0,
+      "1200 reviews = 100% of kaspi pool max (1200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:xr",
+    "specs": {},
+    "total": 74.28
+   }
+  ],
+  "rejected_count": 1,
+  "rejected_reasons": {
+   "missing required feature(s)": 1
+  },
+  "roles": {
+   "best_value": "xr"
+  },
+  "used_listings": []
+ },
+ "smartphone_kimovil[no-llm]": {
+  "best": "sg",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong reviews",
+   "strong specs",
+   "strong availability"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Samsung is a tier-A brand"
+     ],
+     [
+      "price",
+      10.19,
+      25.0,
+      "price 350000 vs trusted-brand median 230000 (ratio 1.52) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      9.74,
+      12.0,
+      "rating 4.8/5 across 400 reviews"
+     ],
+     [
+      "specs",
+      18.5,
+      20.0,
+      "1/1 required features matched; Kimovil 85/100"
+     ],
+     [
+      "popularity",
+      2.67,
+      8.0,
+      "400 reviews = 33% of kaspi pool max (1200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": 85.0,
+    "confidence": 0.7,
+    "id": "kaspi:sg",
+    "specs": {
+     "Ёмкость аккумулятора": "4500 мАч",
+     "Модель (Kimovil)": "Samsung Galaxy S23",
+     "Частота обновления экрана": "120 Гц"
+    },
+    "total": 76.1
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      20.0,
+      25.0,
+      "Xiaomi is a tier-B brand"
+     ],
+     [
+      "price",
+      25.0,
+      25.0,
+      "price 110000 vs trusted-brand median 230000 (ratio 0.48) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      11.28,
+      12.0,
+      "rating 4.7/5 across 1200 reviews"
+     ],
+     [
+      "specs",
+      0.0,
+      20.0,
+      "0/1 required features matched"
+     ],
+     [
+      "popularity",
+      8.0,
+      8.0,
+      "1200 reviews = 100% of kaspi pool max (1200)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:xr",
+    "specs": {},
+    "total": 74.28
+   }
+  ],
+  "rejected_count": 1,
+  "rejected_reasons": {
+   "missing required feature(s)": 1
+  },
+  "roles": {
+   "best_value": "xr"
+  },
+  "used_listings": []
+ },
+ "sneakers_gender_size[llm]": {
+  "best": "n1",
+  "best_cons": [
+   "размер 42: наличие не проверено",
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong reviews",
+   "strong popularity",
+   "strong availability"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Nike is a tier-A brand"
+     ],
+     [
+      "price",
+      14.83,
+      25.0,
+      "price 45000 vs trusted-brand median 36500 (ratio 1.23) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      11.52,
+      12.0,
+      "rating 4.8/5 across 70 reviews"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      8.0,
+      8.0,
+      "70 reviews = 100% of kaspi pool max (70)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:n1",
+    "specs": {},
+    "total": 79.35
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      20.0,
+      25.0,
+      "Puma is a tier-B brand"
+     ],
+     [
+      "price",
+      22.31,
+      25.0,
+      "price 28000 vs trusted-brand median 36500 (ratio 0.77) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      7.89,
+      12.0,
+      "rating 4.6/5 across 20 reviews"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      2.29,
+      8.0,
+      "20 reviews = 29% of kaspi pool max (70)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:p1",
+    "specs": {},
+    "total": 72.49
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      3.75,
+      25.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      7.5,
+      25.0,
+      "price 9000 vs trusted-brand median 36500 (ratio 0.25) (медиана по 2 товарам с известным брендом — ненадёжна); подозрительно низкая цена для категории"
+     ],
+     [
+      "reviews",
+      2.35,
+      12.0,
+      "rating 4.2/5 across 11 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.5,
+      8.0,
+      "11 reviews = 16% of kaspi pool max (70) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "kaspi:x1",
+    "specs": {},
+    "total": 34.1
+   }
+  ],
+  "rejected_count": 2,
+  "rejected_reasons": {
+   "other audience": 2
+  },
+  "roles": {
+   "best_value": "p1"
+  },
+  "used_listings": []
+ },
+ "sneakers_gender_size[no-llm]": {
+  "best": "n1",
+  "best_cons": [
+   "размер 42: наличие не проверено",
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong reviews",
+   "strong popularity",
+   "strong availability"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Nike is a tier-A brand"
+     ],
+     [
+      "price",
+      14.83,
+      25.0,
+      "price 45000 vs trusted-brand median 36500 (ratio 1.23) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      11.52,
+      12.0,
+      "rating 4.8/5 across 70 reviews"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      8.0,
+      8.0,
+      "70 reviews = 100% of kaspi pool max (70)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:n1",
+    "specs": {},
+    "total": 79.35
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      20.0,
+      25.0,
+      "Puma is a tier-B brand"
+     ],
+     [
+      "price",
+      22.31,
+      25.0,
+      "price 28000 vs trusted-brand median 36500 (ratio 0.77) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      7.89,
+      12.0,
+      "rating 4.6/5 across 20 reviews"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      2.29,
+      8.0,
+      "20 reviews = 29% of kaspi pool max (70)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:p1",
+    "specs": {},
+    "total": 72.49
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      3.75,
+      25.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      7.5,
+      25.0,
+      "price 9000 vs trusted-brand median 36500 (ratio 0.25) (медиана по 2 товарам с известным брендом — ненадёжна); подозрительно низкая цена для категории"
+     ],
+     [
+      "reviews",
+      2.35,
+      12.0,
+      "rating 4.2/5 across 11 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.5,
+      8.0,
+      "11 reviews = 16% of kaspi pool max (70) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "kaspi:x1",
+    "specs": {},
+    "total": 34.1
+   }
+  ],
+  "rejected_count": 2,
+  "rejected_reasons": {
+   "other audience": 2
+  },
+  "roles": {
+   "best_value": "p1"
+  },
+  "used_listings": []
+ },
+ "sneakers_official_store[llm]": {
+  "best": "n1",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong reviews",
+   "strong popularity",
+   "strong availability"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Nike is a tier-A brand"
+     ],
+     [
+      "price",
+      10.54,
+      25.0,
+      "price 45000 vs trusted-brand median 30000 (ratio 1.50)"
+     ],
+     [
+      "reviews",
+      11.52,
+      12.0,
+      "rating 4.8/5 across 70 reviews"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      8.0,
+      8.0,
+      "70 reviews = 100% of kaspi pool max (70)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:n1",
+    "specs": {},
+    "total": 75.06
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Puma is a tier-A brand"
+     ],
+     [
+      "price",
+      23.93,
+      25.0,
+      "price 20000 vs trusted-brand median 30000 (ratio 0.67)"
+     ],
+     [
+      "reviews",
+      0.0,
+      12.0,
+      "no rating/review data available"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.0,
+      8.0,
+      "no review-count data for popularity"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "official:86720e7347addb9a",
+    "specs": {},
+    "total": 68.93
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Puma is a tier-A brand"
+     ],
+     [
+      "price",
+      18.57,
+      25.0,
+      "price 30000 vs trusted-brand median 30000 (ratio 1.00)"
+     ],
+     [
+      "reviews",
+      0.0,
+      12.0,
+      "no rating/review data available"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.0,
+      8.0,
+      "no review-count data for popularity"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "official:90e04278968040fc",
+    "specs": {},
+    "total": 63.57
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      3.75,
+      25.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      7.5,
+      25.0,
+      "price 9000 vs trusted-brand median 30000 (ratio 0.30); подозрительно низкая цена для категории"
+     ],
+     [
+      "reviews",
+      2.35,
+      12.0,
+      "rating 4.2/5 across 11 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.5,
+      8.0,
+      "11 reviews = 16% of kaspi pool max (70) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "kaspi:x1",
+    "specs": {},
+    "total": 34.1
+   }
+  ],
+  "rejected_count": 2,
+  "rejected_reasons": {
+   "other audience": 2
+  },
+  "roles": {
+   "best_budget": "90e04278968040fc",
+   "best_value": "86720e7347addb9a"
+  },
+  "used_listings": []
+ },
+ "sneakers_official_store[no-llm]": {
+  "best": "n1",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong reviews",
+   "strong popularity",
+   "strong availability"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Nike is a tier-A brand"
+     ],
+     [
+      "price",
+      10.54,
+      25.0,
+      "price 45000 vs trusted-brand median 30000 (ratio 1.50)"
+     ],
+     [
+      "reviews",
+      11.52,
+      12.0,
+      "rating 4.8/5 across 70 reviews"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      8.0,
+      8.0,
+      "70 reviews = 100% of kaspi pool max (70)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:n1",
+    "specs": {},
+    "total": 75.06
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Puma is a tier-A brand"
+     ],
+     [
+      "price",
+      23.93,
+      25.0,
+      "price 20000 vs trusted-brand median 30000 (ratio 0.67)"
+     ],
+     [
+      "reviews",
+      0.0,
+      12.0,
+      "no rating/review data available"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.0,
+      8.0,
+      "no review-count data for popularity"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "official:86720e7347addb9a",
+    "specs": {},
+    "total": 68.93
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Puma is a tier-A brand"
+     ],
+     [
+      "price",
+      18.57,
+      25.0,
+      "price 30000 vs trusted-brand median 30000 (ratio 1.00)"
+     ],
+     [
+      "reviews",
+      0.0,
+      12.0,
+      "no rating/review data available"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.0,
+      8.0,
+      "no review-count data for popularity"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "official:90e04278968040fc",
+    "specs": {},
+    "total": 63.57
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      3.75,
+      25.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      7.5,
+      25.0,
+      "price 9000 vs trusted-brand median 30000 (ratio 0.30); подозрительно низкая цена для категории"
+     ],
+     [
+      "reviews",
+      2.35,
+      12.0,
+      "rating 4.2/5 across 11 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.5,
+      8.0,
+      "11 reviews = 16% of kaspi pool max (70) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "kaspi:x1",
+    "specs": {},
+    "total": 34.1
+   }
+  ],
+  "rejected_count": 2,
+  "rejected_reasons": {
+   "other audience": 2
+  },
+  "roles": {
+   "best_budget": "90e04278968040fc",
+   "best_value": "86720e7347addb9a"
+  },
+  "used_listings": []
+ },
+ "sneakers_olx_audience[llm]": {
+  "best": "n1",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong reviews",
+   "strong popularity",
+   "strong availability"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Nike is a tier-A brand"
+     ],
+     [
+      "price",
+      14.83,
+      25.0,
+      "price 45000 vs trusted-brand median 36500 (ratio 1.23) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      11.52,
+      12.0,
+      "rating 4.8/5 across 70 reviews"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      8.0,
+      8.0,
+      "70 reviews = 100% of kaspi pool max (70)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:n1",
+    "specs": {},
+    "total": 79.35
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      20.0,
+      25.0,
+      "Puma is a tier-B brand"
+     ],
+     [
+      "price",
+      22.31,
+      25.0,
+      "price 28000 vs trusted-brand median 36500 (ratio 0.77) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      7.89,
+      12.0,
+      "rating 4.6/5 across 20 reviews"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      2.29,
+      8.0,
+      "20 reviews = 29% of kaspi pool max (70)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:p1",
+    "specs": {},
+    "total": 72.49
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      3.75,
+      25.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      7.5,
+      25.0,
+      "price 9000 vs trusted-brand median 36500 (ratio 0.25) (медиана по 2 товарам с известным брендом — ненадёжна); подозрительно низкая цена для категории"
+     ],
+     [
+      "reviews",
+      2.35,
+      12.0,
+      "rating 4.2/5 across 11 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.5,
+      8.0,
+      "11 reviews = 16% of kaspi pool max (70) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "kaspi:x1",
+    "specs": {},
+    "total": 34.1
+   }
+  ],
+  "rejected_count": 2,
+  "rejected_reasons": {
+   "other audience": 2
+  },
+  "roles": {
+   "best_value": "p1"
+  },
+  "used_listings": [
+   {
+    "canonical": null,
+    "city": "Алматы",
+    "con": "без гарантии/проверки",
+    "matched_title": "Кроссовки Nike Air Max 90 мужские",
+    "new_price": 45000,
+    "price": 15000,
+    "saving": 30000,
+    "standalone": false,
+    "title": "Кроссовки Nike Air Max 90 мужские",
+    "url": null
+   },
+   {
+    "canonical": null,
+    "city": "Алматы",
+    "con": "без гарантии/проверки",
+    "matched_title": "",
+    "new_price": 0,
+    "price": 12000,
+    "saving": 0,
+    "standalone": true,
+    "title": "Кроссовки Adidas Superstar",
+    "url": null
+   }
+  ]
+ },
+ "sneakers_olx_audience[no-llm]": {
+  "best": "n1",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong reviews",
+   "strong popularity",
+   "strong availability"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Nike is a tier-A brand"
+     ],
+     [
+      "price",
+      14.83,
+      25.0,
+      "price 45000 vs trusted-brand median 36500 (ratio 1.23) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      11.52,
+      12.0,
+      "rating 4.8/5 across 70 reviews"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      8.0,
+      8.0,
+      "70 reviews = 100% of kaspi pool max (70)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:n1",
+    "specs": {},
+    "total": 79.35
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      20.0,
+      25.0,
+      "Puma is a tier-B brand"
+     ],
+     [
+      "price",
+      22.31,
+      25.0,
+      "price 28000 vs trusted-brand median 36500 (ratio 0.77) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      7.89,
+      12.0,
+      "rating 4.6/5 across 20 reviews"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      2.29,
+      8.0,
+      "20 reviews = 29% of kaspi pool max (70)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:p1",
+    "specs": {},
+    "total": 72.49
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      3.75,
+      25.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      7.5,
+      25.0,
+      "price 9000 vs trusted-brand median 36500 (ratio 0.25) (медиана по 2 товарам с известным брендом — ненадёжна); подозрительно низкая цена для категории"
+     ],
+     [
+      "reviews",
+      2.35,
+      12.0,
+      "rating 4.2/5 across 11 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.5,
+      8.0,
+      "11 reviews = 16% of kaspi pool max (70) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "kaspi:x1",
+    "specs": {},
+    "total": 34.1
+   }
+  ],
+  "rejected_count": 2,
+  "rejected_reasons": {
+   "other audience": 2
+  },
+  "roles": {
+   "best_value": "p1"
+  },
+  "used_listings": [
+   {
+    "canonical": null,
+    "city": "Алматы",
+    "con": "без гарантии/проверки",
+    "matched_title": "Кроссовки Nike Air Max 90 мужские",
+    "new_price": 45000,
+    "price": 15000,
+    "saving": 30000,
+    "standalone": false,
+    "title": "Кроссовки Nike Air Max 90 мужские",
+    "url": null
+   },
+   {
+    "canonical": null,
+    "city": "Алматы",
+    "con": "без гарантии/проверки",
+    "matched_title": "",
+    "new_price": 0,
+    "price": 12000,
+    "saving": 0,
+    "standalone": true,
+    "title": "Кроссовки Adidas Superstar",
+    "url": null
+   }
+  ]
+ },
+ "spec_driven[llm]": {
+  "best": "k3",
+  "best_cons": [
+   "weak popularity",
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong price",
+   "strong availability"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "brand",
+      20.0,
+      25.0,
+      "Samsung is a tier-B brand"
+     ],
+     [
+      "price",
+      22.59,
+      25.0,
+      "price 45000 vs trusted-brand median 60000 (ratio 0.75)"
+     ],
+     [
+      "reviews",
+      8.32,
+      12.0,
+      "rating 4.5/5 across 80 reviews"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      2.13,
+      8.0,
+      "80 reviews = 27% of kaspi pool max (300)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:k3",
+    "specs": {
+     "Мощность": "1800 Вт"
+    },
+    "total": 73.04
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      13.75,
+      25.0,
+      "Xiaomi is a tier-C brand"
+     ],
+     [
+      "price",
+      18.57,
+      25.0,
+      "price 60000 vs trusted-brand median 60000 (ratio 1.00)"
+     ],
+     [
+      "reviews",
+      9.94,
+      12.0,
+      "rating 4.6/5 across 300 reviews (discounted: tier-C brand)"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      7.2,
+      8.0,
+      "300 reviews = 100% of kaspi pool max (300) (discounted: tier-C brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:k2",
+    "specs": {},
+    "total": 69.46
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Dyson is a tier-A brand"
+     ],
+     [
+      "price",
+      2.5,
+      25.0,
+      "price 149000 vs trusted-brand median 60000 (ratio 2.48)"
+     ],
+     [
+      "reviews",
+      9.68,
+      12.0,
+      "rating 4.8/5 across 120 reviews"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      3.2,
+      8.0,
+      "120 reviews = 40% of kaspi pool max (300)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:k1",
+    "specs": {
+     "Тип": "вертикальный"
+    },
+    "total": 60.38
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      3.75,
+      25.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      25.0,
+      25.0,
+      "price 25000 vs trusted-brand median 60000 (ratio 0.42)"
+     ],
+     [
+      "reviews",
+      2.29,
+      12.0,
+      "rating 4.9/5 across 15 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.16,
+      8.0,
+      "15 reviews = 5% of kaspi pool max (300) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "kaspi:k4",
+    "specs": {},
+    "total": 51.2
+   }
+  ],
+  "rejected_count": 0,
+  "rejected_reasons": {},
+  "roles": {
+   "best_premium": "k1",
+   "best_value": "k2"
+  },
+  "used_listings": []
+ },
+ "spec_driven[no-llm]": {
+  "best": "k3",
+  "best_cons": [
+   "weak popularity",
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong price",
+   "strong availability"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "brand",
+      20.0,
+      25.0,
+      "Samsung is a tier-B brand"
+     ],
+     [
+      "price",
+      22.59,
+      25.0,
+      "price 45000 vs trusted-brand median 60000 (ratio 0.75)"
+     ],
+     [
+      "reviews",
+      8.32,
+      12.0,
+      "rating 4.5/5 across 80 reviews"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      2.13,
+      8.0,
+      "80 reviews = 27% of kaspi pool max (300)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:k3",
+    "specs": {
+     "Мощность": "1800 Вт"
+    },
+    "total": 73.04
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      13.75,
+      25.0,
+      "Xiaomi is a tier-C brand"
+     ],
+     [
+      "price",
+      18.57,
+      25.0,
+      "price 60000 vs trusted-brand median 60000 (ratio 1.00)"
+     ],
+     [
+      "reviews",
+      9.94,
+      12.0,
+      "rating 4.6/5 across 300 reviews (discounted: tier-C brand)"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      7.2,
+      8.0,
+      "300 reviews = 100% of kaspi pool max (300) (discounted: tier-C brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:k2",
+    "specs": {},
+    "total": 69.46
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Dyson is a tier-A brand"
+     ],
+     [
+      "price",
+      2.5,
+      25.0,
+      "price 149000 vs trusted-brand median 60000 (ratio 2.48)"
+     ],
+     [
+      "reviews",
+      9.68,
+      12.0,
+      "rating 4.8/5 across 120 reviews"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; spec data present"
+     ],
+     [
+      "popularity",
+      3.2,
+      8.0,
+      "120 reviews = 40% of kaspi pool max (300)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.8,
+    "id": "kaspi:k1",
+    "specs": {
+     "Тип": "вертикальный"
+    },
+    "total": 60.38
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      3.75,
+      25.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      25.0,
+      25.0,
+      "price 25000 vs trusted-brand median 60000 (ratio 0.42)"
+     ],
+     [
+      "reviews",
+      2.29,
+      12.0,
+      "rating 4.9/5 across 15 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.16,
+      8.0,
+      "15 reviews = 5% of kaspi pool max (300) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "kaspi:k4",
+    "specs": {},
+    "total": 51.2
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      3.75,
+      25.0,
+      "unknown brand — no trust data"
+     ],
+     [
+      "price",
+      7.5,
+      25.0,
+      "price 5000 vs trusted-brand median 60000 (ratio 0.08); подозрительно низкая цена для категории"
+     ],
+     [
+      "reviews",
+      1.63,
+      12.0,
+      "rating 4.2/5 across 9 reviews (discounted: unverified brand)"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.1,
+      8.0,
+      "9 reviews = 3% of kaspi pool max (300) (discounted: unverified brand)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "kaspi:k6",
+    "specs": {},
+    "total": 32.98
+   }
+  ],
+  "rejected_count": 0,
+  "rejected_reasons": {},
+  "roles": {
+   "best_premium": "k1",
+   "best_value": "k2"
+  },
+  "used_listings": []
+ },
+ "two_violations[llm]": {
+  "best": "s2",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong reviews",
+   "strong specs",
+   "strong popularity",
+   "strong availability"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Sony is a tier-A brand"
+     ],
+     [
+      "price",
+      10.54,
+      25.0,
+      "price 45000 vs trusted-brand median 30000 (ratio 1.50) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      11.76,
+      12.0,
+      "rating 4.9/5 across 300 reviews"
+     ],
+     [
+      "specs",
+      20.0,
+      20.0,
+      "1/1 required features matched"
+     ],
+     [
+      "popularity",
+      8.0,
+      8.0,
+      "300 reviews = 100% of kaspi pool max (300)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.7,
+    "id": "kaspi:s2",
+    "specs": {
+     "Шумоподавление": "ANC, адаптивное"
+    },
+    "total": 85.3
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      20.0,
+      25.0,
+      "Soundcore is a tier-B brand"
+     ],
+     [
+      "price",
+      25.0,
+      25.0,
+      "price 15000 vs trusted-brand median 30000 (ratio 0.50) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      6.03,
+      12.0,
+      "rating 4.4/5 across 25 reviews"
+     ],
+     [
+      "specs",
+      0.0,
+      20.0,
+      "0/1 required features matched"
+     ],
+     [
+      "popularity",
+      0.67,
+      8.0,
+      "25 reviews = 8% of kaspi pool max (300)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:q1",
+    "specs": {},
+    "total": 61.7
+   }
+  ],
+  "rejected_count": 4,
+  "rejected_reasons": {
+   "excluded brand": 1,
+   "missing required feature(s)": 1,
+   "not available": 1,
+   "price exceeds budget": 1
+  },
+  "roles": {
+   "best_budget": "q1"
+  },
+  "used_listings": []
+ },
+ "two_violations[no-llm]": {
+  "best": "s2",
+  "best_cons": [
+   "тексты отзывов не загрузились — подделку по отзывам не проверить"
+  ],
+  "best_pros": [
+   "strong brand",
+   "strong reviews",
+   "strong specs",
+   "strong popularity",
+   "strong availability"
+  ],
+  "ingredients_unchecked": false,
+  "knowledge_missing": false,
+  "ranked": [
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Sony is a tier-A brand"
+     ],
+     [
+      "price",
+      10.54,
+      25.0,
+      "price 45000 vs trusted-brand median 30000 (ratio 1.50) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      11.76,
+      12.0,
+      "rating 4.9/5 across 300 reviews"
+     ],
+     [
+      "specs",
+      20.0,
+      20.0,
+      "1/1 required features matched"
+     ],
+     [
+      "popularity",
+      8.0,
+      8.0,
+      "300 reviews = 100% of kaspi pool max (300)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.7,
+    "id": "kaspi:s2",
+    "specs": {
+     "Шумоподавление": "ANC, адаптивное"
+    },
+    "total": 85.3
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      20.0,
+      25.0,
+      "Soundcore is a tier-B brand"
+     ],
+     [
+      "price",
+      25.0,
+      25.0,
+      "price 15000 vs trusted-brand median 30000 (ratio 0.50) (медиана по 2 товарам с известным брендом — ненадёжна)"
+     ],
+     [
+      "reviews",
+      6.03,
+      12.0,
+      "rating 4.4/5 across 25 reviews"
+     ],
+     [
+      "specs",
+      0.0,
+      20.0,
+      "0/1 required features matched"
+     ],
+     [
+      "popularity",
+      0.67,
+      8.0,
+      "25 reviews = 8% of kaspi pool max (300)"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.6,
+    "id": "kaspi:q1",
+    "specs": {},
+    "total": 61.7
+   }
+  ],
+  "rejected_count": 4,
+  "rejected_reasons": {
+   "excluded brand": 1,
+   "missing required feature(s)": 1,
+   "not available": 1,
+   "price exceeds budget": 1
+  },
+  "roles": {
+   "best_budget": "q1"
+  },
+  "used_listings": []
+ }
+}
