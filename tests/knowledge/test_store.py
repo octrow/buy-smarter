@@ -346,3 +346,81 @@ async def test_a_model_only_save_to_a_new_slug_writes_no_brand_book_or_type() ->
     raw = await _raw("пылесос")
     assert "brand_book" not in raw and "category_type" not in raw
     assert raw["generated_by"] == "free-stack"
+
+
+# --- healing records the old alias save copied (phase 1, decision 8) --------------
+
+
+def _cosmetics_books() -> tuple[BrandBook, ModelBook]:
+    brand = BrandBook(tiers={"CeraVe": "B", "Galderma": "A"})
+    model = ModelBook(entries=[ModelEntry(canonical="Дифферин", brand="Galderma")])
+    return brand, model
+
+
+async def _store_cosmetics() -> None:
+    brand, model = _cosmetics_books()
+    await save_knowledge(
+        "косметика",
+        brand,
+        model,
+        "opus",
+        category_type="composition_driven",
+        ingredient_book=IngredientBook(substances=[ActiveSubstance(canonical="адапален")]),
+    )
+
+
+async def test_a_copy_left_by_the_alias_save_is_healed_once(monkeypatch, caplog) -> None:
+    await _store_cosmetics()
+    brand, model = _cosmetics_books()
+    learned = ModelBook(
+        entries=[ModelEntry(canonical="Дифферин", brand="Galderma", aliases=["дифферин гель б/у"])]
+    )
+    await _put_raw(  # what _persist_learned_aliases wrote before phase 1
+        "крем-с-адапаленом",
+        {
+            "brand_book": brand.model_dump(mode="json"),
+            "model_book": learned.model_dump(mode="json"),
+            "category_type": "spec_driven",
+            "generated_by": "free-stack",
+        },
+    )
+    monkeypatch.setattr(store_mod, "system_one", _jev_choice("косметика", 0.98))
+
+    with caplog.at_level("INFO"):
+        resolved = await store_mod.resolve_profile("крем с адапаленом", use_llm=True)
+
+    assert resolved.ingredient_book is not None  # composition again, from the parent
+    assert "knowledge healed: крем-с-адапаленом -> parent косметика" in caplog.text
+    child = await _raw("крем-с-адапаленом")
+    assert child["parent"] == "косметика" and child["heal_checked"] is True
+    assert "brand_book" not in child and "model_book" not in child
+    parent = await _raw("косметика")
+    assert parent["model_book"]["entries"][0]["aliases"] == ["дифферин гель б/у"]
+    assert parent["brand_book"] == brand.model_dump(mode="json")
+
+    monkeypatch.setattr(store_mod, "system_one", _llm_must_not_run)
+    again = await store_mod.resolve_profile("крем с адапаленом", use_llm=True)
+    assert again.model_book_owner == "косметика"
+
+
+async def test_a_real_spec_driven_record_with_aliases_is_not_healed(monkeypatch) -> None:
+    await _store_cosmetics()
+    own = BrandBook(tiers={"La Roche-Posay": "A"})
+    await _put_raw(  # learned before phase 1, aliases added since
+        "крем-для-рук",
+        {
+            "brand_book": own.model_dump(mode="json"),
+            "model_book": ModelBook().model_dump(mode="json"),
+            "category_type": "spec_driven",
+            "generated_by": "opus",
+            "updated_by": "free-stack",
+        },
+    )
+    monkeypatch.setattr(store_mod, "system_one", _jev_choice("косметика", 0.98))
+
+    resolved = await store_mod.resolve_profile("крем для рук", use_llm=True)
+
+    assert resolved.ingredient_book is None
+    raw = await _raw("крем-для-рук")
+    assert raw["heal_checked"] is True and "parent" not in raw
+    assert raw["brand_book"] == own.model_dump(mode="json")

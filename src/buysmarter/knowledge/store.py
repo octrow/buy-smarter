@@ -33,8 +33,10 @@ from buysmarter.knowledge.models_book import get_model_book as _seed_model_book
 from buysmarter.knowledge.profile import (
     BRAND_KEY,
     COMPOSITION_DRIVEN,
+    HEAL_CHECKED_KEY,
     INGREDIENT_KEY,
     MODEL_KEY,
+    PARENT_KEY,
     SPEC_DRIVEN,
     SYNONYMS_KEY,
     CategoryProfile,
@@ -172,6 +174,8 @@ async def resolve_profile(category: str, *, use_llm: bool = True) -> ResolvedPro
     """
     slug = _slug(category)
     own = await load_profile(category)
+    if own is not None and _heal_candidate(own):
+        own = await _heal(own, use_llm)
     if own is None:
         matched = await _find_related(slug, use_llm)
         if matched is not None:
@@ -180,6 +184,72 @@ async def resolve_profile(category: str, *, use_llm: bool = True) -> ResolvedPro
     parent = await load_profile(own.parent) if own is not None and own.parent else None
     resolved = resolve_fields(slug, own, parent)
     return _with_seed_books(resolved, category)
+
+
+# --- Healing records the pre-phase-1 alias save copied (decision 8) ---------------
+# _persist_learned_aliases used to save a borrowed brand book and the model book with its
+# aliases under the query's category, typed spec-driven: from then on that copy shadowed
+# the composition profile it came from ("крем с адапаленом" stopped using "косметика").
+
+_HEAL_WRITER = "knowledge-heal"
+
+
+def _heal_candidate(own: CategoryProfile) -> bool:
+    """An old-format record with a brand book, no capabilities and no parent, not yet checked."""
+    return (
+        own.capabilities is None
+        and own.brand_book is not None
+        and own.parent is None
+        and not own.heal_checked
+    )
+
+
+def _is_copy_of(own: CategoryProfile, source: CategoryProfile) -> bool:
+    """The record's brand book is exactly a composition profile's: the copy, not a learned book."""
+    return (
+        source.ingredient_book is not None
+        and source.brand_book is not None
+        and own.brand_book is not None
+        and own.brand_book.model_dump() == source.brand_book.model_dump()
+    )
+
+
+def _merge_aliases(base: ModelBook, extra: ModelBook) -> ModelBook:
+    """``base`` plus the aliases and models only ``extra`` has; nothing of ``base`` is lost."""
+    by_canonical = {e.canonical: e for e in base.entries}
+    for entry in extra.entries:
+        have = by_canonical.get(entry.canonical)
+        aliases = list(dict.fromkeys([*have.aliases, *entry.aliases])) if have else None
+        by_canonical[entry.canonical] = (
+            have.model_copy(update={"aliases": aliases}) if have else entry
+        )
+    return ModelBook(entries=list(by_canonical.values()))
+
+
+async def _heal(own: CategoryProfile, use_llm: bool) -> CategoryProfile:
+    """Turn a copy into a child of the profile it was copied from; mark the record checked.
+
+    The copied brand book is dropped, the learned aliases move to the source's model book
+    and the record's own model book is dropped. Any outcome of a full check (one that
+    could ask Jev) marks the record, so the check never runs again.
+    """
+    related = await _find_related(own.slug, use_llm)
+    source = await load_profile(related) if related is not None else None
+    if source is None or not _is_copy_of(own, source):
+        if related is not None or use_llm:
+            await update_knowledge(own.slug, {HEAL_CHECKED_KEY: True}, _HEAL_WRITER)
+        return own
+    if own.model_book is not None:
+        merged = _merge_aliases(source.model_book or ModelBook(), own.model_book)
+        await save_knowledge(source.slug, model_book=merged, generated_by=_HEAL_WRITER)
+    await update_knowledge(
+        own.slug,
+        {PARENT_KEY: source.slug, HEAL_CHECKED_KEY: True},
+        _HEAL_WRITER,
+        drop=(BRAND_KEY, MODEL_KEY),
+    )
+    logger.info("knowledge healed: %s -> parent %s", own.slug, source.slug)
+    return await load_profile(own.slug) or own
 
 
 def _with_seed_books(resolved: ResolvedProfile, category: str) -> ResolvedProfile:
