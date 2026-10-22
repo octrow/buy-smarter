@@ -143,7 +143,7 @@ In: constraints.category. Out: a resolved profile.
 Lookup, once per run (`resolve_profile`):
 - a stored record under this exact slug → its profile;
 - else a profile that lists the slug among its synonyms;
-- else, with LLM, Jev picks the covering stored profile, or one cached LLM call when Jev fails or is unsure ("солнцезащитный крем" → "косметика");
+- else, with LLM, Jev picks the covering stored profile ("солнцезащитный крем" → "косметика"); Jev unsure → no related profile; one cached LLM call only when Jev fails;
 - no substring matching: "чай" does not find "чайник".
 The found profile's parent (one step) fills fields it does not set; each field keeps its owner (own slug, parent, or the related profile).
 Books nothing stored provides fall back to the static seed (irrigators), owned by the query's slug.
@@ -313,7 +313,7 @@ Module: `ranking/selection`
 
 Decides: whether reviews change the ranking.
 1. Kaspi only, top 6 Kaspi candidates: fetch reviews; discount review axes that look fake; penalize a high share of defect complaints; check counterfeit signals.
-2. With LLM and summaries on: summaries for the top 3 of any source, chosen before penalties; counterfeit or serious reliability concerns cut the score; review verdicts on required features apply.
+2. With LLM and summaries on: summaries for the top 3 of any source, chosen before penalties. The LLM writes the text (pros, cons, complaints, verdict, red flags); Jev decides counterfeit, reliability and the required-feature verdicts (Jev fails → none of them this run). Counterfeit or serious reliability concerns cut the score; review verdicts on required features apply.
 3. No LLM with required features: stem search over fetched reviews instead.
 With LLM and summaries off (`--no-review-summary`) required features are not checked in reviews at all.
 After each change the roles are picked again (step 18), so the best pick may change.
@@ -334,7 +334,7 @@ Module: `services/collect`, `db/repo`
 
 Decides: the final warnings and the OLX section.
 - Cross-source notes from step 13 are attached ("также на ozon за …"); a big gap becomes a con.
-- First, with LLM and knowledge, OLX titles the model book missed are mapped to model names. Learned aliases are saved to the profile that owns the model book (its own, the parent or the related profile); only the model book is written, and a borrowed book never creates a record under the query.
+- First, with LLM and knowledge, OLX titles the model book missed are mapped to model names: Jev's confident picks only (unsure → no name), the LLM only when Jev fails; a name whose model number, line or storage contradicts the title is dropped. Learned aliases are saved to the profile that owns the model book (its own, the parent or the related profile); only the model book is written, and a borrowed book never creates a record under the query.
 - OLX ads are matched to every ranked candidate (same model or brand + title).
 - Then notable ads of trusted brands, only when a budget is set.
 - Then no-name ads cheaper than a no-name or tier-C best pick.
@@ -357,7 +357,7 @@ Builds category knowledge: brand book, model book, category type, ingredient boo
 - Official store prices are checked on real pages and kept as brand price floors.
 - Merged into the local store under the category name (other keys of the record stay); step 6 finds it next time.
 - `learn --file` merges with the category's own record only, never a parent's or a related one.
-- Variant: extract the same knowledge from the user's own notes.
+- Variant: extract the same knowledge from the user's own notes; notes with more than 10 list items go in chunks of 10, each headed by the notes' intro, merged in code.
 Feeds: step 6, and through it steps 7, 8, 10, 13, 16, 17.
 Module: `knowledge/generate`, `knowledge/store`, `services/official_stores`
 
