@@ -39,6 +39,13 @@ jobs:
       - run: uv run mypy src
       - run: uv run complexipy src
       - run: uv run pytest -q --cov --cov-fail-under=90
+      - run: uv run python scripts/screenshots.py screenshots  # every screen, light and dark, for review
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: screenshots
+          path: screenshots/
+          retention-days: 14
+          if-no-files-found: error
 
   # A plain install (no extra): what the CLI, MCP and the desktop app ship with.
   core:
