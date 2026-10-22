@@ -118,3 +118,25 @@ def test_a_fraction_is_never_cut_into_a_budget(query: str, budget, phrase: str) 
 
     assert parsed.budget_max == budget
     assert parsed.text == phrase
+
+
+@pytest.mark.parametrize(
+    ("query", "budget", "phrase"),
+    [
+        ("iPhone 15 до 500 тыс", 500_000, "iPhone 15"),
+        ("телевизор 43 до 150к", 150_000, "телевизор 43"),
+        ("мужские кроссовки 42 до 30 тыс", 30_000, "мужские кроссовки 42"),
+        ("кроссовки nike 2024 до 50к", 50_000, "кроссовки nike 2024"),
+        ("айфон 15 128 до 400 тыс", 400_000, "айфон 15 128"),
+    ],
+)
+def test_a_model_or_size_number_before_до_is_not_a_range(query: str, budget: int, phrase: str):
+    """Review: "N до M" without «от» took the model number as budget_min and cut it."""
+    parsed = parse_budget(query)
+
+    assert (parsed.budget_min, parsed.budget_max) == (None, budget)
+    assert parsed.text == phrase
+
+
+def test_a_range_whose_ends_are_reversed_is_dropped() -> None:
+    assert parse_budget("от 50 до 30 тыс").budget_min is None

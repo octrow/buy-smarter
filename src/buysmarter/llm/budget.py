@@ -30,10 +30,16 @@ _FOREIGN_RE = re.compile(
     rf"|{_NUM.format('b')}\s*(?:\$|usd(?!\w)|€|eur(?!\w)|руб(?:л[ьяей]\w*|\.)?(?!\w)|₽))",
     re.IGNORECASE,
 )
-_RANGE_RE = re.compile(
-    rf"(?:\bот\s+)?{_NUM.format('low')}\s*(?:[-–—]|\s+до\s+)\s*{_NUM.format('high')}"
-    rf"\s*{_MULT}?\s*(?P<kzt>{_KZT})?",
-    re.IGNORECASE,
+_RANGE_TAIL = rf"\s*{_MULT}?\s*(?P<kzt>{_KZT})?"
+# "от 30 до 40 тыс" or "30-40 тыс"; a bare "N до M" is a model or size number and a budget
+# ("iPhone 15 до 500 тыс"), never a range.
+_RANGE_RES = (
+    re.compile(
+        rf"\bот\s+{_NUM.format('low')}\s+до\s+{_NUM.format('high')}{_RANGE_TAIL}", re.IGNORECASE
+    ),
+    re.compile(
+        rf"{_NUM.format('low')}\s*[-–—]\s*{_NUM.format('high')}{_RANGE_TAIL}", re.IGNORECASE
+    ),
 )
 _AMOUNT_RE = re.compile(rf"{_PREP}?{_NUM.format('n')}\s*{_MULT}?\s*(?P<kzt>{_KZT})?", re.IGNORECASE)
 _BARE_SLANG_RE = re.compile(r"\b(?:до\s+|за\s+)?косар\w*", re.IGNORECASE)
@@ -64,13 +70,15 @@ def _cut(query: str, match: re.Match[str]) -> str:
 
 
 def _range(query: str) -> Budget | None:
-    for match in _RANGE_RE.finditer(query):
+    matches = (match for pattern in _RANGE_RES for match in pattern.finditer(query))
+    for match in matches:
         mult = match["mult"]
         if not (mult or match["kzt"]) or (mult and mult.lower().startswith("штук")):
             continue
         scale = _THOUSAND if mult else 1
         low, high = _number(match["low"]) * scale, _number(match["high"]) * scale
-        return Budget(_cut(query, match), budget_max=high, budget_min=low)
+        if low < high:
+            return Budget(_cut(query, match), budget_max=high, budget_min=low)
     return None
 
 
