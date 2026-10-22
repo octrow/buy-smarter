@@ -8,9 +8,11 @@ from buysmarter.db.base import async_session
 from buysmarter.services import price_tracking as pt
 
 
-def _row(product_id: str, price: float, offer_prices: tuple[float, ...] = ()) -> pt.ProductRow:
-    product = RawProduct(source="kaspi", product_id=product_id, title=f"Irrigator {product_id}")
-    product.price = price
+def _row(
+    product_id: str, price: float | None, offer_prices: tuple[float, ...] = ()
+) -> pt.ProductRow:
+    title = f"Irrigator {product_id}"
+    product = RawProduct(source="kaspi", product_id=product_id, title=title, price=price)
     offers = [RawOffer(source="kaspi", product_id=product_id, price=p) for p in offer_prices]
     return product, {}, offers
 
@@ -30,12 +32,19 @@ async def test_a_second_refresh_reports_each_price_move_against_the_last_snapsho
 
 
 async def test_a_product_without_any_price_gets_no_snapshot() -> None:
-    product, specs, offers = _row("free", 0)
-    product.price = None
-
-    assert await pt._persist_refresh([(product, {"IPX": "7"}, offers)], "irrigators") == []
+    assert await pt._persist_refresh([_row("free", None)], "irrigators") == []
     history = await pt.product_history("free")
     assert [(h.title, h.snapshots) for h in history] == [("Irrigator free", [])]
+
+
+async def test_specs_are_saved_with_the_product() -> None:
+    product, _, offers = _row("spec", 9_000)
+
+    await pt._persist_refresh([(product, {"IPX": "7"}, offers)], "irrigators")
+
+    async with async_session() as session:
+        [stored] = await repo.find_products(session, "Irrigator spec")
+    assert stored.specs == {"IPX": "7"}
 
 
 @pytest.fixture
