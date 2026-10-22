@@ -88,6 +88,29 @@ async def test_city_default_note_rendered_when_unstated(
     assert result.constraints.city == "Алматы"
 
 
+async def test_restricted_goods_are_searched_with_a_warning_first(
+    stub_source: StubKaspiSource, monkeypatch
+) -> None:
+    """Owner's decision: a vape is searched, not refused; the warning leads the report."""
+    from buysmarter.services import recommend as recommend_module
+
+    async def _no_preference() -> str | None:
+        return None
+
+    monkeypatch.setattr(recommend_module, "_city_preference", _no_preference)
+    result = await recommend_module.recommend(
+        "вейп до 30000 тг", use_llm=False, source=stub_source, persist=False
+    )
+
+    assert result.constraints.restricted == "tobacco"
+    assert result.restricted_note
+    assert result.recommendation.best is not None
+    with main.console.capture() as capture:
+        main._render(result, top=3)
+    first_line = capture.get().strip().splitlines()[0]
+    assert first_line.startswith("⚠ Табак")
+
+
 class _FakeStdin:
     def __init__(self, tty: bool) -> None:
         self._tty = tty

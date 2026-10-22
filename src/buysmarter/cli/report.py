@@ -272,6 +272,8 @@ def _used_table(used: list[UsedListing], brands: set[str]) -> list[str]:
 def render_markdown(result: RecommendResult, top: int = 8) -> str:
     """Render the whole recommendation as a markdown report string."""
     parts = [REPORT_TITLE, ""]
+    if result.restricted_note:
+        parts += [f"> ⚠ {result.restricted_note}", ""]
     parts += _constraints_md(result)
     parts += _best_md(result)
     parts += _review_summary_md(result)

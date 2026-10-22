@@ -239,6 +239,8 @@ def _render_used(used: list[UsedListing], ranked: list[ScoredCandidate]) -> None
 
 
 def _render(result: RecommendResult, top: int) -> None:
+    if result.restricted_note:
+        console.print(f"[bold yellow]⚠ {escape(result.restricted_note)}[/bold yellow]")
     _render_constraints(result.constraints, result.city_defaulted)
     for note in (skipped_llm_note(result), unavailable_sources_note(result)):
         if note:

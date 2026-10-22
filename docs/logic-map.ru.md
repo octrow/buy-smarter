@@ -115,6 +115,7 @@ Kaspi и OLX получают город как свой id города (`marke
 
 ### 4. Чистка ограничений
 
+- Ограничения: если разбор не поставил `restricted`, статический список по целым словам находит алкоголь, табак и вейпы, оружие (не рецептурные лекарства; «бокал для вина», «кальянный уголь», «травматолог…» — нет). Поиск идёт; `restricted_note` — первой строкой отчёта.
 - Хук `query` каждой возможности, до поиска профиля (ключ профиля — категория, которую эти хуки могут поменять):
   - audience: «мужские», «детские» берутся regex'ом из текста, если разбор их пропустил, для любой категории;
   - size: «42 размер», «XL» вынимается и убирается из категории; для одежды фразы размера уходят из обязательных свойств.
@@ -122,7 +123,7 @@ Kaspi и OLX получают город как свой id города (`marke
 - Слова состояния (б/у, новый) отбрасываются: б/у — работа OLX.
 
 Потом применяются бюджет и «только проверенные бренды» из параметров.
-Модули: `services/recommend`, `capabilities/flow`, `capabilities/audience`, `capabilities/size`, `ranking/audience`
+Модули: `services/recommend`, `services/understanding`, `capabilities/flow`, `capabilities/audience`, `capabilities/size`, `ranking/audience`
 
 ### 5. Источники
 
@@ -333,7 +334,7 @@ Composition: обязательные вещества берутся из ка�
 ### Результат
 
 `RecommendResult`: рейтинг, итоговые ограничения, объявления б/у и флаги-предупреждения:
-`city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `ingredients_unchecked` (ставит раздел отчёта возможности composition: в рейтинге есть кандидат с непроверенным составом, «Состав не проверен у N из M — вещество не подтверждено»).
+`restricted_note` (первая строка отчёта), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `ingredients_unchecked` (ставит раздел отчёта возможности composition: в рейтинге есть кандидат с непроверенным составом, «Состав не проверен у N из M — вещество не подтверждено»).
 Все интерфейсы показывают один и тот же результат.
 Модули: `services/recommend`, `capabilities/composition`, `cli/report`
 

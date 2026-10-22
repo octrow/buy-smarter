@@ -73,6 +73,7 @@ from buysmarter.services.matching import (
 )
 from buysmarter.services.official_stores import official_candidates
 from buysmarter.services.review_pass import review_pass
+from buysmarter.services.understanding import restricted_kind, restricted_note
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +103,8 @@ class RecommendResult(BaseModel):
     unavailable_sources: list[str] = Field(default_factory=list)
     # Composition category with a ranked candidate whose состав was not checked.
     ingredients_unchecked: bool = False
+    # Restricted goods (alcohol, vapes...): the warning shown before the results.
+    restricted_note: str | None = None
 
 
 def _no_llm_route() -> bool:
@@ -237,6 +240,8 @@ async def _constraints(
     """Parse (or reuse ``parsed``), resolve the city, let capabilities read the query, overrides."""
     with stage("query parse"):
         base_constraints = parsed if parsed is not None else await _parse(query, use_llm)
+    if base_constraints.restricted is None and (kind := restricted_kind(query)):
+        base_constraints = base_constraints.model_copy(update={"restricted": kind})
     resolved_city, city_defaulted = await resolve_city(base_constraints.city, city)
     constraints = read_query(REGISTRY, base_constraints, query=query, use_llm=use_llm)
     return _apply_overrides(constraints, resolved_city, budget, trusted_only), city_defaulted
@@ -377,6 +382,7 @@ async def recommend(
         skipped_llm_steps=skipped_llm_steps,
         unavailable_sources=[name for name in requested if name not in active],
         ingredients_unchecked=capabilities.flags(recommendation).get(INGREDIENTS_UNCHECKED, False),
+        restricted_note=restricted_note(constraints.restricted),
     )
 
 

@@ -122,13 +122,14 @@ Module: `services/recommend`, `db/repo`
 ### 4. Clean the constraints
 
 Decides: final constraints before search.
+- Restricted goods: when the parse did not set `restricted`, a static whole-word list over the query flags alcohol, tobacco and vapes, weapons (not prescription medicines; "бокал для вина", "кальянный уголь", "травматолог…" are not flagged). The search still runs; `restricted_note` leads the report.
 - Every capability's `query` hook runs, before the profile is known (the profile key is the category these hooks may rewrite):
   - audience: "мужские", "детские" read from the query text by regex if the parser missed it, for any category;
   - size: "42 размер", "XL" read out and removed from the category; size phrases leave the required features for apparel.
 - Features already implied by the category are dropped ("TWS" in "TWS наушники").
 - Condition words (б/у, новый) are dropped: used goods are OLX's job.
 Then CLI/API overrides apply: budget, trusted brands only.
-Module: `services/recommend`, `capabilities/flow`, `capabilities/audience`, `capabilities/size`, `ranking/audience`
+Module: `services/recommend`, `services/understanding`, `capabilities/flow`, `capabilities/audience`, `capabilities/size`, `ranking/audience`
 
 ### 5. Pick the sources
 
@@ -345,7 +346,7 @@ Module: `services/matching`, `llm/canonicalize`
 ### Output
 
 `RecommendResult`: the ranking, the constraints used, used listings, and flags the UI shows as warnings:
-`city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `ingredients_unchecked` (set by the composition capability's report section: a ranked candidate whose composition was not checked, "Состав не проверен у N из M — вещество не подтверждено").
+`restricted_note` (first line of the report), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `ingredients_unchecked` (set by the composition capability's report section: a ranked candidate whose composition was not checked, "Состав не проверен у N из M — вещество не подтверждено").
 Every surface renders the same result.
 Module: `services/recommend`, `capabilities/composition`, `cli/report`
 

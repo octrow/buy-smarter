@@ -69,6 +69,14 @@ def _top_rows(md: str) -> list[str]:
     return rows
 
 
+def test_restricted_note_is_the_first_line_under_the_title() -> None:
+    result = _result().model_copy(update={"restricted_note": "Алкоголь: доставка ограничена."})
+
+    lines = [ln for ln in render_markdown(result, top=2).splitlines() if ln]
+
+    assert lines[1] == "> ⚠ Алкоголь: доставка ограничена."
+
+
 def test_top_limits_rows_to_requested_n() -> None:
     md = render_markdown(_result(n_ranked=5), top=2)
     assert len(_top_rows(md)) == 2
