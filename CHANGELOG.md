@@ -4,6 +4,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Changed
+- The review summary asks the LLM for the shopper text only (pros, cons, complaints, verdict, red flags); Jev alone
+  decides counterfeit suspicion, reliability and the required-feature checks, as it already overrode them. A shorter
+  answer: the review stage took 23 s on a live run. `ReviewSummary.negative_share_estimate`, read nowhere, is gone.
+
 ## [0.6.1] - 2026-10-23
 
 ### Changed

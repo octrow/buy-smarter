@@ -65,8 +65,17 @@ class ReviewSummary(BaseModel):
     red_flags: list[str] = Field(default_factory=list)
     counterfeit_suspicion: bool = False
     reliability_concern: ReliabilityConcern = "none"
-    negative_share_estimate: float = 0.0
     requirement_checks: list[RequirementCheck] = Field(default_factory=list)
+
+
+class _SummaryText(BaseModel):
+    """What the LLM writes: the shopper-facing text. Jev decides the ranking signals."""
+
+    pros: list[str] = Field(default_factory=list)
+    cons: list[str] = Field(default_factory=list)
+    common_complaints: list[str] = Field(default_factory=list)
+    verdict_line: str = ""
+    red_flags: list[str] = Field(default_factory=list)
 
 
 def _is_low_rated(review: RawReview) -> bool:
@@ -100,30 +109,13 @@ def _review_line(review: RawReview) -> str:
     return f"[{review.rating:g}★] {text}"
 
 
-def _requirement_block(features: list[str]) -> str:
-    """Prompt section asking for one verdict per required feature (B1)."""
-    listed = "\n".join(f"- {feature}" for feature in features)
-    return (
-        "Also check each required feature below against the reviews. For each, give:\n"
-        "- feature: the feature name, copied exactly\n"
-        "- verdict: 'confirmed' if reviews state the product has it or that it works; "
-        "'refuted' if reviews state it lacks it or that it fails; 'insufficient' if "
-        "reviews do not discuss it\n"
-        "- mentions: number of reviews that mention it\n"
-        "- quote: ONE short verbatim quote copied exactly from a review; empty string "
-        "if insufficient\n"
-        f"Required features:\n{listed}\n\n"
-    )
-
-
-def summarize_reviews_prompt(texts: list[str], features: list[str] | None = None) -> str:
+def summarize_reviews_prompt(texts: list[str]) -> str:
     """Build the summarization prompt from pre-formatted review lines.
 
-    Without ``features`` the text is byte-identical to the original template, so
-    cached summaries (keyed on the prompt) stay valid.
+    Only the text a shopper reads: counterfeit, reliability and the required-feature
+    checks are Jev's (``judge_reviews``), so the LLM no longer writes them.
     """
     joined = "\n".join(f"- {text}" for text in texts)
-    checks = _requirement_block(features) if features else ""
     return (
         "Summarize the following product reviews for a shopper. Respond in "
         "Russian. Each review may start with its star rating like [2★]. Extract:\n"
@@ -133,16 +125,7 @@ def summarize_reviews_prompt(texts: list[str], features: list[str] | None = None
         "- verdict_line: one short sentence summarizing the overall sentiment\n"
         "- red_flags: severe issues stated plainly (safety, allergic reactions, "
         "burns, breaks within a year, doesn't perform its core function). "
-        "Each a short Russian phrase. Empty list if none.\n"
-        "- counterfeit_suspicion: true ONLY if reviews suspect the product is "
-        "fake/counterfeit (e.g. wrong consistency, suspiciously cheap, differs "
-        "from the original)\n"
-        "- reliability_concern: 'serious' if reviews report early failure, "
-        "safety issues, or that it does not do its core job; 'minor' for smaller "
-        "recurring durability gripes; 'none' otherwise\n"
-        "- negative_share_estimate: your estimate (0.0-1.0) of the share of "
-        "reviews that are clearly negative\n\n"
-        f"{checks}"
+        "Each a short Russian phrase. Empty list if none.\n\n"
         f"Reviews:\n{joined}"
     )
 
@@ -201,7 +184,9 @@ def verify_checks(
 #     labels each (confirms / refutes / unrelated), code counts reviews and copies
 #     the best sentence verbatim as the quote. Jev never counts or generates
 #     (docs.typesafe.ai jev-1.13 jaggedness).
-# On any Jev failure the LLM's own values stay (the previous behaviour).
+# On a Jev failure the signals stay at their benign defaults: the LLM no longer writes them.
+# ponytail: Jev shares the LLM's OmniRoute key and never failed in the logs; ask the LLM
+# for the signals again if a Jev outage ever leaves a run without them.
 
 # ponytail: thresholds tuned on a hand-labelled Russian review set
 # (docs/jev-migration.md §3); retune after 50 real runs or at the first miss seen in one.
@@ -339,11 +324,11 @@ async def judge_reviews(
 async def _judge_or_none(
     selected: list[RawReview], features: list[str]
 ) -> tuple[bool, ReliabilityConcern, list[RequirementCheck]] | None:
-    """``judge_reviews``, or ``None`` on any Jev failure (the LLM's values then stay)."""
+    """``judge_reviews``, or ``None`` on any Jev failure (the signals then stay benign)."""
     try:
         return await judge_reviews(selected, features)
     except (LlmError, LlmConfigError, KeyError, TypeError, IndexError) as exc:
-        logger.warning("review Jev call failed (%r); keeping the LLM's signals", exc)
+        logger.warning("review Jev call failed (%r); no review signals this run", exc)
         return None
 
 
@@ -352,10 +337,9 @@ async def summarize_reviews(
 ) -> ReviewSummary:
     """Summarize up to 30 non-junk review texts into a ``ReviewSummary``.
 
-    The LLM writes the text and a first take on every field; Jev, run in
-    parallel, overrides the ranking signals (counterfeit, reliability,
-    requirement checks) when it answers. ``features`` are the query's required
-    features still unverified by specs; their checks pass ``verify_checks``.
+    The LLM writes the text; Jev, run in parallel, decides the ranking signals
+    (counterfeit, reliability, requirement checks). ``features`` are the query's
+    required features still unverified by specs; their checks pass ``verify_checks``.
 
     Raises ``LlmError`` / ``LlmConfigError`` on an LLM failure — the caller
     decides whether to degrade gracefully (skip the panel).
@@ -366,21 +350,14 @@ async def summarize_reviews(
     if not texts:
         return ReviewSummary(requirement_checks=verify_checks([], [], features))
     result, judged = await asyncio.gather(
-        generate(
-            summarize_reviews_prompt(texts, features or None),
-            ReviewSummary,
-            model=SUMMARIZE_REVIEWS_MODEL,
-        ),
+        generate(summarize_reviews_prompt(texts), _SummaryText, model=SUMMARIZE_REVIEWS_MODEL),
         _judge_or_none(selected, features),
     )
-    summary = cast(
-        ReviewSummary, result
-    )  # generate() returns an instance of the model it was given
-    update: dict[str, Any] = {}
-    checks = summary.requirement_checks
-    if judged is not None:
-        counterfeit, reliability, checks = judged
-        update = {"counterfeit_suspicion": counterfeit, "reliability_concern": reliability}
-    if features:
-        update["requirement_checks"] = verify_checks(checks, selected, features)
-    return summary.model_copy(update=update) if update else summary
+    text = cast(_SummaryText, result)  # generate() returns an instance of the model it was given
+    counterfeit, reliability, checks = judged or (False, "none", [])
+    return ReviewSummary(
+        **text.model_dump(include=set(_SummaryText.model_fields)),
+        counterfeit_suspicion=counterfeit,
+        reliability_concern=reliability,
+        requirement_checks=verify_checks(checks, selected, features),
+    )

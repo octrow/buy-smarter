@@ -1,5 +1,7 @@
 """Tests for review summarization: prompt shape + generate wiring (stubbed)."""
 
+from types import SimpleNamespace
+
 from market_sources.base import RawReview
 
 from buysmarter.llm import review_summary as rs
@@ -43,18 +45,18 @@ async def test_summarize_reviews_calls_generate_with_free_stack(monkeypatch) -> 
     result = await summarize_reviews(reviews)
 
     assert captured["model"] == "free-stack"
-    assert captured["response_model"] is ReviewSummary
+    assert captured["response_model"] is rs._SummaryText
     assert "отличный напор" in captured["prompt"]
     assert "" not in [line for line in captured["prompt"].splitlines() if line.startswith("- ")]
     assert result.pros == ["напор"]
 
 
-def test_prompt_asks_for_severity_fields() -> None:
+def test_prompt_asks_only_for_the_shopper_text() -> None:
     prompt = summarize_reviews_prompt(["не работает", "аллергия"])
     assert "red_flags" in prompt
-    assert "counterfeit_suspicion" in prompt
-    assert "reliability_concern" in prompt
-    assert "negative_share_estimate" in prompt
+    assert "counterfeit_suspicion" not in prompt  # Jev decides the ranking signals
+    assert "reliability_concern" not in prompt
+    assert "negative_share_estimate" not in prompt
 
 
 def test_review_summary_defaults_are_benign() -> None:
@@ -62,31 +64,25 @@ def test_review_summary_defaults_are_benign() -> None:
     assert summary.red_flags == []
     assert summary.counterfeit_suspicion is False
     assert summary.reliability_concern == "none"
-    assert summary.negative_share_estimate == 0.0
 
 
-async def test_summarize_reviews_parses_extended_fields(monkeypatch) -> None:
+async def test_the_llm_text_reaches_the_summary_and_jev_owns_the_signals(monkeypatch) -> None:
     async def _fake_generate(prompt, response_model, *, model=None, **kwargs):
         return response_model(
-            pros=[],
             cons=["жидкая консистенция"],
-            common_complaints=["кожа сгорает"],
             verdict_line="подозрение на подделку",
-            red_flags=["аллергические реакции", "кожа сгорает"],
-            counterfeit_suspicion=True,
-            reliability_concern="serious",
-            negative_share_estimate=0.7,
+            red_flags=["аллергические реакции"],
         )
 
-    monkeypatch.setattr(rs, "generate", _fake_generate)
+    monkeypatch.setattr(rs, "generate", _fake_generate)  # Jev is off in tests
 
     reviews = [RawReview(source="kaspi", product_id="1", text="крем не защищает, кожа сгорает")]
     result = await summarize_reviews(reviews)
 
-    assert result.counterfeit_suspicion is True
-    assert result.reliability_concern == "serious"
-    assert "аллергические реакции" in result.red_flags
-    assert result.negative_share_estimate == 0.7
+    assert result.red_flags == ["аллергические реакции"]
+    assert result.verdict_line == "подозрение на подделку"
+    assert result.counterfeit_suspicion is False
+    assert result.reliability_concern == "none"
 
 
 async def test_summarize_reviews_without_texts_skips_llm(monkeypatch) -> None:
@@ -172,46 +168,13 @@ async def test_prompt_is_capped_at_max_reviews(monkeypatch) -> None:
 # --- Requirement checks (B1/B3/B4): features the query requires -------------
 
 
-def test_prompt_without_features_is_byte_identical_to_legacy_template() -> None:
-    # Pinned legacy prompt: changing it would invalidate every cached summary.
-    expected = (
-        "Summarize the following product reviews for a shopper. Respond in "
-        "Russian. Each review may start with its star rating like [2★]. Extract:\n"
-        "- pros: concrete positives buyers mention (list)\n"
-        "- cons: concrete negatives buyers mention (list)\n"
-        "- common_complaints: recurring complaints worth flagging (list)\n"
-        "- verdict_line: one short sentence summarizing the overall sentiment\n"
-        "- red_flags: severe issues stated plainly (safety, allergic reactions, "
-        "burns, breaks within a year, doesn't perform its core function). "
-        "Each a short Russian phrase. Empty list if none.\n"
-        "- counterfeit_suspicion: true ONLY if reviews suspect the product is "
-        "fake/counterfeit (e.g. wrong consistency, suspiciously cheap, differs "
-        "from the original)\n"
-        "- reliability_concern: 'serious' if reviews report early failure, "
-        "safety issues, or that it does not do its core job; 'minor' for smaller "
-        "recurring durability gripes; 'none' otherwise\n"
-        "- negative_share_estimate: your estimate (0.0-1.0) of the share of "
-        "reviews that are clearly negative\n\n"
-        "Reviews:\n- мощный напор"
-    )
-    assert summarize_reviews_prompt(["мощный напор"], None) == expected
-    assert summarize_reviews_prompt(["мощный напор"], []) == expected
-
-
-def test_prompt_with_features_asks_for_verdict_mentions_and_quote() -> None:
-    prompt = summarize_reviews_prompt(["шумит"], ["шумоподавление"])
-    assert "шумоподавление" in prompt
-    assert "verdict" in prompt and "mentions" in prompt and "quote" in prompt
-    assert prompt.index("шумоподавление") < prompt.index("Reviews:\n")
-
-
 def test_summary_defaults_have_no_requirement_checks() -> None:
     assert ReviewSummary().requirement_checks == []
 
 
-async def test_summarize_with_features_sends_feature_section(monkeypatch) -> None:
+async def test_the_prompt_has_no_feature_section(monkeypatch) -> None:
     captured = await _captured_prompt_with(monkeypatch, ["IPX7"], _review_pair())
-    assert "IPX7" in captured
+    assert "Required features" not in captured  # Jev checks the features
 
 
 def _review_pair() -> list[RawReview]:
@@ -233,12 +196,8 @@ async def _captured_prompt_with(monkeypatch, features, reviews) -> str:
     return captured["prompt"]
 
 
-async def _run_with_llm(monkeypatch, checks: list[RequirementCheck], features, reviews):
-    async def _fake_generate(prompt, response_model, *, model=None, **kwargs):
-        return ReviewSummary(requirement_checks=checks)
-
-    monkeypatch.setattr(rs, "generate", _fake_generate)
-    return await summarize_reviews(reviews, features)
+def _verify(checks: list[RequirementCheck], features, reviews):
+    return SimpleNamespace(requirement_checks=rs.verify_checks(checks, reviews, features))
 
 
 async def test_fabricated_quote_becomes_insufficient(monkeypatch) -> None:
@@ -247,7 +206,7 @@ async def test_fabricated_quote_becomes_insufficient(monkeypatch) -> None:
             feature="IPX7", verdict="confirmed", mentions=3, quote="держит воду как рыба"
         )
     ]
-    result = await _run_with_llm(monkeypatch, checks, ["IPX7"], _review_pair())
+    result = _verify(checks, ["IPX7"], _review_pair())
     assert result.requirement_checks == [RequirementCheck(feature="IPX7", mentions=3)]
 
 
@@ -255,7 +214,7 @@ async def test_real_quote_with_two_mentions_is_kept(monkeypatch) -> None:
     checks = [
         RequirementCheck(feature="IPX7", verdict="confirmed", mentions=2, quote="IPX7 честно")
     ]
-    result = await _run_with_llm(monkeypatch, checks, ["IPX7"], _review_pair())
+    result = _verify(checks, ["IPX7"], _review_pair())
     assert result.requirement_checks == [
         RequirementCheck(feature="IPX7", verdict="confirmed", mentions=2, quote="IPX7 честно")
     ]
@@ -265,7 +224,7 @@ async def test_real_quote_with_one_mention_is_insufficient(monkeypatch) -> None:
     checks = [
         RequirementCheck(feature="IPX7", verdict="confirmed", mentions=1, quote="IPX7 честно")
     ]
-    result = await _run_with_llm(monkeypatch, checks, ["IPX7"], _review_pair())
+    result = _verify(checks, ["IPX7"], _review_pair())
     assert result.requirement_checks[0].verdict == "insufficient"
     assert result.requirement_checks[0].quote == ""
 
@@ -274,7 +233,7 @@ async def test_omitted_and_unrequested_features_are_normalized(monkeypatch) -> N
     checks = [
         RequirementCheck(feature="Wi-Fi", verdict="refuted", mentions=2, quote="IPX7 честно"),
     ]
-    result = await _run_with_llm(monkeypatch, checks, ["IPX7"], _review_pair())
+    result = _verify(checks, ["IPX7"], _review_pair())
     assert result.requirement_checks == [RequirementCheck(feature="IPX7")]
 
 
@@ -288,7 +247,7 @@ async def test_quote_match_ignores_case_yo_and_surrounding_quotes(monkeypatch) -
             feature="ёмкость", verdict="confirmed", mentions=2, quote="«емкость большая»"
         )
     ]
-    result = await _run_with_llm(monkeypatch, checks, ["ёмкость"], reviews)
+    result = _verify(checks, ["ёмкость"], reviews)
     assert result.requirement_checks[0].verdict == "confirmed"
 
 
@@ -396,17 +355,16 @@ async def test_jev_unsure_sentences_leave_feature_insufficient(monkeypatch) -> N
     assert summary.requirement_checks[0].verdict == "insufficient"
 
 
-async def test_jev_failure_keeps_sonnet_signals(monkeypatch) -> None:
+async def test_jev_failure_leaves_benign_signals(monkeypatch) -> None:
     async def _boom(state, questions):
         raise rs.LlmError("gateway down")
 
-    async def _sonnet(prompt, response_model, *, model=None, **kwargs):
-        return ReviewSummary(counterfeit_suspicion=True, reliability_concern="minor")
-
-    monkeypatch.setattr(rs, "generate", _sonnet)
+    monkeypatch.setattr(rs, "generate", _sonnet_says_all_clear())
     monkeypatch.setattr(rs, "system_one", _boom)
 
-    summary = await summarize_reviews(_ANC_REVIEWS)
+    summary = await summarize_reviews(_ANC_REVIEWS, ["шумоподавление"])
 
-    assert summary.counterfeit_suspicion is True
-    assert summary.reliability_concern == "minor"
+    assert summary.pros == ["звук"]
+    assert summary.counterfeit_suspicion is False
+    assert summary.reliability_concern == "none"
+    assert summary.requirement_checks[0].verdict == "insufficient"
