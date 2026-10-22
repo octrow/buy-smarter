@@ -240,10 +240,10 @@ Module: `services/phone_specs`
 ### 16. Ingredients (composition-driven only)
 
 Decides: which active substances and concentration each candidate has.
-One batch request over the pool reads the title and composition text.
-Then the substance guard: if a required substance rejects every candidate, the run stops with `NoSubstanceMatch` and the 3 nearest alternatives. A product without the asked substance is never shown as the best pick.
-"Verified" means `use_llm` and a required substance, not that extraction succeeded: if extraction fails, every candidate with a composition text counts as proven absent.
-No LLM: no extraction, no guard, but the ingredient axis still scores (step 17): a candidate with a composition text gets 0 of 25, one without gets 7.5.
+First the title: a candidate whose title names a required substance or its equivalent gets that substance and counts as checked (`ingredients_checked`).
+Then, with LLM, one batch request over the pool reads the title and composition text; it may add substances and the concentration. Only a candidate that got an answer is checked: a failed request, or an index the LLM skipped, leaves it unchecked, never "absent".
+Then the substance guard: if a required substance rejects every candidate, the run stops with `NoSubstanceMatch` and the 3 nearest alternatives. A product without the asked substance is never shown as the best pick. Only checked candidates can be rejected, so a failed extraction never stops the run.
+No LLM: only the title check; the rest stay unchecked and the report says so (Output).
 Module: `services/recommend`, `llm/ingredients`, `ranking/filters`
 
 ### 17. Rank
@@ -254,7 +254,8 @@ Pure: no DB, no LLM, no network.
 **Hard filters** (first failing check names the reason):
 over budget → excluded brand → unknown brand when trusted-only → not available → other audience → missing required feature → required substance proven absent.
 Required features are checked only when the candidate has specs. Ozon cards past the top 4, official-store candidates and apparel variant cards skip the check (they get an "unverified" con). Kimovil (step 15) fills specs for phones, which turns the check on.
-A missing composition text is a data gap, not a rejection.
+"Proven absent" is decided per candidate: checked, the substance not detected, and a composition text present. Unchecked or no composition text is a data gap, not a rejection.
+Ingredient axis: substance present 25 (0.7 of it with an unknown or other concentration); unchecked 0.3 × 25 = 7.5 for every candidate, with the con "состав не проверен: <substance>?"; checked and absent 0.
 Nothing passes → error "no candidates passed hard filters".
 
 **Market context**: price reference and review maximums are computed from the passed pool, so price is judged relative to the pool.
@@ -328,7 +329,7 @@ Module: `services/matching`, `llm/canonicalize`
 ### Output
 
 `RecommendResult`: the ranking, the constraints used, used listings, and flags the UI shows as warnings:
-`city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`.
+`city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `ingredients_unchecked` (composition-driven category with an unchecked ranked candidate: "Состав не проверен у N из M — вещество не подтверждено").
 Every surface renders the same result.
 Module: `services/recommend`, `cli/report`
 
@@ -361,7 +362,6 @@ Module: `services/doctor`
 ## Known gaps
 
 Short list; details and fixes are in the plan (number in brackets).
-- Composition-driven: a failed extraction counts as "substance absent" (#11); without extraction the ingredient axis punishes listings that declare a composition (#8, #12).
 - Saving OLX aliases turns a borrowed composition-driven category into a spec-driven record (#10).
 - City: Kaspi knows Almaty and Astana only; Ozon and OLX get no city; MCP ignores the city in the query (#3).
 - Dedupe merges different models and variants, and listings inside one source (#13).

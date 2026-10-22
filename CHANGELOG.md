@@ -4,6 +4,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Fixed
+- Composition-driven categories (medicines, cosmetics): "composition not checked" no longer counts as "substance
+  absent". A failed ingredient extraction leaves candidates unchecked instead of rejecting every listing with a
+  composition text or stopping the run with «Не найдено товаров с действующим веществом»; a title naming the
+  substance or its equivalent («Клензит») counts as checked. Without extraction (`--no-llm`, MCP and API by
+  default) every unchecked candidate gets the same 7.5 of 25 on the ingredient axis with «состав не проверен», and
+  the report (CLI, MCP, desktop app) says «Состав не проверен у N из M — вещество не подтверждено».
+
 ## [0.4.0] - 2026-10-22
 
 ### Added
