@@ -57,7 +57,6 @@ from buysmarter.services.collect import (
     aclose,
     attach_price_history,
     gather_sources,
-    kaspi_city_id,
     merge_new_goods,
     resolve_sources,
     save_snapshots,
@@ -251,7 +250,7 @@ async def _collect(run: _Run, active: dict[str, ProductSource]) -> _Pool:
         collected = await gather_sources(
             active,
             constraints.category,
-            kaspi_city_id(constraints.city),
+            constraints.city,
             book,
             constraints.budget_max,
             capabilities.searches(),

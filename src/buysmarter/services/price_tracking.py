@@ -23,7 +23,6 @@ from buysmarter.services.collect import (
     ProductRow,
     aclose,
     gather_sources,
-    kaspi_city_id,
     merge_new_goods,
     resolve_sources,
     snapshot_values,
@@ -104,9 +103,8 @@ async def refresh_category(category: str) -> CategoryRefresh:
     """
     active = await asyncio.to_thread(resolve_sources, list(ALL_SOURCES), None, None, None)
     city, _ = await resolve_city(None, None)
-    city_id = kaspi_city_id(city)
     try:
-        collected = await gather_sources(active, category, city_id, None, None)
+        collected = await gather_sources(active, category, city, None, None)
         _, persist_rows = merge_new_goods(collected)
     finally:
         for src in active.values():

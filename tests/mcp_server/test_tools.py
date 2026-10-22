@@ -187,6 +187,19 @@ async def test_search_products_normalizes_source_name(monkeypatch) -> None:
     assert seen["city"] == "710000000"
 
 
+async def test_search_products_passes_the_olx_city_id(monkeypatch) -> None:
+    seen = {}
+
+    class Src:
+        async def search(self, query, city=None):
+            seen["city"] = city
+            return []
+
+    monkeypatch.setattr(server, "_source_for", lambda name: Src())
+    await server.search_products("q", source="olx", city="Шымкент")
+    assert seen["city"] == "47"
+
+
 async def test_search_products_nonpositive_limit_is_clamped(monkeypatch) -> None:
     from market_sources.base import RawProduct
 

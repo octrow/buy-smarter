@@ -112,7 +112,7 @@ Module: `llm/prompts`, `services/recommend`
 Decides: which city the search and delivery dates are for.
 Order: explicit override → city in the query → stored preference → "Алматы".
 MCP always passes an override (see Entry points), so this order never reaches the query there.
-The city reaches Kaspi only (as a city id). Ozon and OLX get no city; OLX searches Almaty by default.
+Kaspi and OLX get the city as their own city id (`market_sources.cities`, 21 cities, Russian or Latin). An unknown city searches Almaty without saying so; Ozon gets no city.
 `city_defaulted` is set when neither the query nor the override named one.
 Fails: a dead store means no preference, never an error.
 Module: `services/recommend`, `db/repo`
@@ -181,7 +181,7 @@ All sources run in parallel; one source failing returns nothing for it and the r
 - only cards whose title matches the category; specs for the top 4 of 8.
 
 **OLX**
-- search by category, by the jargon-free variant and by the head noun; no city, so Almaty;
+- search by category, by the jargon-free variant and by the head noun, in the query's city;
 - keep only cards that match the category, read as used, and are not "for parts".
 
 Module: `services/collect`, `services/matching`, `ranking/used_defects`
@@ -377,7 +377,7 @@ Module: `services/doctor`
 ## Known gaps
 
 Short list; details and fixes are in the plan (number in brackets).
-- City: Kaspi knows Almaty and Astana only; Ozon and OLX get no city; MCP ignores the city in the query (#3).
+- City: an unknown city silently searches Almaty; Ozon gets no city; MCP ignores the city in the query (#3).
 - Dedupe still merges FE/SE variants, chip generations (M2/M3) and RAM-only variants; overlap is asymmetric (#13).
 - A query for an unknown category does not learn it (#1).
 - Capabilities are switched on by stored profiles and fallback rules; no Jev classifier or learning on first query yet (#2, phase 3).

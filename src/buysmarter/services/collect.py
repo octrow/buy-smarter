@@ -14,6 +14,7 @@ from typing import cast
 
 import httpx
 from market_sources.base import ProductSource, RawOffer, RawProduct
+from market_sources.cities import kaspi_city_id, olx_city_id
 from market_sources.kaspi.client import KaspiClient
 from market_sources.kaspi.source import KaspiSource
 from market_sources.olx.source import OlxSource
@@ -441,15 +442,18 @@ async def _collect_ozon(
     return candidates, rows
 
 
-async def _budget_search(source: ProductSource, query: str, budget: int | None) -> list[RawProduct]:
-    """One search, passing ``budget`` only to adapters whose search accepts it.
+async def _budget_search(
+    source: ProductSource, query: str, budget: int | None, city: str | None = None
+) -> list[RawProduct]:
+    """One search, passing ``budget`` and ``city`` only to adapters whose search accepts them.
 
     The real ``OlxSource``/``OzonSource.search`` take a ``budget`` (a server-side price cap);
     injected test doubles may not, so we pass it only when the signature has it.
     """
-    if budget is not None and "budget" in inspect.signature(source.search).parameters:
-        return await source.search(query, budget=budget)  # type: ignore[call-arg]
-    return await source.search(query)
+    params = inspect.signature(source.search).parameters
+    given = {"budget": budget, "city": city}
+    kwargs = {k: v for k, v in given.items() if v is not None and k in params}
+    return await source.search(query, **kwargs)  # type: ignore[arg-type]
 
 
 def _head_noun(category: str, book: BrandBook | None = None) -> str | None:
@@ -488,7 +492,11 @@ def _head_noun(category: str, book: BrandBook | None = None) -> str | None:
 
 
 async def _olx_search(
-    source: ProductSource, category: str, budget: int | None, book: BrandBook | None = None
+    source: ProductSource,
+    category: str,
+    budget: int | None,
+    book: BrandBook | None = None,
+    city: str | None = None,
 ) -> list[RawProduct]:
     """OLX search broadened by the latin-stripped variant + head noun, deduped.
 
@@ -496,13 +504,14 @@ async def _olx_search(
     variant ("TWS наушники" -> "наушники") and head-noun hits widen the pool so
     branded used deals hidden behind a narrow/jargon-heavy query surface.
     """
-    products = await _budget_search(source, category, budget)
+    products = await _budget_search(source, category, budget, city)
     stripped = strip_latin_tokens(category, book)
     if stripped is not None:
-        products = _dedupe_products(products + await _budget_search(source, stripped, budget))
+        more = await _budget_search(source, stripped, budget, city)
+        products = _dedupe_products(products + more)
     noun = _head_noun(category, book)
     if noun is not None:
-        products = _dedupe_products(products + await _budget_search(source, noun, budget))
+        products = _dedupe_products(products + await _budget_search(source, noun, budget, city))
     return products
 
 
@@ -515,10 +524,14 @@ def _is_used(condition: str | None) -> bool:
 
 
 async def _collect_olx(
-    source: ProductSource, category: str, book: BrandBook | None, budget: int | None
+    source: ProductSource,
+    category: str,
+    book: BrandBook | None,
+    budget: int | None,
+    city_id: str | None = None,
 ) -> list[Candidate]:
     """OLX: scan the top listings, keep only used, on-category ones as match candidates."""
-    products = await _olx_search(source, category, budget, book)
+    products = await _olx_search(source, category, budget, book, city_id)
     search_count = (
         1
         + (1 if strip_latin_tokens(category, book) is not None else 0)
@@ -691,36 +704,26 @@ async def aclose(source: ProductSource) -> None:
 async def gather_sources(
     active: dict[str, ProductSource],
     category: str,
-    city_id: str | None,
+    city: str | None,
     book: BrandBook | None,
     budget: int | None,
     extra_searches: list[tuple[str, list[str]]] | None = None,
 ) -> dict[str, object]:
-    """Run every active source's collector concurrently, isolating failures."""
+    """Run every active source's collector concurrently, isolating failures.
+
+    ``city`` is a name; an unknown one searches the site's default (Almaty). Ozon gets no city.
+    """
     coros: dict[str, Awaitable[object]] = {}
     if "kaspi" in active:
-        coros["kaspi"] = _collect_kaspi(active["kaspi"], category, city_id, book, extra_searches)
+        kaspi_city = kaspi_city_id(city)
+        coros["kaspi"] = _collect_kaspi(active["kaspi"], category, kaspi_city, book, extra_searches)
     if "ozon" in active:
         coros["ozon"] = _collect_ozon(active["ozon"], category, book, budget)
     if "olx" in active:
-        coros["olx"] = _collect_olx(active["olx"], category, book, budget)
+        coros["olx"] = _collect_olx(active["olx"], category, book, budget, olx_city_id(city))
     names = list(coros)
     results = await asyncio.gather(*(_safe(n, coros[n]) for n in names))
     return dict(zip(names, results, strict=True))
-
-
-# City name → Kaspi cityId. Unknown → None (KaspiClient defaults to Almaty).
-_CITY_IDS = {
-    "almaty": "750000000",
-    "astana": "710000000",
-    "алматы": "750000000",
-    "астана": "710000000",
-}
-
-
-def kaspi_city_id(city: str | None) -> str | None:
-    """Kaspi cityId for a city name, case/whitespace-insensitive."""
-    return _CITY_IDS.get((city or "").strip().lower())
 
 
 def merge_new_goods(collected: dict[str, object]) -> tuple[list[Candidate], list[ProductRow]]:

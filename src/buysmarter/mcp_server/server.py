@@ -15,6 +15,7 @@ import logging
 
 from fastmcp import FastMCP
 from market_sources.base import ProductSource, RawProduct
+from market_sources.cities import kaspi_city_id, olx_city_id
 
 from buysmarter.cli.report import (
     render_markdown,
@@ -32,14 +33,6 @@ logger = logging.getLogger(__name__)
 mcp: FastMCP = FastMCP("buy-smarter")
 
 _DEFAULT_CITY = "Алматы"
-# City name (RU/EN, any case) → Kaspi cityId; unknown → None (Kaspi = Almaty).
-_KASPI_CITY_IDS = {
-    "алматы": "750000000",
-    "almaty": "750000000",
-    "астана": "710000000",
-    "astana": "710000000",
-    "нур-султан": "710000000",
-}
 
 
 def _source_for(name: str) -> ProductSource:
@@ -50,11 +43,6 @@ def _source_for(name: str) -> ProductSource:
     if name not in active:
         raise ValueError(f"{name} is off: no browser to run it; see `buysmarter doctor`")
     return active[name]
-
-
-def _kaspi_city_id(city: str | None) -> str | None:
-    """Resolve a human city name to a Kaspi cityId (``None`` → Kaspi default)."""
-    return _KASPI_CITY_IDS.get((city or "").strip().lower())
 
 
 async def aclose(source: ProductSource) -> None:
@@ -162,13 +150,14 @@ async def search_products(
     Args:
         query: Search terms (RU/EN), e.g. "ирригатор xiaomi".
         source: One marketplace: "kaspi", "ozon", or "olx".
-        city: City name for availability (used by Kaspi; e.g. "Алматы").
+        city: City name for availability (Kaspi and OLX; e.g. "Алматы").
         limit: Maximum rows to return.
     """
     source = source.strip().lower()
     src = await asyncio.to_thread(_source_for, source)  # may probe Ozon's browser
     try:
-        city_arg = _kaspi_city_id(city) if source == "kaspi" else None
+        city_ids = {"kaspi": kaspi_city_id, "olx": olx_city_id}
+        city_arg = city_ids[source](city) if source in city_ids else None
         products = await src.search(query, city=city_arg)
     finally:
         await aclose(src)

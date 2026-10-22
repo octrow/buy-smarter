@@ -60,7 +60,6 @@ def fake_sources(monkeypatch):
 
     monkeypatch.setattr(pt, "resolve_sources", lambda *_args: {"kaspi": "kaspi-src"})
     monkeypatch.setattr(pt, "resolve_city", no_city)
-    monkeypatch.setattr(pt, "kaspi_city_id", lambda city: "750000000")
     monkeypatch.setattr(pt, "aclose", close)
     return closed
 

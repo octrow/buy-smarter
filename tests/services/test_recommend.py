@@ -1389,11 +1389,33 @@ async def test_collect_olx_one_failing_specs_fetch_keeps_other_listings() -> Non
 
 
 def test_city_id_is_case_insensitive() -> None:
-    from buysmarter.services.recommend import kaspi_city_id
+    from buysmarter.services.collect import kaspi_city_id
 
     assert kaspi_city_id(" астана ") == "710000000"
     assert kaspi_city_id("ASTANA") == "710000000"
     assert kaspi_city_id(None) is None
+
+
+def test_kaspi_knows_cities_beyond_almaty_and_astana() -> None:
+    from buysmarter.services.collect import kaspi_city_id
+
+    assert kaspi_city_id("Шымкент") == "511010000"
+
+
+async def test_olx_and_kaspi_search_the_query_city() -> None:
+    from buysmarter.services.collect import gather_sources
+
+    seen: dict[str, str | None] = {}
+
+    class _CitySource(FakeSource):
+        async def search(self, query: str, city: str | None = None) -> list[RawProduct]:
+            seen[self.name] = city
+            return []
+
+    active = {"kaspi": _CitySource("kaspi", []), "olx": _CitySource("olx", [])}
+    await gather_sources(active, "наушники", "Астана", None, None)
+
+    assert seen == {"kaspi": "710000000", "olx": "87"}
 
 
 # --- review stats + defect-complaint penalty in the review pass -------------
