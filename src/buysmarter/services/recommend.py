@@ -77,7 +77,6 @@ from buysmarter.services.matching import (
     used_market_without_pick,
 )
 from buysmarter.services.official_stores import official_candidates
-from buysmarter.services.phone_specs import enrich_with_kimovil, is_smartphone_category
 from buysmarter.services.review_pass import review_pass
 
 logger = logging.getLogger(__name__)
@@ -281,9 +280,6 @@ async def recommend(
         deduped, notes = dedupe_cross_source(new_candidates, model_book)
         deduped = attach_reference_prices(deduped, book, model_book)
         used_candidates = await _filter_used(used_candidates, constraints, use_llm)
-        if is_smartphone_category(constraints.category):
-            with stage("kimovil"):
-                await enrich_with_kimovil(deduped)
         await capabilities.enrich(deduped)
         with stage("ranking"):
             recommendation = rank(

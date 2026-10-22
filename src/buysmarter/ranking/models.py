@@ -85,9 +85,10 @@ class Candidate(BaseModel):
     # Asia/Almaty and fee in KZT. None == unknown (e.g. Ozon, no offers fetched).
     delivery_date: str | None = None
     delivery_cost: float | None = None
-    # Smartphones only: Kimovil's overall index (0-100) for this model, averaged into
-    # the specs axis (services.phone_specs). None == not a phone or no confident match.
-    kimovil_index: float | None = None
+    # A performance index for this model (0-100), averaged into the specs axis, and the
+    # source that gave it ("Kimovil" for phones). None == no index for this model.
+    benchmark_index: float | None = None
+    benchmark_label: str | None = None
     # The brand was read from the title only (the card had no brand field): a
     # weaker signal than a brand field, since counterfeits name a brand in the title.
     brand_from_title: bool = False

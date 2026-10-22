@@ -1,6 +1,6 @@
 """Kimovil specs for smartphone candidates.
 
-Each candidate gets Kimovil's overall index for its model (``Candidate.kimovil_index``,
+Each candidate gets Kimovil's overall index for its model (``Candidate.benchmark_index``,
 averaged into the specs axis) and the specs that do not depend on the memory variant,
 in the wording Kaspi uses ("120 Гц", "5000 мАч"), so required features like these
 match. RAM and storage are left out: a Kimovil page describes the base variant, the
@@ -26,23 +26,17 @@ from buysmarter.ranking.models import Candidate
 
 logger = logging.getLogger(__name__)
 
-# The category's first word names the product: "чехол для телефона" is a case.
-_SMARTPHONE_STEMS = ("смартфон", "телефон", "айфон", "iphone", "smartphone")
 MAX_LOOKUPS = 12  # distinct models looked up per run; each costs 2-6 paced requests
 HIT_TTL_S = 30 * 24 * 3600  # the index drifts slowly as newer phones appear
 MISS_TTL_S = 7 * 24 * 3600  # Kimovil may add the model, or the block may clear
 MODEL_LABEL = "Модель (Kimovil)"
+BENCHMARK_LABEL = "Kimovil"
 
 
 class PhoneSpecSource(Protocol):
     async def lookup(self, title: str) -> KimovilPhone | None: ...
 
     async def aclose(self) -> None: ...
-
-
-def is_smartphone_category(category: str) -> bool:
-    words = category.lower().split()
-    return bool(words) and any(stem in words[0] for stem in _SMARTPHONE_STEMS)
 
 
 def russian_specs(phone: KimovilPhone) -> dict[str, str]:
@@ -148,7 +142,8 @@ async def enrich_with_kimovil(
         extra = russian_specs(phone)
         for candidate in by_query[query]:
             candidate.specs = {**extra, **candidate.specs}
-            candidate.kimovil_index = phone.ki
+            candidate.benchmark_index = phone.ki
+            candidate.benchmark_label = BENCHMARK_LABEL
     logger.info(
         "kimovil: %d/%d models matched", sum(p is not None for p in phones.values()), len(phones)
     )
@@ -199,4 +194,4 @@ async def _lookup_and_cache(
     return phones
 
 
-__all__ = ["KimovilCache", "enrich_with_kimovil", "is_smartphone_category", "russian_specs"]
+__all__ = ["KimovilCache", "enrich_with_kimovil", "russian_specs"]

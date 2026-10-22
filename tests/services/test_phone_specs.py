@@ -1,11 +1,9 @@
-import pytest
 from market_sources.kimovil.parse import KimovilPhone
 
 from buysmarter.ranking.models import Candidate
 from buysmarter.services.phone_specs import (
     KimovilCache,
     enrich_with_kimovil,
-    is_smartphone_category,
     russian_specs,
 )
 
@@ -47,22 +45,6 @@ def _cand(pid: str, title: str, specs: dict[str, str] | None = None) -> Candidat
     )
 
 
-@pytest.mark.parametrize(
-    ("category", "expected"),
-    [
-        ("смартфон", True),
-        ("смартфон iPhone 13", True),
-        ("телефон Samsung", True),
-        ("айфон", True),
-        ("ирригатор", False),
-        ("iPhone 15 Pro", True),
-        ("чехол для телефона", False),
-    ],
-)
-def test_smartphone_categories_are_recognised(category, expected):
-    assert is_smartphone_category(category) is expected
-
-
 def test_russian_specs_keep_variant_independent_fields_in_marketplace_wording():
     assert russian_specs(S23) == {
         "Модель (Kimovil)": "Samsung Galaxy S23 Ultra",
@@ -92,10 +74,10 @@ async def test_enrich_sets_the_index_and_merges_specs_marketplace_first(tmp_path
         [phone, variant, unknown], source=source, cache=KimovilCache(tmp_path / "k.db")
     )
 
-    assert phone.kimovil_index == variant.kimovil_index == 84.0
+    assert phone.benchmark_index == variant.benchmark_index == 84.0
     assert phone.specs["Защита"] == "IP68 (Kaspi)"  # the marketplace's own value wins
     assert phone.specs["Частота обновления экрана"] == "120 Гц"
-    assert unknown.kimovil_index is None and unknown.specs == {}
+    assert unknown.benchmark_index is None and unknown.specs == {}
     assert sorted(source.lookups) == ["nokia 3310", "samsung galaxy s23 ultra"]  # one per model
 
 
@@ -113,7 +95,7 @@ async def test_hits_and_misses_are_cached_across_runs(tmp_path):
     await enrich_with_kimovil([again, _cand("2", "Nokia 3310")], source=second, cache=cache)
 
     assert second.lookups == []
-    assert again.kimovil_index == 84.0
+    assert again.benchmark_index == 84.0
 
 
 async def test_a_failing_lookup_leaves_candidates_untouched(tmp_path):
@@ -124,7 +106,7 @@ async def test_a_failing_lookup_leaves_candidates_untouched(tmp_path):
     phone = _cand("1", "Samsung Galaxy S23 Ultra")
     await enrich_with_kimovil([phone], source=Broken({}), cache=KimovilCache(tmp_path / "k.db"))
 
-    assert phone.kimovil_index is None and phone.specs == {}
+    assert phone.benchmark_index is None and phone.specs == {}
 
 
 async def test_lookups_are_capped_per_run(tmp_path, monkeypatch):

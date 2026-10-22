@@ -76,7 +76,7 @@ def credibility_factor(candidate: Candidate) -> float:
     return _CREDIBILITY_FACTORS.get(tier, _UNKNOWN_CREDIBILITY_FACTOR)
 
 
-KIMOVIL_INDEX_MAX = 100.0
+BENCHMARK_INDEX_MAX = 100.0
 
 
 def _tiered_prices(candidates: list[Candidate]) -> list[int]:
@@ -340,10 +340,11 @@ def _score_specs(
         matched = sum(1 for f in required if feature_present(f, candidate))
         coverage = matched / len(required)
         explanation = f"{matched}/{len(required)} required features matched"
-    if candidate.kimovil_index is not None:
-        # Smartphones: how good the model is, not only whether its specs are known.
-        coverage = (coverage + candidate.kimovil_index / KIMOVIL_INDEX_MAX) / 2
-        explanation += f"; Kimovil {candidate.kimovil_index:.0f}/100"
+    if candidate.benchmark_index is not None:
+        # How good the model is, not only whether its specs are known.
+        coverage = (coverage + candidate.benchmark_index / BENCHMARK_INDEX_MAX) / 2
+        label = candidate.benchmark_label or "benchmark"
+        explanation += f"; {label} {candidate.benchmark_index:.0f}/100"
     return AxisScore(
         name="specs", score=round(weight * coverage, 2), max_score=weight, explanation=explanation
     )

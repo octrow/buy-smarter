@@ -1376,8 +1376,11 @@ def _specs_axis(candidate: Candidate, constraints: QueryConstraints) -> AxisScor
     return next(a for a in scored.axes if a.name == "specs")
 
 
-def test_the_kimovil_index_is_averaged_into_the_specs_axis():
-    axis = _specs_axis(_candidate(kimovil_index=60.0), _constraints(required_features=[]))
+def test_the_benchmark_index_is_averaged_into_the_specs_axis():
+    axis = _specs_axis(
+        _candidate(benchmark_index=60.0, benchmark_label="Kimovil"),
+        _constraints(required_features=[]),
+    )
     # No required features: the neutral 0.5 averaged with the index.
     assert axis.score == round(DEFAULT_WEIGHTS["specs"] * (0.5 + 0.6) / 2, 2)
     assert "Kimovil 60/100" in axis.explanation
@@ -1391,7 +1394,7 @@ def test_specs_axis_is_neutral_without_required_features():
     assert with_specs.score == without.score == DEFAULT_WEIGHTS["specs"] * 0.5
 
 
-def test_without_a_kimovil_index_the_specs_axis_is_unchanged():
+def test_without_a_benchmark_index_the_specs_axis_is_unchanged():
     axis = _specs_axis(_candidate(), _constraints(required_features=[]))
     assert axis.score == DEFAULT_WEIGHTS["specs"] * 0.5
     assert "Kimovil" not in axis.explanation

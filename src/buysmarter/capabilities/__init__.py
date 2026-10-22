@@ -4,6 +4,7 @@
 """
 
 from buysmarter.capabilities.base import Capability
+from buysmarter.capabilities.benchmark import Benchmark
 from buysmarter.capabilities.composition import Composition
 
-REGISTRY: dict[str, Capability] = {cap.name: cap for cap in (Composition(),)}
+REGISTRY: dict[str, Capability] = {cap.name: cap for cap in (Benchmark(), Composition())}
