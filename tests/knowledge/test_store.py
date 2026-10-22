@@ -101,7 +101,7 @@ async def test_a_related_profile_gives_books_and_capabilities_with_its_owner(mon
 
     assert resolved.slug == "крем-с-адапаленом"
     assert resolved.brand_book_owner == resolved.model_book_owner == "косметика"
-    assert resolved.capabilities_owner == "косметика"
+    assert resolved.found == "косметика"
     assert resolved.ingredient_book is not None
     assert await store_mod.resolve_composition("крем с адапаленом") == (
         "composition_driven",

@@ -8,6 +8,7 @@ from buysmarter.knowledge.profile import (
     COMPOSITION,
     CapabilitySetting,
     CategoryProfile,
+    composition_book,
     profile_from_record,
     resolve_fields,
 )
@@ -86,7 +87,7 @@ async def test_a_user_switching_composition_off_survives_relearning() -> None:
 
     profile = await store_mod.load_profile("косметика")
     assert profile is not None and profile.capabilities is not None
-    assert profile.capabilities[COMPOSITION].set_by == "user"
+    assert profile.capabilities[COMPOSITION].user is False
     assert profile.ingredient_book is None
     assert (await store_mod.load_knowledge("косметика") or {})["category_type"] == "spec_driven"
 
@@ -109,17 +110,55 @@ def test_a_field_the_profile_lacks_comes_from_the_parent_with_its_owner() -> Non
     assert resolved.brand_book_owner == "крем-от-акне"
     assert resolved.model_book == parent_book and resolved.model_book_owner == "косметика"
     assert resolved.enabled(COMPOSITION) is not None
-    assert resolved.capabilities_owner == "косметика"
+    assert resolved.found == "крем-от-акне"
 
 
-def test_own_capabilities_win_over_the_parent_even_when_empty() -> None:
-    parent = CategoryProfile(slug="косметика", capabilities={COMPOSITION: CapabilitySetting()})
-    child = CategoryProfile(slug="бритва", capabilities={}, parent="косметика")
+def test_capabilities_are_inherited_by_name() -> None:
+    parent = CategoryProfile(
+        slug="косметика",
+        capabilities={COMPOSITION: CapabilitySetting(), "benchmark": CapabilitySetting()},
+    )
+    child = CategoryProfile(
+        slug="бритва",
+        capabilities={COMPOSITION: CapabilitySetting(enabled=False, set_by=None, user=False)},
+        parent="косметика",
+    )
 
     resolved = resolve_fields("бритва", child, parent)
 
-    assert resolved.enabled(COMPOSITION) is None
-    assert resolved.capabilities_owner == "бритва"
+    assert resolved.enabled(COMPOSITION) is None  # the child's switch...
+    assert resolved.enabled("benchmark") is not None  # ...hides nothing else of the parent
+    assert resolved.found == "бритва"
+
+
+def test_a_learned_child_capability_wins_over_the_parents_and_a_jev_one_does_not() -> None:
+    parent = CategoryProfile(slug="косметика", capabilities={COMPOSITION: CapabilitySetting()})
+    learned = CategoryProfile(
+        slug="бритва", capabilities={COMPOSITION: CapabilitySetting(enabled=False)}
+    )
+    guessed = CategoryProfile(
+        slug="бритва", capabilities={COMPOSITION: CapabilitySetting(enabled=False, set_by="jev")}
+    )
+
+    assert resolve_fields("бритва", learned, parent).enabled(COMPOSITION) is None
+    assert resolve_fields("бритва", guessed, parent).enabled(COMPOSITION) is not None
+
+
+def test_the_users_choice_outranks_the_automatic_value_and_reset_keeps_it() -> None:
+    book = {"ingredient_book": _ingredients().model_dump(mode="json")}
+    off = CapabilitySetting(params=book, user=False)
+
+    assert not off.on and off.enabled
+    assert composition_book({COMPOSITION: off}) is None
+    reset = off.model_copy(update={"user": None})
+    assert reset.on and composition_book({COMPOSITION: reset}) == _ingredients()
+
+
+def test_an_old_user_setting_reads_as_the_users_choice_over_learning() -> None:
+    setting = CapabilitySetting.model_validate({"enabled": False, "params": {}, "set_by": "user"})
+
+    assert setting.user is False and setting.set_by == "learned"
+    assert not setting.on
 
 
 def test_nothing_stored_resolves_to_no_owner() -> None:

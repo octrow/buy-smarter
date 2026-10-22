@@ -33,6 +33,7 @@ from buysmarter.knowledge.models_book import ModelBook, ModelEntry
 from buysmarter.knowledge.models_book import get_model_book as _seed_model_book
 from buysmarter.knowledge.profile import (
     BRAND_KEY,
+    CAPABILITIES_KEY,
     COMPOSITION,
     COMPOSITION_DRIVEN,
     HEAL_CHECKED_KEY,
@@ -41,9 +42,12 @@ from buysmarter.knowledge.profile import (
     PARENT_KEY,
     SPEC_DRIVEN,
     SYNONYMS_KEY,
+    CapabilitySetting,
     CategoryProfile,
     ResolvedProfile,
+    combine_all,
     composition_keys,
+    has_books,
     profile_from_record,
     resolve_fields,
 )
@@ -190,6 +194,9 @@ async def resolve_profile(
     """
     slug = _slug(category)
     own = await load_profile(category)
+    bookless = own if own is not None and not own.is_profile else None
+    if bookless is not None:
+        own = None  # its capabilities lie on top of the profile found below (decision 1)
     if own is not None and _heal_candidate(own):
         own = await _heal(own, use_llm)
     if own is None:
@@ -204,6 +211,9 @@ async def resolve_profile(
             own = await load_profile(matched)
     parent = await load_profile(own.parent) if own is not None and own.parent else None
     resolved = resolve_fields(slug, own, parent)
+    if bookless is not None and bookless.capabilities:
+        capabilities = combine_all(resolved.capabilities, bookless.capabilities)
+        resolved = resolved.model_copy(update={"capabilities": capabilities})
     return _with_seed_books(resolved, category)
 
 
@@ -315,14 +325,25 @@ def _has_composition(profile: CategoryProfile) -> bool:
     return bool(profile.capabilities and COMPOSITION in profile.capabilities)
 
 
-def _retarget(old: str, new: str) -> repo.RecordEdit:
-    """The record edits of a rename: ``old`` becomes a synonym of ``new``, children follow."""
+def _retarget(
+    old: str, new: str, bookless: dict[str, CapabilitySetting] | None = None
+) -> repo.RecordEdit:
+    """The record edits of a rename: ``old`` becomes a synonym of ``new``, children follow.
+
+    ``bookless`` holds the capabilities of a bookless record the move lands over: they are
+    combined into the moved ones (phase 3, decision 1).
+    """
     stamp = {_UPDATED_BY: _RENAME_WRITER, _UPDATED_AT: datetime.now(UTC).isoformat()}
 
     def edit(slug: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         if slug == new:
             synonyms = [s for s in payload.get(SYNONYMS_KEY) or [] if s != old]
-            return {**payload, SYNONYMS_KEY: [*synonyms, old], **stamp}
+            moved = {**payload, SYNONYMS_KEY: [*synonyms, old], **stamp}
+            if bookless:
+                own = profile_from_record(new, payload).capabilities or {}
+                combined = combine_all(own, bookless)
+                moved[CAPABILITIES_KEY] = {n: c.model_dump(mode="json") for n, c in combined.items()}
+            return moved
         if payload.get(PARENT_KEY) == old:
             return {**payload, PARENT_KEY: new, **stamp}
         return None
@@ -334,11 +355,18 @@ async def _rename(old: str, new: str) -> None:
     """Move ``old`` to ``new`` once, list it as a synonym and re-point children, atomically.
 
     A lookup running at the same time finds the record already moved (no row, or ``new``
-    taken): it only reads ``new`` back.
+    taken): it only reads ``new`` back. A record without books under ``new`` (Jev's
+    capabilities, a user's choice) gives way in the same transaction: the move lands over it
+    and its capabilities are combined into the moved ones (phase 3, decision 1).
     """
+    bookless = await load_profile(new)
+    replaced = bookless if bookless is not None and not bookless.is_profile else None
     try:
         async with async_session() as session:
-            moved = await repo.rename_category_knowledge(session, old, new, _retarget(old, new))
+            if replaced is not None:
+                await repo.delete_category_knowledge(session, new)
+            edit = _retarget(old, new, replaced.capabilities if replaced else None)
+            moved = await repo.rename_category_knowledge(session, old, new, edit)
     except IntegrityError:
         moved = False
     except Exception as exc:  # noqa: BLE001 - the store is optional
@@ -516,7 +544,8 @@ async def _match_category(category: str, candidates: list[str], phrase: str = ""
 
 
 async def _other_records(slug: str) -> dict[str, dict[str, Any]]:
-    return {s: raw for s, raw in (await _stored_records()).items() if s != slug}
+    """Every other stored profile with books: what a lookup may pick (decision 1)."""
+    return {s: raw for s, raw in (await _stored_records()).items() if s != slug and has_books(raw)}
 
 
 async def _by_synonym(slug: str) -> CategoryProfile | None:

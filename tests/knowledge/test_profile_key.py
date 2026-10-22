@@ -42,6 +42,30 @@ async def test_an_old_slug_with_audience_and_size_moves_under_the_product_type(c
     assert "knowledge renamed" in caplog.text
 
 
+async def test_an_old_slug_moves_over_a_record_without_books_and_keeps_its_choices() -> None:
+    await _put_raw("мужские-кроссовки-42", _NIKE)
+    await _put_raw(
+        "кроссовки",
+        {
+            "capabilities": {
+                "benchmark": {"enabled": False, "set_by": "jev"},
+                "composition": {"enabled": False, "set_by": None, "user": True},
+            }
+        },
+    )
+
+    resolved = await resolve_profile(
+        "кроссовки", search_phrase="мужские кроссовки 42", use_llm=False
+    )
+
+    assert resolved.brand_book is not None and resolved.brand_book.tiers == {"Nike": "A"}
+    assert await _slugs() == {"кроссовки"}
+    stored = await load_knowledge("кроссовки") or {}
+    assert stored["synonyms"] == ["мужские-кроссовки-42"]
+    assert stored["capabilities"]["benchmark"]["set_by"] == "jev"
+    assert stored["capabilities"]["composition"]["user"] is True
+
+
 async def test_a_narrower_profile_is_used_but_not_moved() -> None:
     """«шампунь от перхоти» may carry its own composition: it never merges into «шампунь»."""
     await _put_raw("шампунь-от-перхоти", _NIKE)

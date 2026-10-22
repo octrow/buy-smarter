@@ -9,7 +9,7 @@ from collections.abc import Callable, Iterable, Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from buysmarter.db.models import (
@@ -288,6 +288,15 @@ async def rename_category_knowledge(
         await session.rollback()
         raise
     return True
+
+
+async def delete_category_knowledge(session: AsyncSession, category: str) -> None:
+    """Remove the record ``category`` (no-op when it is gone); the caller commits.
+
+    A rename deletes the bookless record it lands over in its own transaction, so a failed
+    move rolls the delete back too.
+    """
+    await session.execute(delete(CategoryKnowledge).where(CategoryKnowledge.category == category))
 
 
 async def list_category_slugs(session: AsyncSession) -> list[str]:

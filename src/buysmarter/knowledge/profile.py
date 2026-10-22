@@ -2,20 +2,23 @@
 
 A profile lives in the same ``category_knowledge.schema_json`` as before (ADR-0005,
 docs/plans/2026-10-22-capabilities-phase1.md decision 1). New keys: ``capabilities``
-(``{name: {enabled, params, set_by}}``), ``synonyms``, ``parent``, ``updated_by``,
+(``{name: {enabled, params, set_by, user}}``), ``synonyms``, ``parent``, ``updated_by``,
 ``heal_checked``. Old records are read through an adapter: ``category_type ==
 composition_driven`` becomes the composition capability with the ingredient book as its
 parameter. Until phase 3 the old keys are written too (``composition_keys``), so an older
 app version still reads the record.
 
 Inheritance is one step: a field the profile does not set comes from its parent, and the
-resolved profile names the owner of each field, so knowledge learned while using a book
-is saved where the book lives.
+resolved profile names the owner of each book, so knowledge learned while using a book
+is saved where the book lives. Capabilities are inherited by name (``combine``).
+
+A record without books (only Jev's capabilities, a user's choice, learning marks) is no
+profile of its own unless it names a parent (phase 3, decision 1): ``has_books``.
 """
 
 from typing import Any, Literal, TypeGuard
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import IngredientBook
@@ -36,16 +39,60 @@ SYNONYMS_KEY = "synonyms"
 PARENT_KEY = "parent"
 HEAL_CHECKED_KEY = "heal_checked"
 
-# Who switched a capability on, strongest first (ADR-0005 "Category profile").
-SetBy = Literal["user", "learned", "jev", "fallback"]
+# Who set a capability's automatic value, strongest first (ADR-0005 "Category profile");
+# the user's own choice is a separate field and outranks them all.
+SetBy = Literal["learned", "jev", "fallback"]
+_RANK: dict[SetBy | None, int] = {None: -1, "fallback": 0, "jev": 1, "learned": 2}
 
 
 class CapabilitySetting(BaseModel):
-    """One capability in a profile: on or off, its parameters, and who set it."""
+    """One capability in a profile: the automatic value, its parameters and the user's choice.
+
+    ``enabled``/``params``/``set_by`` are the automatic value (``set_by=None``: there is
+    none, the entry only holds the user's choice); ``user`` is the user's own switch
+    (``None``: untouched). Resetting the choice keeps the learned parameters.
+    """
 
     enabled: bool = True
     params: dict[str, Any] = Field(default_factory=dict)
-    set_by: SetBy = "learned"
+    set_by: SetBy | None = "learned"
+    user: bool | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _old_user_choice(cls, data: Any) -> Any:
+        """Phase 1 stored the user's choice as ``set_by="user"``."""
+        if isinstance(data, dict) and data.get("set_by") == "user":
+            return {**data, "user": data.get("enabled", True), "set_by": "learned"}
+        return data
+
+    @property
+    def on(self) -> bool:
+        """The effective switch: the user's choice when made, else the automatic value."""
+        return self.enabled if self.user is None else self.user
+
+
+def combine(base: CapabilitySetting | None, top: CapabilitySetting) -> CapabilitySetting:
+    """``top`` over ``base``: the stronger automatic value (``top`` on a tie), and ``top``'s
+    user choice, else ``base``'s. One rule for a child over its parent and for a record
+    without books over the profile found for it."""
+    if base is None:
+        return top
+    auto = top if _RANK[top.set_by] >= _RANK[base.set_by] else base
+    user = top.user if top.user is not None else base.user
+    return auto.model_copy(update={"user": user})
+
+
+def combine_all(
+    base: dict[str, CapabilitySetting], top: dict[str, CapabilitySetting]
+) -> dict[str, CapabilitySetting]:
+    """``combine`` by name: a capability ``top`` does not name stays as in ``base``."""
+    return {**base, **{name: combine(base.get(name), s) for name, s in top.items()}}
+
+
+def has_books(raw: dict[str, Any]) -> bool:
+    """A stored record with a brand or a model book: a profile, not only capabilities."""
+    return bool(raw.get(BRAND_KEY) or raw.get(MODEL_KEY))
 
 
 class CategoryProfile(BaseModel):
@@ -64,13 +111,20 @@ class CategoryProfile(BaseModel):
         """The composition capability's ingredient book, if this profile switches it on."""
         return composition_book(self.capabilities or {})
 
+    @property
+    def is_profile(self) -> bool:
+        """Books, or a parent to take them from: a record the lookup may stop at."""
+        return self.brand_book is not None or self.model_book is not None or bool(self.parent)
+
 
 class ResolvedProfile(BaseModel):
     """What a query uses: each field after inheritance, and the slug that owns it.
 
     An owner is the query's own slug, its parent's, or the related profile the lookup
-    found. Books from the static seed are owned by the query's slug (nothing stored owns
-    them, so learned aliases go under the query, as before phase 1).
+    found; ``found`` is the stored record the lookup settled on (the query's own, a
+    synonym's owner or a related profile; ``None``: nothing). Books from the static seed are
+    owned by the query's slug (nothing stored owns them, so learned aliases go under the
+    query, as before phase 1).
     """
 
     slug: str
@@ -79,7 +133,7 @@ class ResolvedProfile(BaseModel):
     capabilities: dict[str, CapabilitySetting] = Field(default_factory=dict)
     brand_book_owner: str | None = None
     model_book_owner: str | None = None
-    capabilities_owner: str | None = None
+    found: str | None = None
 
     @property
     def ingredient_book(self) -> IngredientBook | None:
@@ -92,7 +146,7 @@ class ResolvedProfile(BaseModel):
 
 
 def _switched_on(setting: CapabilitySetting | None) -> TypeGuard[CapabilitySetting]:
-    return setting is not None and setting.enabled
+    return setting is not None and setting.on
 
 
 def composition_book(capabilities: dict[str, CapabilitySetting]) -> IngredientBook | None:
@@ -145,8 +199,8 @@ def composition_keys(
     params = {INGREDIENT_KEY: ingredient_book.model_dump(mode="json")} if ingredient_book else {}
     current = capabilities.pop(COMPOSITION, None)
     setting = CapabilitySetting.model_validate(current) if current else None
-    if setting is not None and setting.set_by == "user":
-        if setting.enabled:
+    if setting is not None and setting.user is not None:
+        if setting.user:
             setting = setting.model_copy(update={"params": {**setting.params, **params}})
     elif category_type == COMPOSITION_DRIVEN:
         setting = CapabilitySetting(params=params)
@@ -164,7 +218,8 @@ def composition_keys(
 def resolve_fields(
     query_slug: str, own: CategoryProfile | None, parent: CategoryProfile | None
 ) -> ResolvedProfile:
-    """Each field from ``own``, else from ``parent`` (one step), with the slug that owns it."""
+    """Each book from ``own``, else from ``parent`` (one step), with the slug that owns it;
+    capabilities by name, ``own``'s over ``parent``'s (``combine``)."""
     sources = [p for p in (own, parent) if p is not None]
 
     def pick(field: str) -> tuple[Any, str | None]:
@@ -176,13 +231,15 @@ def resolve_fields(
 
     brand, brand_owner = pick("brand_book")
     model, model_owner = pick("model_book")
-    capabilities, capabilities_owner = pick("capabilities")
+    capabilities: dict[str, CapabilitySetting] = {}
+    for profile in reversed(sources):
+        capabilities = combine_all(capabilities, profile.capabilities or {})
     return ResolvedProfile(
         slug=query_slug,
         brand_book=brand,
         model_book=model,
-        capabilities=capabilities or {},
+        capabilities=capabilities,
         brand_book_owner=brand_owner,
         model_book_owner=model_owner,
-        capabilities_owner=capabilities_owner,
+        found=own.slug if own is not None else None,
     )

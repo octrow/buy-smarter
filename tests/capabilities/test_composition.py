@@ -22,6 +22,19 @@ def test_composition_is_off_without_an_ingredient_book() -> None:
     assert Composition().setting(composition_profile(), _QUERY) is not None
 
 
+def test_jevs_composition_without_a_book_ranks_as_spec_driven() -> None:
+    """Characterization scenario 1 (spec-driven): no weights, hooks or unchecked flag."""
+    jev_yes = CapabilitySetting(set_by="jev")
+    profile = ResolvedProfile(slug="гречка", capabilities={COMPOSITION: jev_yes})
+
+    active = activate(REGISTRY, profile, _QUERY, query="", use_llm=False)
+
+    assert active.items == []
+    assert active.rank_hooks().weights is None
+    pool = [_cand("kl", "Клензит гель адапален")]
+    assert active.flags(rank(pool, _QUERY, hooks=active.rank_hooks())) == {}
+
+
 def test_the_core_gets_substance_searches_and_title_hits_to_protect() -> None:
     active = activate(REGISTRY, composition_profile(), _QUERY, query="", use_llm=False)
     pool = [_cand("kl", "Клензит гель адапален"), _cand("bio", "Bioderma крем")]
