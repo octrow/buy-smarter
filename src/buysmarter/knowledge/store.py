@@ -135,7 +135,12 @@ async def save_knowledge(
 async def update_knowledge(
     category: str, updates: dict[str, Any], writer: str, *, drop: tuple[str, ...] = ()
 ) -> None:
-    """Merge raw ``updates`` into the stored record, remove the ``drop`` keys, stamp the writer."""
+    """Merge raw ``updates`` into the stored record, remove the ``drop`` keys, stamp the writer.
+
+    ponytail: read-modify-write without a lock, so two saves to one slug at once (an API
+    worker and a heal) can lose a key, as the rebuild-on-save before it could; move the
+    merge into one UPDATE transaction if concurrent writers ever show up in the logs.
+    """
     existing = await load_knowledge(category) or {}
     payload = {k: v for k, v in existing.items() if k not in drop}
     payload.update(updates)
@@ -171,6 +176,9 @@ async def resolve_profile(category: str, *, use_llm: bool = True) -> ResolvedPro
     No substring matching (``"чай"`` must not find ``"чайник"``). The found profile's
     parent fills the fields it lacks (one step). Books nothing stored provides fall back
     to the static seed, owned by the query's slug.
+
+    May write: an old copy left by the pre-profile alias save is healed once (the record,
+    and the aliases moved to its source; see ``_heal``).
     """
     slug = _slug(category)
     own = await load_profile(category)
