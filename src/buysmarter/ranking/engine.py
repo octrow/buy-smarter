@@ -8,7 +8,7 @@ Alternatives) for the contract this module implements.
 import math
 import statistics
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import date
 from typing import NamedTuple
 
@@ -26,7 +26,11 @@ from buysmarter.ranking.flags import (
     SUSPICIOUS_PRICE_CON,
     UNVERIFIED_FEATURE_CON,
 )
-from buysmarter.ranking.model_tokens import extract_model_tokens, has_model_match
+from buysmarter.ranking.model_tokens import (
+    extract_model_tokens,
+    has_model_match,
+    has_whole_model,
+)
 from buysmarter.ranking.models import (
     AxisScore,
     Candidate,
@@ -453,6 +457,8 @@ def _pros_cons(axes: list[AxisScore]) -> tuple[list[str], list[str]]:
 # Soft penalty when the query names a model code (e.g. "F300") and the listing
 # carries none of them: a different model in the same category, not a hard reject.
 _MODEL_MISMATCH_FACTOR = 0.85
+# Does a listing name the models the ranking looks for (codes, or whole models for a fit)?
+ModelMatch = Callable[[Candidate, tuple[str, ...]], bool]
 _MODEL_MISMATCH_CON = "другая модель: в названии нет «{token}»"
 _OFFICIAL_SELLER_PRO = "официальный магазин или партнёр бренда — оригинал"
 
@@ -610,13 +616,15 @@ def score(
     scoring: Sequence[PoolScoring] = (),
     today: date | None = None,
     model_tokens: tuple[str, ...] = (),
+    model_match: ModelMatch = has_model_match,
 ) -> ScoredCandidate:
     """Score one candidate against pool-relative market context.
 
     ``scoring`` are the extra axes and notes passed in, prepared over the passed
     pool (``RankHooks.scoring``); ``weights`` must cover their axes. ``today`` (Asia/Almaty) feeds
     the delivery grouping; ``model_tokens`` are the query's model codes (see
-    ``model_tokens.extract_model_tokens``), empty means no model relevance check.
+    ``model_tokens.extract_model_tokens``), empty means no model relevance check;
+    ``model_match`` decides whether a listing names them.
     """
     today = today or today_almaty()
     flags = _price_flags(candidate, market)
@@ -625,7 +633,7 @@ def score(
     )
     axes = _score_axes(candidate, constraints, market, price_axis, weights, scoring, today)
     total = round(sum(a.score for a in axes), 2)
-    model_miss = bool(model_tokens) and not has_model_match(candidate, model_tokens)
+    model_miss = bool(model_tokens) and not model_match(candidate, model_tokens)
     if model_miss:
         total = round(total * _MODEL_MISMATCH_FACTOR, 2)
     pros, cons = _verdict_pros_cons(
@@ -666,6 +674,17 @@ def _reason_key(reason: str) -> str:
     return reason.split(":", 1)[0].strip()
 
 
+def _model_check(
+    passed: list[Candidate], query: str | None, hooks: RankHooks
+) -> tuple[tuple[str, ...], ModelMatch]:
+    """The models a listing should name and how to tell: the caller's whole models (only
+    those some passed listing names), else the query's model codes."""
+    if hooks.model_tokens is None:
+        return tuple(extract_model_tokens(query) if query else ()), has_model_match
+    named = tuple(m for m in hooks.model_tokens if any(has_whole_model(c, (m,)) for c in passed))
+    return named, has_whole_model
+
+
 def rank(
     candidates: list[Candidate],
     constraints: QueryConstraints,
@@ -692,7 +711,7 @@ def rank(
     market = compute_market_context(passed)
     weights = hooks.weights or DEFAULT_WEIGHTS
     scoring = [prepare(passed) for prepare in hooks.scoring]
-    model_tokens = tuple(extract_model_tokens(query) if query else ())
+    model_tokens, model_match = _model_check(passed, query, hooks)
     scored = [
         score(
             c,
@@ -701,6 +720,7 @@ def rank(
             weights=weights,
             scoring=scoring,
             model_tokens=model_tokens,
+            model_match=model_match,
         )
         for c in passed
     ]

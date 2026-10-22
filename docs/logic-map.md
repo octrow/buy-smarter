@@ -49,7 +49,7 @@ OLX never enters the ranking; it only feeds the used-market section.
 ## Capabilities
 
 The core flow is the same for every category. What differs are capabilities (CONTEXT.md):
-optional hooks the core calls at fixed points, in registry order (audience, size, benchmark, composition).
+optional hooks the core calls at fixed points, in registry order (audience, size, fit, benchmark, composition).
 A hook a capability does not implement is not called.
 `ranking/` never imports capabilities: the flow hands `rank()` plain weights, predicates and functions (`RankHooks`).
 
@@ -57,6 +57,7 @@ A hook a capability does not implement is not called.
 |---|---|---|---|
 | audience | request | `constraints.gender`: the parser, or a regex over the query text (step 4) | `query` (4), `reject_listing` on the main pool, OLX ads and official-store offers (10, 14, 17) |
 | size | request | `constraints.size`: the parser, or a regex over the query text for apparel (step 4) | `query` (4: the size leaves the search phrase and apparel features), `notes` (17: "size unverified") |
+| fit | request | `constraints.fit_target`: the parser, or "для/на/под/к <device>" in the query text (step 4) | `query` (4: the device joins the search phrase and leaves the product type), `notes` (17: "подходит к <device>"); the model penalty (17) looks for the whole device model |
 | benchmark | category | the profile, only with a provider from `BENCHMARK_PROVIDERS` (its parameter, else the provider whose rule takes the product type); without a profile setting, the providers' rule (`set_by: fallback`) | `enrich` (15: Kimovil specs and `benchmark_index`) |
 | composition | category | the profile: the composition capability with an ingredient book (old records: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, may stop the run), `prepare` + `axis` + `notes` (17), `section` (Output) |
 
@@ -69,7 +70,7 @@ Examples:
 - "смартфон iPhone 13" → benchmark by the providers' rule (Kimovil); "чехол на iPhone 15", "держатель телефона" → none.
 - A category with no profile at all → no category capability, every brand scores as unknown.
 
-Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/benchmark`, `capabilities/composition`
+Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/benchmark`, `capabilities/composition`
 
 ## Entry points
 
@@ -104,7 +105,7 @@ Module: `llm/adapter`, `llm/keys`
 Decides: the request intent, the search phrase, the product type, budget, city, required features, excluded brands, condition.
 In: query text. Out: `QueryConstraints`.
 Branches:
-- LLM: one call extracts all fields: intent (product, need, open, multi, service, unclear), `search_phrase` (what the marketplaces get), `product_type` (the profile key without audience, size or theme), `options` to choose from, `restricted`, `condition`, budget range and note. The phrase is forced into Russian; a named model stays in it ("смартфон iPhone 13"). An empty product type falls back to the naive one; no budget and no budget note from the LLM means the budget rules below decide ("до 50 штук" the LLM missed is still 50 000).
+- LLM: one call extracts all fields: intent (product, need, open, multi, service, unclear), `search_phrase` (what the marketplaces get), `product_type` (the profile key without audience, size or theme), `options` to choose from, `restricted`, `condition`, budget range and note, `fit_target` (the device the goods are for). The phrase is forced into Russian; a named model stays in it ("смартфон iPhone 13"), unless the goods are for it ("чехол на iPhone 15": phrase and type "чехол", fit target "iPhone 15"). An empty product type falls back to the naive one; no budget and no budget note from the LLM means the budget rules below decide ("до 50 штук" the LLM missed is still 50 000).
 - No LLM or LLM error: intent is product (unclear when the phrase has fewer than two letters, an empty phrase included: «хочу до 20к» is never searched as «хочу»); regex takes budget, city and condition (б/у, новый); the rest of the text becomes the search phrase, and the product type is that phrase without audience and size words; no required features on purpose.
 Budget rules (no LLM): another currency ($, ₽, €) gives no budget, only a note; tenge (and Kazakh "теңгеге"), thousands slang ("тыс", "косарь", "мың", "мыңға", "штук" after "до/за"), "млн" (×1 000 000) and "N k" from 10 up are money; Kazakh "дейін" after the amount means "до"; a bare "до N" is money only without a unit after it (м, кг, лет, МЕ, Вт, шт...) and under 1000 means thousands; a fraction is never money ("до 18.5 кг"), "15.000" is 15 000; "30-40 тыс" and "от 30 до 40 тыс" are ranges, a bare "N до M" is not ("iPhone 15 до 500 тыс": 15 stays in the phrase). The money words leave the search phrase.
 The search phrase drives searches, relevance and the substances read from the query; the product type keys the category profile (step 6). The old `category` field is gone from the parse; the HTTP API still shows it as a deprecated copy of the search phrase.
@@ -138,7 +139,8 @@ Decides: final constraints before search.
 - Restricted goods: when the parse did not set `restricted`, a static whole-word list over the query flags alcohol, tobacco and vapes, weapons (not prescription medicines; "бокал для вина", "кальянный уголь", "травматолог…" are not flagged). The search still runs; `restricted_note` leads the report.
 - Every capability's `query` hook runs, before the profile is known (the profile key may fall back to the search phrase these hooks rewrite):
   - audience: "мужские", "детские" read from the query text by regex if the parser missed it, for any category;
-  - size: "42 размер", "XL" read out and removed from the search phrase; once the size is known, a bare "42" after an apparel word leaves it too ("мужские кроссовки 42" → "мужские кроссовки", so an old record of that name moves under "кроссовки"); size phrases leave the required features for apparel.
+  - size: "42 размер", "XL" read out and removed from the search phrase; once the size is known, a bare "42" after an apparel word leaves it too ("мужские кроссовки 42" → "мужские кроссовки", so an old record of that name moves under "кроссовки"); size phrases leave the required features for apparel;
+  - fit: "для/на/под/к <device>" read from the query when the parser missed it (the device is Latin with a digit or a known device word such as айфон, Xiaomi, PS5; never a number, a unit or "64GB"); the device joins the search phrase and leaves the product type ("чехол на iPhone 15" → search "чехол iPhone 15", type "чехол").
 - Features already implied by the search phrase are dropped ("TWS" in "TWS наушники").
 - Condition words (б/у, новый) are dropped: used goods are OLX's job. They set `condition`; "used" adds a report note pointing to the OLX section.
 Then CLI/API overrides apply: budget, trusted brands only.
@@ -311,12 +313,12 @@ Reviews and popularity are trusted less for unknown brands.
 **Adjustments**
 - price history: a real dip is rewarded;
 - suspicious price (far under the genuine item) → penalty and a con;
-- model code in the query ("F300") missing from the title → score cut;
+- model code in the query ("F300") missing from the title → score cut; with a fit the device replaces the codes and must be named whole ("iPhone 15" is not in "iPhone 15 Pro", is in "iPhone 15/15 Pro"); a device no passed listing names cuts nothing;
 - low confidence for a brand read only from the title, a risky price, or a pool with fewer than 3 tiered prices.
 
 Capability axes come before the base axes; weights follow the rule in Capabilities.
 
-**Pros and cons**: official seller, unknown brand, price risk, price history verdict, unverified features, then each capability's notes (size: unverified size; composition: ingredient equivalence, and it replaces "weak ingredient"), model mismatch, spec conflicts in the title, fast delivery.
+**Pros and cons**: official seller, unknown brand, price risk, price history verdict, unverified features, then each capability's notes (size: unverified size; fit: "подходит к <device>"; composition: ingredient equivalence, and it replaces "weak ingredient"), model mismatch, spec conflicts in the title, fast delivery.
 Module: `ranking/engine`, `ranking/filters`, `ranking/price_risk`, `capabilities/composition`, `capabilities/size`, `ranking/model_tokens`, `ranking/spec_conflicts`, `ranking/delivery`, `ranking/flags`
 
 ### 18. Roles

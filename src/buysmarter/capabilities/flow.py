@@ -100,6 +100,7 @@ class ActiveCapabilities:
                 _bind(c, x, "reject_content") for c, x in self._with("reject_content")
             ),
             scoring=tuple(_scoring(c, x) for c, x in self.items if _scores(c)),
+            model_tokens=(fit,) if (fit := self.constraints.fit_target) else None,
         )
 
     def flags(self, result: Recommendation) -> dict[str, bool]:

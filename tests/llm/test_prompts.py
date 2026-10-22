@@ -196,3 +196,10 @@ def test_a_query_with_nothing_but_budget_and_filler_is_unclear(query: str) -> No
 
     assert parsed.intent == "unclear"
     assert parsed.search_phrase == ""
+
+
+def test_parse_query_prompt_moves_the_device_goods_are_for_to_fit_target() -> None:
+    prompt = prompts.parse_query_prompt("чехол на iPhone 15")
+
+    assert "fit_target" in prompt
+    assert '"product_type": "чехол", "fit_target": "iPhone 15"' in prompt

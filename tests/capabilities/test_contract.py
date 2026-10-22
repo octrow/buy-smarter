@@ -17,7 +17,8 @@ def test_every_registered_capability_has_a_russian_title() -> None:
 
 def test_audience_and_size_are_request_capabilities() -> None:
     levels = {name: cap.level for name, cap in REGISTRY.items()}
-    assert levels == {
+    # phase 4 adds request capabilities (fit, dims, ...): only these four are pinned here
+    assert {n: levels[n] for n in ("audience", "size", "benchmark", "composition")} == {
         "audience": "request",
         "size": "request",
         "benchmark": "category",

@@ -83,6 +83,10 @@ class ParsedRequest(BaseModel):
     trusted_brands_only: bool = False
     gender: str | None = None
     size: str | None = None
+    fit_target: str | None = None
+    dims: dict[str, str] = Field(default_factory=dict)
+    exclude_substances: list[str] = Field(default_factory=list)
+    original_only: bool = False
 
     @model_validator(mode="before")
     @classmethod

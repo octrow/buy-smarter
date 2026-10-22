@@ -49,6 +49,13 @@ class QueryConstraints(BaseModel):
     # Clothing/shoe size the user asked for ("42", "XL"). Marketplace cards do not
     # say which sizes are in stock, so it is reported as unverified, never filtered.
     size: str | None = None
+    # Request capabilities (phase 4): the device the goods are for ("iPhone 15"), the tyre
+    # or mattress size ({"tyre": "205/55 R16"}), substances the goods must not contain
+    # ("сульфаты"), and "only the original" (suspected fakes are hidden).
+    fit_target: str | None = None
+    dims: dict[str, str] = Field(default_factory=dict)
+    exclude_substances: list[str] = Field(default_factory=list)
+    original_only: bool = False
 
 
 class PriceHistory(BaseModel):
@@ -200,6 +207,8 @@ class RankHooks:
     text (title and category path); ``hard_features`` adjust the features string-matched;
     ``reject_content`` runs after the feature check; each ``scoring`` builder sees the
     passed pool and returns an axis (scored before the base axes) and/or pros-cons notes.
+    ``model_tokens`` replace the query's model codes with whole models a listing must name
+    (``model_tokens.names_model``); a model no passed listing names is dropped.
     """
 
     weights: dict[str, float] | None = None
@@ -207,3 +216,4 @@ class RankHooks:
     hard_features: tuple[Callable[[list[str]], list[str]], ...] = ()
     reject_content: tuple[Callable[[Candidate], str | None], ...] = ()
     scoring: tuple[Callable[[list[Candidate]], PoolScoring], ...] = ()
+    model_tokens: tuple[str, ...] | None = None

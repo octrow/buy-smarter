@@ -61,7 +61,9 @@ _FIELDS = (
     "- required_features: hard-requirement features (e.g. 'IPX7'), list\n"
     "- excluded_brands: brands to avoid, list\n"
     "- preferred_marketplaces: e.g. ['kaspi','ozon'], list\n"
-    "- usage_notes: short free-text usage context, or null\n\n"
+    "- usage_notes: short free-text usage context, or null\n"
+    "- fit_target: the device the goods are FOR in 'X для/на Y' (a case for iPhone 15, a "
+    "charger for Xiaomi 13): Y verbatim, else null\n\n"
 )
 _RULES = (
     "CRITICAL: ``search_phrase`` and ``product_type`` MUST be in RUSSIAN — the language of "
@@ -77,7 +79,10 @@ _RULES = (
     "A specific brand line or model the user names (iPhone 13, Dyson "
     "Supersonic, Roborock S8) is what they are shopping for: keep it in "
     "``search_phrase`` VERBATIM after the Russian product type, never replace it "
-    "with the bare type and never move it to ``required_features``.\n"
+    "with the bare type and never move it to ``required_features``. "
+    "Unless the goods are FOR that model ('X для/на Y'): then ``search_phrase`` and "
+    "``product_type`` are X and Y goes to ``fit_target`` ('смартфон iPhone 15' is the phone "
+    "itself, no fit_target).\n"
     "Item condition (б/у, used, новый) is NOT a required feature: put it in "
     "``condition`` — used listings are always searched separately.\n"
     "Ask (open, need with several options, multi) ONLY when searching without an answer "
@@ -96,6 +101,8 @@ _EXAMPLES = (
     'Example: "iphone 13 б/у" -> {"intent": "product", '
     '"search_phrase": "смартфон iPhone 13", "product_type": "смартфон", '
     '"required_features": [], "condition": "used", ...}\n'
+    'Example: "чехол на iPhone 15" -> {"intent": "product", "search_phrase": "чехол", '
+    '"product_type": "чехол", "fit_target": "iPhone 15", ...}\n'
     'Example: "шампунь от перхоти" -> {"intent": "need", "need": "перхоть", '
     '"search_phrase": "шампунь от перхоти", "product_type": "шампунь", "options": [], ...}\n'
     'Example: "чем снять боль в спине" -> {"intent": "need", "need": "боль в спине", '

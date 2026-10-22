@@ -59,12 +59,8 @@ def test_a_capability_nobody_switched_on_is_off_without_a_source() -> None:
 def test_the_levels_come_from_the_capabilities() -> None:
     levels = {s.name: s.level for s in capability_states(REGISTRY, _profile(), _CREAM)}
 
-    assert levels == {
-        "audience": "request",
-        "size": "request",
-        "benchmark": "category",
-        "composition": "category",
-    }
+    assert levels == {cap.name: cap.level for cap in REGISTRY.values()}
+    assert levels["composition"] == "category" and levels["audience"] == "request"
 
 
 @pytest.mark.parametrize(
