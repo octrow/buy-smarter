@@ -138,6 +138,18 @@ def _no_live_jev(monkeypatch):
     monkeypatch.setattr(jev, "api_key", _no_key)
 
 
+@pytest.fixture(autouse=True)
+def _no_classifier(monkeypatch):
+    """The capability classifier asks nothing unless a test switches it on.
+
+    Tests from before phase 3 fake Jev for their own questions only; a classifier
+    question in their call would change what they record.
+    """
+    from buysmarter.capabilities import classify
+
+    monkeypatch.setattr(classify, "capability_questions", dict)
+
+
 class MemoryKeyring(KeyringBackend):
     """An in-memory OS credential store: no test reads or writes the developer's real keyring."""
 

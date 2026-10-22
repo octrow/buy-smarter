@@ -371,6 +371,10 @@ class Composition(Capability):
 
     name = COMPOSITION
     title = "Состав"
+    jev_question = (
+        "Is this product type cosmetics, skincare, a medicine or a supplement whose active "
+        "substance and its concentration matter more than the brand?"
+    )
     axis_name = "ingredient"
     # A cheap generic with the same substance and concentration is genuinely equivalent
     # to the pricey brand, so the substance leads and brand drops sharply.

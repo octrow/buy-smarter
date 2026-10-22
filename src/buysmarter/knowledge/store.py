@@ -78,6 +78,9 @@ _DEFAULT_DIR = Path.home() / ".config" / "buysmarter" / "knowledge"
 # The writer of a user's own capability choice: the only one that may change ``user``.
 USER_WRITER = "user"
 _GENERATED_BY = "generated_by"
+# Jev questions by key and their answers (``llm.jev.system_one``).
+Questions = dict[str, dict[str, Any]]
+Answers = dict[str, dict[str, Any]]
 _UPDATED_BY = "updated_by"
 _UPDATED_AT = "updated_at"
 
@@ -209,6 +212,18 @@ async def load_profile(category: str) -> CategoryProfile | None:
 async def resolve_profile(
     category: str, *, use_llm: bool = True, search_phrase: str | None = None
 ) -> ResolvedProfile:
+    """The profile a query uses (``resolve_and_ask`` without questions)."""
+    resolved, _ = await resolve_and_ask(category, use_llm=use_llm, search_phrase=search_phrase)
+    return resolved
+
+
+async def resolve_and_ask(
+    category: str,
+    *,
+    use_llm: bool = True,
+    search_phrase: str | None = None,
+    questions: Questions | None = None,
+) -> tuple[ResolvedProfile, Answers | None]:
     """The profile a query uses: exact slug, synonyms, the old slug, a Jev/LLM pick, none.
 
     ``category`` is the product type; ``search_phrase`` (when it differs) may name an old
@@ -220,6 +235,10 @@ async def resolve_profile(
     May write: an old copy left by the pre-profile alias save is healed once (the record,
     and the aliases moved to its source; see ``_heal``); an old slug is moved or listed
     as a synonym.
+
+    ``questions`` (the capability classifier's, about ``product_type``) ride in the Jev call
+    that picks a related profile; their answers come back, ``{}`` when that call failed and
+    ``None`` when no Jev call was made (phase 3, decision 7).
     """
     slug = _slug(category)
     own = await load_profile(category)
@@ -233,8 +252,9 @@ async def resolve_profile(
     old = _slug(search_phrase) if search_phrase and slug else slug
     if old != slug:
         own = await _old_slug(own, slug, old, search_phrase or "")
+    answers: Answers | None = None
     if own is None and use_llm:
-        matched = await _match_related(slug, search_phrase or "")
+        matched, answers = await _match_related(slug, search_phrase or "", questions or {})
         if matched is not None:
             logger.info("knowledge matched: %s -> %s", category, matched)
             own = await load_profile(matched)
@@ -243,7 +263,7 @@ async def resolve_profile(
     if bookless is not None and bookless.capabilities:
         capabilities = combine_all(resolved.capabilities, bookless.capabilities)
         resolved = resolved.model_copy(update={"capabilities": capabilities})
-    return _with_seed_books(resolved, category)
+    return _with_seed_books(resolved, category), answers
 
 
 # --- Healing records the pre-phase-1 alias save copied (decision 8) ---------------
@@ -526,23 +546,28 @@ def match_category_question(
 
 
 async def _match_category_jev(
-    category: str, candidates: list[str], phrase: str = ""
-) -> tuple[str | None, bool]:
-    """Jev pick: ``(match_or_None, confident)``. Raises ``LlmError`` / ``LlmConfigError``."""
+    category: str, candidates: list[str], phrase: str = "", extra: Questions | None = None
+) -> tuple[str | None, bool, Answers]:
+    """Jev pick: ``(match_or_None, confident, extra answers)``. Raises on any failure.
+
+    ``extra`` questions (about ``product_type``) share the call; their answers come back.
+    """
     if len(candidates) >= _MAX_CHOICE_OPTIONS:
         raise LlmConfigError(f"{len(candidates)} stored categories exceed a Jev Choice")
     state: dict[str, Any] = {"query_category": category, "stored_categories": candidates}
     if phrase:
         state["search_phrase"] = phrase
-    answers = await system_one(
-        state, {"match": match_category_question(category, candidates, phrase)}
-    )
+    if extra:
+        state["product_type"] = category
+    question = match_category_question(category, candidates, phrase)
+    answers = await system_one(state, {"match": question, **(extra or {})})
     try:
         choice, confidence = answers["match"]["choice"], answers["match"]["confidence"]
     except (KeyError, TypeError) as exc:
         raise LlmError(f"malformed Jev choice answer: {exc!r}") from exc
     matched = choice if choice in candidates else None
-    return matched, confidence >= MATCH_MIN_CONFIDENCE
+    rest = {key: answers[key] for key in extra or {}}
+    return matched, confidence >= MATCH_MIN_CONFIDENCE, rest
 
 
 async def _match_category_llm(category: str, candidates: list[str], phrase: str = "") -> str | None:
@@ -562,21 +587,24 @@ async def _match_category_llm(category: str, candidates: list[str], phrase: str 
     return candidates[index]
 
 
-async def _match_category(category: str, candidates: list[str], phrase: str = "") -> str | None:
+async def _match_category(
+    category: str, candidates: list[str], phrase: str = "", extra: Questions | None = None
+) -> tuple[str | None, Answers]:
     """Jev Choice; the LLM only when Jev fails. Below ``MATCH_MIN_CONFIDENCE`` means no match.
 
     The LLM once asked on unsure answers mapped "чехол для iPhone 15" to "смартфон" and found
     nothing for "кроссовки" or "крем", 40-60 s each. Both see the search phrase (``phrase``).
+    Returns the pick and the answers to ``extra`` (``{}`` when Jev failed).
     """
     try:
-        matched, confident = await _match_category_jev(category, candidates, phrase)
+        matched, confident, answers = await _match_category_jev(category, candidates, phrase, extra)
     except (LlmError, LlmConfigError) as exc:
         logger.warning("category-match Jev call failed (%r); falling back to the LLM", exc)
-        return await _match_category_llm(category, candidates, phrase)
+        return await _match_category_llm(category, candidates, phrase), {}
     if confident:
-        return matched
+        return matched, answers
     logger.info("category-match Jev unsure for %r; no related category", category)
-    return None
+    return None, answers
 
 
 async def _other_records(slug: str) -> dict[str, dict[str, Any]]:
@@ -593,10 +621,17 @@ async def _by_synonym(slug: str) -> CategoryProfile | None:
     return await load_profile(owner)
 
 
-async def _match_related(slug: str, phrase: str) -> str | None:
-    """A Jev/LLM pick among the other stored profiles, judged with the search phrase."""
+async def _match_related(
+    slug: str, phrase: str, questions: Questions
+) -> tuple[str | None, Answers | None]:
+    """A Jev/LLM pick among the other stored profiles, judged with the search phrase.
+
+    The answers to ``questions`` are ``None`` when there was nothing to pick from (no call).
+    """
     records = await _other_records(slug)
-    return await _match_category(slug, list(records), phrase) if records else None
+    if not records:
+        return None, None
+    return await _match_category(slug, list(records), phrase, questions)
 
 
 async def _find_related(slug: str, use_llm: bool) -> str | None:
@@ -610,7 +645,8 @@ async def _find_related(slug: str, use_llm: bool) -> str | None:
     owner = _synonym_owner(slug, records)
     if owner is not None or not use_llm:
         return owner
-    return await _match_category(slug, list(records))
+    matched, _ = await _match_category(slug, list(records))
+    return matched
 
 
 async def resolve_books(

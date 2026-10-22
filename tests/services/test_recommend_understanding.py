@@ -25,7 +25,7 @@ def source(monkeypatch) -> FakeSource:
 
 @pytest.fixture
 def profiles(monkeypatch) -> list[str]:
-    """The keys ``resolve_profile`` was asked for (none stored)."""
+    """The keys ``ensure_profile`` was asked for (none stored)."""
     asked: list[str] = []
 
     async def _resolve(
@@ -34,7 +34,7 @@ def profiles(monkeypatch) -> list[str]:
         asked.append(f"{category} | {search_phrase}")
         return ResolvedProfile(slug=category)
 
-    monkeypatch.setattr(recommend_module, "resolve_profile", _resolve)
+    monkeypatch.setattr(recommend_module, "ensure_profile", _resolve)
     return asked
 
 
@@ -192,7 +192,7 @@ async def test_the_audience_read_from_the_query_rejects_a_womens_card(
         return [True] * len(titles)
 
     monkeypatch.setattr(recommend_module, "_city_preference", _no_preference)
-    monkeypatch.setattr(recommend_module, "resolve_profile", _resolve)
+    monkeypatch.setattr(recommend_module, "ensure_profile", _resolve)
     monkeypatch.setattr(recommend_module, "parse_query", _parse)
     monkeypatch.setattr(recommend_module, "_no_llm_route", lambda: False)
     monkeypatch.setattr(recommend_module, "filter_relevant", _all_relevant)

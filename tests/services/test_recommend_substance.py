@@ -78,7 +78,7 @@ def _patch_composition(monkeypatch, book: IngredientBook) -> None:
     async def _fake_resolve_profile(category: str, *, use_llm: bool = True, **_: object):
         return profile
 
-    monkeypatch.setattr(svc, "resolve_profile", _fake_resolve_profile)
+    monkeypatch.setattr(svc, "ensure_profile", _fake_resolve_profile)
 
 
 def _patch_extraction(monkeypatch) -> None:

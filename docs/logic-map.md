@@ -167,12 +167,13 @@ The found profile's parent (one step) fills the books it does not set; each book
 Books nothing stored provides fall back to the static seed (irrigators), owned by the query's slug.
 Old records are read through an adapter: `category_type: composition_driven` becomes the composition capability. Saving merges into the record, and the old keys are still written. Capabilities merge by name in one place (`update_knowledge`): an automatic writer (learning, Jev, a move, healing) changes a capability only when its source is not weaker than the stored one and never touches the user's choice; only the user's own writer changes it, and a reset keeps the learned parameters.
 An old record that is a copy left by the pre-profile alias save (no capabilities, no parent, its brand book equal to a related composition profile's) is healed once: it becomes that profile's child and its aliases move to the parent. Every check marks the record, so Jev is asked once.
+A product type seen first (nothing stored under it, with LLM) is classified by Jev (`ensure_profile`): one noul question per category capability that has one (composition) and per benchmark provider (Kimovil), state `{product_type}`. The questions ride in the Jev call that picks a related profile; with nothing to pick from, they go in a call of their own. A related profile found drops the answers; otherwise every answer is saved, yes or no (`set_by: jev`, threshold `CLASSIFY_MIN_NOUL`), in a record without books; a failed call saves nothing. The next request asks nothing. Composition from Jev without an ingredient book stays inactive.
 Then capabilities are switched on (see Capabilities), and a capability's `clarify` hook may ask (step 2a). This step runs before step 5, so a question never starts a browser.
 No LLM: exact slug and synonyms only.
 Fails: never blocks. Missing knowledge sets `knowledge_missing` and weakens the brand axis.
 The run does not learn a whole category; it logs a hint to run `learn-category`.
-It writes knowledge in three cases: aliases learned in step 21 (to the owner of the model book), healing, and moving an old slug.
-Module: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/flow`
+It writes knowledge in four cases: aliases learned in step 21 (to the owner of the model book), healing, moving an old slug, and the classifier's capabilities.
+Module: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`
 
 ### 7. Extra searches (capabilities)
 

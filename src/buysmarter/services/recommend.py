@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field
 
 from buysmarter import telemetry
 from buysmarter.capabilities import REGISTRY
+from buysmarter.capabilities.classify import ensure_profile
 from buysmarter.capabilities.composition import INGREDIENTS_UNCHECKED
 from buysmarter.capabilities.composition import NoSubstanceMatch as NoSubstanceMatch  # re-export
 from buysmarter.capabilities.flow import ActiveCapabilities, activate, read_query
@@ -35,7 +36,6 @@ from buysmarter.db.repo import (
     get_preference,
 )
 from buysmarter.knowledge.profile import ResolvedProfile
-from buysmarter.knowledge.store import resolve_profile
 from buysmarter.llm.adapter import LlmConfigError, LlmError, current_route
 from buysmarter.llm.prompts import parse_query, parse_query_naive
 from buysmarter.llm.relevance import (
@@ -214,12 +214,13 @@ def _measured[**P](
 async def _resolve_knowledge(constraints: QueryConstraints, use_llm: bool) -> ResolvedProfile:
     """The category profile: books, capabilities and who owns them (one lookup).
 
-    Keyed by the product type; the search phrase may name an older record (``resolve_profile``).
+    Keyed by the product type; the search phrase may name an older record (``resolve_profile``);
+    a product type seen first gets the Jev classifier's capabilities (``ensure_profile``).
     """
     phrase = constraints.search_phrase
     category = constraints.product_type.strip() or phrase
     with stage("knowledge resolve"):
-        profile = await resolve_profile(category, use_llm=use_llm, search_phrase=phrase)
+        profile = await ensure_profile(category, use_llm=use_llm, search_phrase=phrase)
     if profile.brand_book is None and profile.model_book is None:
         logger.info(
             "no brand knowledge for %r — run `buysmarter learn-category %r` to generate it",
