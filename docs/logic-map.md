@@ -19,19 +19,19 @@ query text
   ├─ 1  LLM route ............ is there an LLM at all?
   ├─ 2  parse ................ text → constraints (category, budget, city, features)
   ├─ 3  city ................. override > query > stored preference > Алматы
-  ├─ 4  clean constraints .... audience, size, drop features the category already implies
+  ├─ 4  clean constraints .... capabilities read the query (audience, size); implied features out
   ├─ 5  sources .............. Kaspi / Ozon (needs a browser) / OLX
-  ├─ 6  category knowledge ... brand book, model book, category type
-  ├─ 7  substance plan ....... composition-driven only
+  ├─ 6  category profile ..... books, capabilities, who owns each; capabilities switched on
+  ├─ 7  extra searches ....... from capabilities (composition: substances)
   ├─ 8  collect .............. three marketplaces in parallel
   ├─ 9  normalize ............ raw card → Candidate
   ├─ 10 official stores ...... brand sites as extra candidates
   ├─ 11 history .............. price history, review velocity
   ├─ 12 relevance filter ..... drop accessories and off-category items
   ├─ 13 dedupe ............... same product → keep the cheaper
-  ├─ 14 used filter .......... OLX ads: audience + strict relevance
-  ├─ 15 Kimovil .............. smartphones only
-  ├─ 16 ingredients .......... composition-driven only; may stop the run
+  ├─ 14 used filter .......... OLX ads: capability listing checks + strict relevance
+  ├─ 15 benchmark ............ capability enrich: Kimovil for phones
+  ├─ 16 ingredients .......... capability enrich: composition; may stop the run
   ├─ 17 rank ................. hard filters → axes → score → pros/cons
   ├─ 18 roles ................ best, best value, budget, premium
   ├─ 19 review pass .......... reviews may change the best pick
@@ -44,23 +44,30 @@ RecommendResult
 Kaspi and Ozon feed the ranking.
 OLX never enters the ranking; it only feeds the used-market section.
 
-## Where the flow splits by category
+## Capabilities
 
-Four different signals decide category-specific behaviour.
-They are independent of each other.
+The core flow is the same for every category. What differs are capabilities (CONTEXT.md):
+optional hooks the core calls at fixed points, in registry order (audience, size, benchmark, composition).
+A hook a capability does not implement is not called.
+`ranking/` never imports capabilities: the flow hands `rank()` plain weights, predicates and functions (`RankHooks`).
 
-| Signal | Decided by | Switches on |
-|---|---|---|
-| Category type | stored category knowledge (step 6) | substance searches, ingredient extraction, ingredient axis, composition weights |
-| Smartphone | first word of the category contains a phone stem as a substring ("радиотелефон" too) | Kimovil specs and index (step 15) |
-| Audience | regex over the query text, any category ("детская зубная щётка" too) | gender hard filter on title + category path (steps 4, 10, 14, 17) |
-| Apparel | regex over the query text | size phrases leave the required features (step 4); the size itself is read for any category and reported as unverified (step 17) |
+| Capability | Level | Switched on by | Hooks it uses (steps) |
+|---|---|---|---|
+| audience | request | `constraints.gender`: the parser, or a regex over the query text (step 4) | `query` (4), `reject_listing` on the main pool, OLX ads and official-store offers (10, 14, 17) |
+| size | request | `constraints.size`: the parser, or a regex over the query text for apparel (step 4) | `query` (4: the size leaves the category and apparel features), `notes` (17: "size unverified") |
+| benchmark | category | the profile; without a profile setting, a phone stem in the category's first word (`set_by: fallback`) | `enrich` (15: Kimovil specs and `benchmark_index`) |
+| composition | category | the profile: the composition capability with an ingredient book (old records: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, may stop the run), `prepare` + `axis` + `notes` (17), `section` (Output) |
+
+Weights: base weights plus each capability's axis and shifts, clamped at zero, normalized to 100 (`capabilities/weights`).
+Composition gives the old composition table exactly (ingredient +25, brand −15, specs −5, popularity −5).
 
 Examples:
-- "крем с адапаленом" → composition-driven (if knowledge says so): searches by substance, rejects products whose composition proves the substance absent.
-- "мужские кроссовки 42 размер" → spec-driven; gender becomes a hard filter, size becomes an unverified con.
-- "смартфон iPhone 13" → spec-driven + Kimovil.
-- A category with no knowledge at all → spec-driven, every brand scores as unknown.
+- "крем с адапаленом" → composition (if the profile has it): searches by substance, rejects products whose composition proves the substance absent.
+- "мужские кроссовки 42 размер" → audience and size; gender is a listing check everywhere, size an unverified con.
+- "смартфон iPhone 13" → benchmark by the phone-stem fallback.
+- A category with no profile at all → no category capability, every brand scores as unknown.
+
+Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/benchmark`, `capabilities/composition`
 
 ## Entry points
 
@@ -113,13 +120,13 @@ Module: `services/recommend`, `db/repo`
 ### 4. Clean the constraints
 
 Decides: final constraints before search.
-- Audience ("мужские", "детские") is read from the query text by regex if the parser missed it, for any category.
-- Size ("42 размер", "XL") is read out and removed from the category.
-- Size phrases are removed from required features for apparel.
+- Every capability's `query` hook runs, before the profile is known (the profile key is the category these hooks may rewrite):
+  - audience: "мужские", "детские" read from the query text by regex if the parser missed it, for any category;
+  - size: "42 размер", "XL" read out and removed from the category; size phrases leave the required features for apparel.
 - Features already implied by the category are dropped ("TWS" in "TWS наушники").
 - Condition words (б/у, новый) are dropped: used goods are OLX's job.
 Then CLI/API overrides apply: budget, trusted brands only.
-Module: `services/recommend`, `ranking/audience`
+Module: `services/recommend`, `capabilities/flow`, `capabilities/audience`, `capabilities/size`, `ranking/audience`
 
 ### 5. Pick the sources
 
@@ -129,29 +136,32 @@ Branches:
 - Kaspi may go through a proxy (`kaspi_proxy`).
 Module: `services/collect`, `services/ozon_browser`
 
-### 6. Resolve category knowledge
+### 6. Resolve the category profile
 
-Decides: brand book (brands and trust tiers), model book (models, reference prices), category type, ingredient book.
-In: constraints.category. Out: books, or None.
-Branches:
-- knowledge stored for this exact category → use it;
-- not stored → a related stored category: plain substring match first (no word boundary: "чай" matches "чайник"), then Jev or one cached LLM call ("солнцезащитный крем" → "косметика");
-- still nothing → static seed books if any; category type = spec-driven;
-- ingredient book is kept only when the type is composition-driven.
-Books and category type are resolved by two separate lookups with different conditions: books need a non-empty brand or model book, type takes any stored record.
-No LLM: substring match only.
+Decides: brand book, model book, the capabilities switched on, and which profile owns each of them.
+In: constraints.category. Out: a resolved profile.
+Lookup, once per run (`resolve_profile`):
+- a stored record under this exact slug → its profile;
+- else a profile that lists the slug among its synonyms;
+- else, with LLM, Jev picks the covering stored profile, or one cached LLM call when Jev fails or is unsure ("солнцезащитный крем" → "косметика");
+- no substring matching: "чай" does not find "чайник".
+The found profile's parent (one step) fills fields it does not set; each field keeps its owner (own slug, parent, or the related profile).
+Books nothing stored provides fall back to the static seed (irrigators), owned by the query's slug.
+Old records are read through an adapter: `category_type: composition_driven` becomes the composition capability. Saving merges into the record, and the old keys are still written (until phase 3).
+An old record that is a copy left by the pre-profile alias save (no capabilities, no parent, its brand book equal to a related composition profile's) is healed once: it becomes that profile's child and its aliases move to the parent. Every check marks the record, so Jev is asked once.
+Then capabilities are switched on (see Capabilities).
+No LLM: exact slug and synonyms only.
 Fails: never blocks. Missing knowledge sets `knowledge_missing` and weakens the brand axis.
 The run does not learn a whole category; it logs a hint to run `learn-category`.
-It does write knowledge in one case: OLX model aliases learned in step 21 are saved under the query's category (see step 21).
-Module: `knowledge/store`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`
+It writes knowledge in two cases: aliases learned in step 21 (to the owner of the model book) and healing.
+Module: `knowledge/store`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/flow`
 
-### 7. Substance plan (composition-driven only)
+### 7. Extra searches (capabilities)
 
-Decides: required active substances and extra searches for them.
-The substances come from the category and required features, mapped to canonical names by the ingredient book.
-Each substance gets searches by its name and its equivalent product names.
-Spec-driven or no substance named → skip.
-Module: `services/recommend`, `services/collect`
+Decides: extra Kaspi searches the active capabilities ask for.
+Composition: the required active substances come from the category and required features, mapped to canonical names by the ingredient book; each substance gets searches by its name and its equivalent product names (at most 5).
+No capability asks → none.
+Module: `capabilities/composition`, `services/collect`
 
 ### 8. Collect
 
@@ -160,7 +170,7 @@ All sources run in parallel; one source failing returns nothing for it and the r
 
 **Kaspi**
 - main search by category; plus a search without Latin jargon if the category has it;
-- substance searches (step 7) first, then brand searches from the brand book (tier A first);
+- extra searches (step 7) first, then brand searches from the brand book (tier A first);
 - targeted hits are kept apart from the main search and are not cut by its card limit;
 - specs for every card except apparel variant cards (no spec page); seller offers for 4 targeted + 4 main hits, an unused half is not passed to the other;
 - no budget cap at search time (the Kaspi adapter has none).
@@ -189,7 +199,7 @@ Module: `normalize/candidate`
 ### 10. Official stores
 
 Decides: extra candidates from brand sites named in the brand book.
-Each store page is read as schema.org product data; the cheapest in-budget items for the query's audience are added.
+Each store page is read as schema.org product data; offers a capability's listing check rejects (another audience) are dropped before the per-store cut, then the cheapest in-budget items are added.
 No brand book or no store URLs → nothing added. A store that blocks us → nothing from it.
 Module: `services/official_stores`
 
@@ -202,7 +212,7 @@ Module: `services/collect`, `ranking/velocity`, `db/repo`
 ### 12. Relevance filter
 
 Decides: which candidates are the product at all (drops a battery in a robot-vacuum search).
-1. Protected: composition-driven candidates whose title names a required substance skip the filter.
+1. Protected: candidates a capability's `relevance` hook names skip the filter (composition: a title naming a required substance).
 2. Heuristic: accessory markers in the title → drop.
 3. LLM pass (only with LLM and more than 3 left): Jev scores each title; below 0.25 → drop. If Jev fails, a fallback LLM returns a plain keep list with no threshold; if that fails too, everything stays.
 4. Floor: if fewer than 3 remain, the best-rated dropped ones come back. Protected candidates are not counted toward the floor.
@@ -224,27 +234,28 @@ Module: `services/matching`, `normalize/candidate`
 ### 14. Filter used listings
 
 Decides: which OLX ads stay.
-- other audience → drop;
+- a capability's listing check rejects it (another audience) → drop;
 - relevance threshold 0.55, stricter than step 12, and no floor: an empty section is fine, a wrong one is not.
 - The threshold applies only on the Jev path; the fallback LLM and a total LLM failure keep what they keep (all, on failure). Without LLM only the accessory heuristic runs.
 Module: `services/recommend`, `llm/relevance`
 
-### 15. Kimovil (smartphones only)
+### 15. Benchmark (capability enrich)
 
-Decides: Kimovil index (feeds the specs axis) and model specs in Kaspi wording ("120 Гц").
-Trigger: the first word of the category contains a phone stem (смартфон, телефон, айфон, iphone, smartphone).
-RAM and storage are not copied: the listing may be another variant.
+Decides: a performance index (feeds the specs axis) and model specs in Kaspi wording ("120 Гц").
+The benchmark capability is on by the profile, or by the fallback rule: the first word of the category contains a phone stem (смартфон, телефон, айфон, iphone, smartphone).
+Its provider today is Kimovil. RAM and storage are not copied: the listing may be another variant.
+The core averages `benchmark_index` into the specs axis without knowing its source.
 Cached; fails open.
-Module: `services/phone_specs`
+Module: `capabilities/benchmark`, `services/phone_specs`
 
-### 16. Ingredients (composition-driven only)
+### 16. Ingredients (composition capability enrich)
 
 Decides: which active substances and concentration each candidate has.
 First the title: a candidate whose title names a required substance or its equivalent gets that substance and counts as checked (`ingredients_checked`).
 Then, with LLM, one batch request over the pool reads the title and composition text; it may add substances and the concentration. Only a candidate that got an answer is checked: a failed request, or an index the LLM skipped, leaves it unchecked, never "absent".
 Then the substance guard: if a required substance rejects every candidate, the run stops with `NoSubstanceMatch` and the 3 nearest alternatives. A product without the asked substance is never shown as the best pick. Only checked candidates can be rejected, so a failed extraction never stops the run.
 No LLM: only the title check; the rest stay unchecked and the report says so (Output).
-Module: `services/recommend`, `llm/ingredients`, `ranking/filters`
+Module: `capabilities/composition`, `llm/ingredients`, `ranking/filters`
 
 ### 17. Rank
 
@@ -252,8 +263,8 @@ Decides: score, confidence, pros and cons for every candidate.
 Pure: no DB, no LLM, no network.
 
 **Hard filters** (first failing check names the reason):
-over budget → excluded brand → unknown brand when trusted-only → not available → other audience → missing required feature → required substance proven absent.
-Required features are checked only when the candidate has specs. Ozon cards past the top 4, official-store candidates and apparel variant cards skip the check (they get an "unverified" con). Kimovil (step 15) fills specs for phones, which turns the check on.
+over budget → excluded brand → unknown brand when trusted-only → not available → capability listing checks (other audience) → missing required feature (as capabilities adjust the list: composition drops a bare concentration) → capability content checks (required substance proven absent).
+Required features are checked only when the candidate has specs. Ozon cards past the top 4, official-store candidates and apparel variant cards skip the check (they get an "unverified" con). Benchmark (step 15) fills specs for phones, which turns the check on.
 "Proven absent" is decided per candidate: checked, the substance not detected, and a composition text present. Unchecked or no composition text is a data gap, not a rejection.
 Ingredient axis: substance present 25 (0.7 of it with an unknown or other concentration); unchecked 0.3 × 25 = 7.5 for every candidate, with the con "состав не проверен: <substance>?"; checked and absent 0.
 Nothing passes → error "no candidates passed hard filters".
@@ -262,7 +273,7 @@ Nothing passes → error "no candidates passed hard filters".
 
 **Axes and weights**
 
-| Axis | Spec-driven | Composition-driven |
+| Axis | No capability axis | Composition |
 |---|---|---|
 | brand | 25 | 10 |
 | price | 25 | 25 |
@@ -281,8 +292,10 @@ Reviews and popularity are trusted less for unknown brands.
 - model code in the query ("F300") missing from the title → score cut;
 - low confidence for a brand read only from the title, a risky price, or a pool with fewer than 3 tiered prices.
 
-**Pros and cons**: official seller, unknown brand, price risk, price history verdict, unverified features, unverified size, ingredient equivalence, model mismatch, spec conflicts in the title, fast delivery.
-Module: `ranking/engine`, `ranking/filters`, `ranking/price_risk`, `ranking/model_tokens`, `ranking/spec_conflicts`, `ranking/delivery`, `ranking/flags`
+Capability axes come before the base axes; weights follow the rule in Capabilities.
+
+**Pros and cons**: official seller, unknown brand, price risk, price history verdict, unverified features, then each capability's notes (size: unverified size; composition: ingredient equivalence, and it replaces "weak ingredient"), model mismatch, spec conflicts in the title, fast delivery.
+Module: `ranking/engine`, `ranking/filters`, `ranking/price_risk`, `capabilities/composition`, `capabilities/size`, `ranking/model_tokens`, `ranking/spec_conflicts`, `ranking/delivery`, `ranking/flags`
 
 ### 18. Roles
 
@@ -320,7 +333,7 @@ Module: `services/collect`, `db/repo`
 
 Decides: the final warnings and the OLX section.
 - Cross-source notes from step 13 are attached ("также на ozon за …"); a big gap becomes a con.
-- First, with LLM and knowledge, OLX titles the model book missed are mapped to model names. Learned aliases are saved under the query's category with the borrowed brand book; a new record gets type spec-driven and no ingredient book.
+- First, with LLM and knowledge, OLX titles the model book missed are mapped to model names. Learned aliases are saved to the profile that owns the model book (its own, the parent or the related profile); only the model book is written, and a borrowed book never creates a record under the query.
 - OLX ads are matched to every ranked candidate (same model or brand + title).
 - Then notable ads of trusted brands, only when a budget is set.
 - Then no-name ads cheaper than a no-name or tier-C best pick.
@@ -329,9 +342,9 @@ Module: `services/matching`, `llm/canonicalize`
 ### Output
 
 `RecommendResult`: the ranking, the constraints used, used listings, and flags the UI shows as warnings:
-`city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `ingredients_unchecked` (composition-driven category with an unchecked ranked candidate: "Состав не проверен у N из M — вещество не подтверждено").
+`city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `ingredients_unchecked` (set by the composition capability's report section: a ranked candidate whose composition was not checked, "Состав не проверен у N из M — вещество не подтверждено").
 Every surface renders the same result.
-Module: `services/recommend`, `cli/report`
+Module: `services/recommend`, `capabilities/composition`, `cli/report`
 
 ## Side flows
 
@@ -341,7 +354,8 @@ Builds category knowledge: brand book, model book, category type, ingredient boo
 - `learn-category` (CLI) or the button on the report screen (GUI).
 - One strong-model call, grounded by web search when the `claude` CLI is present.
 - Official store prices are checked on real pages and kept as brand price floors.
-- Saved to the local store under the category name; step 6 finds it next time.
+- Merged into the local store under the category name (other keys of the record stay); step 6 finds it next time.
+- `learn --file` merges with the category's own record only, never a parent's or a related one.
 - Variant: extract the same knowledge from the user's own notes.
 Feeds: step 6, and through it steps 7, 8, 10, 13, 16, 17.
 Module: `knowledge/generate`, `knowledge/store`, `services/official_stores`
@@ -362,15 +376,12 @@ Module: `services/doctor`
 ## Known gaps
 
 Short list; details and fixes are in the plan (number in brackets).
-- Saving OLX aliases turns a borrowed composition-driven category into a spec-driven record (#10).
 - City: Kaspi knows Almaty and Astana only; Ozon and OLX get no city; MCP ignores the city in the query (#3).
 - Dedupe merges different models and variants, and listings inside one source (#13).
 - A query for an unknown category does not learn it (#1).
-- Category-specific behaviour hangs on four independent signals (#2).
+- Capabilities are switched on by stored profiles and fallback rules; no Jev classifier or learning on first query yet (#2, phase 3).
 - MCP and the HTTP API run without LLM by default (#4).
 - Kaspi search has no budget cap (#5).
 - `refresh` collects without category knowledge (#6).
-- Books and category type look up a related category separately (#7).
-- Substring category match has no word boundary (#15).
 - After review penalties a new best pick may have no summary (#14).
 - The used-ads filter keeps everything when the LLM fails (#16).

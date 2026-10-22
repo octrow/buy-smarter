@@ -50,3 +50,27 @@ def test_the_core_sees_only_the_hooks_a_capability_overrides() -> None:
 
     assert overrides(_Searching(), "searches")
     assert not overrides(_Searching(), "enrich")
+
+
+async def test_every_hook_of_a_bare_capability_is_neutral() -> None:
+    from buysmarter.capabilities.base import CapabilityContext
+    from buysmarter.knowledge.profile import ResolvedProfile
+    from buysmarter.ranking.models import Candidate, QueryConstraints, Recommendation
+
+    bare = Capability()
+    constraints = QueryConstraints(category="ноутбук")
+    ctx = CapabilityContext(ResolvedProfile(slug="ноутбук"), constraints)
+    cand = Candidate(source="kaspi", source_product_id="1", title="Ноутбук", price=1)
+    pool = [cand]
+    await bare.enrich(ctx, pool)
+
+    assert bare.setting(ctx.profile, constraints) is None
+    assert bare.query(ctx, constraints) is constraints
+    assert (bare.searches(ctx), bare.relevance(ctx, pool)) == ([], set())
+    assert bare.reject_listing(ctx, "Ноутбук") is None
+    assert bare.hard_features(ctx, ["16 ГБ"]) == ["16 ГБ"]
+    assert bare.reject_content(ctx, cand) is None
+    assert bare.prepare(ctx, pool) is None and bare.axis(ctx, None, cand, {}) is None
+    assert bare.notes(ctx, None, cand, ["a"], ["b"]) == (["a"], ["b"])
+    assert bare.clarify(ctx) is None
+    assert bare.section(ctx, Recommendation.model_construct()) is None

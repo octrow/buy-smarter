@@ -4,6 +4,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Changed
+- Category knowledge is read as a category profile: books, the capabilities switched on (composition, benchmark) and
+  an optional parent the profile inherits missing fields from (ADR-0005, phase 1). The ranking with an exact category
+  match is unchanged; the composition, Kimovil, audience and size branches of the core moved onto capabilities.
+- A related category is found once per run: exact name, then a profile's synonyms, then Jev (the LLM when Jev is
+  unsure). No substring matching any more: «чай» no longer borrows «чайник»'s brands and price floors. Without an
+  LLM only the exact name and synonyms match.
+- Saving category knowledge merges into the stored record instead of rebuilding it; `generated_by` keeps the first
+  writer and `updated_by` names the last.
+- `learn --file` merges the notes with the category's own record only, never a parent's or a related category's.
+- `Candidate.kimovil_index` is now `benchmark_index` (with `benchmark_label`, «Kimovil»).
+
 ### Fixed
 - OLX: an ad padded with the shop's name («iphone 13 Shark Store») now matches the new iPhone 13 on the shared
   model number, and a no-name ad for another model number («TWS Pro 4» for «TWS Pro 6») is no longer offered
@@ -13,6 +25,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   are no longer merged as one product.
 - OLX: «iPhone 13 Pro» and «Pro Max» ads are no longer matched to the plain iPhone 13 (likewise Mini, Plus, Ultra,
   Lite).
+- OLX aliases learned for a borrowed composition category («крем с адапаленом» using «косметика») no longer create a
+  spec-driven record under the query that hid the substance search from then on: only the model book is written,
+  to the profile that owns it. Records this bug already created are healed once on read: they become children of
+  the composition profile and their aliases move there (logged as `knowledge healed: <slug> -> parent <slug>`).
+
+### Note
+- Until phase 3, records still get the old `category_type` and `ingredient_book` keys next to `capabilities`, so an
+  older app version reads them. Drop that dual write after phase 3.
 
 ## [0.5.0] - 2026-10-22
 
