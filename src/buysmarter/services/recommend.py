@@ -203,6 +203,8 @@ async def _extract_ingredients_into(
     items = [(c.title, _sostav_text(c)) for c in candidates]
     detections = await extract_ingredients(category, book, items)
     for cand, det in zip(candidates, detections, strict=True):
+        if det is None:
+            continue
         canonicals = [book.canonical_for(s) or s for s in det.substances]
         cand.detected_substances = list(dict.fromkeys(c for c in canonicals if c))
         cand.concentration = det.concentration

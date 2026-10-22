@@ -12,8 +12,9 @@ verbatim, never generated). Jev only knows the book's substances, so an empty
 book, or any Jev failure, falls back to the previous batched, cached ``free-stack``
 LLM call, which can also name substances outside the book.
 
-Fail-open: any failure degrades to "no ingredients detected" for the affected
-candidate, never raising — extraction only enriches ranking.
+Fail-open: any failure degrades to "no answer" (``None``) for the affected
+candidate, never raising — extraction only enriches ranking, and the caller
+keeps "not checked" apart from "checked, nothing found".
 """
 
 from __future__ import annotations
@@ -147,9 +148,8 @@ async def _extract_jev(
 
 async def _extract_llm(
     category: str, book: IngredientBook, items: list[tuple[str, str]]
-) -> list[DetectedIngredients]:
-    """The previous batched, cached LLM pull; fail-open to empty detections."""
-    empty = [DetectedIngredients(index=i) for i in range(len(items))]
+) -> list[DetectedIngredients | None]:
+    """The previous batched, cached LLM pull; fail-open to no answer (``None``) per item."""
     try:
         result = await generate(
             extract_ingredients_prompt(category, book, items),
@@ -157,10 +157,11 @@ async def _extract_llm(
             model=EXTRACT_INGREDIENTS_MODEL,
         )
     except (LlmError, LlmConfigError) as exc:
-        logger.warning("ingredient extraction failed (%r); no substances detected", exc)
-        return empty
+        logger.warning("ingredient extraction failed (%r); composition left unchecked", exc)
+        return [None] * len(items)
 
-    detections = empty
+    # An index the LLM skipped stays None: not checked, which is not "nothing found".
+    detections: list[DetectedIngredients | None] = [None] * len(items)
     for det in result.detections:  # type: ignore[attr-defined]
         if 0 <= det.index < len(items):
             detections[det.index] = det
@@ -169,16 +170,17 @@ async def _extract_llm(
 
 async def extract_ingredients(
     category: str, book: IngredientBook, items: list[tuple[str, str]]
-) -> list[DetectedIngredients]:
+) -> list[DetectedIngredients | None]:
     """Extract active substances + concentration per candidate (Jev, LLM fallback).
 
-    ``items`` is ``[(title, состав_text), ...]``. Returns one ``DetectedIngredients``
-    per item (same order/length), empty for any item nothing was found for.
+    ``items`` is ``[(title, состав_text), ...]``. Returns one entry per item (same
+    order/length): ``DetectedIngredients`` when the item got an answer (empty when
+    nothing was found), ``None`` when it got none (the fallback failed or skipped it).
     """
     if not items:
         return []
     try:
-        return await _extract_jev(category, book, items)
+        return list(await _extract_jev(category, book, items))
     except (LlmError, LlmConfigError, KeyError, TypeError) as exc:
         logger.warning("ingredient Jev call failed (%r); falling back to the LLM", exc)
         return await _extract_llm(category, book, items)

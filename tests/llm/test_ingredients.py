@@ -26,7 +26,8 @@ async def test_extract_ingredients_maps_by_index(monkeypatch) -> None:
     items = [("Крем увлажняющий", ""), ("Клензит гель", "адапален 0,1%")]
 
     result = await extract_ingredients("крем от акне", _book(), items)
-    assert result[0].substances == []
+    assert result[0] is not None and result[0].substances == []  # answered: nothing found
+    assert result[1] is not None
     assert result[1].substances == ["адапален"]
     assert result[1].concentration == "0,1%"
 
@@ -35,7 +36,7 @@ async def test_extract_ingredients_empty_items() -> None:
     assert await extract_ingredients("крем от акне", _book(), []) == []
 
 
-async def test_extract_ingredients_fail_open(monkeypatch) -> None:
+async def test_extract_ingredients_failure_answers_none_for_every_item(monkeypatch) -> None:
     async def _boom(prompt, response_model, *, model=None, **kwargs):
         raise ingredients_mod.LlmError("cli down")
 
@@ -43,8 +44,8 @@ async def test_extract_ingredients_fail_open(monkeypatch) -> None:
     items = [("a", ""), ("b", "")]
 
     result = await extract_ingredients("крем от акне", _book(), items)
-    assert len(result) == 2
-    assert all(d.substances == [] and d.concentration is None for d in result)
+    # No answer is not "nothing found": the caller must not treat it as absence.
+    assert result == [None, None]
 
 
 async def test_extract_ingredients_ignores_out_of_range_index(monkeypatch) -> None:
@@ -55,7 +56,23 @@ async def test_extract_ingredients_ignores_out_of_range_index(monkeypatch) -> No
 
     monkeypatch.setattr(ingredients_mod, "generate", _fake_generate)
     result = await extract_ingredients("крем от акне", _book(), [("a", "")])
-    assert result[0].substances == []
+    assert result == [None]
+
+
+async def test_extract_ingredients_omitted_index_answers_none(monkeypatch) -> None:
+    async def _fake_generate(prompt, response_model, *, model=None, **kwargs):
+        return IngredientExtractionResult(
+            detections=[DetectedIngredients(index=1, substances=["адапален"])]
+        )
+
+    monkeypatch.setattr(ingredients_mod, "generate", _fake_generate)
+    items = [("Крем увлажняющий", "вода"), ("Клензит", "адапален")]
+
+    result = await extract_ingredients("крем от акне", _book(), items)
+
+    assert result[0] is None
+    assert result[1] is not None
+    assert result[1].substances == ["адапален"]
 
 
 # --- Jev first (book substances + selected concentration), LLM fallback ----
