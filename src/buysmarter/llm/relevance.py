@@ -60,7 +60,8 @@ _RELEVANCE_CRITERIA = {
     "true": "A standalone product of the category `category` that the shopper would buy "
     "as the main item; it has every property the words of `category` name (type, form factor, "
     "connection, purpose)",
-    "false": "An accessory, spare part, consumable, nozzle, battery, charger, case, filter, "
+    "false": "An accessory, spare part, consumable, nozzle, battery, charger, case, filter "
+    "(unless `category` itself is that kind of item, e.g. a case when it says чехол), "
     "a different product type, an unrelated item, or a product that lacks or contradicts a "
     "property named in `category` (wired when it says wireless, over-ear when it says in-ear, "
     "another model number when it names one)",
@@ -75,10 +76,11 @@ _ACCESSORY_MARKERS: tuple[str, ...] = (
     "аккумулятор",
     "батаре",  # батарея/батареи
     "чехол",
+    "чехл",  # чехлы: the plural drops the vowel, so "чехол" misses it (same kind, below)
     "фильтр",  # only fires at title start or when category noun absent (see below)
     "запчаст",
     "запасн",
-    "зарядн",  # зарядное/зарядка
+    "заряд",  # зарядное/зарядка/подзарядка
     "кабель",
     "крепле",  # крепление
     "adapter",
@@ -90,6 +92,10 @@ _ACCESSORY_MARKERS: tuple[str, ...] = (
     "filter",
     "charger",
 )
+
+# Stems of one accessory kind: a category carrying any of them wants that kind ("чехол"
+# also wants "Чехлы …"). A shorter shared stem ("чех") would also catch "Чехов".
+_SAME_KIND: tuple[frozenset[str], ...] = (frozenset({"чехол", "чехл"}),)
 
 # Shortest category token treated as a real head-noun (skips stray short words).
 _CATEGORY_TOKEN_MIN = 4
@@ -125,6 +131,12 @@ def _marker_at_word_start(marker: str, text: str) -> bool:
     return re.search(rf"(?<!\w){re.escape(marker)}", text) is not None
 
 
+def _wanted_markers(category_lower: str) -> set[str]:
+    """Markers the category itself carries ("чехол", "зарядка"): what the shopper wants, kept."""
+    carried = {m for m in _ACCESSORY_MARKERS if _marker_at_word_start(m, category_lower)}
+    return carried.union(*(kind for kind in _SAME_KIND if kind & carried))
+
+
 def accessory_reason(category: str, title: str) -> str | None:
     """Return the accessory marker disqualifying ``title``, or None if it looks real.
 
@@ -134,7 +146,11 @@ def accessory_reason(category: str, title: str) -> str | None:
     пылесос с HEPA фильтром") is kept.
     """
     lowered = title.lower()
-    marker = next((m for m in _ACCESSORY_MARKERS if _marker_at_word_start(m, lowered)), None)
+    wanted = _wanted_markers(category.lower())
+    marker = next(
+        (m for m in _ACCESSORY_MARKERS if m not in wanted and _marker_at_word_start(m, lowered)),
+        None,
+    )
     if marker is None:
         return None
     head = _category_head_noun(category)
@@ -163,7 +179,8 @@ def filter_relevant_prompt(category: str, titles: list[str]) -> str:
         "Below is a numbered list of marketplace search results. Return the "
         "indices of the ones that are ACTUAL standalone products of this "
         "category. EXCLUDE accessories, spare parts, consumables, nozzles, "
-        "batteries, chargers, cases, filters and anything unrelated to the "
+        "batteries, chargers, cases, filters (unless the category itself is "
+        "that kind of item) and anything unrelated to the "
         'category. Return JSON: {"relevant_indices": [<index>, ...]} using the '
         "numbers shown.\n\n"
         f"{numbered}"

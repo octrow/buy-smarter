@@ -168,6 +168,38 @@ def test_cyrillic_marker_inside_compound_still_matches() -> None:
     assert accessory_reason("ирригатор", "Микрофильтр Waterpik") is not None
 
 
+# --- The category itself is the "accessory" (a case for "чехол") --------------
+
+
+def test_case_is_kept_when_the_shopper_searches_for_a_case() -> None:
+    assert accessory_reason("чехол на iPhone 15", "Чехол Spigen для iPhone 15") is None
+
+
+def test_plural_cases_are_kept_for_a_case_search() -> None:
+    assert accessory_reason("чехол", "Чехлы для iPhone 15, набор 2 шт") is None
+
+
+def test_charger_is_kept_for_a_charger_search() -> None:
+    assert accessory_reason("зарядка", "Зарядное устройство Xiaomi 67W") is None
+    assert accessory_reason("зарядка", "Зарядка Baseus 20W") is None
+
+
+def test_filter_is_kept_for_a_water_filter_search() -> None:
+    assert accessory_reason("фильтр для воды", "Фильтр Аквафор Модерн") is None
+
+
+def test_charger_and_case_still_drop_for_the_device_itself() -> None:
+    assert accessory_reason("смартфон", "Зарядка для Samsung Galaxy S24") is not None
+    assert accessory_reason("смартфон", "Чехлы для iPhone 15") is not None
+
+
+def test_criteria_and_fallback_prompt_spare_the_category_itself() -> None:
+    criteria = relevance_questions(1)["t0"]["criteria"]["false"]
+    prompt = filter_relevant_prompt("чехол", ["Чехол A"])
+    assert "unless `category` itself is that kind of item" in criteria
+    assert "unless the category itself is that kind of item" in prompt
+
+
 async def test_each_title_logs_its_score_against_the_threshold(monkeypatch, caplog) -> None:
     async def _fake_system_one(state, questions):
         return _answers(0.92, 0.031)
