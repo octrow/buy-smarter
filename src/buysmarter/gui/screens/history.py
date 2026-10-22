@@ -21,7 +21,7 @@ from buysmarter.gui.labels import clean_title, source_label
 from buysmarter.gui.prefs_fields import kzt, store_warning
 from buysmarter.gui.progress import Progress
 from buysmarter.gui.screens.report import text_table
-from buysmarter.gui.theme import SPACE, set_state
+from buysmarter.gui.theme import SPACE, card_body, set_state
 from buysmarter.services.price_tracking import CategoryRefresh, ProductHistory
 from buysmarter.services.price_tracking import product_history as run_product_history
 from buysmarter.services.price_tracking import refresh_tracked as run_refresh_tracked
@@ -86,7 +86,7 @@ def _history_group(entry: ProductHistory) -> QGroupBox:
         for s in entry.snapshots
     ]
     box = QGroupBox(f"{clean_title(entry.title)}  [{source_label(entry.source)}]")
-    layout = QVBoxLayout(box)
+    layout = card_body(QVBoxLayout(box))
     prices = [s.min_price for s in reversed(entry.snapshots)]
     if len(prices) > 1:
         layout.addWidget(Sparkline(prices))
@@ -133,11 +133,11 @@ class HistoryScreen(QWidget):
         self.results = QScrollArea(widgetResizable=True)
 
         find_box = QGroupBox("Найти товар")
-        search_row = QHBoxLayout(find_box)
+        search_row = card_body(QHBoxLayout(find_box))
         search_row.addWidget(self.term, 1)
         search_row.addWidget(self.find_button)
         track_box = QGroupBox("Отслеживание")
-        track = QVBoxLayout(track_box)
+        track = card_body(QVBoxLayout(track_box))
         refresh_row = QHBoxLayout()
         refresh_row.addWidget(self.refresh_button)
         refresh_row.addWidget(self.cancel_button)
@@ -207,7 +207,7 @@ class HistoryScreen(QWidget):
         table.cellDoubleClicked.connect(lambda row, _col: self._open(entries[row].title))
         self.recent = table
         box = QGroupBox("Недавние товары")
-        column = QVBoxLayout(box)
+        column = card_body(QVBoxLayout(box))
         column.addWidget(table)
         hint = QLabel("Двойной клик — история цены товара.")
         set_state(hint, "role", "caption")

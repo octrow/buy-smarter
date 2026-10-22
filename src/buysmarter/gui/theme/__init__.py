@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, Slot
 from PySide6.QtGui import QFontDatabase, QGuiApplication, QIcon
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication, QLayout, QWidget
 
 os.environ.setdefault("QT_API", "pyside6")  # qtawesome loads Qt through qtpy: never another binding
 import qtawesome  # noqa: E402 - needs QT_API first
@@ -34,6 +34,8 @@ _CONTROL_TEXT_PX = 22
 # A card's title sits inside it (the QGroupBox font styles it; children reset to body):
 # this much top padding holds the 16px title and its gap.
 _CARD_TITLE_BAND_PX = 52
+# Fusion draws a group box title this far in from its rect: pulled back, it lines up with the card's content.
+_CARD_TITLE_INSET_PX = 2
 _SPIN_TEXT_PX = 19
 # Pages stop growing here: on a wide monitor a line of text or a table row stays readable.
 CONTENT_MAX_WIDTH = 1200
@@ -113,7 +115,7 @@ QListWidget#sidebar::item:disabled {{ background: transparent; color: {p["text_m
 
 QGroupBox {{ background: {p["surface"]}; border: 1px solid {p["border"]}; border-radius: {r + 4}px; margin-top: 0; padding: {_CARD_TITLE_BAND_PX}px {s["xl"]}px {s["xl"]}px; font-size: {t["subhead"]}px; font-weight: 600; }}
 QGroupBox QWidget {{ font-size: {t["body"]}px; font-weight: 400; }}
-QGroupBox::title {{ subcontrol-origin: padding; subcontrol-position: top left; left: {s["xl"]}px; top: {s["lg"]}px; padding: 0; color: {p["text"]}; font-size: {t["subhead"]}px; font-weight: 600; }}
+QGroupBox::title {{ subcontrol-origin: padding; subcontrol-position: top left; left: {s["xl"] - _CARD_TITLE_INSET_PX}px; top: {s["lg"]}px; padding: 0; color: {p["text"]}; font-size: {t["subhead"]}px; font-weight: 600; }}
 QGroupBox QLabel, QGroupBox QWidget {{ background: transparent; }}
 
 QLabel#hero {{ font-size: {t["hero"]}px; font-weight: 700; }}
@@ -258,6 +260,12 @@ def apply_theme(app: QApplication) -> None:
 
     restyle(hints.colorScheme())
     hints.colorSchemeChanged.connect(restyle)
+
+
+def card_body[L: QLayout](layout: L) -> L:
+    """A card's (QGroupBox's) layout without the style's own margins: the QSS padding frames the card."""
+    layout.setContentsMargins(0, 0, 0, 0)
+    return layout
 
 
 def set_state(widget: QWidget, name: str, value: str) -> None:

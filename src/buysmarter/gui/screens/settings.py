@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter.gui.bridge import CoreRunner, Job
-from buysmarter.gui.theme import SPACE, set_state
+from buysmarter.gui.theme import SPACE, card_body, set_state
 from buysmarter.llm import keys
 from buysmarter.services import doctor
 from buysmarter.services.doctor import OZON_BROWSER, STORAGE, Check
@@ -95,7 +95,7 @@ class SettingsScreen(QWidget):
         self.recheck_button = QPushButton("Проверить снова")
         self.recheck_button.clicked.connect(self.recheck)
         health = QGroupBox("Состояние")
-        health_layout = QVBoxLayout(health)
+        health_layout = card_body(QVBoxLayout(health))
         health_layout.addLayout(self.rows)
         recheck_row = QHBoxLayout()
         recheck_row.addWidget(self.recheck_button)
@@ -109,7 +109,7 @@ class SettingsScreen(QWidget):
             wordWrap=True,
         )
         ozon = QGroupBox("Ozon")
-        ozon_layout = QVBoxLayout(ozon)
+        ozon_layout = card_body(QVBoxLayout(ozon))
         ozon_layout.addWidget(self.ozon_message)
         button_row = QHBoxLayout()
         button_row.addWidget(self.ozon_button)
@@ -144,7 +144,7 @@ class SettingsScreen(QWidget):
             row.addWidget(widget)
         row.setStretch(1, 1)
         group = QGroupBox("AI-ключ")
-        group_layout = QVBoxLayout(group)
+        group_layout = card_body(QVBoxLayout(group))
         group_layout.addWidget(self.key_message)
         group_layout.addLayout(row)
         return group

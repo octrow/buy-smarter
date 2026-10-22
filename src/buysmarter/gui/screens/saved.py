@@ -18,6 +18,7 @@ from PySide6.QtGui import (
     QTextDocument,
     QTextFormat,
     QTextFrameFormat,
+    QTextLength,
     QTextTable,
 )
 from PySide6.QtWidgets import (
@@ -129,6 +130,7 @@ def _style_table(table: QTextTable, p: dict[str, str]) -> None:
     fmt.setBorderStyle(QTextFrameFormat.BorderStyle.BorderStyle_Solid)
     fmt.setBorderCollapse(True)
     fmt.setCellPadding(SPACE["sm"])
+    fmt.setWidth(QTextLength(QTextLength.Type.PercentageLength, 100))  # every table spans the page
     table.setFormat(fmt)
 
 

@@ -5,7 +5,7 @@ import signal
 import subprocess
 
 from PySide6.QtCore import QObject, Qt, QTimer
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QGroupBox
 
 from buysmarter.gui import app as gui_app
 from buysmarter.gui.bridge import USER_ERROR
@@ -150,6 +150,17 @@ def test_a_failing_store_check_warns_on_the_screens_that_need_the_store(qtbot, r
     assert all(not page.store_warning.isHidden() for page in pages)
     window._apply_checks([gui_app.Check("Storage", True, "", "SQLite x.db")])
     assert all(page.store_warning.isHidden() for page in pages)
+
+
+def test_every_card_lines_its_content_up_with_its_title(qtbot, runner):
+    window = gui_app.MainWindow(runner)
+    qtbot.addWidget(window)
+    with qtbot.waitSignal(window.settings.checks_ready, timeout=WAIT_MS):
+        pass  # the start-up jobs settle before teardown
+    cards = window.findChildren(QGroupBox)
+    assert cards
+    # The QSS padding frames a card: a layout's style margins push content past the title.
+    assert [c.title() for c in cards if not c.layout().contentsMargins().isNull()] == []
 
 
 def _window_with_search(qtbot, runner, monkeypatch, *, running: bool, answer):

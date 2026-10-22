@@ -47,7 +47,7 @@ from buysmarter.gui.screens.alternatives import (
 )
 from buysmarter.gui.screens.search import SearchRun
 from buysmarter.gui.tables import FitTableView, FitTableWidget, stretch_column
-from buysmarter.gui.theme import CONTENT_MAX_WIDTH, SPACE, set_state
+from buysmarter.gui.theme import CONTENT_MAX_WIDTH, SPACE, card_body, set_state
 from buysmarter.knowledge.generate import learn_category
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
@@ -219,8 +219,7 @@ def _axes_table(best: ScoredCandidate) -> QTableWidget:
 
 def _group(title: str, *widgets: QWidget) -> QGroupBox:
     box = QGroupBox(title)
-    layout = QVBoxLayout(box)
-    layout.setContentsMargins(0, 0, 0, 0)  # the QSS padding frames the card
+    layout = card_body(QVBoxLayout(box))
     layout.setSpacing(SPACE["sm"])
     for widget in widgets:
         layout.addWidget(widget)

@@ -28,7 +28,7 @@ from buysmarter.gui.prefs_fields import (
     source_boxes,
     store_warning,
 )
-from buysmarter.gui.theme import SPACE, set_state
+from buysmarter.gui.theme import SPACE, card_body, set_state
 from buysmarter.memory import prefs
 
 type Store = Callable[[Mapping[str, Any]], Coroutine[Any, Any, None]]
@@ -79,14 +79,13 @@ class PreferencesScreen(QWidget):
         form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         buttons = QHBoxLayout()
         buttons.addWidget(self.save_button)
-        buttons.addStretch(1)
+        buttons.addSpacing(SPACE["md"])
+        buttons.addWidget(self.message, 1)  # beside the button: an empty row would pad the card
         card = QGroupBox("Для каждого поиска")
-        inside = QVBoxLayout(card)
-        inside.setContentsMargins(0, 0, 0, 0)  # the QSS padding frames the card
+        inside = card_body(QVBoxLayout(card))
         inside.setSpacing(SPACE["lg"])
         inside.addLayout(form)
         inside.addLayout(buttons)
-        inside.addWidget(self.message)
         layout.addWidget(self.store_warning)
         layout.addWidget(card)
         layout.addStretch(1)
