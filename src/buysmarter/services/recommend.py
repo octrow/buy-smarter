@@ -251,7 +251,7 @@ class _Pool:
 
 
 @dataclass(frozen=True)
-class _Clarify:
+class Clarify:
     """The caller's side of a clarification: its answer, the round, whether to ask at all."""
 
     answer: str | None = None
@@ -259,8 +259,8 @@ class _Clarify:
     no_clarify: bool = False
 
 
-async def _understand(
-    query: str, parsed: QueryConstraints | None, use_llm: bool, ask: _Clarify
+async def understand_request(
+    query: str, parsed: QueryConstraints | None, use_llm: bool, ask: Clarify
 ) -> tuple[str, QueryConstraints, str | None]:
     """Parse (or reuse ``parsed``), take the answer, flag restricted goods, settle questions.
 
@@ -400,8 +400,8 @@ async def recommend(
     total_start = time.perf_counter()
     skipped_llm_steps = list(NO_LLM_STEPS) if use_llm and _no_llm_route() else []
     use_llm = use_llm and not skipped_llm_steps
-    ask = _Clarify(answer, clarify_round, no_clarify)
-    query, understood, assumed = await _understand(query, parsed, use_llm, ask)
+    ask = Clarify(answer, clarify_round, no_clarify)
+    query, understood, assumed = await understand_request(query, parsed, use_llm, ask)
     constraints, city_defaulted = await _constraints(
         query, understood, city, budget, trusted_only, use_llm
     )

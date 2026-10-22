@@ -74,13 +74,13 @@ Composition даёт ровно прежнюю таблицу (ингредие�
 
 | Вход | Источники | LLM | Заметки |
 |---|---|---|---|
-| CLI `recommend` | kaspi, ozon, olx | да | может спросить бюджет до запуска |
+| CLI `recommend` | kaspi, ozon, olx | да | на терминале сначала спрашивает уточнение (номер или свой текст, следующий раунд), потом бюджет; без терминала вопрос — код выхода 3, «искать нечего» — 1; `--no-clarify` ищет первый вариант |
 | Десктоп GUI | выбирает пользователь | да | вызывает `recommend()` в процессе; добавляет исключённые бренды из настроек в разбор |
 | MCP `recommend` | kaspi, ozon, olx | **нет** (`parse_with_llm=False`) | передаёт `city or настройка or Алматы` как явный город: город из запроса игнорируется, `city_defaulted` всегда false |
 | HTTP API + воркер | `api_sources`, по умолчанию kaspi + olx (без Ozon) | **нет** (`use_llm=False`) | очередь в Redis, таймаут на задачу, дедупликация запросов |
 | прямой вызов | только kaspi | да | для тестов |
 
-Модули: `cli/main`, `gui/screens/search`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`
+Модули: `cli/main`, `cli/clarify`, `gui/screens/search`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`
 
 ## Шаги
 

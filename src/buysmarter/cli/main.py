@@ -14,6 +14,9 @@ from rich.panel import Panel
 from rich.table import Table
 
 from buysmarter import local_store
+from buysmarter.cli.clarify import CLARIFY_PROMPT as CLARIFY_PROMPT  # re-export
+from buysmarter.cli.clarify import EXIT_CLARIFY, print_clarification
+from buysmarter.cli.clarify import ask as ask_clarification
 from buysmarter.cli.report import (
     DEFAULT_TOP,
     ROLE_LABELS,
@@ -61,9 +64,16 @@ from buysmarter.services.ozon_browser import setup_browser
 from buysmarter.services.price_tracking import CategoryRefresh, ProductHistory
 from buysmarter.services.price_tracking import product_history as run_product_history
 from buysmarter.services.price_tracking import refresh_tracked as run_refresh_tracked
-from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, RecommendResult
+from buysmarter.services.recommend import (
+    Clarify,
+    NoNewPick,
+    NoSubstanceMatch,
+    RecommendResult,
+    understand_request,
+)
 from buysmarter.services.recommend import parse_request as run_parse_request
 from buysmarter.services.recommend import recommend as run_recommend
+from buysmarter.services.understanding import NeedsClarification, NothingToSearch
 
 _DEFAULT_TOP = DEFAULT_TOP
 
@@ -314,8 +324,15 @@ def recommend(
     no_review_summary: bool = typer.Option(
         False, "--no-review-summary", help="Skip the AI review summary of the best pick."
     ),
+    no_clarify: bool = typer.Option(
+        False, "--no-clarify", help="Never ask: search the first option of an ambiguous request."
+    ),
 ) -> None:
-    """Recommend the best product for a natural-language request."""
+    """Recommend the best product for a natural-language request.
+
+    An ambiguous request is asked about first; off a terminal the question is printed and
+    the exit code is 3.
+    """
     selected = _parse_sources(sources)
     try:
         result = asyncio.run(
@@ -327,8 +344,15 @@ def recommend(
                 trusted_only,
                 selected,
                 with_review_summary=not no_review_summary,
+                no_clarify=no_clarify,
             )
         )
+    except NeedsClarification as exc:
+        print_clarification(console, exc.clarification)
+        raise typer.Exit(code=EXIT_CLARIFY) from exc
+    except NothingToSearch as exc:
+        console.print(f"[yellow]{escape(str(exc))}[/yellow]")
+        raise typer.Exit(code=1) from exc
     except NoSubstanceMatch as exc:
         _render_no_substance(exc)
         raise typer.Exit(code=1) from exc
@@ -384,20 +408,47 @@ async def recommend_pipeline(
     trusted_only: bool = False,
     sources: list[str] | None = None,
     with_review_summary: bool = True,
+    no_clarify: bool = False,
 ) -> RecommendResult:
-    """Parse once, prompt for a missing budget, then run the recommend pipeline."""
+    """Parse once, settle any question, prompt for a missing budget, then recommend.
+
+    On a terminal a clarification is asked here (an option goes back as ``answer``, the
+    user's own text joins the query, which is parsed again) and the next round runs; the
+    budget typed once holds for every round. Off a terminal ``NeedsClarification`` leaves.
+    """
     parsed = await run_parse_request(query, use_llm)
-    budget = _resolve_budget(budget, parsed.budget_max)
-    return await run_recommend(
-        query,
-        city=city,
-        budget=budget,
-        use_llm=use_llm,
-        trusted_only=trusted_only,
-        sources=sources,
-        parsed=parsed,
-        with_review_summary=with_review_summary,
-    )
+    answer, clarify_round, budget_asked = None, 0, False
+    while True:
+        ask = Clarify(answer, clarify_round, no_clarify)
+        try:
+            if not budget_asked:
+                _, understood, _ = await understand_request(query, parsed, use_llm, ask)
+                budget, budget_asked = _resolve_budget(budget, understood.budget_max), True
+            return await run_recommend(
+                query,
+                city=city,
+                budget=budget,
+                use_llm=use_llm,
+                trusted_only=trusted_only,
+                sources=sources,
+                parsed=parsed,
+                with_review_summary=with_review_summary,
+                answer=answer,
+                clarify_round=clarify_round,
+                no_clarify=no_clarify,
+            )
+        except NeedsClarification as exc:
+            if not sys.stdin.isatty():
+                raise
+            asked, clarify_round = exc.clarification, clarify_round + 1
+            reply = ask_clarification(console, asked)
+            if reply is None:
+                no_clarify = True
+            elif reply in asked.options and asked.kind != "capability":
+                answer = reply
+            else:
+                query, answer = f"{query} {reply}", None
+                parsed = await run_parse_request(query, use_llm)
 
 
 def _render_knowledge_summary(

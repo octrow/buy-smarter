@@ -79,13 +79,13 @@ They differ in defaults.
 
 | Entry | Sources by default | LLM by default | Notes |
 |---|---|---|---|
-| CLI `recommend` | kaspi, ozon, olx | on | may ask for a budget before the run |
+| CLI `recommend` | kaspi, ozon, olx | on | on a terminal asks a clarification first (number or own text, next round), then a missing budget; off a terminal a question exits with code 3, nothing to search with 1; `--no-clarify` searches the first option |
 | Desktop GUI | user picks | on | calls `recommend()` in-process; merges excluded brands from settings into the parse |
 | MCP `recommend` | kaspi, ozon, olx | **off** (`parse_with_llm=False`) | passes `city or preference or Алматы` as an override: a city in the query is ignored, `city_defaulted` is always false |
 | HTTP API + worker | `api_sources`, default kaspi + olx (no Ozon) | **off** (`use_llm=False`) | job queue in Redis, timeout per job, dedupe by request |
 | direct call | kaspi only | on | used by tests |
 
-Module: `cli/main`, `gui/screens/search`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`
+Module: `cli/main`, `cli/clarify`, `gui/screens/search`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`
 
 ## Steps
 
