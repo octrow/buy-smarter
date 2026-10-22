@@ -14,6 +14,7 @@ import asyncio
 import functools
 import logging
 import re
+import statistics
 import time
 from collections import Counter
 from collections.abc import Awaitable, Callable
@@ -495,9 +496,32 @@ async def _filter_used(
         used = [u for u in used if other_audience(constraints.gender, u.title) is None]
     if not used:
         return used
-    return await _filter_relevant_candidates(
+    relevant = await _filter_relevant_candidates(
         used, constraints.category, use_llm, min_keep=0, keep_threshold=USED_KEEP_THRESHOLD
     )
+    return _drop_bait_prices(relevant)
+
+
+# An OLX ad far below the other ads for the same query is bait or a scam ("СРОЧНО! iPhone 13"
+# at 35 000 next to 125 000). The median needs a few ads to mean anything.
+# ponytail: one iPhone run; retune at the first real ad dropped or bait ad kept.
+_BAIT_PRICE_RATIO = 0.3
+_BAIT_MIN_ADS = 5
+
+
+def _drop_bait_prices(used: list[Candidate]) -> list[Candidate]:
+    """Drop ads priced under ``_BAIT_PRICE_RATIO`` of the median ad; logged for retuning."""
+    prices = [u.price for u in used if u.price > 0]
+    if len(prices) < _BAIT_MIN_ADS:
+        return used
+    floor = statistics.median(prices) * _BAIT_PRICE_RATIO
+    kept = []
+    for ad in used:
+        if 0 < ad.price < floor:
+            logger.info("olx: drop %r at %d, under %d (bait price)", ad.title, ad.price, floor)
+        else:
+            kept.append(ad)
+    return kept
 
 
 def _apply_overrides(

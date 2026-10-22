@@ -9,7 +9,7 @@ from market_sources.kaspi.parse import parse_offers, parse_search, parse_specs
 
 from buysmarter.cli.report import no_new_pick_text
 from buysmarter.knowledge.brands import BrandBook
-from buysmarter.ranking.models import Candidate
+from buysmarter.ranking.models import Candidate, QueryConstraints
 from buysmarter.services.collect import (
     _brand_search_plan,
     _brand_targeted_products,
@@ -24,7 +24,7 @@ from buysmarter.services.matching import (
     strip_latin_tokens,
     unbranded_used_listings,
 )
-from buysmarter.services.recommend import NoNewPick, recommend
+from buysmarter.services.recommend import NoNewPick, _filter_used, recommend
 
 SAMPLES_DIR = Path(__file__).parent.parent / "samples" / "kaspi"
 
@@ -1688,3 +1688,27 @@ async def test_nothing_new_in_budget_still_shows_the_olx_ads_within_it() -> None
         "Новых предложений нет: дороже бюджета ×1. На OLX нашлось:"
     )
     assert isinstance(no_pick, ValueError)
+
+
+def _ads(*prices: int) -> list[Candidate]:
+    return [
+        Candidate(source="olx", source_product_id=str(i), title=f"iPhone 13 128GB #{i}", price=p)
+        for i, p in enumerate(prices)
+    ]
+
+
+async def test_an_olx_ad_far_below_the_others_is_dropped_as_bait() -> None:
+    constraints = QueryConstraints(category="смартфон iPhone 13")
+    ads = _ads(120_000, 125_000, 126_000, 130_000, 118_000, 35_000)
+
+    kept = await _filter_used(ads, constraints, use_llm=False)
+
+    assert sorted(a.price for a in kept) == [118_000, 120_000, 125_000, 126_000, 130_000]
+
+
+async def test_too_few_olx_ads_for_a_median_keep_every_price() -> None:
+    constraints = QueryConstraints(category="смартфон iPhone 13")
+
+    kept = await _filter_used(_ads(120_000, 125_000, 130_000, 35_000), constraints, use_llm=False)
+
+    assert len(kept) == 4
