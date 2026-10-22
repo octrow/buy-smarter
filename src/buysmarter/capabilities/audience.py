@@ -28,7 +28,7 @@ class Audience(Capability):
         return CapabilitySetting(set_by="fallback") if constraints.gender else None
 
     def query(self, ctx: CapabilityContext, constraints: QueryConstraints) -> QueryConstraints:
-        if constraints.gender is None and (
+        if not constraints.gender and (
             gender := query_audience(query_text(ctx.query, constraints))
         ):
             return constraints.model_copy(update={"gender": gender})

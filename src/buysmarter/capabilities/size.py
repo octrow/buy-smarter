@@ -37,7 +37,7 @@ class Size(Capability):
         """Size from the text, out of the search phrase; size phrases out of apparel features."""
         text = query_text(ctx.query, constraints)
         updates: dict[str, Any] = {}
-        if constraints.size is None and (size := query_size(text)):
+        if not constraints.size and (size := query_size(text)):
             updates["size"] = size
         phrase = constraints.search_phrase
         if query_size(phrase):

@@ -146,3 +146,66 @@ async def test_the_profile_is_looked_up_by_the_product_type(source, profiles) ->
     await _run(source, query="мужские кроссовки", parsed=parsed)
 
     assert profiles == ["кроссовки | мужские кроссовки"]
+
+
+def _shoes() -> list[RawProduct]:
+    womens = RawProduct(
+        source="kaspi",
+        product_id="w",
+        title="Кроссовки FILA BASE 3.0 MESH зеленый",
+        price=30000,
+        category_path=["Обувь", "Женская обувь", "Кроссовки"],
+    )
+    mens = RawProduct(
+        source="kaspi",
+        product_id="m",
+        title="Кроссовки Puma Smash",
+        price=35000,
+        category_path=["Обувь", "Мужская обувь", "Кроссовки"],
+    )
+    return [womens, mens]
+
+
+_SNEAKERS = QueryConstraints(
+    search_phrase="мужские кроссовки", product_type="кроссовки", size="42", budget_max=50000
+)
+
+
+@pytest.mark.parametrize("use_llm", [False, True])
+async def test_the_audience_read_from_the_query_rejects_a_womens_card(
+    monkeypatch, use_llm: bool
+) -> None:
+    """Live 2026-10-22: «мужские кроссовки 42 до 50000» with an LLM parse that left gender
+    empty ranked a FILA card first. Through recommend() (and the LLM path) the audience the
+    query names still reaches the listing check: a card from «Женская обувь» is out."""
+
+    async def _no_preference() -> str | None:
+        return None
+
+    async def _resolve(category: str, *, use_llm: bool = True, **_: object) -> ResolvedProfile:
+        return ResolvedProfile(slug=category)
+
+    async def _parse(query: str) -> QueryConstraints:
+        return _SNEAKERS
+
+    async def _all_relevant(category, titles, threshold):
+        return [True] * len(titles)
+
+    monkeypatch.setattr(recommend_module, "_city_preference", _no_preference)
+    monkeypatch.setattr(recommend_module, "resolve_profile", _resolve)
+    monkeypatch.setattr(recommend_module, "parse_query", _parse)
+    monkeypatch.setattr(recommend_module, "_no_llm_route", lambda: False)
+    monkeypatch.setattr(recommend_module, "filter_relevant", _all_relevant)
+
+    result = await recommend_module.recommend(
+        "мужские кроссовки 42 до 50000",
+        use_llm=use_llm,
+        source=FakeSource("kaspi", _shoes()),
+        persist=False,
+        parsed=None if use_llm else _SNEAKERS,
+        with_review_summary=False,
+    )
+
+    assert result.constraints.gender == "male"
+    assert result.recommendation.rejected_reasons == {"other audience": 1}
+    assert [s.candidate.source_product_id for s in result.recommendation.ranked] == ["m"]

@@ -47,6 +47,15 @@ def test_a_bare_number_stays_without_a_known_size_or_outside_apparel() -> None:
     assert _read("", shoes).search_phrase == "кроссовки Nike Air 142"
 
 
+def test_a_blank_gender_or_size_from_the_parser_counts_as_missing() -> None:
+    """An LLM answering "" must not switch the regex reading off."""
+    parsed = QueryConstraints(search_phrase="мужские кроссовки 42 размер", gender="", size="")
+
+    constraints = _read("мужские кроссовки 42 размер", parsed)
+
+    assert (constraints.gender, constraints.size) == ("male", "42")
+
+
 def test_a_size_outside_apparel_is_a_spec_not_a_size() -> None:
     parsed = QueryConstraints(search_phrase="монитор размер 27", required_features=["размер 27"])
 
