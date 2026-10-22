@@ -4,7 +4,31 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Added
+- When no new product passes the filters (every one over the budget, say), the search no longer ends with «no
+  candidates passed hard filters»: the CLI, the desktop app, MCP and the API jobs say why («Новых предложений нет:
+  дороже бюджета ×2») and list the OLX ads within the budget, with the saving against the rejected new ones. The
+  API job stays `no_match` and adds `result.rejected_reasons` and `result.used_listings`; the CLI exits 0 when there
+  are ads.
+- OLX: an ad priced under 30% of the median ad for the same query (at least 5 ads) is dropped as bait («СРОЧНО!
+  iPhone 13» at 35 000 ₸ next to 125 000).
+- The log records every relevance score against its threshold and every title restored to meet the pool floor
+  (`relevance score: 0.920 keep threshold=0.25 category='…' title='…'`), the data the thresholds are tuned on.
+- `scripts/screenshots.py` grabs every desktop screen in light and dark offscreen; CI uploads them as an artifact.
+- Release candidates (`vX.Y.ZrcN`) build a GitHub pre-release and skip PyPI.
+
+### Changed
+- OLX relevance threshold 0.55 → 0.35: at 0.55 it dropped most used iPhone 13 ads (scored 0.23-0.54), so «iphone
+  13 б/у» found nothing. Tuned on 14 labelled queries.
+- The relevance question treats the category's words as required properties: over-ear and wired headphones no
+  longer pass for «tws наушники», wired in-ear monitors for «TWS наушники внутриканальные».
+- An OLX ad's saving is counted against the cheapest matching new product, not the priciest variant.
+
 ### Fixed
+- Titles that differ only in a model number («iPhone 12» / «iPhone 13») no longer match: an OLX ad for another
+  model is not paired with a new one or shown as notable, and two new listings are not merged as duplicates.
+- Desktop app: every card shares one inner padding, card titles line up with their content, report tables span
+  the page, and «Сохранено» sits beside the «Сохранить» button instead of padding the card.
 - Composition-driven categories (medicines, cosmetics): "composition not checked" no longer counts as "substance
   absent". A failed ingredient extraction leaves candidates unchecked instead of rejecting every listing with a
   composition text or stopping the run with «Не найдено товаров с действующим веществом»; a title naming the
