@@ -5,6 +5,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Unreleased]
 
 ### Fixed
+- Kaspi: seller offers are fetched for 8 cards even when the brand-targeted search finds fewer than 4, so more
+  main-search cards carry their cheapest seller price instead of the search-card price.
 - The city reaches OLX: a search for Astana or Shymkent no longer lists Almaty ads. Kaspi and OLX know 21 cities
   (Russian or Latin names) instead of Almaty and Astana only; MCP `search_products` passes the city to OLX too.
 - A brand after a compatibility word is the device the item fits, not its maker: «Чехол для Apple iPhone 15»,

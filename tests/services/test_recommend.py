@@ -1164,6 +1164,17 @@ async def test_collect_kaspi_splits_offer_fetch_between_targeted_and_main_pool()
     assert len(source.offer_requests) == 8  # _OFFERS_FOR total, unchanged
 
 
+async def test_collect_kaspi_gives_the_unused_offer_share_to_the_other_pool():
+    # One targeted hit (2 cards): its unused 2 offer fetches go to the main pool (#22).
+    book = BrandBook(tiers={"Waterpik": "A"}, aliases={})
+    source = _OfferCountingKaspiSource(brands=["Waterpik"], main_count=16)
+
+    await _collect_kaspi(source, "ирригатор", None, book)
+
+    assert len([r for r in source.offer_requests if r.startswith("brand-")]) == 2
+    assert len([r for r in source.offer_requests if r.startswith("noisy")]) == 6
+
+
 # --- M2: jargon-only category skips the title-word check -------------------
 
 

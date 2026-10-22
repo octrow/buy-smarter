@@ -375,18 +375,18 @@ async def _collect_kaspi(
 ) -> tuple[list[Candidate], list[ProductRow]]:
     """Kaspi: brand/substance-targeted + main search, specs for all, offers for top N."""
     targeted, rest = await _kaspi_search_pool(source, category, city_id, book, extra_searches)
-    top = targeted + rest[:_MAX_CARDS]
+    main = rest[:_MAX_CARDS]
+    top = targeted + main
     # Offer fetch (a real HTTP call each) is split evenly across the two
     # sub-pools instead of "first _OFFERS_FOR of the combined list": targeted
     # hits are always listed first, so an index-only cutoff always gave
     # targeted candidates their true cheapest-offer price while every
     # main-pool card kept the (usually higher) search-card price — a
     # systematic bias in the pool-relative price axis (docs/PLAN.md
-    # "Ranking-фиксы").
-    half = _OFFERS_FOR // 2
-    offer_eligible_ids = {p.product_id for p in targeted[:half]} | {
-        p.product_id for p in rest[:half]
-    }
+    # "Ranking-фиксы"). A pool too small for its half leaves the rest to the other.
+    targeted_n = min(len(targeted), max(_OFFERS_FOR // 2, _OFFERS_FOR - len(main)))
+    offer_eligible = targeted[:targeted_n] + main[: _OFFERS_FOR - targeted_n]
+    offer_eligible_ids = {p.product_id for p in offer_eligible}
     semaphore = asyncio.Semaphore(_KASPI_DETAIL_CONCURRENCY)
 
     async def fetch_details(product: RawProduct) -> tuple[dict[str, str], bool, list[RawOffer]]:
@@ -662,7 +662,7 @@ _HISTORY_DAYS = 30
 async def attach_price_history(candidates: list[Candidate]) -> None:
     """Best-effort: attach each candidate's 30-day price history from the DB.
 
-    One short-lived session, sequential lookups (gentle). Without Postgres the
+    One short-lived session, sequential lookups (gentle). Without a local store the
     whole thing is swallowed and candidates simply carry no history — the price
     axis then behaves exactly as before.
     """

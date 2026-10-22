@@ -172,7 +172,7 @@ All sources run in parallel; one source failing returns nothing for it and the r
 - main search by category; plus a search without Latin jargon if the category has it;
 - extra searches (step 7) first, then brand searches from the brand book (tier A first);
 - targeted hits are kept apart from the main search and are not cut by its card limit;
-- specs for every card except apparel variant cards (no spec page); seller offers for 4 targeted + 4 main hits, an unused half is not passed to the other;
+- specs for every card except apparel variant cards (no spec page); seller offers for 8 cards, 4 targeted + 4 main, a pool short of its half leaves the rest to the other;
 - no budget cap at search time (the Kaspi adapter has none).
 
 **Ozon**
