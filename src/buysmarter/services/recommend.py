@@ -291,7 +291,6 @@ def _guard_substance_pool(
         candidates,
         constraints,
         required_substances=required_substances,
-        substances_verified=True,
     )
     if passed:
         return
@@ -369,18 +368,18 @@ async def _verify_substances(
     ingredient_book: IngredientBook | None,
     required_substances: list[str],
     use_llm: bool,
-) -> bool:
-    """Extract состав into the pool; True when the substance filter may bite."""
+) -> None:
+    """Check состав across the pool (title, then extraction); refuse a pool proven empty.
+
+    Only checked candidates can be proven absent (``ranking.filters``), so a failed
+    extraction keeps the pool rather than raising ``NoSubstanceMatch``.
+    """
     if ingredient_book is None:
-        return False
+        return
     _mark_title_substances(deduped, ingredient_book, required_substances)
     await _extract_ingredients_into(deduped, constraints.category, ingredient_book, use_llm)
-    # A required substance is a hard filter only once extraction actually
-    # ran (use_llm) — otherwise absence is unknowable, not proven.
-    verified = use_llm and bool(required_substances)
-    if verified:
+    if required_substances:
         _guard_substance_pool(deduped, constraints, required_substances)
-    return verified
 
 
 @_measured
@@ -453,7 +452,7 @@ async def recommend(
         if is_smartphone_category(constraints.category):
             with stage("kimovil"):
                 await enrich_with_kimovil(deduped)
-        substances_verified = await _verify_substances(
+        await _verify_substances(
             deduped, constraints, ingredient_book, required_substances, use_llm
         )
         with stage("ranking"):
@@ -462,7 +461,6 @@ async def recommend(
                 constraints,
                 composition=composition,
                 required_substances=required_substances,
-                substances_verified=substances_verified,
                 query=query,
             )
         # Second pass (still inside the try so sources stay open): fetch reviews

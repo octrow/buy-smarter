@@ -61,7 +61,6 @@ def apply_hard_filters(
     constraints: QueryConstraints,
     *,
     required_substances: list[str] | None = None,
-    substances_verified: bool = False,
 ) -> tuple[list[Candidate], list[tuple[Candidate, str]]]:
     """Split candidates into (passed, rejected-with-reason).
 
@@ -69,11 +68,11 @@ def apply_hard_filters(
     features (minus a bare concentration when a substance is required),
     required active substance. First failing check wins the reason.
 
-    The active-substance check only bites when ``substances_verified`` (i.e.
-    ingredient extraction actually ran) and the candidate *declares* a состав
-    that does not contain any ``required_substances`` — proven absence. A
-    candidate with no состав text at all is a data gap, not a proven absence, so
-    it survives (scored with an "unconfirmed" con), never silently rejected.
+    The active-substance check only bites on a candidate whose composition was
+    checked (``ingredients_checked``) and that *declares* a состав without any
+    ``required_substances`` — proven absence. An unchecked candidate, or one with
+    no состав text at all, is a data gap, not a proven absence, so it survives
+    (scored with an "unchecked"/"unconfirmed" con), never silently rejected.
     """
     excluded_brands = {b.lower() for b in constraints.excluded_brands}
     required_substances = required_substances or []
@@ -88,7 +87,7 @@ def apply_hard_filters(
     rejected: list[tuple[Candidate, str]] = []
     for candidate in candidates:
         reason = _listing_rejection(candidate, constraints, excluded_brands) or _content_rejection(
-            candidate, hard_features, required_substances, substances_verified
+            candidate, hard_features, required_substances
         )
         if reason is None:
             passed.append(candidate)
@@ -122,7 +121,6 @@ def _content_rejection(
     candidate: Candidate,
     hard_features: list[str],
     required_substances: list[str],
-    substances_verified: bool,
 ) -> str | None:
     """Reject on what the product is: required features, required substance."""
     # An empty specs dict means specs weren't fetched (not that the
@@ -132,11 +130,7 @@ def _content_rejection(
         missing = [f for f in hard_features if not _feature_present(f, candidate)]
         if missing:
             return f"missing required feature(s): {', '.join(missing)}"
-    if (
-        required_substances
-        and substances_verified
-        and _substance_proven_absent(candidate, required_substances)
-    ):
+    if required_substances and _substance_proven_absent(candidate, required_substances):
         return f"{NO_SUBSTANCE_REASON}: {', '.join(required_substances)}"
     return None
 
@@ -147,11 +141,11 @@ def has_required_substance(candidate: Candidate, required_substances: list[str])
 
 
 def _substance_proven_absent(candidate: Candidate, required_substances: list[str]) -> bool:
-    """A required substance is *proven* absent: состав declared, substance not in it.
+    """A required substance is *proven* absent: checked, состав declared, substance not in it.
 
-    No состав text means the data is missing (unverifiable), not that the
-    substance is absent — that candidate is kept and flagged, never rejected.
+    Not checked (extraction off or without an answer) or no состав text means the
+    data is missing, not that the substance is absent — kept and flagged, never rejected.
     """
-    if has_required_substance(candidate, required_substances):
+    if not candidate.ingredients_checked or has_required_substance(candidate, required_substances):
         return False
     return bool(composition_text(candidate.specs))

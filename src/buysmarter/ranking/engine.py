@@ -704,7 +704,6 @@ def rank(
     *,
     composition: bool = False,
     required_substances: list[str] | None = None,
-    substances_verified: bool = False,
     query: str | None = None,
 ) -> Recommendation:
     """Filter, score, sort, and label the best + alternatives.
@@ -715,9 +714,9 @@ def rank(
     ``composition`` (docs/PLAN.md "Composition-driven категории") switches to the
     ingredient-weighted axes: ``required_substances`` are the canonical substances
     the query targets, and an in-pool equivalence context is built so generic
-    analogs surface. ``substances_verified`` (extraction ran) additionally makes a
-    required substance a hard filter — a candidate whose состав proves it absent is
-    rejected. Spec-driven ranking is the default and is unchanged.
+    analogs surface. A required substance is also a hard filter — a candidate whose
+    checked состав proves it absent is rejected. Spec-driven ranking is the default
+    and is unchanged.
 
     Raises NoCandidatesPassed (a ValueError) if no candidate survives hard filtering.
     """
@@ -725,7 +724,6 @@ def rank(
         candidates,
         constraints,
         required_substances=required_substances,
-        substances_verified=substances_verified,
     )
     if not passed:
         raise NoCandidatesPassed(dict(Counter(_reason_key(reason) for _, reason in rejected)))

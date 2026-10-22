@@ -198,3 +198,61 @@ async def test_spec_driven_category_has_no_substance_recall(monkeypatch) -> None
 
     # No brand book, spec-driven → only the single main-category search.
     assert stub.queries == ["ssd"]
+
+
+async def test_failed_extraction_never_raises_no_substance_match(monkeypatch) -> None:
+    _patch_composition(monkeypatch, _book())
+
+    async def _no_answer(category, book, items):
+        return [None] * len(items)
+
+    monkeypatch.setattr(svc, "extract_ingredients", _no_answer)
+    monkeypatch.setattr(svc, "_no_llm_route", lambda: False)
+    stub = _StubKaspi(
+        main=[_rp("bio", "Bioderma Sebium Hydra крем", 12000)],
+        by_query={},
+        specs_by_id={"bio": {"Состав": "вода, глицерин"}},
+    )
+
+    result = await recommend(
+        "крем с адапаленом",
+        use_llm=True,
+        source=stub,
+        sources=["kaspi"],
+        parsed=_CONSTRAINTS,
+        persist=False,
+        with_review_summary=False,
+    )
+
+    # Unchecked is not absent: the candidate stays, nothing rejected for the substance.
+    assert result.recommendation.best.candidate.source_product_id == "bio"
+    assert result.recommendation.rejected_count == 0
+
+
+async def test_title_substance_survives_a_failed_extraction(monkeypatch) -> None:
+    _patch_composition(monkeypatch, _book())
+
+    async def _no_answer(category, book, items):
+        return [None] * len(items)
+
+    monkeypatch.setattr(svc, "extract_ingredients", _no_answer)
+    monkeypatch.setattr(svc, "_no_llm_route", lambda: False)
+    stub = _StubKaspi(
+        main=[_rp("kl", "Клензит гель", 6000)],
+        by_query={},
+        specs_by_id={"kl": {"Состав": "carbomer, propylene glycol"}},
+    )
+
+    result = await recommend(
+        "крем с адапаленом",
+        use_llm=True,
+        source=stub,
+        sources=["kaspi"],
+        parsed=_CONSTRAINTS,
+        persist=False,
+        with_review_summary=False,
+    )
+
+    best = result.recommendation.best.candidate
+    assert best.source_product_id == "kl"
+    assert best.detected_substances == ["адапален"]

@@ -12,7 +12,7 @@ from buysmarter.ranking.ingredient_axis import build_ingredient_context
 from buysmarter.ranking.models import Candidate, QueryConstraints
 
 
-def _cand(pid: str, *, detected=None, specs=None, price=5000) -> Candidate:
+def _cand(pid: str, *, detected=None, specs=None, price=5000, checked=True) -> Candidate:
     return Candidate(
         source="kaspi",
         source_product_id=pid,
@@ -22,6 +22,7 @@ def _cand(pid: str, *, detected=None, specs=None, price=5000) -> Candidate:
         review_count=50,
         detected_substances=detected or [],
         specs=specs or {},
+        ingredients_checked=checked,
     )
 
 
@@ -36,11 +37,11 @@ def _axis(scored, name):
 # --- hard filter -----------------------------------------------------------
 
 
-def test_proven_absent_rejected_when_verified() -> None:
+def test_proven_absent_rejected_when_checked() -> None:
     # Состав declared, required substance not detected → proven absence.
     absent = _cand("a", detected=[], specs={"Состав": "вода, глицерин"})
     passed, rejected = apply_hard_filters(
-        [absent], _constraints(), required_substances=["адапален"], substances_verified=True
+        [absent], _constraints(), required_substances=["адапален"]
     )
     assert passed == []
     assert len(rejected) == 1
@@ -53,7 +54,7 @@ def test_proven_absent_rejected_when_verified() -> None:
 def test_present_candidate_passes() -> None:
     present = _cand("p", detected=["адапален"], specs={"Состав": "адапален 0.1%"})
     passed, rejected = apply_hard_filters(
-        [present], _constraints(), required_substances=["адапален"], substances_verified=True
+        [present], _constraints(), required_substances=["адапален"]
     )
     assert [c.source_product_id for c in passed] == ["p"]
     assert rejected == []
@@ -63,26 +64,36 @@ def test_null_composition_passes_as_data_gap() -> None:
     # No состав text at all → unverifiable, must NOT be rejected.
     unknown = _cand("u", detected=[], specs={})
     passed, rejected = apply_hard_filters(
-        [unknown], _constraints(), required_substances=["адапален"], substances_verified=True
+        [unknown], _constraints(), required_substances=["адапален"]
     )
     assert [c.source_product_id for c in passed] == ["u"]
     assert rejected == []
 
 
-def test_not_verified_never_rejects() -> None:
-    # Extraction did not run (e.g. --no-llm): absence is unknowable, keep it.
-    absent = _cand("a", detected=[], specs={"Состав": "вода, глицерин"})
-    passed, _ = apply_hard_filters(
-        [absent], _constraints(), required_substances=["адапален"], substances_verified=False
+def test_unchecked_with_composition_is_kept() -> None:
+    # Extraction did not run or gave no answer: absence is unknowable, keep it.
+    absent = _cand("a", detected=[], specs={"Состав": "вода, глицерин"}, checked=False)
+    passed, rejected = apply_hard_filters(
+        [absent], _constraints(), required_substances=["адапален"]
     )
     assert [c.source_product_id for c in passed] == ["a"]
+    assert rejected == []
+
+
+def test_filter_decides_per_candidate() -> None:
+    # One pool, two verdicts: only the checked candidate can be proven absent.
+    checked = _cand("c", detected=[], specs={"Состав": "вода"})
+    unchecked = _cand("u", detected=[], specs={"Состав": "вода"}, checked=False)
+    passed, rejected = apply_hard_filters(
+        [checked, unchecked], _constraints(), required_substances=["адапален"]
+    )
+    assert [c.source_product_id for c in passed] == ["u"]
+    assert [c.source_product_id for c, _ in rejected] == ["c"]
 
 
 def test_no_required_substances_never_rejects() -> None:
     absent = _cand("a", detected=[], specs={"Состав": "вода"})
-    passed, _ = apply_hard_filters(
-        [absent], _constraints(), required_substances=[], substances_verified=True
-    )
+    passed, _ = apply_hard_filters([absent], _constraints(), required_substances=[])
     assert [c.source_product_id for c in passed] == ["a"]
 
 
@@ -121,7 +132,6 @@ def test_rank_rejects_proven_absent_keeps_present() -> None:
         _constraints(),
         composition=True,
         required_substances=["адапален"],
-        substances_verified=True,
     )
     assert rec.best.candidate.source_product_id == "klenzit"
     ranked_ids = {s.candidate.source_product_id for s in rec.ranked}
