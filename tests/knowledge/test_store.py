@@ -3,6 +3,8 @@
 No network/LLM: the store is the suite's tmp SQLite (tests/conftest.py), emptied per test.
 """
 
+from buysmarter.db import repo
+from buysmarter.db.base import async_session
 from buysmarter.knowledge import store as store_mod
 from buysmarter.knowledge.brands import IRRIGATOR_BRAND_BOOK, BrandBook
 from buysmarter.knowledge.models_book import IRRIGATOR_MODEL_BOOK, ModelBook, ModelEntry
@@ -242,3 +244,60 @@ async def test_legacy_import_adds_missing_categories_and_keeps_stored_ones() -> 
     assert imported is not None and [e.canonical for e in imported.entries] == ["Acme X1"]
     assert await get_stored_books("битый") == (None, None)
     assert not legacy.exists() and legacy.with_name(legacy.name + ".imported").is_dir()
+
+
+# --- saving merges into the stored record (phase 1, decision 2) --------------
+
+
+async def _raw(slug: str) -> dict:
+    return await store_mod.load_knowledge(slug) or {}
+
+
+async def _put_raw(slug: str, payload: dict) -> None:
+    async with async_session() as session:
+        await repo.upsert_category_knowledge(session, slug, payload)
+
+
+async def test_saving_a_model_book_keeps_every_other_key() -> None:
+    brand, model = _sample_books()
+    await _put_raw(
+        "косметика",
+        {
+            "brand_book": brand.model_dump(mode="json"),
+            "model_book": ModelBook().model_dump(mode="json"),
+            "parent": "уход",
+            "synonyms": ["cosmetics"],
+            "capabilities": {"composition": {"enabled": True, "params": {}, "set_by": "user"}},
+            "generated_by": "opus",
+        },
+    )
+
+    await save_knowledge("косметика", model_book=model, generated_by="free-stack")
+
+    raw = await _raw("косметика")
+    assert raw["parent"] == "уход"
+    assert raw["synonyms"] == ["cosmetics"]
+    assert raw["capabilities"]["composition"]["set_by"] == "user"
+    assert raw["brand_book"] == brand.model_dump(mode="json")
+    assert raw["model_book"] == model.model_dump(mode="json")
+
+
+async def test_generated_by_is_kept_and_the_last_writer_is_updated_by() -> None:
+    brand, model = _sample_books()
+    await save_knowledge("робот-пылесос", brand, model, "opus")
+
+    await save_knowledge("робот-пылесос", model_book=model, generated_by="free-stack")
+
+    raw = await _raw("робот-пылесос")
+    assert raw["generated_by"] == "opus"
+    assert raw["updated_by"] == "free-stack"
+
+
+async def test_a_model_only_save_to_a_new_slug_writes_no_brand_book_or_type() -> None:
+    _, model = _sample_books()
+
+    await save_knowledge("пылесос", model_book=model, generated_by="free-stack")
+
+    raw = await _raw("пылесос")
+    assert "brand_book" not in raw and "category_type" not in raw
+    assert raw["generated_by"] == "free-stack"

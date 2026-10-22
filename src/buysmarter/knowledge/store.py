@@ -55,6 +55,7 @@ _MODEL_KEY = "model_book"
 _INGREDIENT_KEY = "ingredient_book"
 _CATEGORY_TYPE_KEY = "category_type"
 _GENERATED_BY = "generated_by"
+_UPDATED_BY = "updated_by"
 _UPDATED_AT = "updated_at"
 
 # Category type (docs/PLAN.md "Composition-driven категории"): a spec-driven
@@ -95,32 +96,43 @@ async def load_knowledge(category: str) -> dict[str, Any] | None:
 
 async def save_knowledge(
     category: str,
-    brand_book: BrandBook,
-    model_book: ModelBook,
-    generated_by: str,
+    brand_book: BrandBook | None = None,
+    model_book: ModelBook | None = None,
+    generated_by: str = "",
     *,
     category_type: str | None = None,
     ingredient_book: IngredientBook | None = None,
 ) -> None:
-    """Persist the books for a category (best-effort: a store failure is logged).
+    """Merge the given books into a category's stored record (best-effort: failures are logged).
 
-    ``category_type`` and ``ingredient_book`` (composition-driven categories) are
-    stored in the same payload. When either is left ``None`` the existing stored
-    value is preserved — so best-effort saves that only touch the model book
-    (e.g. learned OLX aliases) never wipe a category's ingredient knowledge.
+    Only the fields passed are written; every other stored key (the other book, the
+    ingredient book, ``parent``, ``synonyms``, ``capabilities``...) is kept, so a save
+    that only touches the model book (learned OLX aliases) never wipes the rest.
+    ``generated_by`` names the writer: it becomes the record's ``generated_by`` only on
+    a new record, and always its ``updated_by``.
     """
-    existing = await load_knowledge(category) or {}
-    if ingredient_book is None and existing.get(_INGREDIENT_KEY):
-        ingredient_book = IngredientBook.model_validate(existing[_INGREDIENT_KEY])
-    payload = {
-        _BRAND_KEY: brand_book.model_dump(mode="json"),
-        _MODEL_KEY: model_book.model_dump(mode="json"),
-        _CATEGORY_TYPE_KEY: category_type or existing.get(_CATEGORY_TYPE_KEY, SPEC_DRIVEN),
-        _GENERATED_BY: generated_by,
-        _UPDATED_AT: datetime.now(UTC).isoformat(),
-    }
+    updates: dict[str, Any] = {}
+    if brand_book is not None:
+        updates[_BRAND_KEY] = brand_book.model_dump(mode="json")
+    if model_book is not None:
+        updates[_MODEL_KEY] = model_book.model_dump(mode="json")
+    if category_type is not None:
+        updates[_CATEGORY_TYPE_KEY] = category_type
     if ingredient_book is not None:
-        payload[_INGREDIENT_KEY] = ingredient_book.model_dump(mode="json")
+        updates[_INGREDIENT_KEY] = ingredient_book.model_dump(mode="json")
+    await update_knowledge(category, updates, generated_by)
+
+
+async def update_knowledge(
+    category: str, updates: dict[str, Any], writer: str, *, drop: tuple[str, ...] = ()
+) -> None:
+    """Merge raw ``updates`` into the stored record, remove the ``drop`` keys, stamp the writer."""
+    existing = await load_knowledge(category) or {}
+    payload = {k: v for k, v in existing.items() if k not in drop}
+    payload.update(updates)
+    payload[_GENERATED_BY] = existing.get(_GENERATED_BY) or writer
+    payload[_UPDATED_BY] = writer
+    payload[_UPDATED_AT] = datetime.now(UTC).isoformat()
     try:
         async with async_session() as session:
             await repo.upsert_category_knowledge(session, _slug(category), payload)
