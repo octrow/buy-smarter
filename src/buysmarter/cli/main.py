@@ -41,6 +41,7 @@ from buysmarter.knowledge.store import (
     save_knowledge,
 )
 from buysmarter.llm import keys
+from buysmarter.llm.adapter import LlmError
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
@@ -479,6 +480,14 @@ async def _run_learn_category(
     return brand, model, category_type, ingredient
 
 
+# A long notes file can outgrow one answer: the JSON comes back cut off mid-way.
+_LEARN_LLM_HINT = (
+    "The LLM answer was cut off or malformed, most often because the notes are too long for one "
+    "answer. Nothing was saved: split the notes into smaller files (about 15 models each) and run "
+    "`learn` on each."
+)
+
+
 @app.command("learn")
 def learn(
     file: str = typer.Argument(..., help="Markdown research notes file."),
@@ -489,6 +498,8 @@ def learn(
         brand, model, category_type, ingredient = asyncio.run(_run_learn_file(Path(file), category))
     except Exception as exc:  # noqa: BLE001 - surface a clean CLI error
         console.print(f"[red]Learning from file failed: {escape(str(exc))}[/red]")
+        if isinstance(exc, LlmError):
+            console.print(_LEARN_LLM_HINT)
         raise typer.Exit(code=1) from exc
     console.print(
         f"[green]Merged notes from {escape(file)} into knowledge "

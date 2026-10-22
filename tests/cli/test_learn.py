@@ -181,10 +181,11 @@ def test_learn_file_merges_with_the_own_record_not_a_parent(monkeypatch, tmp_pat
 
 def test_learn_file_fails_and_saves_nothing_on_truncated_json(monkeypatch, tmp_path) -> None:
     import asyncio
-    import json
+
+    from buysmarter.llm.adapter import LlmError
 
     async def _truncated(category: str, notes: str):
-        return json.loads('{"models": [{"canonical": "Samsung Galaxy S24"')
+        raise LlmError("claude CLI response invalid after retry: Expecting ',' delimiter")
 
     monkeypatch.setattr(main, "extract_category_knowledge", _truncated)
     notes = tmp_path / "notes.md"
@@ -194,4 +195,5 @@ def test_learn_file_fails_and_saves_nothing_on_truncated_json(monkeypatch, tmp_p
 
     assert result.exit_code == 1
     assert "Learning from file failed" in result.output
+    assert "split the notes" in result.output
     assert asyncio.run(get_stored_books("смартфон")) == (None, None)
