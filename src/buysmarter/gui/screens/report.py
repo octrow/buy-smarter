@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from buysmarter.cli.report import format_rejected_reasons
+from buysmarter.cli.report import format_rejected_reasons, ingredients_unchecked_note
 from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.labels import (
     USED_SECTION,
@@ -168,6 +168,8 @@ def could_not_verify(result: RecommendResult, run: SearchRun) -> list[str]:
     elif result.review_summary is None:
         why = result.review_summary_note
         lines.append(f"Сводка отзывов недоступна: {why}" if why else "Сводка отзывов недоступна")
+    if note := ingredients_unchecked_note(result):
+        lines.append(note.removesuffix("."))
     return lines
 
 

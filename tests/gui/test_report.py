@@ -194,3 +194,11 @@ def test_bar_levels_flag_weak_and_strong_axes():
     from buysmarter.gui.screens.report import bar_level
 
     assert (bar_level(3.8, 25), bar_level(10, 20), bar_level(10, 10)) == ("low", "", "high")
+
+
+def test_unchecked_composition_is_listed_under_could_not_verify(qtbot, result):
+    result = result.model_copy(update={"ingredients_unchecked": True})
+    total = len(result.recommendation.ranked)
+    text = _texts(_shown(qtbot, result))
+    assert "Не удалось проверить" in text
+    assert f"Состав не проверен у {total} из {total} — вещество не подтверждено" in text

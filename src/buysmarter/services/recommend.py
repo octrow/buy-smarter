@@ -111,6 +111,8 @@ class RecommendResult(BaseModel):
     skipped_llm_steps: list[str] = Field(default_factory=list)
     # Selected marketplaces left out for lack of a browser (only Ozon needs one).
     unavailable_sources: list[str] = Field(default_factory=list)
+    # Composition category with a ranked candidate whose состав was not checked.
+    ingredients_unchecked: bool = False
 
 
 def _no_llm_route() -> bool:
@@ -503,6 +505,8 @@ async def recommend(
         knowledge_missing=book is None and model_book is None,
         skipped_llm_steps=skipped_llm_steps,
         unavailable_sources=[name for name in requested if name not in active],
+        ingredients_unchecked=composition
+        and any(not s.candidate.ingredients_checked for s in recommendation.ranked),
     )
 
 

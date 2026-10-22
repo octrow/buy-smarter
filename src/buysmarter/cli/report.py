@@ -84,6 +84,15 @@ def skipped_llm_note(result: RecommendResult) -> str | None:
     )
 
 
+def ingredients_unchecked_note(result: RecommendResult) -> str | None:
+    """How many ranked candidates' состав went unchecked, or None when all were checked."""
+    if not result.ingredients_unchecked:
+        return None
+    ranked = result.recommendation.ranked
+    unchecked = sum(not s.candidate.ingredients_checked for s in ranked)
+    return f"Состав не проверен у {unchecked} из {len(ranked)} — вещество не подтверждено."
+
+
 def unavailable_sources_note(result: RecommendResult) -> str | None:
     """The marketplaces left out for lack of a browser, or None when every selected one ran."""
     if not result.unavailable_sources:
@@ -106,7 +115,12 @@ def _constraints_md(result: RecommendResult) -> list[str]:
         lines.append(f"- **Нужно:** {', '.join(c.required_features)}")
     if c.excluded_brands:
         lines.append(f"- **Без брендов:** {', '.join(c.excluded_brands)}")
-    for note in (skipped_llm_note(result), unavailable_sources_note(result)):
+    notes = (
+        skipped_llm_note(result),
+        unavailable_sources_note(result),
+        ingredients_unchecked_note(result),
+    )
+    for note in notes:
         if note:
             lines += ["", f"_{note}_"]
     return lines

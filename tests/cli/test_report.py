@@ -365,3 +365,22 @@ def test_a_used_listing_of_a_tier_a_brand_asks_for_the_tag_and_receipt() -> None
     waterpik_row = next(ln for ln in md.splitlines() if "Waterpik" in ln)
     assert "попросите фото бирки и чек" in xiaomi_row
     assert "попросите фото бирки и чек" not in waterpik_row
+
+
+def test_unchecked_composition_is_noted_with_how_many_candidates() -> None:
+    result = _result(n_ranked=5)
+    ranked = result.recommendation.ranked
+    ranked[0].candidate.ingredients_checked = True
+    result = result.model_copy(update={"ingredients_unchecked": True})
+
+    md = render_markdown(result, top=8)
+
+    section = md.split("## Запрос\n", 1)[1].split("\n## ", 1)[0]
+    unchecked = len(ranked) - 1
+    assert f"_Состав не проверен у {unchecked} из {len(ranked)} — вещество не подтверждено._" in (
+        section
+    )
+
+
+def test_checked_composition_has_no_unchecked_note() -> None:
+    assert "Состав не проверен" not in render_markdown(_result(), top=8)

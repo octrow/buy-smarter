@@ -150,6 +150,7 @@ async def test_adapalene_product_wins_moisturizer_filtered(monkeypatch) -> None:
     # The moisturizer proven to lack adapalene is filtered, never surfaced.
     assert "bio" not in {s.candidate.source_product_id for s in rec.ranked}
     assert rec.rejected_count >= 1
+    assert not result.ingredients_unchecked  # every ranked candidate got an answer
 
 
 async def test_empty_pool_raises_no_substance_match(monkeypatch) -> None:
@@ -186,7 +187,7 @@ async def test_spec_driven_category_has_no_substance_recall(monkeypatch) -> None
     monkeypatch.setattr(svc, "resolve_composition", _spec_driven)
     stub = _StubKaspi(main=[_rp("x", "Kingston SSD 480GB")], by_query={}, specs_by_id={})
 
-    await recommend(
+    result = await recommend(
         "ssd",
         use_llm=False,
         source=stub,
@@ -198,6 +199,7 @@ async def test_spec_driven_category_has_no_substance_recall(monkeypatch) -> None
 
     # No brand book, spec-driven → only the single main-category search.
     assert stub.queries == ["ssd"]
+    assert not result.ingredients_unchecked  # no composition to check
 
 
 async def test_failed_extraction_never_raises_no_substance_match(monkeypatch) -> None:
@@ -256,3 +258,32 @@ async def test_title_substance_survives_a_failed_extraction(monkeypatch) -> None
     best = result.recommendation.best.candidate
     assert best.source_product_id == "kl"
     assert best.detected_substances == ["адапален"]
+
+
+async def test_no_llm_composition_run_flags_unchecked_ingredients(monkeypatch) -> None:
+    _patch_composition(monkeypatch, _book())
+
+    async def _must_not_run(category, book, items):
+        raise AssertionError("no extraction with use_llm=False")
+
+    monkeypatch.setattr(svc, "extract_ingredients", _must_not_run)
+    stub = _StubKaspi(
+        main=[_rp("bio", "Bioderma Sebium Hydra крем", 12000)],
+        by_query={"Клензит": [_rp("kl", "Клензит гель", 6000)]},
+        specs_by_id={"bio": {"Состав": "вода, глицерин"}},
+    )
+
+    result = await recommend(
+        "крем с адапаленом",
+        use_llm=False,
+        source=stub,
+        sources=["kaspi"],
+        parsed=_CONSTRAINTS,
+        persist=False,
+        with_review_summary=False,
+    )
+
+    assert result.ingredients_unchecked
+    by_id = {s.candidate.source_product_id: s for s in result.recommendation.ranked}
+    assert by_id["kl"].candidate.ingredients_checked  # the title names an equivalent
+    assert not by_id["bio"].candidate.ingredients_checked
