@@ -57,7 +57,7 @@ A hook a capability does not implement is not called.
 |---|---|---|---|
 | audience | request | `constraints.gender`: the parser, or a regex over the query text (step 4) | `query` (4), `reject_listing` on the main pool, OLX ads and official-store offers (10, 14, 17) |
 | size | request | `constraints.size`: the parser, or a regex over the query text for apparel (step 4) | `query` (4: the size leaves the search phrase and apparel features), `notes` (17: "size unverified") |
-| benchmark | category | the profile; without a profile setting, a phone stem in the category's first word (`set_by: fallback`) | `enrich` (15: Kimovil specs and `benchmark_index`) |
+| benchmark | category | the profile, only with a provider from `BENCHMARK_PROVIDERS` (its parameter, else the provider whose rule takes the product type); without a profile setting, the providers' rule (`set_by: fallback`) | `enrich` (15: Kimovil specs and `benchmark_index`) |
 | composition | category | the profile: the composition capability with an ingredient book (old records: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, may stop the run), `prepare` + `axis` + `notes` (17), `section` (Output) |
 
 Weights: base weights plus each capability's axis and shifts, clamped at zero, normalized to 100 (`capabilities/weights`).
@@ -66,7 +66,7 @@ Composition gives the old composition table exactly (ingredient +25, brand −15
 Examples:
 - "крем с адапаленом" → composition (if the profile has it): searches by substance, rejects products whose composition proves the substance absent.
 - "мужские кроссовки 42 размер" → audience and size; gender is a listing check everywhere, size an unverified con.
-- "смартфон iPhone 13" → benchmark by the phone-stem fallback.
+- "смартфон iPhone 13" → benchmark by the providers' rule (Kimovil); "чехол на iPhone 15", "держатель телефона" → none.
 - A category with no profile at all → no category capability, every brand scores as unknown.
 
 Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/benchmark`, `capabilities/composition`
@@ -261,11 +261,10 @@ Module: `services/recommend`, `llm/relevance`
 ### 15. Benchmark (capability enrich)
 
 Decides: a performance index (feeds the specs axis) and model specs in Kaspi wording ("120 Гц").
-The benchmark capability is on by the profile, or by the fallback rule: the first word of the search phrase contains a phone stem (смартфон, телефон, айфон, iphone, smartphone).
-Its provider today is Kimovil. RAM and storage are not copied: the listing may be another variant.
+The benchmark capability is on only with a provider (`capabilities/benchmark_providers`; today only Kimovil). The profile names it (with the provider as a parameter, or the rule picks one), else the rule alone, over the product type (the search phrase when the parse gave none): смартфон(ы), телефон(ы) or smartphone as a whole word before the first preposition (для, на, к, под, от, с), or iphone/айфон as the first word. "мобильный телефон" → yes; "чехол для телефона", "держатель телефона", "радиотелефон", "телефонный кабель" → no. RAM and storage are not copied: the listing may be another variant.
 The core averages `benchmark_index` into the specs axis without knowing its source.
 Cached; fails open.
-Module: `capabilities/benchmark`, `services/phone_specs`
+Module: `capabilities/benchmark`, `capabilities/benchmark_providers`, `services/phone_specs`
 
 ### 16. Ingredients (composition capability enrich)
 
