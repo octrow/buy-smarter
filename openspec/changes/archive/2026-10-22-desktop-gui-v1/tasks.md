@@ -31,4 +31,9 @@
 
 - [x] 5.1 Design pass with the impeccable skill: palette (light/dark), type scale, spacing, component states; deliver the palette dict and QSS
 - [x] 5.2 Theme switching on OS color scheme change and bundled Inter; test that both palettes pass 4.5:1 on every text/background pair
-- [ ] 5.3 Manual check on Linux in light and dark: screenshots of all five screens, attached to the PR
+- [x] 5.3 Manual check on Linux in light and dark: screenshots of all five screens, attached to the PR
+  - 2026-10-22: no PR (work lands on main) and review screenshots are not tracked (docs/review is ignored). Grabbed all six
+    sidebar screens offscreen at 1280×800 in light and dark (temp store, a copy of the saved reports, palette forced
+    since offscreen has no OS scheme). Both themes render; no clipped text or overflow. Left for polish: card inner
+    padding differs (Search 24px, History/Status 33px, group titles 3px off their content), the report's second table
+    is narrower than the first, empty space under «Сохранить» in Настройки поиска.
