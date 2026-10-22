@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-22
+
 ### Added
 - When no new product passes the filters (every one over the budget, say), the search no longer ends with «no
   candidates passed hard filters»: the CLI, the desktop app, MCP and the API jobs say why («Новых предложений нет:
