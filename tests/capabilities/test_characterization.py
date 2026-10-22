@@ -13,7 +13,6 @@ store page fetch.
 """
 
 import json
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -30,35 +29,13 @@ from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services import official_stores
 from buysmarter.services.official_stores import StoreOffer
 from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, recommend
+from tests.fakes import FakeSource
 
 EXPECTED_PATH = Path(__file__).with_name("characterization.json")
 _SCORE_TOLERANCE = 0.01
 
 
 # --- fakes ------------------------------------------------------------------
-
-
-@dataclass
-class _Source:
-    """In-memory marketplace: per-query cards (``main`` otherwise), specs and offers."""
-
-    name: str
-    main: list[RawProduct]
-    by_query: dict[str, list[RawProduct]] = field(default_factory=dict)
-    spec_map: dict[str, dict[str, str]] = field(default_factory=dict)
-    offer_map: dict[str, list[RawOffer]] = field(default_factory=dict)
-
-    async def search(self, query: str, city: str | None = None) -> list[RawProduct]:
-        return list(self.by_query.get(query, self.main))
-
-    async def specs(self, product_id: str) -> dict[str, str]:
-        return dict(self.spec_map.get(product_id, {}))
-
-    async def offers(self, product_id: str) -> list[RawOffer]:
-        return list(self.offer_map.get(product_id, []))
-
-    async def reviews(self, product_id: str) -> list[Any]:
-        return []
 
 
 class _FakeJev:
@@ -195,7 +172,7 @@ async def _spec_driven(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.Monkey
         },
         category_type="spec_driven",
     )
-    kaspi = _Source(
+    kaspi = FakeSource(
         "kaspi",
         [
             _kp(
@@ -226,7 +203,7 @@ async def _spec_driven(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.Monkey
     return await _run("пылесос до 200000", constraints, use_llm, source=kaspi)
 
 
-def _cosmetics_kaspi(by_query: dict[str, list[RawProduct]], main: list[RawProduct]) -> _Source:
+def _cosmetics_kaspi(by_query: dict[str, list[RawProduct]], main: list[RawProduct]) -> FakeSource:
     specs = {
         "bio": {"Состав": "вода, глицерин, ниацинамид"},
         "kl": {"Состав": "адапален 0,1%, карбомер"},
@@ -235,7 +212,7 @@ def _cosmetics_kaspi(by_query: dict[str, list[RawProduct]], main: list[RawProduc
         "ad": {},
         "gm": {"Состав": "вода, глицерин"},
     }
-    return _Source("kaspi", main, by_query=by_query, spec_map=specs)
+    return FakeSource("kaspi", main, by_query=by_query, spec_map=specs)
 
 
 _MOISTURIZERS = [
@@ -326,7 +303,7 @@ async def _smartphone(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyP
         model_book={"entries": []},
         category_type="spec_driven",
     )
-    kaspi = _Source(
+    kaspi = FakeSource(
         "kaspi",
         [
             _kp(
@@ -364,8 +341,8 @@ async def _smartphone(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyP
 _SHOE_BRANDS = _brands({"Nike": "A", "Adidas": "A", "Puma": "B"})
 
 
-def _shoes_kaspi() -> _Source:
-    return _Source(
+def _shoes_kaspi() -> FakeSource:
+    return FakeSource(
         "kaspi",
         [
             _kp(
@@ -419,7 +396,7 @@ async def _sneakers(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPat
 
 async def _sneakers_olx(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPatch) -> Any:
     await _store("мужские-кроссовки", brand_book=_SHOE_BRANDS, category_type="spec_driven")
-    olx = _Source(
+    olx = FakeSource(
         "olx",
         [
             _olx("u1", "Кроссовки Nike Air Max 90 мужские", 15000),
@@ -469,7 +446,7 @@ async def _two_violations(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.Mon
         brand_book=_brands({"Sony": "A", "JBL": "A", "Marshall": "B", "Soundcore": "B"}),
         category_type="spec_driven",
     )
-    kaspi = _Source(
+    kaspi = FakeSource(
         "kaspi",
         [
             _kp(
@@ -532,7 +509,7 @@ async def _olx_only(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPat
         brand_book=_brands({"Xiaomi": "B", "Roborock": "A", "Dreame": "A"}),
         category_type="spec_driven",
     )
-    kaspi = _Source(
+    kaspi = FakeSource(
         "kaspi",
         [
             _kp("r1", "Робот пылесос Xiaomi S10", 80000, brand="Xiaomi"),
@@ -540,7 +517,7 @@ async def _olx_only(use_llm: bool, fake: _FakeJev, monkeypatch: pytest.MonkeyPat
             _kp("r3", "Робот пылесос Dreame D9", 90000, brand="Dreame"),
         ],
     )
-    olx = _Source(
+    olx = FakeSource(
         "olx",
         [
             _olx("u1", "Робот пылесос Xiaomi S10", 25000),

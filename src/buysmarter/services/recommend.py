@@ -476,7 +476,13 @@ async def recommend(
     except NoCandidatesPassed as exc:
         # rank() is the only raiser, so the pool and the OLX ads are already collected
         used = await used_market_without_pick(
-            deduped, used_candidates, constraints, book, model_book, use_llm
+            deduped,
+            used_candidates,
+            constraints,
+            book,
+            model_book,
+            use_llm,
+            profile.model_book_owner,
         )
         raise NoNewPick(exc.rejected_reasons, used) from exc
     finally:
@@ -489,7 +495,13 @@ async def recommend(
     apply_cross_notes(recommendation, notes)
 
     used_listings = await used_market(
-        recommendation, used_candidates, constraints, book, model_book, use_llm
+        recommendation,
+        used_candidates,
+        constraints,
+        book,
+        model_book,
+        use_llm,
+        profile.model_book_owner,
     )
     logger.info("stage %s took %.2fs", "total", time.perf_counter() - total_start)
     return RecommendResult(

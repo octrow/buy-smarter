@@ -5,12 +5,22 @@ new-canonical suggestions are display-only, null/fail-open leave the book
 untouched, and nothing-unresolved skips the LLM call entirely.
 """
 
+from market_sources.base import RawProduct
+
+from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.models_book import ModelBook, ModelEntry
-from buysmarter.knowledge.store import get_stored_books
+from buysmarter.knowledge.store import (
+    get_stored_books,
+    load_knowledge,
+    save_knowledge,
+    update_knowledge,
+)
 from buysmarter.llm import canonicalize as canon
 from buysmarter.llm.canonicalize import CanonicalizeResult, CanonicalMapping
-from buysmarter.ranking.models import Candidate
+from buysmarter.ranking.models import Candidate, QueryConstraints
+from buysmarter.services import recommend as svc
 from buysmarter.services.matching import canonicalize_used_titles, match_used_listings
+from tests.fakes import FakeSource
 
 
 def _used(pid: str, title: str, price: int) -> Candidate:
@@ -71,7 +81,7 @@ async def test_maps_to_existing_learns_alias_and_persists(monkeypatch) -> None:
     assert updated_book.resolve(title) == "Xiaomi F300"  # next run resolves without LLM
 
     stored_brand, stored_model = await get_stored_books("ирригатор")
-    assert stored_brand is not None
+    assert stored_brand is None  # only the model book is written (phase 1, decision 7)
     stored_entry = next(e for e in stored_model.entries if e.canonical == "Xiaomi F300")
     assert title in stored_entry.aliases
 
@@ -140,3 +150,43 @@ async def test_fail_open_on_llm_error(monkeypatch) -> None:
 
     assert labels == {}
     assert updated_book is book
+
+
+# --- aliases go to the profile that owns the model book (phase 1, decision 7) ---
+
+
+async def test_an_alias_learned_under_an_inheriting_category_goes_to_the_parent(
+    monkeypatch,
+) -> None:
+    parent_brands = BrandBook(tiers={"Xiaomi": "B"})
+    await save_knowledge("ирригаторы", parent_brands, _book(), "opus")
+    await update_knowledge("ирригатор-xiaomi", {"parent": "ирригаторы"}, "user")
+    title = "Ирригатор xiaomi мийа флоссер"
+
+    async def _fake_generate(prompt, response_model, *, model=None, **kwargs):
+        return CanonicalizeResult(
+            mappings=[CanonicalMapping(index=0, canonical="Xiaomi F300", is_new=False)]
+        )
+
+    monkeypatch.setattr(canon, "generate", _fake_generate)
+    monkeypatch.setattr(svc, "_no_llm_route", lambda: False)
+    new = RawProduct(source="kaspi", product_id="k1", title="Ирригатор Xiaomi F300", price=30000)
+    ad = RawProduct(source="olx", product_id="u1", title=title, price=9000)
+
+    await svc.recommend(
+        "ирригатор xiaomi",
+        use_llm=True,
+        parsed=QueryConstraints(category="ирригатор xiaomi"),
+        sources=["kaspi", "olx"],
+        source=FakeSource("kaspi", [new]),
+        olx_source=FakeSource("olx", [ad], spec_map={"u1": {"condition": "Б/у"}}),
+        persist=False,
+        with_review_summary=False,
+    )
+
+    parent = await load_knowledge("ирригаторы") or {}
+    entry = next(e for e in parent["model_book"]["entries"] if e["canonical"] == "Xiaomi F300")
+    assert title in entry["aliases"]
+    assert parent["brand_book"] == parent_brands.model_dump(mode="json")
+    child = await load_knowledge("ирригатор-xiaomi") or {}
+    assert "model_book" not in child and "brand_book" not in child

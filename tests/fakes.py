@@ -1,0 +1,29 @@
+"""Shared test doubles."""
+
+from dataclasses import dataclass, field
+from typing import Any
+
+from market_sources.base import RawOffer, RawProduct
+
+
+@dataclass
+class FakeSource:
+    """In-memory marketplace: per-query cards (``main`` otherwise), specs and offers."""
+
+    name: str
+    main: list[RawProduct]
+    by_query: dict[str, list[RawProduct]] = field(default_factory=dict)
+    spec_map: dict[str, dict[str, str]] = field(default_factory=dict)
+    offer_map: dict[str, list[RawOffer]] = field(default_factory=dict)
+
+    async def search(self, query: str, city: str | None = None) -> list[RawProduct]:
+        return list(self.by_query.get(query, self.main))
+
+    async def specs(self, product_id: str) -> dict[str, str]:
+        return dict(self.spec_map.get(product_id, {}))
+
+    async def offers(self, product_id: str) -> list[RawOffer]:
+        return list(self.offer_map.get(product_id, []))
+
+    async def reviews(self, product_id: str) -> list[Any]:
+        return []

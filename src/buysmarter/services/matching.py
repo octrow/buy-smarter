@@ -588,16 +588,18 @@ def _unresolved_used_titles(model_book: ModelBook, used: list[Candidate]) -> lis
     return list(seen)
 
 
-async def _persist_learned_aliases(
-    category: str, book: BrandBook | None, updated_model: ModelBook
-) -> None:
-    """Best-effort persistence of learned aliases — never break the pipeline."""
+async def _persist_learned_aliases(owner: str, updated_model: ModelBook) -> None:
+    """Best-effort: merge learned aliases into the model book of the profile that owns it.
+
+    Only the model book is written (phase 1, decision 7): the brand book stays where it
+    lives, and a borrowed or inherited book never spawns a record under the query.
+    """
     try:
-        stored_model = (await get_stored_books(category))[1] or ModelBook()
+        stored_model = (await get_stored_books(owner))[1] or ModelBook()
         merged = merge_model_books(stored_model, updated_model)
-        await save_knowledge(category, book or BrandBook(), merged, CANONICALIZE_MODEL)
+        await save_knowledge(owner, model_book=merged, generated_by=CANONICALIZE_MODEL)
     except Exception as exc:  # noqa: BLE001 - learning is best-effort, never fatal
-        logger.warning("failed to persist learned alias(es) for %r (%r)", category, exc)
+        logger.warning("failed to persist learned alias(es) for %r (%r)", owner, exc)
 
 
 def _learn_aliases(
@@ -631,7 +633,7 @@ def _learn_aliases(
 
 async def canonicalize_used_titles(
     category: str,
-    book: BrandBook | None,
+    owner: str | None,
     model_book: ModelBook | None,
     used: list[Candidate],
     use_llm: bool,
@@ -644,7 +646,8 @@ async def canonicalize_used_titles(
     best-effort persisted below) so the next run resolves it without any LLM
     call. A brand-new canonical suggestion (not among the book's models) is
     returned for *display only* — it is never added as an alias, so it can
-    never be mistaken for a match to a different, existing model.
+    never be mistaken for a match to a different, existing model. Learned aliases are
+    saved to ``owner``, the profile that owns the model book (the query's category if None).
     """
     if model_book is None or not use_llm:
         return model_book, {}
@@ -658,7 +661,7 @@ async def canonicalize_used_titles(
     updated_model_book, display_labels = _learn_aliases(model_book, titles, canonicals)
     if updated_model_book is None:
         return model_book, display_labels
-    await _persist_learned_aliases(category, book, updated_model_book)
+    await _persist_learned_aliases(owner or category, updated_model_book)
     return updated_model_book, display_labels
 
 
@@ -719,9 +722,10 @@ async def used_market(
     book: BrandBook | None,
     model_book: ModelBook | None,
     use_llm: bool,
+    model_owner: str | None = None,
 ) -> list[UsedListing]:
     """OLX listings matching the picks, then notable ones within budget."""
-    knowledge = (book, model_book)
+    knowledge = (book, model_book, model_owner)
     refs = _reference_candidates(recommendation)
     pick = recommendation.best.candidate
     return await _used_listings(refs, pick, used_candidates, constraints, knowledge, use_llm)
@@ -734,13 +738,14 @@ async def used_market_without_pick(
     book: BrandBook | None,
     model_book: ModelBook | None,
     use_llm: bool,
+    model_owner: str | None = None,
 ) -> list[UsedListing]:
     """When no new product passed: OLX listings within budget, matched against ``refs``.
 
     ``refs`` are the new products the hard filters rejected (over budget, say): a used one
     of the same model still shows its saving against them.
     """
-    knowledge = (book, model_book)
+    knowledge = (book, model_book, model_owner)
     listings = await _used_listings(refs, None, used_candidates, constraints, knowledge, use_llm)
     budget = constraints.budget_max
     return [listing for listing in listings if budget is None or listing.price <= budget]
@@ -751,13 +756,13 @@ async def _used_listings(
     pick: Candidate | None,
     used_candidates: list[Candidate],
     constraints: QueryConstraints,
-    knowledge: tuple[BrandBook | None, ModelBook | None],
+    knowledge: tuple[BrandBook | None, ModelBook | None, str | None],
     use_llm: bool,
 ) -> list[UsedListing]:
     """Matched listings, then notable ones; then cheaper no-name ones when there is a pick."""
-    book, model_book = knowledge
+    book, model_book, model_owner = knowledge
     model_book, display_labels = await canonicalize_used_titles(
-        constraints.category, book, model_book, used_candidates, use_llm
+        constraints.category, model_owner, model_book, used_candidates, use_llm
     )
     used_listings = match_used_listings(refs, used_candidates, book, model_book, display_labels)
     matched_keys = {ul.url or ul.title for ul in used_listings}
