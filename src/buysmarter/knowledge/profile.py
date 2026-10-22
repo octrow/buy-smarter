@@ -13,7 +13,7 @@ resolved profile names the owner of each field, so knowledge learned while using
 is saved where the book lives.
 """
 
-from typing import Any, Literal
+from typing import Any, Literal, TypeGuard
 
 from pydantic import BaseModel, Field
 
@@ -88,16 +88,22 @@ class ResolvedProfile(BaseModel):
     def enabled(self, name: str) -> CapabilitySetting | None:
         """The capability's setting when the profile switches it on, else ``None``."""
         setting = self.capabilities.get(name)
-        return setting if setting is not None and setting.enabled else None
+        return setting if _switched_on(setting) else None
+
+
+def _switched_on(setting: CapabilitySetting | None) -> TypeGuard[CapabilitySetting]:
+    return setting is not None and setting.enabled
 
 
 def composition_book(capabilities: dict[str, CapabilitySetting]) -> IngredientBook | None:
-    """The ingredient book of an enabled composition capability."""
+    """The ingredient book of an enabled composition capability.
+
+    No book stored reads as off, as an old composition record without one always did.
+    """
     setting = capabilities.get(COMPOSITION)
-    if setting is None or not setting.enabled:
-        return None
-    raw = setting.params.get(INGREDIENT_KEY)
-    return IngredientBook.model_validate(raw) if raw else IngredientBook()
+    if _switched_on(setting) and (raw := setting.params.get(INGREDIENT_KEY)):
+        return IngredientBook.model_validate(raw)
+    return None
 
 
 def _capabilities(raw: dict[str, Any]) -> dict[str, CapabilitySetting] | None:
@@ -131,21 +137,28 @@ def composition_keys(
 ) -> dict[str, Any]:
     """Record keys for a learned category type: the capability and the old keys (dual write).
 
-    Other stored capabilities are kept; composition is switched on or removed.
+    Other stored capabilities are kept; composition is switched on or removed. A user's
+    own composition choice outranks learning (ADR-0005 precedence): it is kept, and only
+    its ingredient book is refreshed while the user leaves it on.
     """
-    capabilities = {
-        name: value
-        for name, value in (stored.get(CAPABILITIES_KEY) or {}).items()
-        if name != COMPOSITION
+    capabilities = dict(stored.get(CAPABILITIES_KEY) or {})
+    params = {INGREDIENT_KEY: ingredient_book.model_dump(mode="json")} if ingredient_book else {}
+    current = capabilities.pop(COMPOSITION, None)
+    setting = CapabilitySetting.model_validate(current) if current else None
+    if setting is not None and setting.set_by == "user":
+        if setting.enabled:
+            setting = setting.model_copy(update={"params": {**setting.params, **params}})
+    elif category_type == COMPOSITION_DRIVEN:
+        setting = CapabilitySetting(params=params)
+    else:
+        setting = None
+    if setting is not None:
+        capabilities[COMPOSITION] = setting.model_dump(mode="json")
+    composition_on = _switched_on(setting)
+    return {
+        CATEGORY_TYPE_KEY: COMPOSITION_DRIVEN if composition_on else SPEC_DRIVEN,
+        CAPABILITIES_KEY: capabilities,
     }
-    keys: dict[str, Any] = {CATEGORY_TYPE_KEY: category_type}
-    if category_type == COMPOSITION_DRIVEN:
-        params = (
-            {INGREDIENT_KEY: ingredient_book.model_dump(mode="json")} if ingredient_book else {}
-        )
-        capabilities[COMPOSITION] = CapabilitySetting(params=params).model_dump(mode="json")
-    keys[CAPABILITIES_KEY] = capabilities
-    return keys
 
 
 def resolve_fields(

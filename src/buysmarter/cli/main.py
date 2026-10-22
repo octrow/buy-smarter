@@ -33,12 +33,11 @@ from buysmarter.knowledge.generate import (
 )
 from buysmarter.knowledge.ingredients import IngredientBook, merge_ingredient_books
 from buysmarter.knowledge.models_book import ModelBook
+from buysmarter.knowledge.profile import COMPOSITION_DRIVEN, CategoryProfile
 from buysmarter.knowledge.store import (
-    SPEC_DRIVEN,
-    get_stored_books,
+    load_profile,
     merge_brand_books,
     merge_model_books,
-    resolve_composition,
     save_knowledge,
 )
 from buysmarter.llm import keys
@@ -505,26 +504,30 @@ async def _run_learn_file(
     new_brand, new_model, new_type, new_ingredient = await extract_category_knowledge(
         category, notes
     )
-    stored_brand, stored_model = await get_stored_books(category)
-    stored_type, stored_ingredient = await resolve_composition(category, use_llm=False)
+    # The category's own record only: a parent's or a related category's knowledge
+    # must not be copied into this one (phase 1, decision 6).
+    stored = await load_profile(category) or CategoryProfile(slug=category)
+    stored_brand, stored_model = stored.brand_book, stored.model_book
+    stored_ingredient = stored.ingredient_book
     # User's file wins on conflicts → it is the overlay on top of the stored base.
     merged_brand = merge_brand_books(stored_brand or BrandBook(), new_brand)
     merged_model = merge_model_books(stored_model or ModelBook(), new_model)
     merged_ingredient = merge_ingredient_books(
         stored_ingredient or IngredientBook(), new_ingredient
     )
-    # An extraction that found no substances must not downgrade a stored
-    # composition-driven category back to spec-driven.
-    category_type = new_type if new_type != SPEC_DRIVEN else stored_type
+    # An extraction that found no substances neither downgrades a stored composition
+    # category nor writes a type, which would stop the record inheriting its parent's.
+    composition = new_type == COMPOSITION_DRIVEN or stored_ingredient is not None
     await save_knowledge(
         category,
         merged_brand,
         merged_model,
         EXTRACT_KNOWLEDGE_MODEL,
-        category_type=category_type,
-        ingredient_book=merged_ingredient,
+        category_type=COMPOSITION_DRIVEN if composition else None,
+        ingredient_book=merged_ingredient if composition else None,
     )
-    return merged_brand, merged_model, category_type, merged_ingredient
+    shown_type = COMPOSITION_DRIVEN if composition else new_type
+    return merged_brand, merged_model, shown_type, merged_ingredient
 
 
 def _render_refresh(result: CategoryRefresh) -> None:

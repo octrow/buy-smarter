@@ -17,7 +17,8 @@ from pydantic import BaseModel, Field, model_validator
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import IngredientBook
 from buysmarter.knowledge.models_book import ModelBook
-from buysmarter.knowledge.store import COMPOSITION_DRIVEN, SPEC_DRIVEN, save_knowledge
+from buysmarter.knowledge.profile import COMPOSITION_DRIVEN, SPEC_DRIVEN
+from buysmarter.knowledge.store import save_knowledge
 from buysmarter.llm.adapter import generate
 from buysmarter.services.official_stores import verify_store_floors
 

@@ -263,6 +263,12 @@ async def list_category_slugs(session: AsyncSession) -> list[str]:
     return list((await session.execute(stmt)).scalars().all())
 
 
+async def list_category_knowledge(session: AsyncSession) -> dict[str, dict[str, Any]]:
+    """Every stored ``CategoryKnowledge`` schema by slug (related-profile lookup)."""
+    stmt = select(CategoryKnowledge.category, CategoryKnowledge.schema_json)
+    return {slug: schema for slug, schema in (await session.execute(stmt)).all()}
+
+
 async def review_count_history(
     session: AsyncSession, product_id: int
 ) -> list[tuple[datetime, int]]:

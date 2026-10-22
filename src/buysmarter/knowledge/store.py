@@ -7,9 +7,10 @@ LLM-generated ``BrandBook`` + ``ModelBook`` (docs/PLAN.md фаза 4), kept in t
 learned"; writes are best-effort and log a warning. Earlier versions kept one JSON file per
 category under ``$BUYSMARTER_KNOWLEDGE_DIR``; ``import_legacy_dir`` carries them over once.
 
-Resolution (``resolve_books`` / ``get_brand_book`` / ``get_model_book``) prefers a
-stored book, then falls back to the static seed (irrigators keep working offline
-with no DB and no LLM), then ``None``.
+Resolution (``resolve_profile``) reads a record as a category profile
+(``knowledge.profile``): the exact slug, then a profile listing it as a synonym, then a
+Jev/LLM pick among stored profiles; the parent fills missing fields, and missing books
+fall back to the static seed (irrigators keep working offline with no DB and no LLM).
 """
 
 import json
@@ -31,14 +32,16 @@ from buysmarter.knowledge.models_book import ModelBook, ModelEntry
 from buysmarter.knowledge.models_book import get_model_book as _seed_model_book
 from buysmarter.knowledge.profile import (
     BRAND_KEY,
-    CATEGORY_TYPE_KEY,
+    COMPOSITION_DRIVEN,
     INGREDIENT_KEY,
     MODEL_KEY,
     SPEC_DRIVEN,
+    SYNONYMS_KEY,
+    CategoryProfile,
+    ResolvedProfile,
     composition_keys,
-)
-from buysmarter.knowledge.profile import (
-    COMPOSITION_DRIVEN as COMPOSITION_DRIVEN,
+    profile_from_record,
+    resolve_fields,
 )
 from buysmarter.llm.adapter import LlmConfigError, LlmError, generate
 from buysmarter.llm.jev import system_one
@@ -61,10 +64,6 @@ _MAX_CHOICE_OPTIONS = 255
 
 _DEFAULT_DIR = Path.home() / ".config" / "buysmarter" / "knowledge"
 
-_BRAND_KEY = BRAND_KEY
-_MODEL_KEY = MODEL_KEY
-_INGREDIENT_KEY = INGREDIENT_KEY
-_CATEGORY_TYPE_KEY = CATEGORY_TYPE_KEY
 _GENERATED_BY = "generated_by"
 _UPDATED_BY = "updated_by"
 _UPDATED_AT = "updated_at"
@@ -118,15 +117,15 @@ async def save_knowledge(
     """
     updates: dict[str, Any] = {}
     if brand_book is not None:
-        updates[_BRAND_KEY] = brand_book.model_dump(mode="json")
+        updates[BRAND_KEY] = brand_book.model_dump(mode="json")
     if model_book is not None:
-        updates[_MODEL_KEY] = model_book.model_dump(mode="json")
+        updates[MODEL_KEY] = model_book.model_dump(mode="json")
     if ingredient_book is not None:
-        updates[_INGREDIENT_KEY] = ingredient_book.model_dump(mode="json")
+        updates[INGREDIENT_KEY] = ingredient_book.model_dump(mode="json")
     if category_type is not None:
         stored = await load_knowledge(category) or {}
-        if ingredient_book is None and stored.get(_INGREDIENT_KEY):
-            ingredient_book = IngredientBook.model_validate(stored[_INGREDIENT_KEY])
+        if ingredient_book is None and stored.get(INGREDIENT_KEY):
+            ingredient_book = IngredientBook.model_validate(stored[INGREDIENT_KEY])
         updates.update(composition_keys(stored, category_type, ingredient_book))
     await update_knowledge(category, updates, generated_by)
 
@@ -153,44 +152,62 @@ async def get_stored_books(category: str) -> tuple[BrandBook | None, ModelBook |
     raw = await load_knowledge(category)
     if not raw:
         return None, None
-    brand = BrandBook.model_validate(raw[_BRAND_KEY]) if raw.get(_BRAND_KEY) else None
-    model = ModelBook.model_validate(raw[_MODEL_KEY]) if raw.get(_MODEL_KEY) else None
+    brand = BrandBook.model_validate(raw[BRAND_KEY]) if raw.get(BRAND_KEY) else None
+    model = ModelBook.model_validate(raw[MODEL_KEY]) if raw.get(MODEL_KEY) else None
     return brand, model
+
+
+async def load_profile(category: str) -> CategoryProfile | None:
+    """The category's own stored profile, no inheritance and no lookup (``None`` if none)."""
+    raw = await load_knowledge(category)
+    return profile_from_record(_slug(category), raw) if raw is not None else None
+
+
+async def resolve_profile(category: str, *, use_llm: bool = True) -> ResolvedProfile:
+    """The profile a query uses: exact slug, then synonyms, then a Jev/LLM pick, then none.
+
+    No substring matching (``"чай"`` must not find ``"чайник"``). The found profile's
+    parent fills the fields it lacks (one step). Books nothing stored provides fall back
+    to the static seed, owned by the query's slug.
+    """
+    slug = _slug(category)
+    own = await load_profile(category)
+    if own is None:
+        matched = await _find_related(slug, use_llm)
+        if matched is not None:
+            logger.info("knowledge matched: %s -> %s", category, matched)
+            own = await load_profile(matched)
+    parent = await load_profile(own.parent) if own is not None and own.parent else None
+    resolved = resolve_fields(slug, own, parent)
+    return _with_seed_books(resolved, category)
+
+
+def _with_seed_books(resolved: ResolvedProfile, category: str) -> ResolvedProfile:
+    """Fill a missing book from the static seed (irrigators), owned by the query's slug."""
+    updates: dict[str, Any] = {}
+    if resolved.brand_book is None and (brand := _seed_brand_book(category)) is not None:
+        updates.update(brand_book=brand, brand_book_owner=resolved.slug)
+    if resolved.model_book is None and (model := _seed_model_book(category)) is not None:
+        updates.update(model_book=model, model_book_owner=resolved.slug)
+    return resolved.model_copy(update=updates) if updates else resolved
 
 
 async def resolve_composition(
     category: str, *, use_llm: bool = True
 ) -> tuple[str, IngredientBook | None]:
-    """Resolve ``(category_type, ingredient_book)`` for a category.
-
-    Mirrors ``resolve_books``' related-category fallback: an exact stored slug
-    wins; otherwise a broader/related stored category (substring, then one cached
-    LLM call — the same call ``resolve_books`` makes, so it hits cache) supplies
-    the type/ingredients. Defaults to ``(SPEC_DRIVEN, None)`` when nothing is
-    stored, so unknown categories keep the plain spec-driven ranking.
-    """
-    raw = await load_knowledge(category)
-    if raw is None:
-        matched = await _resolve_category_slug(_slug(category), use_llm)
-        if matched is not None:
-            raw = await load_knowledge(matched)
-    if raw is None:
-        return SPEC_DRIVEN, None
-    category_type = raw.get(_CATEGORY_TYPE_KEY, SPEC_DRIVEN)
-    ingredient_book = (
-        IngredientBook.model_validate(raw[_INGREDIENT_KEY]) if raw.get(_INGREDIENT_KEY) else None
-    )
-    return category_type, ingredient_book
+    """``(category_type, ingredient_book)`` of the resolved profile (legacy reading)."""
+    ingredient_book = (await resolve_profile(category, use_llm=use_llm)).ingredient_book
+    return (COMPOSITION_DRIVEN if ingredient_book is not None else SPEC_DRIVEN), ingredient_book
 
 
-async def _list_stored_categories() -> list[str]:
-    """Every stored category slug (``[]`` when the store is off)."""
+async def _stored_records() -> dict[str, dict[str, Any]]:
+    """Every stored record by slug (``{}`` when the store is off)."""
     try:
         async with async_session() as session:
-            return await repo.list_category_slugs(session)
+            return await repo.list_category_knowledge(session)
     except Exception as exc:  # noqa: BLE001 - the store is optional at read time
         logger.warning("Knowledge store unavailable (%r); no stored categories", exc)
-        return []
+        return {}
 
 
 async def import_legacy_dir() -> None:
@@ -220,9 +237,12 @@ async def import_legacy_dir() -> None:
     set_aside(legacy, ".imported")
 
 
-def _substring_match(slug: str, candidates: list[str]) -> str | None:
-    """Trivial no-LLM fallback: a stored slug that contains, or is contained by, ``slug``."""
-    return next((c for c in candidates if slug in c or c in slug), None)
+def _synonym_owner(slug: str, records: dict[str, dict[str, Any]]) -> str | None:
+    """The stored slug that lists ``slug`` among its synonyms."""
+    for owner, raw in records.items():
+        if any(_slug(s) == slug for s in raw.get(SYNONYMS_KEY) or []):
+            return owner
+    return None
 
 
 class _CategoryMatch(BaseModel):
@@ -306,45 +326,26 @@ async def _match_category(category: str, candidates: list[str]) -> str | None:
     return await _match_category_llm(category, candidates)
 
 
-async def _resolve_category_slug(slug: str, use_llm: bool) -> str | None:
-    """Find a stored category slug covering ``slug``: substring first, then LLM."""
-    candidates = [c for c in await _list_stored_categories() if c != slug]
-    if not candidates:
+async def _find_related(slug: str, use_llm: bool) -> str | None:
+    """A stored profile covering ``slug``: one listing ``slug`` as a synonym, else a Jev/LLM pick.
+
+    No substring match: it found "чайник" for "чай" (logic-map finding #15).
+    """
+    records = {s: raw for s, raw in (await _stored_records()).items() if s != slug}
+    if not records:
         return None
-    matched = _substring_match(slug, candidates)
-    if matched is not None:
-        return matched
-    return await _match_category(slug, candidates) if use_llm else None
+    owner = _synonym_owner(slug, records)
+    if owner is not None or not use_llm:
+        return owner
+    return await _match_category(slug, list(records))
 
 
 async def resolve_books(
     category: str, *, use_llm: bool = True
 ) -> tuple[BrandBook | None, ModelBook | None]:
-    """Resolve (brand, model) books: stored first, then static seed, then ``None``.
-
-    When the exact category slug has no stored knowledge, this falls back to
-    matching against other stored categories (substring, then one cached LLM
-    call) so a narrower/related parsed category (e.g. "солнцезащитный крем")
-    finds a broader stored book (e.g. "косметика") instead of surfacing "-"
-    tiers for everything.
-    """
-    brand, model = await get_stored_books(category)
-    if brand is None and model is None:
-        matched = await _resolve_category_slug(_slug(category), use_llm)
-        if matched is not None:
-            logger.info("knowledge matched: %s -> %s", category, matched)
-            brand, model = await get_stored_books(matched)
-    return brand or _seed_brand_book(category), model or _seed_model_book(category)
-
-
-async def get_brand_book(category: str) -> BrandBook | None:
-    """BrandBook for a category: stored first, static seed fallback, else ``None``."""
-    return (await resolve_books(category))[0]
-
-
-async def get_model_book(category: str) -> ModelBook | None:
-    """ModelBook for a category: stored first, static seed fallback, else ``None``."""
-    return (await resolve_books(category))[1]
+    """(brand, model) books of the resolved profile: stored, inherited, related or seed."""
+    resolved = await resolve_profile(category, use_llm=use_llm)
+    return resolved.brand_book, resolved.model_book
 
 
 def merge_brand_books(base: BrandBook, overlay: BrandBook) -> BrandBook:

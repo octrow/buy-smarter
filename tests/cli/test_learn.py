@@ -143,3 +143,37 @@ def test_learn_file_merges_user_notes_over_stored(monkeypatch, tmp_path) -> None
 
     brand, _ = asyncio.run(get_stored_books("робот-пылесос"))
     assert brand.tiers == {"Xiaomi": "B", "Roborock": "A"}  # user file won
+
+
+def test_learn_file_merges_with_the_own_record_not_a_parent(monkeypatch, tmp_path) -> None:
+    """Decision 6: the parent's books and capabilities are not copied into the child."""
+    import asyncio
+
+    from buysmarter.knowledge.store import load_knowledge, save_knowledge, update_knowledge
+
+    asyncio.run(
+        save_knowledge(
+            "косметика",
+            BrandBook(tiers={"CeraVe": "B"}),
+            ModelBook(),
+            "opus",
+            category_type="composition_driven",
+            ingredient_book=IngredientBook(substances=[ActiveSubstance(canonical="адапален")]),
+        )
+    )
+    asyncio.run(update_knowledge("крем-от-акне", {"parent": "косметика"}, "user"))
+
+    async def _fake_extract(category: str, notes: str):
+        return BrandBook(tiers={"Galderma": "A"}), ModelBook(), "spec_driven", IngredientBook()
+
+    monkeypatch.setattr(main, "extract_category_knowledge", _fake_extract)
+    notes = tmp_path / "notes.md"
+    notes.write_text("Galderma", encoding="utf-8")
+
+    result = runner.invoke(main.app, ["learn", str(notes), "--category", "крем от акне"])
+
+    assert result.exit_code == 0, result.output
+    raw = asyncio.run(load_knowledge("крем от акне")) or {}
+    assert raw["brand_book"]["tiers"] == {"Galderma": "A"}  # no CeraVe from the parent
+    assert raw["parent"] == "косметика"
+    assert "capabilities" not in raw and "category_type" not in raw  # still inherits

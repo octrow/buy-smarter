@@ -16,7 +16,7 @@ from buysmarter.knowledge.ingredients import (
     EquivalentProduct,
     IngredientBook,
 )
-from buysmarter.knowledge.store import COMPOSITION_DRIVEN, SPEC_DRIVEN
+from buysmarter.knowledge.profile import COMPOSITION, CapabilitySetting, ResolvedProfile
 from buysmarter.llm.ingredients import DetectedIngredients
 from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services import recommend as svc
@@ -69,10 +69,15 @@ class _StubKaspi:
 
 
 def _patch_composition(monkeypatch, book: IngredientBook) -> None:
-    async def _fake_resolve_composition(category: str, *, use_llm: bool = True):
-        return COMPOSITION_DRIVEN, book
+    params = {"ingredient_book": book.model_dump(mode="json")}
+    profile = ResolvedProfile(
+        slug="крем", capabilities={COMPOSITION: CapabilitySetting(params=params)}
+    )
 
-    monkeypatch.setattr(svc, "resolve_composition", _fake_resolve_composition)
+    async def _fake_resolve_profile(category: str, *, use_llm: bool = True):
+        return profile
+
+    monkeypatch.setattr(svc, "resolve_profile", _fake_resolve_profile)
 
 
 def _patch_extraction(monkeypatch) -> None:
@@ -181,10 +186,6 @@ async def test_empty_pool_raises_no_substance_match(monkeypatch) -> None:
 
 
 async def test_spec_driven_category_has_no_substance_recall(monkeypatch) -> None:
-    async def _spec_driven(category: str, *, use_llm: bool = True):
-        return SPEC_DRIVEN, None
-
-    monkeypatch.setattr(svc, "resolve_composition", _spec_driven)
     stub = _StubKaspi(main=[_rp("x", "Kingston SSD 480GB")], by_query={}, specs_by_id={})
 
     result = await recommend(

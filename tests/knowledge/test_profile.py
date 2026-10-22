@@ -73,6 +73,24 @@ async def test_relearning_as_spec_driven_drops_only_the_composition_capability()
     assert raw["category_type"] == "spec_driven"
 
 
+async def test_a_user_switching_composition_off_survives_relearning() -> None:
+    await store_mod.update_knowledge(
+        "косметика",
+        {"capabilities": {COMPOSITION: {"enabled": False, "params": {}, "set_by": "user"}}},
+        "user",
+    )
+
+    await save_knowledge(
+        "косметика", category_type="composition_driven", ingredient_book=_ingredients()
+    )
+
+    profile = await store_mod.load_profile("косметика")
+    assert profile is not None and profile.capabilities is not None
+    assert profile.capabilities[COMPOSITION].set_by == "user"
+    assert profile.ingredient_book is None
+    assert (await store_mod.load_knowledge("косметика") or {})["category_type"] == "spec_driven"
+
+
 def test_a_field_the_profile_lacks_comes_from_the_parent_with_its_owner() -> None:
     parent_book = ModelBook(entries=[ModelEntry(canonical="Клензит", brand="Glenmark")])
     parent = CategoryProfile(

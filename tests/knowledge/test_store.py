@@ -7,6 +7,7 @@ from buysmarter.db import repo
 from buysmarter.db.base import async_session
 from buysmarter.knowledge import store as store_mod
 from buysmarter.knowledge.brands import IRRIGATOR_BRAND_BOOK, BrandBook
+from buysmarter.knowledge.ingredients import ActiveSubstance, IngredientBook
 from buysmarter.knowledge.models_book import IRRIGATOR_MODEL_BOOK, ModelBook, ModelEntry
 from buysmarter.knowledge.store import (
     get_stored_books,
@@ -64,18 +65,62 @@ async def test_resolution_none_when_no_store_and_no_seed() -> None:
 # --- Related-category matching (fix B: "sunscreen" must find "kosmetika") -
 
 
-async def test_resolution_falls_back_to_substring_match_no_llm(caplog) -> None:
-    """Pure fallback: a stored "косметика" book covers a narrower "крем" query."""
-    brand = BrandBook(tiers={"La Roche-Posay": "A", "CeraVe": "B"}, aliases={})
-    model = ModelBook(entries=[])
-    await save_knowledge("косметика", brand, model, "opus")
+async def test_no_substring_match_tea_does_not_find_kettle() -> None:
+    """Finding #15: "чай" used to borrow "чайник"'s books by plain substring."""
+    await save_knowledge("чайник", BrandBook(tiers={"Tefal": "A"}), ModelBook(), "opus")
+
+    assert await resolve_books("чай", use_llm=False) == (None, None)
+
+
+async def test_a_synonym_finds_its_profile_without_an_llm(caplog) -> None:
+    await _put_raw(
+        "кроссовки",
+        {"brand_book": {"tiers": {"Nike": "A"}}, "synonyms": ["кеды спортивные"]},
+    )
 
     with caplog.at_level("INFO"):
-        got_brand, got_model = await resolve_books("солнцезащитный крем-косметика", use_llm=False)
+        resolved = await store_mod.resolve_profile("кеды спортивные", use_llm=False)
 
-    assert got_brand is not None
-    assert got_brand.tiers == {"La Roche-Posay": "A", "CeraVe": "B"}
+    assert resolved.brand_book is not None and resolved.brand_book.tiers == {"Nike": "A"}
+    assert resolved.brand_book_owner == "кроссовки"
     assert "knowledge matched" in caplog.text
+
+
+async def test_a_related_profile_gives_books_and_capabilities_with_its_owner(monkeypatch) -> None:
+    await save_knowledge(
+        "косметика",
+        BrandBook(tiers={"CeraVe": "B"}),
+        ModelBook(),
+        "opus",
+        category_type="composition_driven",
+        ingredient_book=IngredientBook(substances=[ActiveSubstance(canonical="адапален")]),
+    )
+    monkeypatch.setattr(store_mod, "system_one", _jev_choice("косметика", 0.98))
+
+    resolved = await store_mod.resolve_profile("крем с адапаленом", use_llm=True)
+
+    assert resolved.slug == "крем-с-адапаленом"
+    assert resolved.brand_book_owner == resolved.model_book_owner == "косметика"
+    assert resolved.capabilities_owner == "косметика"
+    assert resolved.ingredient_book is not None
+    assert await store_mod.resolve_composition("крем с адапаленом") == (
+        "composition_driven",
+        resolved.ingredient_book,
+    )
+
+
+async def test_the_parent_fills_what_the_profile_lacks() -> None:
+    model = ModelBook(entries=[ModelEntry(canonical="Клензит", brand="Glenmark")])
+    await save_knowledge("косметика", BrandBook(tiers={"CeraVe": "B"}), model, "opus")
+    await _put_raw(
+        "крем-от-акне", {"brand_book": {"tiers": {"Galderma": "A"}}, "parent": "косметика"}
+    )
+
+    resolved = await store_mod.resolve_profile("крем от акне", use_llm=False)
+
+    assert resolved.brand_book is not None and resolved.brand_book.tiers == {"Galderma": "A"}
+    assert resolved.model_book == model
+    assert resolved.model_book_owner == "косметика"
 
 
 async def test_resolution_matches_via_llm_when_substring_misses(monkeypatch) -> None:

@@ -29,14 +29,9 @@ from buysmarter.db.base import async_session
 from buysmarter.db.repo import (
     get_preference,
 )
-from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import IngredientBook, composition_text
-from buysmarter.knowledge.models_book import ModelBook
-from buysmarter.knowledge.store import (
-    COMPOSITION_DRIVEN,
-    resolve_books,
-    resolve_composition,
-)
+from buysmarter.knowledge.profile import ResolvedProfile
+from buysmarter.knowledge.store import resolve_profile
 from buysmarter.llm.adapter import LlmConfigError, LlmError, current_route
 from buysmarter.llm.ingredients import extract_ingredients
 from buysmarter.llm.prompts import parse_query, parse_query_naive
@@ -332,20 +327,17 @@ def _measured[**P](
     return wrapper
 
 
-async def _resolve_knowledge(
-    category: str, use_llm: bool
-) -> tuple[BrandBook | None, ModelBook | None, IngredientBook | None]:
-    """Brand/model books plus the ingredient book, only for composition-driven categories."""
+async def _resolve_knowledge(category: str, use_llm: bool) -> ResolvedProfile:
+    """The category profile: books, capabilities and who owns them (one lookup)."""
     with stage("knowledge resolve"):
-        book, model_book = await resolve_books(category, use_llm=use_llm)
-        category_type, ingredient_book = await resolve_composition(category, use_llm=use_llm)
-    if book is None and model_book is None:
+        profile = await resolve_profile(category, use_llm=use_llm)
+    if profile.brand_book is None and profile.model_book is None:
         logger.info(
             "no brand knowledge for %r — run `buysmarter learn-category %r` to generate it",
             category,
             category,
         )
-    return book, model_book, ingredient_book if category_type == COMPOSITION_DRIVEN else None
+    return profile
 
 
 def _substance_recall(
@@ -420,7 +412,12 @@ async def recommend(
     requested = sources or ["kaspi"]
     # off the loop: picking Ozon's browser may launch one to probe it
     active = await asyncio.to_thread(resolve_sources, requested, source, ozon_source, olx_source)
-    book, model_book, ingredient_book = await _resolve_knowledge(constraints.category, use_llm)
+    profile = await _resolve_knowledge(constraints.category, use_llm)
+    book, model_book, ingredient_book = (
+        profile.brand_book,
+        profile.model_book,
+        profile.ingredient_book,
+    )
     composition = ingredient_book is not None
     city_id = kaspi_city_id(constraints.city)
     required_substances, substance_plan = _substance_recall(ingredient_book, constraints)
