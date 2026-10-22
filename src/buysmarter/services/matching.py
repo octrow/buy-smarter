@@ -142,10 +142,25 @@ def _title_tokens(title: str) -> set[str]:
     return {t for t in re.findall(r"[\w]+", title.lower()) if len(t) >= _MIN_TOKEN_LEN}
 
 
+# A name word followed by a short number: "iphone 13", "wp-100", "redmi 9". The tokens drop
+# numbers under _MIN_TOKEN_LEN, so without this "iPhone 12" and "iPhone 13" read as the same.
+_NAME_NUMBER = re.compile(r"([^\W\d_]{2,})[\s-]*(\d{1,4})(?![\w/])")
+
+
+def _name_numbers(title: str) -> dict[str, str]:
+    return dict(_NAME_NUMBER.findall(title.lower()))
+
+
+def _model_numbers_conflict(a: str, b: str) -> bool:
+    """Both titles number the same name word, differently ("iPhone 12" vs "iPhone 13")."""
+    na, nb = _name_numbers(a), _name_numbers(b)
+    return any(na[name] != nb[name] for name in na.keys() & nb.keys())
+
+
 def _token_overlap(a: str, b: str) -> float:
-    """Overlap of two titles = |shared tokens| / |smaller token set|."""
+    """Overlap of two titles = |shared tokens| / |smaller token set|; 0 for another model number."""
     ta, tb = _title_tokens(a), _title_tokens(b)
-    if not ta or not tb:
+    if not ta or not tb or _model_numbers_conflict(a, b):
         return 0.0
     return len(ta & tb) / min(len(ta), len(tb))
 
@@ -314,7 +329,10 @@ def _used_ref_matches(
 def _best_new_match(
     u: Candidate, new_refs: list[Candidate], book: BrandBook | None, model_book: ModelBook | None
 ) -> Candidate | None:
-    """The priciest new reference ``u`` matches while being meaningfully cheaper."""
+    """The cheapest new reference ``u`` matches while being meaningfully cheaper.
+
+    The cheapest: a saving against a pricier variant of the same model overstates it.
+    """
     matches = [
         ref
         for ref in new_refs
@@ -322,7 +340,7 @@ def _best_new_match(
         and u.price < _USED_PRICE_RATIO * ref.price
         and _used_ref_matches(ref, u, book, model_book)
     ]
-    return max(matches, key=lambda r: r.price) if matches else None
+    return min(matches, key=lambda r: r.price) if matches else None
 
 
 def match_used_listings(
@@ -337,7 +355,7 @@ def match_used_listings(
     A used listing matches a new reference when both resolve to the same
     canonical model (``ModelBook``, strongest signal) or, failing that, share a
     brand and overlap by title. Among matches priced meaningfully lower, the
-    priciest new reference wins; the saving vs new is rendered along with the
+    cheapest new reference wins; the saving vs new is rendered along with the
     resolved canonical label when available. ``display_labels`` (raw OLX title
     -> LLM-suggested "Brand Model" label, from ``canonicalize_titles``) covers
     titles ``ModelBook`` still can't resolve — display only, never a match
@@ -387,6 +405,8 @@ def _notable_tier(
     if u.price <= 0 or u.price > budget:
         return None
     if not matches_category_or_stripped(u.title, category, book):
+        return None
+    if _model_numbers_conflict(category, u.title):  # "iPhone 12" for "смартфон iPhone 13"
         return None
     if (u.url or u.title) in exclude:
         return None

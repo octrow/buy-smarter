@@ -1712,3 +1712,47 @@ async def test_too_few_olx_ads_for_a_median_keep_every_price() -> None:
     kept = await _filter_used(_ads(120_000, 125_000, 130_000, 35_000), constraints, use_llm=False)
 
     assert len(kept) == 4
+
+
+# --- Model numbers and the honest saving ------------------------------------------
+
+
+def test_a_used_ad_for_another_model_number_is_not_matched() -> None:
+    new_13 = _cand("kaspi", "k1", "Смартфон Apple iPhone 13 128Gb Dual Sim синий", "Apple", 373000)
+    used_12 = _cand("olx", "u1", "Apple iPhone 12", "Apple", 130000)
+    used_13 = _cand("olx", "u2", "iPhone 13 128GB Б/У", "Apple", 125000)
+
+    listings = match_used_listings([new_13], [used_12, used_13], None)
+
+    assert [listing.title for listing in listings] == ["iPhone 13 128GB Б/У"]
+
+
+def test_a_new_listing_for_another_model_number_is_not_merged() -> None:
+    a = _cand("kaspi", "k1", "Apple iPhone 12 128Gb черный", "Apple", 300000)
+    b = _cand("ozon", "o1", "Apple iPhone 13 128Gb черный", "Apple", 370000)
+
+    kept, _ = dedupe_cross_source([a, b])
+
+    assert len(kept) == 2
+
+
+def test_the_saving_is_counted_against_the_cheapest_matching_new_one() -> None:
+    cheap = _cand("kaspi", "k1", "Смартфон Apple iPhone 13 128Gb NanoSIM черный", "Apple", 373000)
+    dear = _cand("kaspi", "k2", "Смартфон Apple iPhone 13 128Gb Dual Sim синий", "Apple", 529990)
+    used = _cand("olx", "u1", "iPhone 13 128GB Б/У", "Apple", 125000)
+
+    [listing] = match_used_listings([cheap, dear], [used], None)
+
+    assert (listing.new_price, listing.saving) == (373000, 248000)
+
+
+def test_a_notable_ad_for_another_model_than_the_query_names_is_left_out() -> None:
+    book = BrandBook(tiers={"Apple": "A"}, aliases={})
+    used_12 = _cand("olx", "u1", "Apple iPhone 12", "Apple", 130000)
+    used_13 = _cand("olx", "u2", "Apple iPhone 13", "Apple", 196000)
+
+    listings = notable_used_listings(
+        [used_12, used_13], book, budget=250000, exclude=set(), category="смартфон iPhone 13"
+    )
+
+    assert [listing.title for listing in listings] == ["Apple iPhone 13"]
