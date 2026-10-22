@@ -164,3 +164,26 @@ async def test_the_llm_answer_is_returned_as_plain_constraints(monkeypatch) -> N
 
     assert type(parsed) is QueryConstraints
     assert parsed.intent == "service"
+
+
+async def test_the_rule_based_budget_fills_a_budget_the_llm_missed(monkeypatch) -> None:
+    """Live 2026-10-22: the LLM ignored «до 50 штук» and no-name sneakers at 3 000 ₸ won."""
+
+    async def _fake_generate(prompt, response_model, *, model=None, **kwargs):
+        return response_model.model_validate({"intent": "product", "search_phrase": "кроссовки"})
+
+    monkeypatch.setattr(prompts, "generate", _fake_generate)
+
+    assert (await prompts.parse_query("кроссовки до 50 штук")).budget_max == 50_000
+    assert (await prompts.parse_query("айфон до 500$")).budget_note is not None
+    assert (await prompts.parse_query("ноутбук 30-40 тыс")).budget_min == 30_000
+
+
+async def test_the_llm_budget_is_kept_when_it_has_one(monkeypatch) -> None:
+    async def _fake_generate(prompt, response_model, *, model=None, **kwargs):
+        answer = {"intent": "product", "search_phrase": "кроссовки", "budget_max": 45_000}
+        return response_model.model_validate(answer)
+
+    monkeypatch.setattr(prompts, "generate", _fake_generate)
+
+    assert (await prompts.parse_query("кроссовки до 50 штук")).budget_max == 45_000

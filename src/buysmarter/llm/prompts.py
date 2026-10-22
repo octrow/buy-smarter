@@ -137,12 +137,24 @@ class ParsedQuery(QueryConstraints):
 
 
 async def parse_query(user_query: str) -> QueryConstraints:
-    """LLM-backed parse of ``user_query``; an empty product type falls back to the naive one."""
+    """LLM-backed parse of ``user_query``; the naive rules fill what the LLM left out.
+
+    An empty product type becomes the naive one; no budget and no budget note from the LLM
+    means the deterministic budget rules decide (``llm.budget``: units are never money).
+    """
     answer = await generate(parse_query_prompt(user_query), ParsedQuery, model=QUERY_PARSE_MODEL)
     result = QueryConstraints.model_validate(answer.model_dump())
-    if result.product_type.strip():
-        return result
-    return result.model_copy(update={"product_type": bare_product_type(result.search_phrase)})
+    updates: dict[str, object] = {}
+    if not result.product_type.strip():
+        updates["product_type"] = bare_product_type(result.search_phrase)
+    if result.budget_max is None and result.budget_note is None:
+        budget = parse_budget(user_query)
+        updates.update(
+            budget_max=budget.budget_max,
+            budget_min=budget.budget_min,
+            budget_note=budget.budget_note,
+        )
+    return result.model_copy(update=updates) if updates else result
 
 
 def _condition(query: str) -> str | None:
