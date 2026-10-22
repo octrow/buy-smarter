@@ -40,6 +40,14 @@ _Avoid_: banned, forbidden
 What kind of request the user made, decided before any search. **Product**: names the goods ("мужские кроссовки 42"). **Need**: names a problem the goods solve ("шампунь от перхоти"); the need is passed on to capabilities. **Open**: names no goods ("подарок для мамы") and needs a clarification. **Multi**: names several goods to compare or buy together ("iPhone 15 или S24", "всё для новорождённого"); in v1 the user picks one to start with. **Service**: asks for a service, not goods ("ремонт телефона"); no search. **Unclear**: cannot be read; the user is asked to rephrase. Whether the goods are a restricted category is a separate flag, not an intent.
 _Avoid_: query type, mode
 
+**Clarification**:
+A question asked before any search when the request is ambiguous (open, a need several product types solve, several products named, a service, an unreadable query, or a capability missing a parameter), with ready answers to pick from. At most two rounds; on the last one the first option is searched and the answer says what was assumed. Never asked for a request that can be searched as is.
+_Avoid_: follow-up, dialog
+
+**Search phrase**:
+The words actually sent to the marketplaces ("мужские кроссовки", "крем с адапаленом"): the product type plus the audience, model, substance or theme the user named. Substances and relevance are read from it.
+_Avoid_: category (the old field name), query (that is the user's whole text)
+
 **Product type**:
 The short canonical name of the goods a query is about ("кроссовки", "шампунь", "зарядка"), without audience, size, compatibility or theme, which belong to the request. It is the key of a category profile. The words actually sent to the marketplaces are the search phrase, which may carry more.
 _Avoid_: category string, search query

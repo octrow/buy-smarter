@@ -4,6 +4,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Added
+- Request understanding (ADR-0005, phase 2): the parse returns the request intent (product, need, open, multi,
+  service, unclear), the search phrase, the product type, options, a restricted flag and the condition. An ambiguous
+  request gets a question instead of a ranking, at most two rounds; on the last one the first option is searched
+  and the report says "Искал: …". The CLI asks on a terminal before the budget question (exit code 3 off a
+  terminal, `--no-clarify` never asks), the desktop app shows a card with option buttons and an own-answer field,
+  MCP and the HTTP API take `answer`, `clarify_round` and `no_clarify`.
+- Restricted goods (alcohol, tobacco and vapes, weapons; prescription medicines with an LLM) are searched with a
+  warning on the first line of the report, never refused. Without an LLM a whole-word list flags them.
+- The budget range ("30-40 тыс") and a note for a budget in another currency are shown in the report; "б/у" in a
+  query adds a pointer to the OLX section.
+
 ## [0.7.0] - 2026-10-23
 
 ### Changed
@@ -12,6 +24,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   answer: the review stage took 23 s on a live run. `ReviewSummary.negative_share_estimate`, read nowhere, is gone.
 - `learn` reads long notes in chunks of 10 list items, each headed by the notes' intro, and merges the answers: notes
   listing ~30 phone models no longer get a cut-off LLM answer. Short notes are still one call with the same prompt.
+- The category profile is keyed by the product type: «мужские кроссовки 42» and «кроссовки» use one profile. An old
+  record keyed by the whole phrase moves under the product type on first use when they differ only by audience or
+  size words (logged as `knowledge renamed`); a narrower record such as «шампунь-от-перхоти» is used as is.
+- HTTP API: `result.constraints` is now a public `ParsedRequest` with the new parse fields; `category` stays as a
+  deprecated copy of `search_phrase`. A clarification is `no_match` with `reason: "needs_clarification"` and
+  `result.clarification`; the three terminal statuses are unchanged. Results stored before this change still load.
+- `QueryConstraints.category` is gone; read `search_phrase` (what is searched) or `product_type` (the profile key).
+
+### Fixed
+- The budget no longer reads units as money: «до 2 м», «до 1.8 м», «до 5000 МЕ», «телевизор 4K» have no budget,
+  «до 15000 3 упаковки» is 15 000 (was 150 003), «до 50 штук» is 50 000 and «штук» no longer stays in the search.
 
 ## [0.6.1] - 2026-10-23
 

@@ -400,6 +400,7 @@ Short list; details and fixes are in the plan (number in brackets).
 - A query for an unknown category does not learn it (#1).
 - Capabilities are switched on by stored profiles and fallback rules; no Jev classifier or learning on first query yet (#2, phase 3).
 - MCP and the HTTP API run without LLM by default (#4).
+- Without an LLM there is no intent detection: only an unreadable query and capabilities ask, so MCP and the API (no LLM by default) search "подарок для мамы" as it is (phase 2).
 - Kaspi search has no budget cap (#5).
 - `refresh` collects without category knowledge (#6).
 - After review penalties a new best pick may have no summary (#14).

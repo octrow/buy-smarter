@@ -183,6 +183,18 @@ In the used section, defects the seller admits to in the ad text (cracks, "doesn
 battery, past repairs) are listed under Con, and ads sold for parts are dropped.
 Ranking also discounts reviews of unknown brands and penalizes suspiciously low prices.
 
+**Request understanding.** Before any search the request is read for what kind of request it is. An ambiguous one
+gets a question instead of a ranking: "подарок для мамы" asks what to look for, "iPhone 15 или S24" asks which one
+to start with, "ремонт телефона" says it is a service, "аыавыа" asks to rephrase. On a terminal you pick a number or
+type your own answer; at most two rounds, then the first option is searched and the report says so ("Искал: …").
+`--no-clarify` never asks. Restricted goods (alcohol, tobacco and vapes, weapons, prescription medicines with an
+LLM) are searched with a warning on the first line, never refused. Budgets are read by rules that never take a unit
+for money: "до 50 штук" is 50 000 ₸, "до 2 м" or "4K" is no budget, "$500" adds a note instead.
+
+Exit codes of `recommend`: `0` a recommendation (or OLX ads when no new product fits), `1` nothing to recommend
+(including "nothing to search" after the last clarification round), `2` a marketplace request failed, `3` the request
+needs a clarification and stdin is not a terminal (the question is printed).
+
 ## LLM: models and cache
 
 All LLM calls go through [claude-cli](https://github.com/octrow/claude-cli): an OmniRoute gateway when one is
@@ -223,7 +235,7 @@ uv run python -m buysmarter.mcp_server   # blocks on stdio; normally the client 
 
 | Tool | Purpose |
 |---|---|
-| `recommend` | Full pipeline → markdown report (best pick with axes, alternatives, top N, OLX used). Parameters: `query`, `city`, `budget`, `sources`, `trusted_only`, `top`, `parse_with_llm` (default `False`: Claude parses the request itself). |
+| `recommend` | Full pipeline → markdown report (best pick with axes, alternatives, top N, OLX used). Parameters: `query`, `city`, `budget`, `sources`, `trusted_only`, `top`, `parse_with_llm` (default `False`: Claude parses the request itself), `answer`, `clarify_round`, `no_clarify`. An ambiguous request returns a question with options: ask the human and call again with `answer` and the `clarify_round` it names. |
 | `search_products` | Raw search on one marketplace, no ranking (title, price, rating, url). |
 | `compare` | 2–4 comma-separated products → side-by-side specs (Kaspi). |
 | `get_preferences` / `set_preference` | Read/write preferences (city, budget…) in the local store. |
@@ -244,6 +256,11 @@ curl -s 'localhost:8000/history?q=wp-100'
 
 - Statuses: `queued` → `running` → `done`, `no_match` (no product has the required substance, or nothing passed the
   filters) or `failed` (`timeout`, `internal`). Jobs are kept for 24 hours.
+- A request that needs a clarification ends as `no_match` with `result.reason = "needs_clarification"` and
+  `result.clarification` (`kind`, `question`, `options`, `round`, `restricted_note`). Ask the user and post the
+  request again with `answer` (an option or their own words) and `clarify_round` = `round` + 1 (at most 2);
+  `no_clarify: true` searches the first option instead. `result.constraints` shows the parse (`intent`,
+  `search_phrase`, `product_type`, ...); its `category` is a deprecated copy of `search_phrase`.
 - A `no_match` where no new product passed the filters has `result.rejected_reasons` (reason → count) and
   `result.used_listings` (the OLX ads within the budget, possibly empty); `report_markdown` shows both.
 - The same request within 15 minutes returns the same job (200). Each client may start 10 new jobs per 10 minutes,
