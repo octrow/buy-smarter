@@ -8,6 +8,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - A brand after a compatibility word is the device the item fits, not its maker: «Чехол для Apple iPhone 15»,
   «Ремешок на Apple Watch» and «Кабель к iPhone 15 Pro» are no longer flagged «возможная подделка под Apple», and a
   case with no brand field no longer borrows Apple's trust tier from its title.
+- OLX: when both relevance classifiers (Jev and the fallback LLM) fail, only ads naming the queried model stay;
+  the used section no longer fills with every ad the search returned.
+- Candidates kept for a confirmed substance count towards the relevance floor, so five matching gels no longer bring
+  back three dropped accessories.
+- Dedupe merges only across marketplaces: two Kaspi cards, or two items of one official store («Puma RS-X» and
+  «Puma Smash»), are no longer merged into one candidate. «Galaxy S24» and «S24 Ultra», «Note 13 Pro» and
+  «Note 13 Pro+» no longer merge either.
 - OLX: a model the LLM names for an ad is dropped when its model number, line or storage contradicts the ad's title
   (every «iPhone 13» ad was once named «Apple iPhone 17 Pro Max»), so such a name is never learned as an alias nor
   shown.

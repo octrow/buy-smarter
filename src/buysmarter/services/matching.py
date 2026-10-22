@@ -181,18 +181,19 @@ def _storage_gb(title: str) -> int | None:
     return max(sizes, default=None)
 
 
-# Line words that make another model of the same number: "iPhone 13 Pro" is not "iPhone 13".
+# Line words that make another model: "iPhone 13 Pro" is not "iPhone 13", "S24 Ultra" not "S24".
 _LINE_WORDS = frozenset({"pro", "max", "mini", "plus", "ultra", "lite"})
+_GLUED_PLUS = re.compile(r"(?<=\w)\+")  # "Pro+", "S24+" read as "plus"
 
 
 def _line_words(title: str) -> set[str]:
-    return set(re.findall(r"[a-z]+", title.lower())) & _LINE_WORDS
+    words = re.findall(r"[a-z]+", _GLUED_PLUS.sub(" plus", title.lower()))
+    return set(words) & _LINE_WORDS
 
 
 def _lines_conflict(a: str, b: str) -> bool:
-    """Same numbered model ("iphone 13" in both), different line ("Pro Max" vs none)."""
-    shared_model = _name_numbers(a).items() & _name_numbers(b).items()
-    return bool(shared_model) and _line_words(a) != _line_words(b)
+    """Different line words ("Pro Max" vs none): another model, numbered or not ("S24")."""
+    return _line_words(a) != _line_words(b)
 
 
 def _variants_conflict(a: str, b: str) -> bool:
@@ -284,8 +285,9 @@ def dedupe_cross_source(
 ) -> tuple[list[Candidate], dict[tuple[str, str], CrossSourceNote]]:
     """Merge same-product listings across sources, keeping the cheaper one.
 
-    Two candidates are "the same product" when they resolve to the same
-    canonical model (``ModelBook``, strongest signal) or, failing that, share a
+    Only across sources: a listing never joins a group that already holds one from its
+    source (two Kaspi cards stay two). Two candidates are "the same product" when they
+    resolve to the same canonical model (``ModelBook``, strongest signal) or, failing that, share a
     (known) brand and overlap heavily by title. The cheaper survives; a note
     pointing at the PRICIEST listing ever seen in the group is recorded per
     kept candidate; at a large enough gap ``apply_cross_notes`` turns it into a
@@ -309,6 +311,9 @@ def dedupe_cross_source(
     ``dup_price_gap`` on it, computed fresh from the running max each merge.
     """
     kept: list[Candidate] = []
+    # Per-cluster (kept-list index): every source already in the group. Two cards inside one
+    # source are two products (Kaspi groups sellers under one card), so a source joins once.
+    group_sources: list[set[str]] = []
     # Per-cluster (kept-list index): the highest-priced "pricier" LOSER of any
     # merge this cluster has produced so far — used both for the gap ratio and
     # for the note's "также на <source> за <price>" wording (the group's true
@@ -317,11 +322,18 @@ def dedupe_cross_source(
     notes: dict[tuple[str, str], CrossSourceNote] = {}
     for cand in candidates:
         dup_idx = next(
-            (i for i, k in enumerate(kept) if _is_same_product(cand, k, model_book)), None
+            (
+                i
+                for i, k in enumerate(kept)
+                if cand.source not in group_sources[i] and _is_same_product(cand, k, model_book)
+            ),
+            None,
         )
         if dup_idx is None:
             kept.append(cand)
+            group_sources.append({cand.source})
             continue
+        group_sources[dup_idx].add(cand.source)
         dup = kept[dup_idx]
         cheaper, survivor_identity_changed, priciest, display_gap = _merge_pair(
             cand, dup, priciest_seen.get(dup_idx)

@@ -1,5 +1,6 @@
 """Tests for wiring the category-relevance filter into the recommend pipeline."""
 
+from buysmarter.llm import relevance as rel
 from buysmarter.ranking.models import Candidate
 from buysmarter.services import recommend as svc
 
@@ -22,7 +23,7 @@ async def test_heuristic_runs_without_llm() -> None:
 
 
 async def test_llm_pass_drops_flagged_candidates(monkeypatch) -> None:
-    async def _fake_filter(category, titles, keep_threshold=0.25):
+    async def _fake_filter(category, titles, keep_threshold=0.25, **_):
         # Drop the second surviving candidate.
         return [t != "Батарея-пылесос noname" for t in titles]
 
@@ -42,7 +43,7 @@ async def test_llm_pass_drops_flagged_candidates(monkeypatch) -> None:
 async def test_llm_pass_skipped_when_pool_small(monkeypatch) -> None:
     called = False
 
-    async def _fake_filter(category, titles, keep_threshold=0.25):
+    async def _fake_filter(category, titles, keep_threshold=0.25, **_):
         nonlocal called
         called = True
         return [True] * len(titles)
@@ -55,7 +56,7 @@ async def test_llm_pass_skipped_when_pool_small(monkeypatch) -> None:
 
 
 async def test_never_drops_below_three(monkeypatch) -> None:
-    async def _drop_all(category, titles, keep_threshold=0.25):
+    async def _drop_all(category, titles, keep_threshold=0.25, **_):
         return [False] * len(titles)
 
     monkeypatch.setattr(svc, "filter_relevant", _drop_all)
@@ -86,7 +87,7 @@ async def test_a_title_restored_to_meet_the_floor_is_logged(caplog) -> None:
 
 
 async def test_a_title_naming_the_queried_model_skips_the_llm_pass(monkeypatch) -> None:
-    async def _drop_all(category, titles, keep_threshold=0.25):
+    async def _drop_all(category, titles, keep_threshold=0.25, **_):
         return [False] * len(titles)
 
     monkeypatch.setattr(svc, "filter_relevant", _drop_all)
@@ -103,3 +104,33 @@ async def test_a_title_naming_the_queried_model_skips_the_llm_pass(monkeypatch) 
         pool, "смартфон iPhone 13", use_llm=True, min_keep=1
     )
     assert [c.source_product_id for c in kept] == ["1", "2", "3"]
+
+
+async def test_used_filter_keeps_only_model_titles_when_every_classifier_fails(monkeypatch) -> None:
+    # No floor for OLX ads: an empty section beats a wrong one (#16).
+    async def _down(prompt, response_model, *, model=None, **kwargs):
+        raise rel.LlmError("cli down")
+
+    monkeypatch.setattr(rel, "generate", _down)
+    ads = [_cand("1", "iPhone 13 128 GB midnight"), _cand("2", "Смартфон Samsung Galaxy A15")]
+
+    kept = await svc._filter_relevant_candidates(
+        ads, "смартфон iPhone 13", use_llm=True, min_keep=0
+    )
+
+    assert [c.title for c in kept] == ["iPhone 13 128 GB midnight"]
+
+
+async def test_protected_candidates_count_towards_the_floor() -> None:
+    # Five substance-confirmed gels already meet the floor: no accessory comes back (#17).
+    gels = [_cand(str(i), f"Гель Клензит {i}") for i in range(5)]
+    accessories = [_cand("a", "Аккумулятор для Dyson V8"), _cand("b", "Аккумулятор для Dyson V10")]
+
+    kept = await svc._filter_relevant_candidates(
+        gels + accessories,
+        "пылесос",
+        use_llm=False,
+        protected_ids={c.source_product_id for c in gels},
+    )
+
+    assert kept == gels

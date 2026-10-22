@@ -187,34 +187,44 @@ def filter_relevant_prompt(category: str, titles: list[str]) -> str:
     )
 
 
-async def _filter_relevant_llm(category: str, titles: list[str]) -> list[bool]:
-    """The previous LLM pass: one batched, cached call; fail-open to all-True."""
+async def _filter_relevant_llm(category: str, titles: list[str], fail_open: bool) -> list[bool]:
+    """The previous LLM pass: one batched, cached call; on failure all get ``fail_open``."""
     try:
         result = await generate(
             filter_relevant_prompt(category, titles), RelevanceResult, model=RELEVANCE_MODEL
         )
     except (LlmError, LlmConfigError) as exc:
-        logger.warning("relevance LLM call failed (%r); keeping all %d titles", exc, len(titles))
-        return [True] * len(titles)
+        logger.warning(
+            "relevance LLM call failed (%r); %s all %d titles",
+            exc,
+            "keeping" if fail_open else "dropping",
+            len(titles),
+        )
+        return [fail_open] * len(titles)
     indices = {i for i in result.relevant_indices}  # type: ignore[attr-defined]
     if any(i < 0 or i >= len(titles) for i in indices):
         logger.warning(
-            "relevance LLM returned out-of-range indices %s for %d titles; keeping all",
+            "relevance LLM returned out-of-range indices %s for %d titles; %s all",
             sorted(indices),
             len(titles),
+            "keeping" if fail_open else "dropping",
         )
-        return [True] * len(titles)
+        return [fail_open] * len(titles)
     return [i in indices for i in range(len(titles))]
 
 
 async def filter_relevant(
-    category: str, titles: list[str], keep_threshold: float = KEEP_THRESHOLD
+    category: str,
+    titles: list[str],
+    keep_threshold: float = KEEP_THRESHOLD,
+    fail_open: bool = True,
 ) -> list[bool]:
     """Classify each title as a real product of ``category`` (True) or not.
 
     One Jev request, all questions answered in parallel over the same state.
-    Any Jev failure falls back to the LLM pass, itself fail-open, so a
-    classifier hiccup never drops legitimate products.
+    Any Jev failure falls back to the LLM pass. When that fails too, every title
+    gets ``fail_open``: kept for a pool with a floor, dropped for OLX ads, where an
+    empty section beats a wrong one.
     """
     if not titles:
         return []
@@ -226,7 +236,7 @@ async def filter_relevant(
         flags = [score >= keep_threshold for score in scores]
     except (LlmError, LlmConfigError, KeyError, TypeError) as exc:
         logger.warning("relevance Jev call failed (%r); falling back to the LLM", exc)
-        return await _filter_relevant_llm(category, titles)
+        return await _filter_relevant_llm(category, titles, fail_open)
     _log_scores(category, titles, scores, keep_threshold)
     return flags
 

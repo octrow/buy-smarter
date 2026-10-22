@@ -584,14 +584,14 @@ def test_dedupe_cross_source_keeps_cheaper_and_notes_other() -> None:
 
 def test_dedupe_cross_source_sets_dup_price_gap_on_big_gap() -> None:
     cheap = _cand("kaspi", "k1", "Vivo TWS Air 3 наушники", "Vivo", 3_208)
-    pricier = _cand("kaspi", "k2", "Vivo TWS Air 3 наушники", "Vivo", 11_186)
+    pricier = _cand("ozon", "o1", "Vivo TWS Air 3 наушники", "Vivo", 11_186)
 
     kept, notes = dedupe_cross_source([cheap, pricier])
 
     assert len(kept) == 1
     assert kept[0].price == 3_208
     assert kept[0].dup_price_gap == pytest.approx(11_186 / 3_208)
-    assert notes[("kaspi", "k1")].text.startswith("также на kaspi")
+    assert notes[("kaspi", "k1")].text.startswith("также на ozon")
     assert notes[("kaspi", "k1")].gap == pytest.approx(11_186 / 3_208)
 
 
@@ -609,7 +609,7 @@ def test_dedupe_cross_source_does_not_mutate_input_candidates() -> None:
     """M2: dedupe_cross_source is pure — the surviving candidate is a fresh
     copy when a dup_price_gap needs recording; the originals are untouched."""
     cheap = _cand("kaspi", "k1", "Vivo TWS Air 3 наушники", "Vivo", 3_208)
-    pricier = _cand("kaspi", "k2", "Vivo TWS Air 3 наушники", "Vivo", 11_186)
+    pricier = _cand("ozon", "o1", "Vivo TWS Air 3 наушники", "Vivo", 11_186)
 
     kept, _notes = dedupe_cross_source([cheap, pricier])
 
@@ -1800,6 +1800,56 @@ def test_new_listings_with_different_storage_are_not_merged() -> None:
     kept, _ = dedupe_cross_source([a, b])
 
     assert len(kept) == 2
+
+
+def test_a_line_variant_without_a_spaced_model_number_is_not_merged() -> None:
+    plain = _cand("kaspi", "k1", "Samsung Galaxy S24 8/256Gb черный", "Samsung", 400000)
+    ultra = _cand("ozon", "o1", "Samsung Galaxy S24 Ultra 8/256Gb черный", "Samsung", 600000)
+
+    kept, _ = dedupe_cross_source([plain, ultra])
+
+    assert len(kept) == 2
+
+
+def test_a_pro_and_its_plus_are_not_merged() -> None:
+    plain = _cand("kaspi", "k1", "Xiaomi Redmi Note 13 8/256Gb черный", "Xiaomi", 110000)
+    pro = _cand("ozon", "o1", "Xiaomi Redmi Note 13 Pro 8/256Gb черный", "Xiaomi", 150000)
+    pro_plus = _cand("ozon", "o2", "Xiaomi Redmi Note 13 Pro+ 8/256Gb черный", "Xiaomi", 190000)
+
+    kept, _ = dedupe_cross_source([plain, pro, pro_plus])
+
+    assert len(kept) == 3
+
+
+def test_two_cards_inside_one_source_are_not_merged() -> None:
+    first = _cand("kaspi", "k1", "Vivo TWS Air 3 наушники", "Vivo", 3_208)
+    second = _cand("kaspi", "k2", "Vivo TWS Air 3 наушники", "Vivo", 11_186)
+
+    kept, notes = dedupe_cross_source([first, second])
+
+    assert [c.source_product_id for c in kept] == ["k1", "k2"]
+    assert all(c.dup_price_gap is None for c in kept)
+    assert notes == {}
+
+
+def test_a_second_card_from_a_source_already_in_the_group_is_not_merged() -> None:
+    kaspi = _cand("kaspi", "k1", "Waterpik WP-100 ирригатор", "Waterpik", 30000)
+    ozon = _cand("ozon", "o1", "Waterpik WP-100 ирригатор", "Waterpik", 25000)
+    kaspi_again = _cand("kaspi", "k2", "Waterpik WP-100 ирригатор", "Waterpik", 28000)
+
+    kept, _ = dedupe_cross_source([kaspi, ozon, kaspi_again])
+
+    assert sorted(c.source_product_id for c in kept) == ["k2", "o1"]
+
+
+def test_an_official_store_item_still_merges_with_its_kaspi_card() -> None:
+    kaspi = _cand("kaspi", "k1", "Waterpik WP-100 ирригатор", "Waterpik", 30000)
+    official = _cand("official", "s1", "Waterpik WP-100 ирригатор", "Waterpik", 32000)
+
+    kept, notes = dedupe_cross_source([kaspi, official])
+
+    assert [c.source for c in kept] == ["kaspi"]
+    assert notes[("kaspi", "k1")].text.startswith("также на official")
 
 
 def test_a_used_pro_is_not_matched_to_the_plain_model() -> None:

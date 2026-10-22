@@ -502,7 +502,10 @@ def _accessory_drops(
 
 
 async def _llm_drops(
-    candidates: list[Candidate], category: str, keep_threshold: float = KEEP_THRESHOLD
+    candidates: list[Candidate],
+    category: str,
+    keep_threshold: float = KEEP_THRESHOLD,
+    fail_open: bool = True,
 ) -> tuple[list[Candidate], list[Drop]]:
     """LLM pass: classify surviving candidates, split into kept + dropped.
 
@@ -513,7 +516,9 @@ async def _llm_drops(
     """
     named = [c for c in candidates if names_query_model(category, c.title)]
     rest = [c for c in candidates if not names_query_model(category, c.title)]
-    flags = await filter_relevant(category, [c.title for c in rest], keep_threshold)
+    flags = await filter_relevant(
+        category, [c.title for c in rest], keep_threshold, fail_open=fail_open
+    )
     kept = named + [c for c, keep in zip(rest, flags, strict=True) if keep]
     dropped = [(c, _LLM_DROP_REASON) for c, keep in zip(rest, flags, strict=True) if not keep]
     for cand, _ in dropped:
@@ -569,7 +574,9 @@ async def _filter_relevant_candidates(
     """Drop accessories/non-products before ranking; never below the floor.
 
     Heuristic always runs; the LLM pass runs only with ``use_llm`` and a pool
-    still larger than the floor (nothing to gain otherwise). Fully fail-open.
+    still larger than the floor (nothing to gain otherwise). Fail-open with a floor;
+    without one (OLX ads) a classifier outage keeps only titles naming the model.
+    Protected candidates count towards the floor.
 
     ``protected_ids`` (source_product_ids of substance-confirmed candidates in
     composition-driven categories) bypass both passes: an adapalene gel proven
@@ -580,9 +587,10 @@ async def _filter_relevant_candidates(
     protected = [c for c in candidates if c.source_product_id in protected_ids]
     rest = [c for c in candidates if c.source_product_id not in protected_ids]
     kept, dropped = _accessory_drops(rest, category)
-    if use_llm and len(kept) > min_keep:
-        kept, llm_dropped = await _llm_drops(kept, category, keep_threshold)
+    floor = max(0, min_keep - len(protected))
+    if use_llm and len(kept) > floor:
+        kept, llm_dropped = await _llm_drops(kept, category, keep_threshold, fail_open=min_keep > 0)
         dropped.extend(llm_dropped)
-    pool, restored = _restore_min(kept, dropped, min_keep)
+    pool, restored = _restore_min(kept, dropped, floor)
     _log_drop_summary(dropped, restored, len(pool))
     return protected + pool

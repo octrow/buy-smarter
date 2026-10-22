@@ -215,8 +215,8 @@ Module: `services/collect`, `ranking/velocity`, `db/repo`
 Decides: which candidates are the product at all (drops a battery in a robot-vacuum search).
 1. Protected: candidates a capability's `relevance` hook names skip the filter (composition: a title naming a required substance).
 2. Heuristic: accessory markers in the title → drop.
-3. LLM pass (only with LLM and more than 3 left): Jev scores each title; below 0.25 → drop. If Jev fails, a fallback LLM returns a plain keep list with no threshold; if that fails too, everything stays.
-4. Floor: if fewer than 3 remain, the best-rated dropped ones come back. Protected candidates are not counted toward the floor.
+3. LLM pass (only with LLM and more left than the floor still needs): Jev scores each title; below 0.25 → drop. If Jev fails, a fallback LLM returns a plain keep list with no threshold; if that fails too, everything stays.
+4. Floor: if fewer than 3 remain, protected ones included, the best-rated dropped ones come back.
 Every drop and restore is logged with its reason.
 Fails: fully fail-open.
 Module: `services/recommend`, `llm/relevance`, `llm/jev`
@@ -224,9 +224,9 @@ Module: `services/recommend`, `llm/relevance`, `llm/jev`
 ### 13. Dedupe and reference prices
 
 Decides: same product → one candidate, the cheaper.
-Source is not compared: duplicates inside Kaspi and official-store candidates merge too.
-Same product = same canonical model in the model book, or the same brand string with heavy title overlap.
-Overlap = shared tokens / the smaller token set, so "Note 13" and "Note 13 Pro" merge; the model book does not separate memory variants.
+Only across sources: a listing never joins a group that already holds one from its source, so two Kaspi cards or two items of one official store stay apart; an official-store item still merges with its Kaspi or Ozon copy.
+Same product = same canonical model in the model book, or the same brand string with heavy title overlap (shared tokens / the smaller token set ≥ 0.6).
+A different model number, storage or line word (Pro, Max, Mini, Plus or "+", Ultra, Lite) forbids a merge on either path.
 A merge with a 2x price gap marks the survivor, which bars it from roles (step 18).
 A much pricier copy elsewhere becomes a warning later (step 21 notes).
 Then each candidate gets a reference price: the model's official price, else the brand's cheapest genuine item.
@@ -236,8 +236,8 @@ Module: `services/matching`, `normalize/candidate`
 
 Decides: which OLX ads stay.
 - a capability's listing check rejects it (another audience) → drop;
-- relevance threshold 0.55, stricter than step 12, and no floor: an empty section is fine, a wrong one is not.
-- The threshold applies only on the Jev path; the fallback LLM and a total LLM failure keep what they keep (all, on failure). Without LLM only the accessory heuristic runs.
+- relevance threshold 0.35, stricter than step 12, and no floor: an empty section is fine, a wrong one is not.
+- The threshold applies only on the Jev path; the fallback LLM keeps its own list. If both fail, only ads naming the queried model stay. Without LLM only the accessory heuristic runs.
 Module: `services/recommend`, `llm/relevance`
 
 ### 15. Benchmark (capability enrich)
@@ -378,11 +378,10 @@ Module: `services/doctor`
 
 Short list; details and fixes are in the plan (number in brackets).
 - City: Kaspi knows Almaty and Astana only; Ozon and OLX get no city; MCP ignores the city in the query (#3).
-- Dedupe merges different models and variants, and listings inside one source (#13).
+- Dedupe still merges FE/SE variants, chip generations (M2/M3) and RAM-only variants; overlap is asymmetric (#13).
 - A query for an unknown category does not learn it (#1).
 - Capabilities are switched on by stored profiles and fallback rules; no Jev classifier or learning on first query yet (#2, phase 3).
 - MCP and the HTTP API run without LLM by default (#4).
 - Kaspi search has no budget cap (#5).
 - `refresh` collects without category knowledge (#6).
 - After review penalties a new best pick may have no summary (#14).
-- The used-ads filter keeps everything when the LLM fails (#16).

@@ -213,3 +213,21 @@ async def test_each_title_logs_its_score_against_the_threshold(monkeypatch, capl
         "relevance score: 0.920 keep threshold=0.55 category='робот пылесос' title='Робот'",
         "relevance score: 0.031 drop threshold=0.55 category='робот пылесос' title='Батарея'",
     ]
+
+
+async def test_fail_closed_drops_all_when_jev_and_llm_are_down(monkeypatch) -> None:
+    async def _boom(prompt, response_model, *, model=None, **kwargs):
+        raise rel.LlmError("cli down")
+
+    monkeypatch.setattr(rel, "generate", _boom)
+
+    assert await filter_relevant("робот пылесос", ["a", "b"], fail_open=False) == [False, False]
+
+
+async def test_fail_closed_drops_all_on_out_of_range(monkeypatch) -> None:
+    async def _fake_generate(prompt, response_model, *, model=None, **kwargs):
+        return RelevanceResult(relevant_indices=[0, 5])
+
+    monkeypatch.setattr(rel, "generate", _fake_generate)
+
+    assert await filter_relevant("робот пылесос", ["a", "b"], fail_open=False) == [False, False]

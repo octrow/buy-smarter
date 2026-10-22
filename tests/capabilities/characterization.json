@@ -2588,9 +2588,9 @@
      ],
      [
       "price",
-      10.54,
+      8.34,
       25.0,
-      "price 45000 vs trusted-brand median 30000 (ratio 1.50)"
+      "price 45000 vs trusted-brand median 27500 (ratio 1.64)"
      ],
      [
       "reviews",
@@ -2621,7 +2621,7 @@
     "confidence": 0.6,
     "id": "kaspi:n1",
     "specs": {},
-    "total": 75.06
+    "total": 72.86
    },
    {
     "axes": [
@@ -2633,9 +2633,9 @@
      ],
      [
       "price",
-      23.93,
+      22.95,
       25.0,
-      "price 20000 vs trusted-brand median 30000 (ratio 0.67)"
+      "price 20000 vs trusted-brand median 27500 (ratio 0.73)"
      ],
      [
       "reviews",
@@ -2666,7 +2666,7 @@
     "confidence": 0.4,
     "id": "official:86720e7347addb9a",
     "specs": {},
-    "total": 68.93
+    "total": 67.95
    },
    {
     "axes": [
@@ -2678,9 +2678,54 @@
      ],
      [
       "price",
-      18.57,
+      20.03,
       25.0,
-      "price 30000 vs trusted-brand median 30000 (ratio 1.00)"
+      "price 25000 vs trusted-brand median 27500 (ratio 0.91)"
+     ],
+     [
+      "reviews",
+      0.0,
+      12.0,
+      "no rating/review data available"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.0,
+      8.0,
+      "no review-count data for popularity"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "official:2174932cedcfa9c3",
+    "specs": {},
+    "total": 65.03
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Puma is a tier-A brand"
+     ],
+     [
+      "price",
+      17.11,
+      25.0,
+      "price 30000 vs trusted-brand median 27500 (ratio 1.09)"
      ],
      [
       "reviews",
@@ -2711,7 +2756,7 @@
     "confidence": 0.4,
     "id": "official:90e04278968040fc",
     "specs": {},
-    "total": 63.57
+    "total": 62.11
    },
    {
     "axes": [
@@ -2725,7 +2770,7 @@
       "price",
       7.5,
       25.0,
-      "price 9000 vs trusted-brand median 30000 (ratio 0.30); подозрительно низкая цена для категории"
+      "price 9000 vs trusted-brand median 27500 (ratio 0.33); подозрительно низкая цена для категории"
      ],
      [
       "reviews",
@@ -2759,12 +2804,12 @@
     "total": 34.1
    }
   ],
-  "rejected_count": 2,
+  "rejected_count": 1,
   "rejected_reasons": {
-   "other audience": 2
+   "other audience": 1
   },
   "roles": {
-   "best_budget": "90e04278968040fc",
+   "best_budget": "2174932cedcfa9c3",
    "best_value": "86720e7347addb9a"
   },
   "used_listings": []
@@ -2793,9 +2838,9 @@
      ],
      [
       "price",
-      10.54,
+      8.34,
       25.0,
-      "price 45000 vs trusted-brand median 30000 (ratio 1.50)"
+      "price 45000 vs trusted-brand median 27500 (ratio 1.64)"
      ],
      [
       "reviews",
@@ -2826,7 +2871,7 @@
     "confidence": 0.6,
     "id": "kaspi:n1",
     "specs": {},
-    "total": 75.06
+    "total": 72.86
    },
    {
     "axes": [
@@ -2838,9 +2883,9 @@
      ],
      [
       "price",
-      23.93,
+      22.95,
       25.0,
-      "price 20000 vs trusted-brand median 30000 (ratio 0.67)"
+      "price 20000 vs trusted-brand median 27500 (ratio 0.73)"
      ],
      [
       "reviews",
@@ -2871,7 +2916,7 @@
     "confidence": 0.4,
     "id": "official:86720e7347addb9a",
     "specs": {},
-    "total": 68.93
+    "total": 67.95
    },
    {
     "axes": [
@@ -2883,9 +2928,54 @@
      ],
      [
       "price",
-      18.57,
+      20.03,
       25.0,
-      "price 30000 vs trusted-brand median 30000 (ratio 1.00)"
+      "price 25000 vs trusted-brand median 27500 (ratio 0.91)"
+     ],
+     [
+      "reviews",
+      0.0,
+      12.0,
+      "no rating/review data available"
+     ],
+     [
+      "specs",
+      10.0,
+      20.0,
+      "no required features specified; no spec data"
+     ],
+     [
+      "popularity",
+      0.0,
+      8.0,
+      "no review-count data for popularity"
+     ],
+     [
+      "availability",
+      10.0,
+      10.0,
+      "in stock"
+     ]
+    ],
+    "benchmark": null,
+    "confidence": 0.4,
+    "id": "official:2174932cedcfa9c3",
+    "specs": {},
+    "total": 65.03
+   },
+   {
+    "axes": [
+     [
+      "brand",
+      25.0,
+      25.0,
+      "Puma is a tier-A brand"
+     ],
+     [
+      "price",
+      17.11,
+      25.0,
+      "price 30000 vs trusted-brand median 27500 (ratio 1.09)"
      ],
      [
       "reviews",
@@ -2916,7 +3006,7 @@
     "confidence": 0.4,
     "id": "official:90e04278968040fc",
     "specs": {},
-    "total": 63.57
+    "total": 62.11
    },
    {
     "axes": [
@@ -2930,7 +3020,7 @@
       "price",
       7.5,
       25.0,
-      "price 9000 vs trusted-brand median 30000 (ratio 0.30); подозрительно низкая цена для категории"
+      "price 9000 vs trusted-brand median 27500 (ratio 0.33); подозрительно низкая цена для категории"
      ],
      [
       "reviews",
@@ -2964,12 +3054,12 @@
     "total": 34.1
    }
   ],
-  "rejected_count": 2,
+  "rejected_count": 1,
   "rejected_reasons": {
-   "other audience": 2
+   "other audience": 1
   },
   "roles": {
-   "best_budget": "90e04278968040fc",
+   "best_budget": "2174932cedcfa9c3",
    "best_value": "86720e7347addb9a"
   },
   "used_listings": []

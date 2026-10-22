@@ -168,7 +168,11 @@ async def test_an_alias_learned_under_an_inheriting_category_goes_to_the_parent(
             mappings=[CanonicalMapping(index=0, canonical="Xiaomi F300", is_new=False)]
         )
 
+    async def _keep_all(category, titles, *args, **kwargs):
+        return [True] * len(titles)
+
     monkeypatch.setattr(canon, "generate", _fake_generate)
+    monkeypatch.setattr(svc, "filter_relevant", _keep_all)
     monkeypatch.setattr(svc, "_no_llm_route", lambda: False)
     new = RawProduct(source="kaspi", product_id="k1", title="Ирригатор Xiaomi F300", price=30000)
     ad = RawProduct(source="olx", product_id="u1", title=title, price=9000)

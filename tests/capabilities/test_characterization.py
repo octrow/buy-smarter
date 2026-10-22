@@ -4,8 +4,10 @@ Twelve scenarios, each with ``use_llm`` on and off, recorded from the code befor
 phase-1 change (``characterization.json``). Phase 1 moves today's category branches onto
 capabilities; with an exact category match the ranking must stay the same: order, scores,
 roles, rejection reasons, the best pick's pros and cons, axis explanations, used listings
-and flags. The expected values are never edited: a failure means the code changed
-behaviour (docs/plans/2026-10-22-capabilities-phase1.md, step 1).
+and flags. The expected values are never edited to make a refactor pass: a failure means the
+code changed behaviour (docs/plans/2026-10-22-capabilities-phase1.md, step 1). A deliberate fix
+re-records only the entries it changes and names them in its commit (the dedupe fix #13
+re-recorded ``sneakers_official_store``: Puma RS-X is no longer merged into Smash).
 
 Only stable seams are faked: marketplace sources, the knowledge table row, Jev's HTTP
 post, the LLM fallbacks inside ``llm/`` (they fail), Kimovil's lookup and the official
