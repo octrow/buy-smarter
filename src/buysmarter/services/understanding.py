@@ -18,7 +18,7 @@ from typing import Literal, NoReturn
 from pydantic import BaseModel, Field
 
 from buysmarter.capabilities.base import Question
-from buysmarter.llm.prompts import bare_product_type
+from buysmarter.ranking.audience import bare_product_type
 from buysmarter.ranking.models import QueryConstraints, Restricted
 
 logger = logging.getLogger(__name__)

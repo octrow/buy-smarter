@@ -9,7 +9,7 @@ from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from buysmarter.db.models import (
@@ -255,6 +255,26 @@ async def upsert_category_knowledge(
     await session.commit()
     await session.refresh(row)
     return row
+
+
+async def rename_category_knowledge(session: AsyncSession, old: str, new: str) -> bool:
+    """Move the record ``old`` to the slug ``new`` in one UPDATE; False when ``old`` is gone.
+
+    Raises ``IntegrityError`` when ``new`` already exists (another writer was first).
+    """
+    stmt = (
+        update(CategoryKnowledge)
+        .where(CategoryKnowledge.category == old)
+        .values(category=new)
+        .execution_options(synchronize_session=False)
+    )
+    try:
+        result = await session.execute(stmt)
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
+    return bool(getattr(result, "rowcount", 0) == 1)
 
 
 async def list_category_slugs(session: AsyncSession) -> list[str]:

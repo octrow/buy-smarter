@@ -75,7 +75,7 @@ def _patch_composition(monkeypatch, book: IngredientBook) -> None:
         slug="крем", capabilities={COMPOSITION: CapabilitySetting(params=params)}
     )
 
-    async def _fake_resolve_profile(category: str, *, use_llm: bool = True):
+    async def _fake_resolve_profile(category: str, *, use_llm: bool = True, **_: object):
         return profile
 
     monkeypatch.setattr(svc, "resolve_profile", _fake_resolve_profile)

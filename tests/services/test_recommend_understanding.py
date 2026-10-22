@@ -28,8 +28,10 @@ def profiles(monkeypatch) -> list[str]:
     """The keys ``resolve_profile`` was asked for (none stored)."""
     asked: list[str] = []
 
-    async def _resolve(category: str, *, use_llm: bool = True) -> ResolvedProfile:
-        asked.append(category)
+    async def _resolve(
+        category: str, *, use_llm: bool = True, search_phrase: str | None = None
+    ) -> ResolvedProfile:
+        asked.append(f"{category} | {search_phrase}")
         return ResolvedProfile(slug=category)
 
     monkeypatch.setattr(recommend_module, "resolve_profile", _resolve)
@@ -136,3 +138,11 @@ async def test_telemetry_tells_a_question_from_nothing_to_search(source, profile
         await _run(source, query="???", no_clarify=True)
 
     assert histogram.outcomes == ["clarify", "nothing_to_search"]
+
+
+async def test_the_profile_is_looked_up_by_the_product_type(source, profiles) -> None:
+    parsed = QueryConstraints(search_phrase="мужские кроссовки", product_type="кроссовки")
+
+    await _run(source, query="мужские кроссовки", parsed=parsed)
+
+    assert profiles == ["кроссовки | мужские кроссовки"]

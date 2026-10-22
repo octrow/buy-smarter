@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 
 from buysmarter.db import repo
 from buysmarter.db.base import async_session
@@ -48,6 +49,7 @@ from buysmarter.knowledge.profile import (
 from buysmarter.llm.adapter import LlmConfigError, LlmError, generate
 from buysmarter.llm.jev import system_one
 from buysmarter.local_store import set_aside
+from buysmarter.ranking.audience import bare_product_type
 
 logger = logging.getLogger(__name__)
 
@@ -170,22 +172,32 @@ async def load_profile(category: str) -> CategoryProfile | None:
     return profile_from_record(_slug(category), raw) if raw is not None else None
 
 
-async def resolve_profile(category: str, *, use_llm: bool = True) -> ResolvedProfile:
-    """The profile a query uses: exact slug, then synonyms, then a Jev/LLM pick, then none.
+async def resolve_profile(
+    category: str, *, use_llm: bool = True, search_phrase: str | None = None
+) -> ResolvedProfile:
+    """The profile a query uses: exact slug, synonyms, the old slug, a Jev/LLM pick, none.
 
-    No substring matching (``"чай"`` must not find ``"чайник"``). The found profile's
+    ``category`` is the product type; ``search_phrase`` (when it differs) may name an old
+    record keyed by the whole phrase ("мужские-кроссовки-42"), see ``_old_slug``. No
+    substring matching (``"чай"`` must not find ``"чайник"``). The found profile's
     parent fills the fields it lacks (one step). Books nothing stored provides fall back
     to the static seed, owned by the query's slug.
 
     May write: an old copy left by the pre-profile alias save is healed once (the record,
-    and the aliases moved to its source; see ``_heal``).
+    and the aliases moved to its source; see ``_heal``); an old slug is moved or listed
+    as a synonym.
     """
     slug = _slug(category)
     own = await load_profile(category)
     if own is not None and _heal_candidate(own):
         own = await _heal(own, use_llm)
     if own is None:
-        matched = await _find_related(slug, use_llm)
+        own = await _by_synonym(slug)
+    old = _slug(search_phrase) if search_phrase and slug else slug
+    if old != slug:
+        own = await _old_slug(own, slug, old, search_phrase or "")
+    if own is None and use_llm:
+        matched = await _match_related(slug)
         if matched is not None:
             logger.info("knowledge matched: %s -> %s", category, matched)
             own = await load_profile(matched)
@@ -258,6 +270,63 @@ async def _heal(own: CategoryProfile, use_llm: bool) -> CategoryProfile:
     )
     logger.info("knowledge healed: %s -> parent %s", own.slug, source.slug)
     return await load_profile(own.slug) or own
+
+
+# --- The profile key is the product type (phase 2, decision 11) ---------------------
+# Records used to be keyed by the whole parsed category ("мужские-кроссовки-42"). Such a
+# record moves under the product type when the two differ only by audience or size words;
+# a narrower record ("шампунь-от-перхоти") may carry its own composition and is never merged.
+
+_RENAME_WRITER = "knowledge-rename"
+
+
+def _variant_of(search_phrase: str, slug: str) -> bool:
+    """The phrase is the product type plus audience or size words only."""
+    return _slug(bare_product_type(search_phrase)) == slug
+
+
+async def _old_slug(
+    own: CategoryProfile | None, slug: str, old: str, search_phrase: str
+) -> CategoryProfile | None:
+    """Use, move or list the record keyed by the search phrase; returns the profile to use."""
+    raw = await load_knowledge(old)
+    if raw is None:
+        return own
+    if not _variant_of(search_phrase, slug):
+        return own if own is not None else profile_from_record(old, raw)
+    if own is None:
+        await _rename(old, slug)
+        return await load_profile(slug)
+    if old != own.slug and old not in own.synonyms:
+        await update_knowledge(own.slug, {SYNONYMS_KEY: [*own.synonyms, old]}, _RENAME_WRITER)
+        logger.info("knowledge synonym: %s listed under %s", old, own.slug)
+        return await load_profile(own.slug) or own
+    return own
+
+
+async def _rename(old: str, new: str) -> None:
+    """Move ``old`` to ``new`` once (one UPDATE), list it as a synonym, re-point children.
+
+    A lookup running at the same time finds the record already moved (no row, or ``new``
+    taken): it only reads ``new`` back.
+    """
+    try:
+        async with async_session() as session:
+            moved = await repo.rename_category_knowledge(session, old, new)
+    except IntegrityError:
+        moved = False
+    except Exception as exc:  # noqa: BLE001 - the store is optional
+        logger.warning("Knowledge store unavailable (%r); %s not renamed", exc, old)
+        return
+    if not moved:
+        return
+    stored = await load_knowledge(new) or {}
+    synonyms = [s for s in stored.get(SYNONYMS_KEY) or [] if s != old]
+    await update_knowledge(new, {SYNONYMS_KEY: [*synonyms, old]}, _RENAME_WRITER)
+    for child, raw in (await _stored_records()).items():
+        if raw.get(PARENT_KEY) == old:
+            await update_knowledge(child, {PARENT_KEY: new}, _RENAME_WRITER)
+    logger.info("knowledge renamed: %s -> %s", old, new)
 
 
 def _with_seed_books(resolved: ResolvedProfile, category: str) -> ResolvedProfile:
@@ -408,12 +477,31 @@ async def _match_category(category: str, candidates: list[str]) -> str | None:
     return None
 
 
+async def _other_records(slug: str) -> dict[str, dict[str, Any]]:
+    return {s: raw for s, raw in (await _stored_records()).items() if s != slug}
+
+
+async def _by_synonym(slug: str) -> CategoryProfile | None:
+    """The stored profile listing ``slug`` among its synonyms."""
+    owner = _synonym_owner(slug, await _other_records(slug))
+    if owner is None:
+        return None
+    logger.info("knowledge matched: %s -> %s", slug, owner)
+    return await load_profile(owner)
+
+
+async def _match_related(slug: str) -> str | None:
+    """A Jev/LLM pick among the other stored profiles."""
+    records = await _other_records(slug)
+    return await _match_category(slug, list(records)) if records else None
+
+
 async def _find_related(slug: str, use_llm: bool) -> str | None:
     """A stored profile covering ``slug``: one listing ``slug`` as a synonym, else a Jev/LLM pick.
 
     No substring match: it found "чайник" for "чай" (logic-map finding #15).
     """
-    records = {s: raw for s, raw in (await _stored_records()).items() if s != slug}
+    records = await _other_records(slug)
     if not records:
         return None
     owner = _synonym_owner(slug, records)

@@ -211,10 +211,15 @@ def _measured[**P](
     return wrapper
 
 
-async def _resolve_knowledge(category: str, use_llm: bool) -> ResolvedProfile:
-    """The category profile: books, capabilities and who owns them (one lookup)."""
+async def _resolve_knowledge(constraints: QueryConstraints, use_llm: bool) -> ResolvedProfile:
+    """The category profile: books, capabilities and who owns them (one lookup).
+
+    Keyed by the product type; the search phrase may name an older record (``resolve_profile``).
+    """
+    phrase = constraints.category
+    category = constraints.product_type.strip() or phrase
     with stage("knowledge resolve"):
-        profile = await resolve_profile(category, use_llm=use_llm)
+        profile = await resolve_profile(category, use_llm=use_llm, search_phrase=phrase)
     if profile.brand_book is None and profile.model_book is None:
         logger.info(
             "no brand knowledge for %r — run `buysmarter learn-category %r` to generate it",
@@ -400,7 +405,7 @@ async def recommend(
     constraints, city_defaulted = await _constraints(
         query, understood, city, budget, trusted_only, use_llm
     )
-    profile = await _resolve_knowledge(constraints.category, use_llm)
+    profile = await _resolve_knowledge(constraints, use_llm)
     capabilities = activate(REGISTRY, profile, constraints, query=query, use_llm=use_llm)
     ask_capability(capabilities.question(), constraints, ask.round, ask.no_clarify)
     requested = sources or ["kaspi"]

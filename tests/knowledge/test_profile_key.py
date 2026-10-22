@@ -1,0 +1,103 @@
+"""The profile key is the product type; old long slugs move under it (phase 2, decision 11).
+
+No network/LLM: the store is the suite's tmp SQLite (tests/conftest.py), emptied per test.
+"""
+
+import asyncio
+
+from buysmarter.db import repo
+from buysmarter.db.base import async_session
+from buysmarter.knowledge import store as store_mod
+from buysmarter.knowledge.store import load_knowledge, resolve_profile
+
+_NIKE = {"brand_book": {"tiers": {"Nike": "A"}}}
+
+
+async def _put_raw(slug: str, payload: dict) -> None:
+    async with async_session() as session:
+        await repo.upsert_category_knowledge(session, slug, payload)
+
+
+async def _slugs() -> set[str]:
+    async with async_session() as session:
+        return set(await repo.list_category_slugs(session))
+
+
+async def test_an_old_slug_with_audience_and_size_moves_under_the_product_type(caplog) -> None:
+    await _put_raw("мужские-кроссовки-42", _NIKE)
+
+    with caplog.at_level("INFO"):
+        resolved = await resolve_profile(
+            "кроссовки", search_phrase="мужские кроссовки 42", use_llm=False
+        )
+
+    assert resolved.brand_book is not None and resolved.brand_book.tiers == {"Nike": "A"}
+    assert resolved.brand_book_owner == "кроссовки"
+    assert await _slugs() == {"кроссовки"}
+    stored = await load_knowledge("кроссовки")
+    assert stored is not None and stored["synonyms"] == ["мужские-кроссовки-42"]
+    assert "knowledge renamed" in caplog.text
+
+
+async def test_a_narrower_profile_is_used_but_not_moved() -> None:
+    """«шампунь от перхоти» may carry its own composition: it never merges into «шампунь»."""
+    await _put_raw("шампунь-от-перхоти", _NIKE)
+
+    resolved = await resolve_profile("шампунь", search_phrase="шампунь от перхоти", use_llm=False)
+
+    assert await _slugs() == {"шампунь-от-перхоти"}
+    assert resolved.brand_book_owner == "шампунь-от-перхоти"
+
+
+async def test_a_found_profile_lists_an_audience_variant_as_a_synonym() -> None:
+    await _put_raw("кроссовки", _NIKE)
+    await _put_raw("женские-кроссовки", {"brand_book": {"tiers": {"Puma": "B"}}})
+
+    resolved = await resolve_profile("кроссовки", search_phrase="женские кроссовки", use_llm=False)
+
+    assert resolved.brand_book is not None and resolved.brand_book.tiers == {"Nike": "A"}
+    assert await _slugs() == {"кроссовки", "женские-кроссовки"}  # books are not merged
+    stored = await load_knowledge("кроссовки")
+    assert stored is not None and stored["synonyms"] == ["женские-кроссовки"]
+    await resolve_profile("кроссовки", search_phrase="женские кроссовки", use_llm=False)
+    assert (await load_knowledge("кроссовки") or {})["synonyms"] == ["женские-кроссовки"]
+
+
+async def test_children_follow_a_moved_parent() -> None:
+    await _put_raw("мужские-кроссовки", _NIKE)
+    await _put_raw("беговые-кроссовки", {"parent": "мужские-кроссовки"})
+
+    await resolve_profile("кроссовки", search_phrase="мужские кроссовки", use_llm=False)
+
+    child = await load_knowledge("беговые-кроссовки")
+    assert child is not None and child["parent"] == "кроссовки"
+
+
+async def test_two_lookups_at_once_move_the_record_once() -> None:
+    await _put_raw("мужские-кроссовки", _NIKE)
+
+    first, second = await asyncio.gather(
+        resolve_profile("кроссовки", search_phrase="мужские кроссовки", use_llm=False),
+        resolve_profile("кроссовки", search_phrase="мужские кроссовки", use_llm=False),
+    )
+
+    assert await _slugs() == {"кроссовки"}
+    assert first.brand_book == second.brand_book is not None
+    assert (await load_knowledge("кроссовки") or {})["synonyms"] == ["мужские-кроссовки"]
+
+
+async def test_no_move_without_a_distinct_product_type(monkeypatch) -> None:
+    await _put_raw("мужские-кроссовки", _NIKE)
+
+    async def _no_rename(*args, **kwargs):  # pragma: no cover - must not be called
+        raise AssertionError("renamed")
+
+    monkeypatch.setattr(store_mod.repo, "rename_category_knowledge", _no_rename)
+
+    same = await resolve_profile(
+        "мужские кроссовки", search_phrase="мужские кроссовки", use_llm=False
+    )
+    bare = await resolve_profile("мужские кроссовки", use_llm=False)
+
+    assert same.brand_book_owner == bare.brand_book_owner == "мужские-кроссовки"
+    assert await _slugs() == {"мужские-кроссовки"}

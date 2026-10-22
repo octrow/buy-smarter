@@ -92,6 +92,18 @@ def strip_size(text: str) -> str:
     return " ".join(_SIZE_RE.sub(" ", text).split())
 
 
+# A bare size token in an apparel phrase ("кроссовки 42", "футболка XL").
+_BARE_SIZE_RE = re.compile(r"(?<!\w)(?:\d{2}(?:[.,]5)?|X{1,3}L|XS|[SML])(?!\w)")
+
+
+def bare_product_type(text: str) -> str:
+    """``text`` without audience and size words: the naive product type ("кроссовки")."""
+    rest = strip_audience(strip_size(text))
+    if is_apparel(text):
+        rest = " ".join(_BARE_SIZE_RE.sub(" ", rest).split())
+    return rest or text
+
+
 def strip_audience(text: str) -> str:
     """``text`` without its audience words ("мужские", "для детей")."""
     for pattern in _AUDIENCE_RES.values():

@@ -14,7 +14,7 @@ from typing import cast
 
 from buysmarter.llm.adapter import generate
 from buysmarter.llm.budget import parse_budget
-from buysmarter.ranking.audience import strip_audience, strip_size
+from buysmarter.ranking.audience import bare_product_type
 from buysmarter.ranking.models import QueryConstraints
 
 # Query parsing is a trivial extraction task (pull a few fields out of one
@@ -134,11 +134,6 @@ async def parse_query(user_query: str) -> QueryConstraints:
     if result.product_type.strip():
         return result
     return result.model_copy(update={"product_type": bare_product_type(result.search_phrase)})
-
-
-def bare_product_type(phrase: str) -> str:
-    """The search phrase without audience and size words: the naive product type."""
-    return strip_audience(strip_size(phrase)) or phrase
 
 
 def _condition(query: str) -> str | None:
