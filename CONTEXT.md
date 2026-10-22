@@ -19,3 +19,11 @@ _Avoid_: category kind, mode
 **Learning a category**:
 Building category knowledge for a category that has none, from web research or the user's notes. Today a separate step the user starts; planned to happen on the first query for an unknown category.
 _Avoid_: training, category creation
+
+**Category profile**:
+Everything the assistant knows about how to judge one product category: its brand and model books and the capabilities switched on for it, each with its own parameters. Category knowledge is the part of the profile learned so far.
+_Avoid_: category config, category settings
+
+**Capability**:
+One optional way of judging offers that a category profile switches on: composition (active substances), benchmark (a performance index such as Kimovil), audience, size, counterfeit checks, official stores, used market. A capability can add searches, enrich candidates, reject candidates, score an axis, add pros and cons, or add a report section. The core flow is the same for every category; capabilities are what differ.
+_Avoid_: module (that word means a code module), plugin, trait, feature (that word means a required product property)
