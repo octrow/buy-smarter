@@ -48,8 +48,10 @@ from buysmarter.knowledge.profile import (
     combine_all,
     composition_keys,
     has_books,
+    merge_capabilities,
     profile_from_record,
     resolve_fields,
+    stored_capabilities,
 )
 from buysmarter.llm.adapter import LlmConfigError, LlmError, generate
 from buysmarter.llm.jev import system_one
@@ -73,6 +75,8 @@ _MAX_CHOICE_OPTIONS = 255
 
 _DEFAULT_DIR = Path.home() / ".config" / "buysmarter" / "knowledge"
 
+# The writer of a user's own capability choice: the only one that may change ``user``.
+USER_WRITER = "user"
 _GENERATED_BY = "generated_by"
 _UPDATED_BY = "updated_by"
 _UPDATED_AT = "updated_at"
@@ -144,6 +148,9 @@ async def update_knowledge(
 ) -> None:
     """Merge raw ``updates`` into the stored record, remove the ``drop`` keys, stamp the writer.
 
+    ``capabilities`` merge by name (``merge_capabilities``): every writer goes through
+    here, and only ``USER_WRITER`` changes a user's choice (phase 3, decision 3).
+
     ponytail: read-modify-write without a lock, so two saves to one slug at once (an API
     worker and a heal) can lose a key, as the rebuild-on-save before it could; move the
     merge into one UPDATE transaction if concurrent writers ever show up in the logs.
@@ -151,6 +158,12 @@ async def update_knowledge(
     existing = await load_knowledge(category) or {}
     payload = {k: v for k, v in existing.items() if k not in drop}
     payload.update(updates)
+    if CAPABILITIES_KEY in updates:
+        stored = stored_capabilities(existing) or {}
+        by_user = writer == USER_WRITER
+        payload[CAPABILITIES_KEY] = merge_capabilities(
+            stored, updates[CAPABILITIES_KEY], by_user=by_user
+        )
     payload[_GENERATED_BY] = existing.get(_GENERATED_BY) or writer
     payload[_UPDATED_BY] = writer
     payload[_UPDATED_AT] = datetime.now(UTC).isoformat()
@@ -159,6 +172,22 @@ async def update_knowledge(
             await repo.upsert_category_knowledge(session, _slug(category), payload)
     except Exception as exc:  # noqa: BLE001 - learned knowledge is best-effort
         logger.warning("Knowledge store unavailable (%r); %s not saved", exc, category)
+
+
+async def set_user_choice(
+    category: str, name: str, choice: bool | None, *, parent: str | None = None
+) -> None:
+    """The user's own switch for one capability of ``category`` (``None``: back to automatic).
+
+    Written to the query's own record, created if missing; ``parent`` (the related profile
+    the lookup found) is set on a record that has none, so its books keep coming from there.
+    """
+    updates: dict[str, Any] = {CAPABILITIES_KEY: {name: {"user": choice}}}
+    if parent and parent != _slug(category):
+        stored = await load_knowledge(category) or {}
+        if not stored.get(PARENT_KEY):
+            updates[PARENT_KEY] = parent
+    await update_knowledge(category, updates, USER_WRITER)
 
 
 async def get_stored_books(category: str) -> tuple[BrandBook | None, ModelBook | None]:
@@ -330,19 +359,26 @@ def _retarget(
 ) -> repo.RecordEdit:
     """The record edits of a rename: ``old`` becomes a synonym of ``new``, children follow.
 
-    ``bookless`` holds the capabilities of a bookless record the move lands over: they are
-    combined into the moved ones (phase 3, decision 1).
+    ``bookless`` holds the capabilities of a bookless record the move lands over: they merge
+    into the moved ones by name like any writer's, and its user choices as the user's
+    (phase 3, decisions 1 and 3).
     """
     stamp = {_UPDATED_BY: _RENAME_WRITER, _UPDATED_AT: datetime.now(UTC).isoformat()}
+    incoming = {n: s.model_dump(mode="json") for n, s in (bookless or {}).items()}
+    choices = {n: {"user": s.user} for n, s in (bookless or {}).items() if s.user is not None}
 
     def edit(slug: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         if slug == new:
             synonyms = [s for s in payload.get(SYNONYMS_KEY) or [] if s != old]
             moved = {**payload, SYNONYMS_KEY: [*synonyms, old], **stamp}
-            if bookless:
-                own = profile_from_record(new, payload).capabilities or {}
-                combined = combine_all(own, bookless)
-                moved[CAPABILITIES_KEY] = {n: c.model_dump(mode="json") for n, c in combined.items()}
+            if incoming:
+                caps = merge_capabilities(
+                    stored_capabilities(payload) or {}, incoming, by_user=False
+                )
+                caps = merge_capabilities(
+                    stored_capabilities({CAPABILITIES_KEY: caps}) or {}, choices, by_user=True
+                )
+                moved[CAPABILITIES_KEY] = caps
             return moved
         if payload.get(PARENT_KEY) == old:
             return {**payload, PARENT_KEY: new, **stamp}

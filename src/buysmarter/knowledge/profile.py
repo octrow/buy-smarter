@@ -160,7 +160,7 @@ def composition_book(capabilities: dict[str, CapabilitySetting]) -> IngredientBo
     return None
 
 
-def _capabilities(raw: dict[str, Any]) -> dict[str, CapabilitySetting] | None:
+def stored_capabilities(raw: dict[str, Any]) -> dict[str, CapabilitySetting] | None:
     """Stored capabilities, or the adapter's reading of an old composition record."""
     if isinstance(raw.get(CAPABILITIES_KEY), dict):
         return {
@@ -179,11 +179,36 @@ def profile_from_record(slug: str, raw: dict[str, Any]) -> CategoryProfile:
         slug=slug,
         brand_book=BrandBook.model_validate(raw[BRAND_KEY]) if raw.get(BRAND_KEY) else None,
         model_book=ModelBook.model_validate(raw[MODEL_KEY]) if raw.get(MODEL_KEY) else None,
-        capabilities=_capabilities(raw),
+        capabilities=stored_capabilities(raw),
         synonyms=list(raw.get(SYNONYMS_KEY) or []),
         parent=raw.get(PARENT_KEY) or None,
         heal_checked=bool(raw.get(HEAL_CHECKED_KEY)),
     )
+
+
+def merge_capabilities(
+    stored: dict[str, CapabilitySetting], incoming: dict[str, Any], *, by_user: bool
+) -> dict[str, Any]:
+    """The stored capabilities after one writer's ``incoming`` ones, by name (raw dicts).
+
+    An automatic writer changes a capability's automatic value only when its source is
+    not weaker than the stored one (``combine``) and never touches ``user``; the user's
+    writer (``by_user``) changes only ``user``. An entry left with neither is removed.
+    """
+    merged = dict(stored)
+    for name, raw in incoming.items():
+        new = CapabilitySetting.model_validate(raw)
+        old = stored.get(name)
+        if by_user:
+            base = old or CapabilitySetting(enabled=False, set_by=None)
+            setting = base.model_copy(update={"user": new.user})
+        else:
+            setting = combine(old, new.model_copy(update={"user": None}))
+        if setting.set_by is None and setting.user is None:
+            merged.pop(name, None)
+        else:
+            merged[name] = setting
+    return {name: setting.model_dump(mode="json") for name, setting in merged.items()}
 
 
 def composition_keys(
@@ -191,27 +216,18 @@ def composition_keys(
 ) -> dict[str, Any]:
     """Record keys for a learned category type: the capability and the old keys (dual write).
 
-    Other stored capabilities are kept; composition is switched on or removed. A user's
-    own composition choice outranks learning (ADR-0005 precedence): it is kept, and only
-    its ingredient book is refreshed while the user leaves it on.
+    Learning writes composition on (with the ingredient book) or off; the merge in
+    ``update_knowledge`` keeps a user's own choice (ADR-0005 precedence). The old
+    ``category_type`` follows the effective result.
     """
-    capabilities = dict(stored.get(CAPABILITIES_KEY) or {})
     params = {INGREDIENT_KEY: ingredient_book.model_dump(mode="json")} if ingredient_book else {}
-    current = capabilities.pop(COMPOSITION, None)
-    setting = CapabilitySetting.model_validate(current) if current else None
-    if setting is not None and setting.user is not None:
-        if setting.user:
-            setting = setting.model_copy(update={"params": {**setting.params, **params}})
-    elif category_type == COMPOSITION_DRIVEN:
-        setting = CapabilitySetting(params=params)
-    else:
-        setting = None
-    if setting is not None:
-        capabilities[COMPOSITION] = setting.model_dump(mode="json")
-    composition_on = _switched_on(setting)
+    learned = CapabilitySetting(enabled=category_type == COMPOSITION_DRIVEN, params=params)
+    incoming = {COMPOSITION: learned.model_dump(mode="json")}
+    merged = merge_capabilities(stored_capabilities(stored) or {}, incoming, by_user=False)
+    on = composition_book({COMPOSITION: CapabilitySetting.model_validate(merged[COMPOSITION])})
     return {
-        CATEGORY_TYPE_KEY: COMPOSITION_DRIVEN if composition_on else SPEC_DRIVEN,
-        CAPABILITIES_KEY: capabilities,
+        CATEGORY_TYPE_KEY: COMPOSITION_DRIVEN if on is not None else SPEC_DRIVEN,
+        CAPABILITIES_KEY: incoming,
     }
 
 

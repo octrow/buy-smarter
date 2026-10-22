@@ -8,6 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from buysmarter.cli import main
+from buysmarter.knowledge import generate as generate_module
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import (
     ActiveSubstance,
@@ -27,7 +28,7 @@ def _no_price_research(monkeypatch) -> None:
     async def _same(book: BrandBook, category: str) -> BrandBook:
         return book
 
-    monkeypatch.setattr(main, "verify_store_floors", _same)
+    monkeypatch.setattr(generate_module, "verify_store_floors", _same)
 
 
 def _stub_books() -> tuple[BrandBook, ModelBook]:
@@ -44,7 +45,7 @@ def test_learn_category_generates_saves_and_summarizes(monkeypatch) -> None:
         brand, model = _stub_books()
         return brand, model, "spec_driven", IngredientBook()
 
-    monkeypatch.setattr(main, "generate_category_knowledge", _fake_generate)
+    monkeypatch.setattr(generate_module, "generate_category_knowledge", _fake_generate)
 
     result = runner.invoke(main.app, ["learn-category", "робот-пылесос"])
     assert result.exit_code == 0, result.output
@@ -70,7 +71,7 @@ def test_learn_category_no_web_flag_disables_web_search(monkeypatch) -> None:
         brand, model = _stub_books()
         return brand, model, "spec_driven", IngredientBook()
 
-    monkeypatch.setattr(main, "generate_category_knowledge", _fake_generate)
+    monkeypatch.setattr(generate_module, "generate_category_knowledge", _fake_generate)
 
     result = runner.invoke(main.app, ["learn-category", "робот-пылесос", "--no-web"])
 
@@ -100,7 +101,7 @@ def test_learn_category_composition_driven_saves_ingredient_book(monkeypatch) ->
     async def _fake_generate(category: str, *, web_search: bool = True):
         return BrandBook(), ModelBook(), "composition_driven", ingredient
 
-    monkeypatch.setattr(main, "generate_category_knowledge", _fake_generate)
+    monkeypatch.setattr(generate_module, "generate_category_knowledge", _fake_generate)
 
     result = runner.invoke(main.app, ["learn-category", "крем от акне"])
     assert result.exit_code == 0, result.output

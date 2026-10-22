@@ -59,7 +59,7 @@ async def test_saving_a_category_type_writes_the_capability_and_the_old_keys() -
     assert composition["params"]["ingredient_book"] == raw["ingredient_book"]
 
 
-async def test_relearning_as_spec_driven_drops_only_the_composition_capability() -> None:
+async def test_relearning_as_spec_driven_switches_only_composition_off() -> None:
     await save_knowledge(
         "косметика", category_type="composition_driven", ingredient_book=_ingredients()
     )
@@ -70,7 +70,8 @@ async def test_relearning_as_spec_driven_drops_only_the_composition_capability()
     await save_knowledge("косметика", category_type="spec_driven", generated_by="opus")
 
     raw = await store_mod.load_knowledge("косметика") or {}
-    assert set(raw["capabilities"]) == {"benchmark"}
+    assert raw["capabilities"]["benchmark"]["user"] is True
+    assert raw["capabilities"]["composition"]["enabled"] is False
     assert raw["category_type"] == "spec_driven"
 
 

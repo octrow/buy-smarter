@@ -165,7 +165,7 @@ Lookup, once per run (`resolve_profile`):
 - no substring matching: "чай" does not find "чайник".
 The found profile's parent (one step) fills the books it does not set; each book keeps its owner (own slug, parent, or the related profile). Capabilities are inherited by name: for each one the stronger automatic value wins (learned > Jev > fallback; the child on a tie), and a user's choice (`user`) outranks any automatic value.
 Books nothing stored provides fall back to the static seed (irrigators), owned by the query's slug.
-Old records are read through an adapter: `category_type: composition_driven` becomes the composition capability. Saving merges into the record, and the old keys are still written (until phase 3).
+Old records are read through an adapter: `category_type: composition_driven` becomes the composition capability. Saving merges into the record, and the old keys are still written. Capabilities merge by name in one place (`update_knowledge`): an automatic writer (learning, Jev, a move, healing) changes a capability only when its source is not weaker than the stored one and never touches the user's choice; only the user's own writer changes it, and a reset keeps the learned parameters.
 An old record that is a copy left by the pre-profile alias save (no capabilities, no parent, its brand book equal to a related composition profile's) is healed once: it becomes that profile's child and its aliases move to the parent. Every check marks the record, so Jev is asked once.
 Then capabilities are switched on (see Capabilities), and a capability's `clarify` hook may ask (step 2a). This step runs before step 5, so a question never starts a browser.
 No LLM: exact slug and synonyms only.
@@ -370,7 +370,7 @@ Module: `services/recommend`, `capabilities/composition`, `cli/report`
 ### Learning a category
 
 Builds category knowledge: brand book, model book, category type, ingredient book.
-- `learn-category` (CLI) or the button on the report screen (GUI).
+- `learn-category` (CLI) or the button on the report screen (GUI); both run `learn_category`.
 - One strong-model call, grounded by web search when the `claude` CLI is present.
 - Official store prices are checked on real pages and kept as brand price floors.
 - Merged into the local store under the category name (other keys of the record stay); step 6 finds it next time.
