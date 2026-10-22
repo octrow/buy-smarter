@@ -106,13 +106,13 @@ def _score_one(cand):
     return score(cand, _constraints(), market, weights=COMPOSITION_WEIGHTS, ingredient_ctx=ctx)
 
 
-def test_unconfirmed_composition_gets_partial_credit_and_con() -> None:
-    unknown = _cand("u", detected=[], specs={})
+def test_unchecked_composition_gets_partial_credit_and_con() -> None:
+    unknown = _cand("u", detected=[], specs={"Состав": "вода"}, checked=False)
     scored = _score_one(unknown)
     axis = _axis(scored, "ingredient")
     assert axis.score == round(COMPOSITION_WEIGHTS["ingredient"] * 0.3, 2)
-    assert "состав не подтверждён" in axis.explanation
-    assert any("состав не подтверждён: адапален?" == c for c in scored.cons)
+    assert "не проверен" in axis.explanation
+    assert any("состав не проверен: адапален?" == c for c in scored.cons)
     assert "weak ingredient" not in scored.cons
 
 

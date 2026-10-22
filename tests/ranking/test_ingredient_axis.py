@@ -84,11 +84,40 @@ def test_ingredient_present_unknown_concentration_partial() -> None:
 
 
 def test_ingredient_absent_zero() -> None:
-    cand = _cand(detected_substances=[], concentration=None)
+    cand = _cand(detected_substances=[], concentration=None, ingredients_checked=True)
     scored = _score_one(cand, _constraints(), ["адапален"])
     axis = _axis(scored, "ingredient")
     assert axis.score == 0.0
     assert "отсутствует" in axis.explanation
+
+
+def test_unchecked_candidates_score_the_same_with_or_without_composition() -> None:
+    with_text = _cand(source_product_id="a", specs={"Состав": "вода, глицерин"})
+    without_text = _cand(source_product_id="b", specs={})
+    weight = COMPOSITION_WEIGHTS["ingredient"]
+
+    scores = [
+        _axis(_score_one(c, _constraints(), ["адапален"]), "ingredient")
+        for c in (with_text, without_text)
+    ]
+
+    assert [a.score for a in scores] == [round(weight * 0.3, 2)] * 2
+
+
+def test_unchecked_candidate_is_flagged_unchecked_never_absent() -> None:
+    cand = _cand(specs={"Состав": "вода, глицерин"})
+    scored = _score_one(cand, _constraints(), ["адапален"])
+    axis = _axis(scored, "ingredient")
+    assert "отсутствует" not in axis.explanation
+    assert "состав не проверен: адапален?" in scored.cons
+    assert not any("отсутствует" in c for c in scored.cons)
+
+
+def test_checked_absent_without_composition_scores_zero() -> None:
+    cand = _cand(specs={}, ingredients_checked=True)
+    scored = _score_one(cand, _constraints(), ["адапален"])
+    assert _axis(scored, "ingredient").score == 0.0
+    assert "состав не подтверждён: адапален?" in scored.cons
 
 
 def test_required_concentration_mismatch_partial() -> None:

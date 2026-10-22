@@ -23,10 +23,10 @@ if TYPE_CHECKING:
 # (or simply known) concentration is full credit; present but unknown/mismatched
 # concentration is a partial 0.7; absent is 0.
 _INGREDIENT_PRESENT_UNKNOWN_CONC = 0.7
-# Composition unconfirmed (no состав declared, extraction had nothing to read):
-# honest partial credit — a data gap is not proven absence (proven-absent
-# candidates are hard-filtered out before scoring).
-_INGREDIENT_UNCONFIRMED_CREDIT = 0.3
+# Composition not checked (no extraction, or no answer for this candidate): the
+# same honest partial credit for everyone, so the axis does not reorder an
+# unchecked pool — a data gap is not proven absence.
+_INGREDIENT_UNCHECKED_CREDIT = 0.3
 
 
 def required_concentration(constraints: QueryConstraints) -> str | None:
@@ -80,7 +80,8 @@ def score_ingredient(
     weights: dict[str, float],
     required_concentration: str | None,
 ) -> AxisScore:
-    """Score the active-substance match: present+concentration full, unknown 0.7, absent 0."""
+    """Score the active-substance match: present+concentration full, unknown 0.7,
+    unchecked 0.3, checked and absent 0."""
     weight = weights["ingredient"]
     required = ctx.required_substances
     present = (
@@ -88,22 +89,22 @@ def score_ingredient(
         if required
         else bool(candidate.detected_substances)
     )
-    if not present:
-        # No состав declared → unconfirmed (data gap), partial credit; состав
-        # declared but substance not in it → proven absent, zero.
-        if not composition_text(candidate.specs):
-            return AxisScore(
-                name="ingredient",
-                score=round(weight * _INGREDIENT_UNCONFIRMED_CREDIT, 2),
-                max_score=weight,
-                explanation="состав не подтверждён — вещество не проверено",
-            )
+    if not present and not candidate.ingredients_checked:
         return AxisScore(
             name="ingredient",
-            score=0.0,
+            score=round(weight * _INGREDIENT_UNCHECKED_CREDIT, 2),
             max_score=weight,
-            explanation="требуемое действующее вещество отсутствует",
+            explanation="состав не проверен — вещество не подтверждено",
         )
+    if not present:
+        # Checked: with a состав this is proven absence (normally hard-filtered
+        # already); without one, the title did not name the substance either.
+        why = (
+            "требуемое действующее вещество отсутствует"
+            if composition_text(candidate.specs)
+            else "вещество не найдено, состав не указан"
+        )
+        return AxisScore(name="ingredient", score=0.0, max_score=weight, explanation=why)
     conc = candidate.concentration
     if conc is None:
         credit, why = _INGREDIENT_PRESENT_UNKNOWN_CONC, "вещество есть, концентрация неизвестна"
@@ -141,13 +142,15 @@ def ingredient_cons(cons: list[str], candidate: Candidate, ctx: IngredientContex
     """Swap the generic "weak ingredient" con for an honest composition con.
 
     Proven-absent candidates are hard-filtered out before scoring, so a
-    "not present" candidate reaching here is one whose состав we simply could
-    not read — flag that as unconfirmed (honest uncertainty), not "weak".
+    "not present" candidate reaching here was either never checked or has no
+    состав to read — flag that honestly, not as "weak" or "absent".
     """
     cons = [c for c in cons if c != "weak ingredient"]
     required = ctx.required_substances
-    if not required:
+    if not required or has_required_substance(candidate, required):
         return cons
-    if not has_required_substance(candidate, required) and not composition_text(candidate.specs):
+    if not candidate.ingredients_checked:
+        cons.append(f"состав не проверен: {', '.join(required)}?")
+    elif not composition_text(candidate.specs):
         cons.append(f"состав не подтверждён: {', '.join(required)}?")
     return cons
