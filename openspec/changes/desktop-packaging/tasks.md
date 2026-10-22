@@ -10,8 +10,9 @@
 
 - [x] 2.1 `desktop.yml` matrix (ubuntu-22.04, windows-latest, macos-latest): build, then self-test the built binary, then archive; verify a `workflow_dispatch` run is green on all three
   - 2026-10-21: dispatch run 39635376744 green on ubuntu-22.04, windows-latest and macos-latest (build, self-test, archive).
-- [ ] 2.2 `release.yml` creates the release, and desktop jobs upload with the naming scheme; verify on a pre-release tag that all three archives appear
+- [x] 2.2 `release.yml` creates the release, and desktop jobs upload with the naming scheme; verify on a pre-release tag that all three archives appear
   - 2026-10-21: `release.yml` calls `desktop.yml` and creates the release once, after PyPI and the builds; waits for a pre-release tag.
+  - 2026-10-22: tag v0.4.0rc1, run 39745298518 green; pre-release holds linux-x64 .tar.gz + .deb, windows-x64 .zip + setup.exe, macos-arm64 .dmg + .app.zip, wheel, sdist; PyPI skipped for the rc.
 
 ## 3. Script installs
 
