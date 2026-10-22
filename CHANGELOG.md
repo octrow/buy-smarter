@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-22
+
 ### Added
 - Ranking: counterfeit checks for branded listings. The card's own brand field wins over the title: an unknown or
   «Без бренда» card naming a known brand or model line in its title («PODPODOSHVOI yeezy», «XAN Air Jordan 4»)

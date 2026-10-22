@@ -1,9 +1,9 @@
 #!/bin/sh
-# Release notes for tag $1 (vX.Y.Z): its CHANGELOG.md section plus the downloads table.
+# Release notes for tag $1 (vX.Y.Z, or vX.Y.ZrcN, which reads the X.Y.Z section): its CHANGELOG.md section plus the downloads table.
 # Fails when CHANGELOG.md has no section for the version, so release.yml stops before PyPI.
 set -eu
 version="${1#v}"
-section="$(awk -v v="$version" '
+section="$(awk -v v="${version%%rc*}" '
   index($0, "## [" v "]") == 1 { found = 1; next }
   found && /^## \[/ { exit }
   found { print }

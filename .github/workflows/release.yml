@@ -45,9 +45,9 @@ jobs:
           name: dist
           path: dist/
 
-  pypi:
+  pypi:  # a release candidate (vX.Y.ZrcN) skips PyPI: an upload there is permanent
     needs: build
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, 'rc')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: pypi
@@ -66,7 +66,7 @@ jobs:
 
   github-release:
     needs: [build, pypi, desktop]
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') && !cancelled() && !failure()  # runs when pypi is skipped for an rc
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -89,4 +89,5 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           sh .github/release-notes.sh "$TAG" > notes.md
-          gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --notes-file notes.md --verify-tag
+          case "$TAG" in *rc*) pre=--prerelease ;; *) pre= ;; esac  # a pre-release stays out of /releases/latest, so the install scripts skip it
+          gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --notes-file notes.md --verify-tag $pre
