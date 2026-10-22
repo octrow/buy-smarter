@@ -117,6 +117,11 @@ def test_open_and_need_without_options_or_phrase_are_unclear(intent: str) -> Non
     assert _asked(_parsed(intent)).kind == "unclear"
 
 
+def test_a_product_with_a_blank_phrase_is_unclear() -> None:
+    """Defence in depth: never search "" (an empty parse once showed pens for 10 ₸)."""
+    assert _asked(_parsed("product", search_phrase="  ")).kind == "unclear"
+
+
 def test_a_need_one_product_type_solves_is_searched() -> None:
     parsed = _parsed("need", need="перхоть", search_phrase="шампунь от перхоти")
 

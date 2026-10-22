@@ -10,12 +10,11 @@ feature filters would over-reject in ranking's hard filter).
 """
 
 import re
-from typing import cast
 
 from buysmarter.llm.adapter import generate
 from buysmarter.llm.budget import parse_budget
 from buysmarter.ranking.audience import bare_product_type
-from buysmarter.ranking.models import QueryConstraints
+from buysmarter.ranking.models import Intent, QueryConstraints
 
 # Query parsing is a trivial extraction task (pull a few fields out of one
 # short sentence): the OmniRoute free-stack combo (what the old "haiku" alias
@@ -125,12 +124,22 @@ def parse_query_prompt(user_query: str) -> str:
     )
 
 
+class ParsedQuery(QueryConstraints):
+    """The LLM's answer: ``intent`` and ``search_phrase`` must be there.
+
+    With every field defaulted any JSON validated, so an off-schema answer became an empty
+    "product" request (and was cached). Required here, a bad answer fails, the adapter
+    retries, then the caller falls back to the naive parse.
+    """
+
+    intent: Intent
+    search_phrase: str
+
+
 async def parse_query(user_query: str) -> QueryConstraints:
     """LLM-backed parse of ``user_query``; an empty product type falls back to the naive one."""
-    result = cast(
-        QueryConstraints,
-        await generate(parse_query_prompt(user_query), QueryConstraints, model=QUERY_PARSE_MODEL),
-    )
+    answer = await generate(parse_query_prompt(user_query), ParsedQuery, model=QUERY_PARSE_MODEL)
+    result = QueryConstraints.model_validate(answer.model_dump())
     if result.product_type.strip():
         return result
     return result.model_copy(update={"product_type": bare_product_type(result.search_phrase)})

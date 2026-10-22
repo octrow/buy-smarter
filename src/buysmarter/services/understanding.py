@@ -110,7 +110,7 @@ def _semantic_kind(c: QueryConstraints) -> ClarifyKind | None:
     if c.intent in ("service", "unclear"):
         return c.intent
     if c.intent == "product":
-        return None
+        return None if c.search_phrase.strip() else "unclear"  # never search ""
     if c.intent == "open":
         return "open" if c.options else "unclear"
     if len(c.options) >= _MIN_CHOICE:

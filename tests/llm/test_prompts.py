@@ -1,5 +1,8 @@
 """parse_query must consciously pick the cheap free-stack combo."""
 
+import pytest
+from pydantic import ValidationError
+
 from buysmarter.llm import prompts
 from buysmarter.ranking.models import QueryConstraints
 
@@ -86,7 +89,9 @@ async def test_parse_query_reads_the_new_fields(monkeypatch) -> None:
 
 async def test_an_empty_llm_product_type_falls_back_to_the_naive_one(monkeypatch) -> None:
     async def _fake_generate(prompt, response_model, *, model=None, **kwargs):
-        return response_model.model_validate({"search_phrase": "мужские кроссовки 42 размер"})
+        return response_model.model_validate(
+            {"intent": "product", "search_phrase": "мужские кроссовки 42 размер"}
+        )
 
     monkeypatch.setattr(prompts, "generate", _fake_generate)
 
@@ -128,3 +133,34 @@ def test_naive_parse_reads_the_condition() -> None:
 def test_naive_parse_keeps_the_budget_range_and_note() -> None:
     assert prompts.parse_query_naive("ноутбук 30-40 тыс").budget_min == 30_000
     assert prompts.parse_query_naive("айфон до 500$").budget_note is not None
+
+
+@pytest.mark.parametrize(
+    "answer", [{}, {"category": "x"}, {"intent": "open"}, {"search_phrase": "x"}]
+)
+async def test_an_off_schema_llm_answer_fails_instead_of_becoming_an_empty_product(
+    monkeypatch, answer: dict
+) -> None:
+    """Live 2026-10-22: «подарок для мамы» came back as all defaults and searched "" (pens
+    for 10 ₸). intent and search_phrase are required in the LLM answer, so the adapter
+    retries and then falls back, and a bad answer never reaches the cache as valid."""
+
+    async def _fake_generate(prompt, response_model, *, model=None, **kwargs):
+        return response_model.model_validate(answer)
+
+    monkeypatch.setattr(prompts, "generate", _fake_generate)
+
+    with pytest.raises(ValidationError):
+        await prompts.parse_query("подарок для мамы до 15000")
+
+
+async def test_the_llm_answer_is_returned_as_plain_constraints(monkeypatch) -> None:
+    async def _fake_generate(prompt, response_model, *, model=None, **kwargs):
+        return response_model.model_validate({"intent": "service", "search_phrase": ""})
+
+    monkeypatch.setattr(prompts, "generate", _fake_generate)
+
+    parsed = await prompts.parse_query("ремонт телефона")
+
+    assert type(parsed) is QueryConstraints
+    assert parsed.intent == "service"
