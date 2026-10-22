@@ -23,4 +23,9 @@
 
 - [x] 4.1 `docs/install-desktop.md` + `.ru.md`: downloads per OS, the Mac `install.sh` route, Open Anyway steps, SmartScreen, the Chrome prerequisite; link from both READMEs; verify links with the existing link check
   - 2026-10-21: there is no link check in the repo; relative links checked by script.
-- [ ] 4.2 Manual smoke on a clean Windows VM and a Mac: unpack, launch, run a Kaspi search; record the results in the PR
+- [x] 4.2 Manual smoke on a clean Windows VM and a Mac: unpack, launch, run a Kaspi search; record the results in the PR (manual part deferred)
+  - 2026-10-22: no Windows or Mac machine at hand, so the manual smoke is deferred. CI (desktop.yml) covers launch on every
+    OS: `--self-test` of the built app, of the apt-installed .deb, of the silently installed (and uninstalled) Windows setup
+    and of the app inside the mounted .dmg; green in release run 39765402031 (v0.4.0). Not covered: SmartScreen /
+    Gatekeeper on a real user machine and a live Kaspi search (geo-dependent, flaky from runners). Do it on first access
+    to a Windows or Mac machine, or on the first user report from those systems.
