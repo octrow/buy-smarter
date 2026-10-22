@@ -23,7 +23,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from buysmarter.cli.report import format_rejected_reasons, ingredients_unchecked_note
+from buysmarter.cli.report import (
+    budget_text,
+    format_rejected_reasons,
+    ingredients_unchecked_note,
+    request_notes,
+)
 from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.labels import (
     USED_SECTION,
@@ -80,8 +85,7 @@ def open_offer(url: str | None) -> None:
 
 def constraints_line(c: QueryConstraints, city_defaulted: bool) -> str:
     city = f"{c.city or '—'}{' (по умолчанию)' if city_defaulted else ''}"
-    budget = kzt(c.budget_max) if c.budget_max else "без лимита"
-    parts = [f"Категория: {c.category}", f"Город: {city}", f"Бюджет: {budget}"]
+    parts = [f"Категория: {c.category}", f"Город: {city}", f"Бюджет: {budget_text(c)}"]
     if c.required_features:
         parts.append(f"Нужно: {', '.join(c.required_features)}")
     if c.excluded_brands:
@@ -275,11 +279,15 @@ class ReportScreen(QScrollArea):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(SPACE["xxl"], SPACE["xxl"], SPACE["xxl"], SPACE["xl"])
         layout.setSpacing(SPACE["lg"])
+        if result.restricted_note:
+            layout.addWidget(_label(f"⚠ {result.restricted_note}", state="warning"))
         heading = QVBoxLayout()
         heading.setSpacing(SPACE["xs"])
         heading.addWidget(_label(run.query, name="hero"))
         constraints = constraints_line(result.constraints, result.city_defaulted)
         heading.addWidget(_label(constraints, role="muted"))
+        for note in request_notes(result):
+            heading.addWidget(_label(note, state="warning"))
         layout.addLayout(heading)
         if result.knowledge_missing:
             layout.addWidget(self._knowledge_banner(result))
@@ -300,7 +308,8 @@ class ReportScreen(QScrollArea):
         self.setWidget(page)
 
     def _knowledge_banner(self, result: RecommendResult) -> QFrame:
-        category = result.constraints.category
+        # Learned under the profile key, so the next search finds it (phase 2, decision 13).
+        category = result.constraints.product_type or result.constraints.category
         banner = QFrame()
         banner.setObjectName("banner")
         column = QVBoxLayout(banner)

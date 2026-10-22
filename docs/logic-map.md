@@ -80,12 +80,12 @@ They differ in defaults.
 | Entry | Sources by default | LLM by default | Notes |
 |---|---|---|---|
 | CLI `recommend` | kaspi, ozon, olx | on | on a terminal asks a clarification first (number or own text, next round), then a missing budget; off a terminal a question exits with code 3, nothing to search with 1; `--no-clarify` searches the first option |
-| Desktop GUI | user picks | on | calls `recommend()` in-process; merges excluded brands from settings into the parse |
+| Desktop GUI | user picks | on | calls `recommend()` in-process; merges excluded brands from settings into the parse; a clarification shows as a card under the form (option buttons, own answer: an option goes back as `answer`, own text joins the query; next round); `restricted_note` heads the report; "Изучить категорию" learns the product type |
 | MCP `recommend` | kaspi, ozon, olx | **off** (`parse_with_llm=False`) | passes `city or preference or Алматы` as an override: a city in the query is ignored, `city_defaulted` is always false; a clarification comes back as markdown telling the host to ask the human and call again with `answer` and `clarify_round` + 1 |
 | HTTP API + worker | `api_sources`, default kaspi + olx (no Ozon) | **off** (`use_llm=False`) | job queue in Redis, timeout per job, dedupe by request; a clarification is `no_match` with `reason="needs_clarification"` and `clarification`, the client posts again with `answer` and `clarify_round` + 1; `constraints` is the public `ParsedRequest` (`category` kept, deprecated) |
 | direct call | kaspi only | on | used by tests |
 
-Module: `cli/main`, `cli/clarify`, `gui/screens/search`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`
+Module: `cli/main`, `cli/clarify`, `gui/screens/search`, `gui/screens/clarify`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`
 
 ## Steps
 

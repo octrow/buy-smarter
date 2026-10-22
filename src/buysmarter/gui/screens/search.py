@@ -36,6 +36,7 @@ from buysmarter.gui.prefs_fields import (
     source_boxes,
 )
 from buysmarter.gui.progress import Progress
+from buysmarter.gui.screens.clarify import ClarificationBox
 from buysmarter.gui.screens.saved import ListReports, report_parts
 from buysmarter.gui.theme import SPACE, bind_icon, set_state
 from buysmarter.ranking.models import QueryConstraints
@@ -44,6 +45,7 @@ from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, RecommendResult
 from buysmarter.services.recommend import parse_request as run_parse_request
 from buysmarter.services.recommend import recommend as run_recommend
+from buysmarter.services.understanding import Clarification, NeedsClarification, NothingToSearch
 
 _QUERY_PLACEHOLDER = "нужен ирригатор, IPX7, до 40000 тг, Алматы"
 STATE_LABELS = {
@@ -143,6 +145,13 @@ class NoRecommendation:
     message: str
 
 
+@dataclass(frozen=True)
+class AskUser:
+    """The core asks back before it searches (``services.understanding``)."""
+
+    clarification: Clarification
+
+
 class SearchScreen(QWidget):
     """Emits ``report_ready(RecommendResult, SearchRun)`` when a search finishes."""
 
@@ -172,6 +181,7 @@ class SearchScreen(QWidget):
         self._ticker.timeout.connect(self._show_stage)
         self._list_reports = list_reports
         self._query_action: QAction | None = None
+        self._asked: Clarification | None = None
         self._build()
 
     def _build(self) -> None:
@@ -198,6 +208,8 @@ class SearchScreen(QWidget):
         self.report_button = QPushButton("Открыть отчёт")
         self.report_button.clicked.connect(self.open_report.emit)
         self.report_button.hide()
+        self.clarify = ClarificationBox()
+        self.clarify.answered.connect(self._answer)
 
         self.query.setObjectName("bigQuery")
         bind_icon(self, self._set_query_icon, "mdi6.magnify")
@@ -210,6 +222,7 @@ class SearchScreen(QWidget):
         layout.addWidget(_named(QLabel(_HERO), "hero"))
         layout.addWidget(_muted(QLabel(_HERO_HINT)))
         layout.addWidget(self._form_card())
+        layout.addWidget(self.clarify)
         layout.addSpacing(SPACE["sm"])
         layout.addWidget(self.recent_box)
         layout.addStretch(1)
@@ -360,6 +373,22 @@ class SearchScreen(QWidget):
             set_state(self.status[name], "state", "missing" if off else "")
 
     def start(self) -> None:
+        """A new search from the form: any earlier question is dropped."""
+        self._launch()
+
+    def _answer(self, reply: str) -> None:
+        """The user answered the question: an option goes back as ``answer``, own text
+        joins the query; either way the next round runs."""
+        asked = self._asked
+        if asked is None or self._job is not None:
+            return
+        if reply in asked.options and asked.kind != "capability":
+            self._launch(answer=reply, clarify_round=asked.round + 1)
+            return
+        self.query.setText(f"{self.query.text().strip()} {reply}")
+        self._launch(clarify_round=asked.round + 1)
+
+    def _launch(self, answer: str | None = None, clarify_round: int = 0) -> None:
         if self._job is not None:
             return
         query = self.query.text().strip()
@@ -375,8 +404,13 @@ class SearchScreen(QWidget):
         self._show_states()
         self.message.clear()
         self.report_button.hide()
+        self.clarify.hide()
+        self._asked = None
         self._set_running(True)
         self._run = SearchRun(query, self.use_llm.isChecked(), self._states)
+        rounds: dict[str, Any] = {"answer": answer} if answer is not None else {}
+        if clarify_round:
+            rounds["clarify_round"] = clarify_round
         coro = self._search(
             query,
             city=self.city.text().strip() or None,
@@ -384,6 +418,7 @@ class SearchScreen(QWidget):
             use_llm=self._run.use_llm,
             sources=selected,
             excluded_brands=self._excluded_brands,
+            **rounds,
         )
         self._job = self._runner.submit(self._progress.track(coro))
         self._job.finished.connect(self._on_finished)
@@ -392,7 +427,7 @@ class SearchScreen(QWidget):
 
     async def _search(
         self, query: str, *, excluded_brands: list[str], **kwargs: Any
-    ) -> RecommendResult | NoRecommendation:
+    ) -> RecommendResult | NoRecommendation | AskUser:
         # Runs on the core loop thread: takes plain values only, never touches a widget.
         try:
             if excluded_brands:
@@ -400,6 +435,10 @@ class SearchScreen(QWidget):
                 merged = list(dict.fromkeys([*parsed.excluded_brands, *excluded_brands]))
                 kwargs["parsed"] = parsed.model_copy(update={"excluded_brands": merged})
             return await self._recommend(query, **kwargs)
+        except NeedsClarification as exc:  # not a ValueError: a question, not "nothing found"
+            return AskUser(exc.clarification)
+        except NothingToSearch as exc:
+            return NoRecommendation(str(exc))
         except NoSubstanceMatch as exc:
             nearest = [f"• {c.title} — {kzt(c.price)} [{c.source}]" for c in exc.alternatives]
             return NoRecommendation("\n".join([exc.message(), *nearest]))
@@ -452,8 +491,12 @@ class SearchScreen(QWidget):
         self._states = {n: final.get(s, s) for n, s in self._states.items()}
         self._show_states()
 
-    def _on_finished(self, result: RecommendResult | NoRecommendation) -> None:
+    def _on_finished(self, result: RecommendResult | NoRecommendation | AskUser) -> None:
         self._settle()
+        if isinstance(result, AskUser):
+            self._asked = result.clarification
+            self.clarify.ask(result.clarification)
+            return
         if isinstance(result, NoRecommendation):
             self.message.setText(result.message)
             return

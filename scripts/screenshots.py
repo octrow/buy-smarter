@@ -98,6 +98,26 @@ def _grab_screens(window: object, settle: Callable[[], None], out: Path) -> None
         name = f"{row:02d}-{item.text()}.png"
         window.grab().save(str(out / name))
         print(name)
+    _grab_clarification(window, settle, out)
+
+
+def _grab_clarification(window: object, settle: Callable[[], None], out: Path) -> None:
+    """The search screen asking back (phase 2): the warning, options and own-answer field."""
+    from buysmarter.services.understanding import Clarification
+
+    asked = Clarification(
+        kind="open",
+        question="Что именно ищем? Выберите вариант или напишите свой.",
+        options=["духи", "крем для лица", "плед", "кофемашина"],
+        restricted_note="Алкоголь: продажа онлайн и доставка ограничены законом.",
+    )
+    window.search.query.setText("подарок для мамы до 15000")
+    window.search.clarify.ask(asked)
+    window._show_screen(window.search)
+    settle()
+    window.grab().save(str(out / "clarify.png"))
+    window.search.clarify.hide()
+    print("clarify.png")
 
 
 def _pump(app: object, runner: object, seconds: float) -> None:
