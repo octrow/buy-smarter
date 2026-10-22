@@ -21,10 +21,17 @@ def composition_profile(book: IngredientBook | None = None) -> ResolvedProfile:
     )
 
 
+def capability_hooks(
+    constraints: QueryConstraints, profile: ResolvedProfile | None = None
+) -> RankHooks:
+    """What the flow hands ``rank()`` for this profile (none by default) and constraints."""
+    profile = profile or ResolvedProfile(slug="test")
+    return activate(REGISTRY, profile, constraints, query="", use_llm=False).rank_hooks()
+
+
 def composition_hooks(constraints: QueryConstraints) -> RankHooks:
     """What the flow hands ``rank()`` for a composition category and these constraints."""
-    active = activate(REGISTRY, composition_profile(), constraints, query="", use_llm=False)
-    return active.rank_hooks()
+    return capability_hooks(constraints, composition_profile())
 
 
 @dataclass

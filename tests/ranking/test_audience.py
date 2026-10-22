@@ -12,6 +12,7 @@ from buysmarter.ranking.audience import (
 )
 from buysmarter.ranking.filters import apply_hard_filters
 from buysmarter.ranking.models import Candidate, QueryConstraints
+from tests.fakes import capability_hooks
 
 
 def test_query_audience_reads_the_single_audience_named():
@@ -42,9 +43,8 @@ def test_hard_filter_drops_other_audience_using_the_category_path_too():
         update={"source_product_id": "2", "category_path": ["Обувь", "Мужская обувь"]}
     )
 
-    passed, rejected = apply_hard_filters(
-        [women, men], QueryConstraints(category="мужские кроссовки", gender=MALE)
-    )
+    constraints = QueryConstraints(category="мужские кроссовки", gender=MALE)
+    passed, rejected = apply_hard_filters([women, men], constraints, capability_hooks(constraints))
 
     assert passed == [men]
     assert rejected[0][1] == "other audience: female"

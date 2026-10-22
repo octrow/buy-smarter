@@ -1,9 +1,8 @@
-"""Hard filters: budget, brand, availability, audience, required features, extra checks."""
+"""Hard filters: budget, brand, availability, required features, extra checks."""
 
 import re
 from collections.abc import Callable
 
-from buysmarter.ranking.audience import other_audience
 from buysmarter.ranking.models import (
     Candidate,
     QueryConstraints,
@@ -56,7 +55,7 @@ def apply_hard_filters(
     """Split candidates into (passed, rejected-with-reason).
 
     Checks, in order: budget, excluded brand, unknown brand when trusted-only,
-    availability, audience, the extra listing checks passed in, required features
+    availability, the extra listing checks passed in, required features
     (as the passed-in adjusters leave them), the extra content checks. First
     failing check wins the reason.
     """
@@ -94,7 +93,7 @@ def listing_text(candidate: Candidate) -> str:
 def _listing_rejection(
     candidate: Candidate, constraints: QueryConstraints, excluded_brands: set[str]
 ) -> str | None:
-    """Reject on the listing itself: budget, excluded/unknown brand, availability, audience."""
+    """Reject on the listing itself: budget, excluded/unknown brand, availability."""
     if constraints.budget_max is not None and candidate.price > constraints.budget_max:
         return f"price exceeds budget: {candidate.price} > {constraints.budget_max}"
     if candidate.brand and candidate.brand.lower() in excluded_brands:
@@ -103,10 +102,6 @@ def _listing_rejection(
         return "unknown brand (trusted-brands-only)"
     if not candidate.availability:
         return "not available"
-    if constraints.gender:
-        other = other_audience(constraints.gender, listing_text(candidate))
-        if other is not None:
-            return f"other audience: {other}"
     return None
 
 

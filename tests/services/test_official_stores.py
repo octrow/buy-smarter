@@ -3,6 +3,7 @@
 import json
 
 from buysmarter.knowledge.brands import BrandBook
+from buysmarter.ranking.audience import other_audience
 from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services import official_stores as stores
 from buysmarter.services.official_stores import StoreOffer, parse_store_offers
@@ -114,7 +115,9 @@ async def test_official_candidates_are_the_cheapest_in_budget_trusted_products(m
     monkeypatch.setattr(stores, "_fetch_all", _fake_fetch_all)
 
     candidates = await stores.official_candidates(
-        _BOOK, QueryConstraints(category="мужские кроссовки", budget_max=35_000, gender="male")
+        _BOOK,
+        QueryConstraints(category="мужские кроссовки", budget_max=35_000),
+        lambda name: other_audience("male", name),
     )
 
     assert [(c.title, c.price) for c in candidates] == [

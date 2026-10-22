@@ -13,7 +13,6 @@ from datetime import date
 from typing import NamedTuple
 
 from buysmarter.i18n import kzt
-from buysmarter.ranking.audience import has_size
 from buysmarter.ranking.delivery import (
     DELIVERY_LATER_CREDIT,
     delivery_note,
@@ -456,8 +455,6 @@ def _pros_cons(axes: list[AxisScore]) -> tuple[list[str], list[str]]:
 _MODEL_MISMATCH_FACTOR = 0.85
 _MODEL_MISMATCH_CON = "другая модель: в названии нет «{token}»"
 _OFFICIAL_SELLER_PRO = "официальный магазин или партнёр бренда — оригинал"
-# Marketplace cards do not list the sizes in stock: a size is checked on the product page.
-_SIZE_UNVERIFIED_CON = "размер {size}: наличие не проверено"
 
 
 def _unverified_feature_cons(candidate: Candidate, constraints: QueryConstraints) -> list[str]:
@@ -578,8 +575,6 @@ def _verdict_pros_cons(
     if verdict is not None:
         (pros if verdict[0] == "pro" else cons).append(verdict[1])
     cons.extend(_unverified_feature_cons(candidate, constraints))
-    if constraints.size and not has_size(candidate.title, constraints.size):
-        cons.append(_SIZE_UNVERIFIED_CON.format(size=constraints.size))
     for extra in scoring:
         if extra.notes is not None:
             pros, cons = extra.notes(candidate, pros, cons)

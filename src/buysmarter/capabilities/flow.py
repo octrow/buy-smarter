@@ -118,6 +118,22 @@ def _scoring(cap: Capability, ctx: CapabilityContext) -> Callable[[list[Candidat
     return build
 
 
+def read_query(
+    registry: dict[str, Capability], constraints: QueryConstraints, *, query: str, use_llm: bool
+) -> QueryConstraints:
+    """Every capability's ``query`` hook, in registry order, before anything is switched on.
+
+    The profile is not resolved yet at this point (its key is the category the hooks may
+    rewrite), so the context carries an empty one.
+    """
+    profile = ResolvedProfile(slug="")
+    for cap in registry.values():
+        if overrides(cap, "query"):
+            ctx = CapabilityContext(profile, constraints, use_llm=use_llm, query=query)
+            constraints = cap.query(ctx, constraints)
+    return constraints
+
+
 def activate(
     registry: dict[str, Capability],
     profile: ResolvedProfile,

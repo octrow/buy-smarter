@@ -20,6 +20,7 @@ import json
 import logging
 import re
 import time
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
@@ -235,10 +236,20 @@ async def verify_store_floors(book: BrandBook, category: str) -> BrandBook:
     )
 
 
+def _keep_offer(name: str) -> str | None:
+    return None
+
+
 async def official_candidates(
-    book: BrandBook | None, constraints: QueryConstraints
+    book: BrandBook | None,
+    constraints: QueryConstraints,
+    reject: Callable[[str], str | None] = _keep_offer,
 ) -> list[Candidate]:
-    """The cheapest in-budget products for the query's audience of every known official store."""
+    """The cheapest in-budget products of every known official store.
+
+    ``reject`` is the query's listing check (another audience, say), applied to each offer
+    name before the per-store cut, so a kids' pair never takes a place in it.
+    """
     if book is None:
         return []
     targets = _store_targets(book)
@@ -248,11 +259,7 @@ async def official_candidates(
     candidates: list[Candidate] = []
     for brand, _url, offers in await _fetch_all(targets):
         in_budget = sorted(
-            (
-                o
-                for o in _for_audience(offers, constraints.gender)
-                if budget is None or o.price <= budget
-            ),
+            (o for o in offers if reject(o.name) is None and (budget is None or o.price <= budget)),
             key=lambda o: o.price,
         )
         candidates.extend(_to_candidate(o, brand, book) for o in in_budget[:_PER_STORE])

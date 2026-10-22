@@ -27,7 +27,7 @@ from buysmarter import telemetry
 from buysmarter.capabilities import REGISTRY
 from buysmarter.capabilities.composition import INGREDIENTS_UNCHECKED
 from buysmarter.capabilities.composition import NoSubstanceMatch as NoSubstanceMatch  # re-export
-from buysmarter.capabilities.flow import activate
+from buysmarter.capabilities.flow import activate, read_query
 from buysmarter.config import get_settings
 from buysmarter.db.base import async_session
 from buysmarter.db.repo import (
@@ -45,14 +45,6 @@ from buysmarter.llm.relevance import (
 )
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.normalize.candidate import attach_reference_prices
-from buysmarter.ranking.audience import (
-    is_apparel,
-    is_size_phrase,
-    other_audience,
-    query_audience,
-    query_size,
-    strip_size,
-)
 from buysmarter.ranking.engine import NoCandidatesPassed, rank
 from buysmarter.ranking.models import (
     Candidate,
@@ -242,7 +234,8 @@ async def recommend(
     with stage("query parse"):
         base_constraints = parsed if parsed is not None else await _parse(query, use_llm)
     resolved_city, city_defaulted = await resolve_city(base_constraints.city, city)
-    constraints = _apply_overrides(base_constraints, resolved_city, budget, trusted_only, query)
+    constraints = read_query(REGISTRY, base_constraints, query=query, use_llm=use_llm)
+    constraints = _apply_overrides(constraints, resolved_city, budget, trusted_only)
     requested = sources or ["kaspi"]
     # off the loop: picking Ozon's browser may launch one to probe it
     active = await asyncio.to_thread(resolve_sources, requested, source, ozon_source, olx_source)
@@ -265,7 +258,9 @@ async def recommend(
             )
         new_candidates, persist_rows = merge_new_goods(collected)
         with stage("official stores"):
-            new_candidates += await official_candidates(book, constraints)
+            new_candidates += await official_candidates(
+                book, constraints, capabilities.reject_listing
+            )
         # Attach 30-day price history (from prior runs' snapshots) before ranking
         # so the price axis can reward a genuine dip; best-effort, no-op keyless.
         await attach_price_history(new_candidates)
@@ -279,7 +274,9 @@ async def recommend(
         used_candidates = cast(list[Candidate], collected.get("olx") or [])
         deduped, notes = dedupe_cross_source(new_candidates, model_book)
         deduped = attach_reference_prices(deduped, book, model_book)
-        used_candidates = await _filter_used(used_candidates, constraints, use_llm)
+        used_candidates = await _filter_used(
+            used_candidates, constraints, use_llm, capabilities.reject_listing
+        )
         await capabilities.enrich(deduped)
         with stage("ranking"):
             recommendation = rank(
@@ -341,15 +338,21 @@ async def recommend(
     )
 
 
+def _keep_listing(text: str) -> str | None:
+    return None
+
+
 async def _filter_used(
-    used: list[Candidate], constraints: QueryConstraints, use_llm: bool
+    used: list[Candidate],
+    constraints: QueryConstraints,
+    use_llm: bool,
+    reject: Callable[[str], str | None] = _keep_listing,
 ) -> list[Candidate]:
-    """Drop OLX ads for another audience or off the category ("туфли" in a sneaker search).
+    """Drop OLX ads the capabilities reject (another audience) or off the category.
 
     No fail-open floor here: an empty OLX section is fine, a wrong one is not.
     """
-    if constraints.gender:
-        used = [u for u in used if other_audience(constraints.gender, u.title) is None]
+    used = [u for u in used if reject(u.title) is None]
     if not used:
         return used
     relevant = await _filter_relevant_candidates(
@@ -385,21 +388,8 @@ def _apply_overrides(
     city: str | None,
     budget: int | None,
     trusted_only: bool,
-    query: str = "",
 ) -> QueryConstraints:
     updates: dict[str, Any] = {}
-    text = " ".join([query, constraints.category, *constraints.required_features])
-    if constraints.gender is None and (gender := query_audience(text)):
-        updates["gender"] = gender
-    if constraints.size is None and (size := query_size(text)):
-        updates["size"] = size
-    if query_size(constraints.category):
-        updates["category"] = strip_size(constraints.category) or constraints.category
-    features = [
-        f for f in constraints.required_features if not (is_apparel(text) and is_size_phrase(f))
-    ]
-    if len(features) != len(constraints.required_features):
-        updates["required_features"] = features
     if city:
         updates["city"] = city
     if budget is not None:
