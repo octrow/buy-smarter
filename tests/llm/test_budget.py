@@ -100,3 +100,21 @@ def test_naive_parse_reads_the_budget_and_keeps_units() -> None:
     tree = parse_query_naive("ёлка до 1.8 м")
     assert tree.budget_max is None
     assert tree.search_phrase == "ёлка 1.8 м"
+
+
+@pytest.mark.parametrize(
+    ("query", "budget", "phrase"),
+    [
+        ("автокресло до 18.5 кг", None, "автокресло до 18.5 кг"),
+        ("ноутбук до 15.6 дюймов", None, "ноутбук до 15.6 дюймов"),
+        ("наушники до 15.000", 15_000, "наушники"),
+        ("фен до 150.000 тг", 150_000, "фен"),
+        ("фен до 25,5 тыс", None, "фен до 25,5 тыс"),
+    ],
+)
+def test_a_fraction_is_never_cut_into_a_budget(query: str, budget, phrase: str) -> None:
+    """Review: backtracking gave "18.5 кг" a 1 000 ₸ budget ("1" of "18") and cut the phrase."""
+    parsed = parse_budget(query)
+
+    assert parsed.budget_max == budget
+    assert parsed.text == phrase

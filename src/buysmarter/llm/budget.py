@@ -16,8 +16,10 @@ _THOUSAND = 1000
 # "N k" below this is not money: "4K" names a screen resolution.
 _MIN_K_AMOUNT = 10
 
-# A whole number, digit groups allowed ("15 000"); not part of a word, code or fraction.
-_NUM = r"(?<![\w.,/])(?P<{}>\d{{1,3}}(?:[ \u00a0]\d{{3}})+|\d+)(?![.,]\d)"
+# A whole number, digit groups allowed ("15 000", "15.000"); not part of a word, code or
+# fraction. The lookahead also refuses a following digit, so backtracking cannot leave
+# "1" of "18.5" as a number.
+_NUM = r"(?<![\w.,/])(?P<{}>\d{{1,3}}(?:[ \u00a0.,]\d{{3}})+|\d+)(?![.,]?\d)"
 _KZT = r"(?:₸|(?:тг|тенге|теңге)(?!\w))"
 _SLANG = r"(?:тыс\w*\.?|тыщ\w*|косар\w*|мың(?!\w))"
 _MULT = rf"(?P<mult>{_SLANG}|штук\w*|[kк](?!\w))"
