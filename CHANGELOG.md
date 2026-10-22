@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-23
+
 ### Changed
 - Model names for OLX ads come from Jev's confident picks only; the LLM runs only when Jev itself fails. Asked on
   every unsure title it cost 40-60 s per search and once named every «iPhone 13» ad «Apple iPhone 17 Pro Max».
