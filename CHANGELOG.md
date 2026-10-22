@@ -4,6 +4,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Fixed
+- OLX: an ad padded with the shop's name («iphone 13 Shark Store») now matches the new iPhone 13 on the shared
+  model number, and a no-name ad for another model number («TWS Pro 4» for «TWS Pro 6») is no longer offered
+  as a cheaper option.
+
 ## [0.5.0] - 2026-10-22
 
 ### Added

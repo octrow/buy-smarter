@@ -1756,3 +1756,25 @@ def test_a_notable_ad_for_another_model_than_the_query_names_is_left_out() -> No
     )
 
     assert [listing.title for listing in listings] == ["Apple iPhone 13"]
+
+
+def test_a_used_ad_with_shop_words_matches_on_its_model_number() -> None:
+    new_13 = _cand("kaspi", "k1", "Apple iPhone 13 128Gb черный", "Apple", 373000)
+    used = _cand("olx", "u1", "iphone 13 Shark Store", "Apple", 180000)
+
+    [listing] = match_used_listings([new_13], [used], None)
+
+    assert listing.matched_title == new_13.title
+
+
+def test_an_unbranded_ad_for_another_model_number_is_left_out() -> None:
+    book = BrandBook(tiers={}, aliases={})
+    pick = _used_cand("kaspi", "k1", "Наушники TWS Pro 6", 20000)
+    same = _used_cand("olx", "u1", "Наушники TWS Pro 6", 9000)
+    other = _used_cand("olx", "u2", "Наушники TWS Pro 4", 8000)
+
+    listings = unbranded_used_listings(
+        [same, other], book, pick, exclude=set(), category="наушники TWS Pro 6"
+    )
+
+    assert [listing.title for listing in listings] == [same.title]

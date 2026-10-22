@@ -137,11 +137,6 @@ class UsedListing(BaseModel):
     standalone: bool = False  # True: no new-product match, renderers skip the saving math
 
 
-def _title_tokens(title: str) -> set[str]:
-    """Lowercase alphanumeric tokens of a title, dropping short stray words."""
-    return {t for t in re.findall(r"[\w]+", title.lower()) if len(t) >= _MIN_TOKEN_LEN}
-
-
 # A name word followed by a short number: "iphone 13", "wp-100", "redmi 9". The tokens drop
 # numbers under _MIN_TOKEN_LEN, so without this "iPhone 12" and "iPhone 13" read as the same.
 _NAME_NUMBER = re.compile(r"([^\W\d_]{2,})[\s-]*(\d{1,4})(?![\w/])")
@@ -149,6 +144,16 @@ _NAME_NUMBER = re.compile(r"([^\W\d_]{2,})[\s-]*(\d{1,4})(?![\w/])")
 
 def _name_numbers(title: str) -> dict[str, str]:
     return dict(_NAME_NUMBER.findall(title.lower()))
+
+
+def _title_tokens(title: str) -> set[str]:
+    """Lowercase alphanumeric tokens of a title, dropping short stray words.
+
+    A numbered name counts as one more token ("iphone13"): the shared model number is what
+    ties "iphone 13 Shark Store" to "Apple iPhone 13 128Gb" past the shop's words.
+    """
+    words = {t for t in re.findall(r"[\w]+", title.lower()) if len(t) >= _MIN_TOKEN_LEN}
+    return words | {name + number for name, number in _NAME_NUMBER.findall(title.lower())}
 
 
 def _model_numbers_conflict(a: str, b: str) -> bool:
@@ -494,6 +499,7 @@ def unbranded_used_listings(
         and (u.url or u.title) not in exclude
         and _brand_tier(u.title, book) not in _NOTABLE_USED_TIERS
         and matches_category_or_stripped(u.title, category, book)
+        and not _model_numbers_conflict(category, u.title)
         and (ref := _unbranded_ref(u, pick, refs or [])) is not None
     ]
     pairs.sort(key=lambda pair: pair[0].price, reverse=True)
@@ -518,11 +524,17 @@ def _latin_names(title: str) -> set[str]:
 
 def _unbranded_ref(u: Candidate, pick: Candidate, refs: list[Candidate]) -> Candidate | None:
     """The priciest same-name ref ``u`` is meaningfully cheaper than, else the pick."""
-    cheaper = [r for r in refs if u.price <= r.price * _USED_PRICE_RATIO]
+    cheaper = [
+        r
+        for r in refs
+        if u.price <= r.price * _USED_PRICE_RATIO and not _model_numbers_conflict(u.title, r.title)
+    ]
     names = _latin_names(u.title)
     same_name = [r for r in cheaper if names & _latin_names(r.title)]
     if same_name:
         return max(same_name, key=lambda r: r.price)
+    if _model_numbers_conflict(u.title, pick.title):
+        return None
     return pick if u.price <= pick.price * _USED_PRICE_RATIO else None
 
 
