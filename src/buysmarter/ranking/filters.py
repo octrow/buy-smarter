@@ -1,19 +1,14 @@
-"""Hard filters: budget, brand, availability, required features and active substance."""
+"""Hard filters: budget, brand, availability, audience, required features, extra checks."""
 
 import re
-from typing import TYPE_CHECKING
+from collections.abc import Callable
 
-from buysmarter.knowledge.ingredients import composition_text
 from buysmarter.ranking.audience import other_audience
 from buysmarter.ranking.models import (
     Candidate,
     QueryConstraints,
+    RankHooks,
 )
-
-if TYPE_CHECKING:
-    pass
-
-CONCENTRATION_RE = re.compile(r"\d+[.,]?\d*\s*%")
 
 # Waterproof-rating synonyms Kaspi listings use instead of the "IPX<n>" code
 # itself. Static bridge for v1 — real LLM/embedding-based feature matching is
@@ -50,44 +45,33 @@ def _feature_present(feature: str, candidate: Candidate) -> bool:
 # Public name for services that check required features against a candidate.
 feature_present = _feature_present
 
-# Reason prefix for a candidate rejected because it lacks the explicitly required
-# active substance (composition-driven categories). The caller keys the honest
-# empty-pool message off this prefix, so keep them in sync.
-NO_SUBSTANCE_REASON = "нет требуемого вещества"
+_NO_HOOKS = RankHooks()
 
 
 def apply_hard_filters(
     candidates: list[Candidate],
     constraints: QueryConstraints,
-    *,
-    required_substances: list[str] | None = None,
+    hooks: RankHooks = _NO_HOOKS,
 ) -> tuple[list[Candidate], list[tuple[Candidate, str]]]:
     """Split candidates into (passed, rejected-with-reason).
 
-    Checks, in order: budget, excluded brand, availability, required
-    features (minus a bare concentration when a substance is required),
-    required active substance. First failing check wins the reason.
-
-    The active-substance check only bites on a candidate whose composition was
-    checked (``ingredients_checked``) and that *declares* a состав without any
-    ``required_substances`` — proven absence. An unchecked candidate, or one with
-    no состав text at all, is a data gap, not a proven absence, so it survives
-    (scored with an "unchecked"/"unconfirmed" con), never silently rejected.
+    Checks, in order: budget, excluded brand, unknown brand when trusted-only,
+    availability, audience, the extra listing checks passed in, required features
+    (as the passed-in adjusters leave them), the extra content checks. First
+    failing check wins the reason.
     """
     excluded_brands = {b.lower() for b in constraints.excluded_brands}
-    required_substances = required_substances or []
-    # With a required substance, a bare concentration ("0,1%") is graded on the
-    # ingredient axis (``required_concentration``), not string-matched here.
-    hard_features = [
-        f
-        for f in constraints.required_features
-        if not (required_substances and CONCENTRATION_RE.fullmatch(f.strip()))
-    ]
+    hard_features = list(constraints.required_features)
+    for adjust in hooks.hard_features:
+        hard_features = adjust(hard_features)
     passed: list[Candidate] = []
     rejected: list[tuple[Candidate, str]] = []
     for candidate in candidates:
-        reason = _listing_rejection(candidate, constraints, excluded_brands) or _content_rejection(
-            candidate, hard_features, required_substances
+        reason = (
+            _listing_rejection(candidate, constraints, excluded_brands)
+            or _first(hooks.reject_listing, listing_text(candidate))
+            or _feature_rejection(candidate, hard_features)
+            or _first(hooks.reject_content, candidate)
         )
         if reason is None:
             passed.append(candidate)
@@ -95,6 +79,16 @@ def apply_hard_filters(
             rejected.append((candidate, reason))
 
     return passed, rejected
+
+
+def _first[T](checks: tuple[Callable[[T], str | None], ...], value: T) -> str | None:
+    """The first reason any check gives for ``value``."""
+    return next((reason for check in checks if (reason := check(value)) is not None), None)
+
+
+def listing_text(candidate: Candidate) -> str:
+    """What a listing says about itself: the title and the marketplace's category path."""
+    return " ".join([candidate.title, *candidate.category_path])
 
 
 def _listing_rejection(
@@ -110,19 +104,14 @@ def _listing_rejection(
     if not candidate.availability:
         return "not available"
     if constraints.gender:
-        listing = " ".join([candidate.title, *candidate.category_path])
-        other = other_audience(constraints.gender, listing)
+        other = other_audience(constraints.gender, listing_text(candidate))
         if other is not None:
             return f"other audience: {other}"
     return None
 
 
-def _content_rejection(
-    candidate: Candidate,
-    hard_features: list[str],
-    required_substances: list[str],
-) -> str | None:
-    """Reject on what the product is: required features, required substance."""
+def _feature_rejection(candidate: Candidate, hard_features: list[str]) -> str | None:
+    """Reject on what the product is: a required feature its specs lack."""
     # An empty specs dict means specs weren't fetched (not that the
     # product lacks the feature) — don't reject on unverifiable data;
     # `score()` attaches a "не удалось проверить" con instead.
@@ -130,22 +119,4 @@ def _content_rejection(
         missing = [f for f in hard_features if not _feature_present(f, candidate)]
         if missing:
             return f"missing required feature(s): {', '.join(missing)}"
-    if required_substances and _substance_proven_absent(candidate, required_substances):
-        return f"{NO_SUBSTANCE_REASON}: {', '.join(required_substances)}"
     return None
-
-
-def has_required_substance(candidate: Candidate, required_substances: list[str]) -> bool:
-    """True when the candidate's detected substances include a required one."""
-    return any(s in candidate.detected_substances for s in required_substances)
-
-
-def _substance_proven_absent(candidate: Candidate, required_substances: list[str]) -> bool:
-    """A required substance is *proven* absent: checked, состав declared, substance not in it.
-
-    Not checked (extraction off or without an answer) or no состав text means the
-    data is missing, not that the substance is absent — kept and flagged, never rejected.
-    """
-    if not candidate.ingredients_checked or has_required_substance(candidate, required_substances):
-        return False
-    return bool(composition_text(candidate.specs))

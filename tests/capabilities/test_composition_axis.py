@@ -3,15 +3,18 @@
 Pure ranking engine — no DB, no LLM, no network.
 """
 
+from buysmarter.capabilities.composition import Composition, build_ingredient_context
+from buysmarter.capabilities.weights import combine
 from buysmarter.ranking.engine import (
-    COMPOSITION_WEIGHTS,
     DEFAULT_WEIGHTS,
     compute_market_context,
     rank,
     score,
 )
-from buysmarter.ranking.ingredient_axis import build_ingredient_context
 from buysmarter.ranking.models import Candidate, QueryConstraints
+from tests.fakes import composition_hooks
+
+COMPOSITION_WEIGHTS = combine(DEFAULT_WEIGHTS, [Composition()])
 
 
 def _cand(**overrides) -> Candidate:
@@ -65,8 +68,9 @@ def test_default_weights_untouched() -> None:
 
 def _score_one(candidate, constraints, required):
     market = compute_market_context([candidate])
-    ctx = build_ingredient_context([candidate], required)
-    return score(candidate, constraints, market, weights=COMPOSITION_WEIGHTS, ingredient_ctx=ctx)
+    hooks = composition_hooks(constraints)  # required: adapalene, named in the category
+    scoring = [prepare([candidate]) for prepare in hooks.scoring]
+    return score(candidate, constraints, market, weights=COMPOSITION_WEIGHTS, scoring=scoring)
 
 
 def test_ingredient_present_with_concentration_full_credit() -> None:
@@ -154,7 +158,7 @@ def _adapalene_pool() -> list[Candidate]:
 
 def test_cheapest_generic_ranks_above_expensive_with_pros() -> None:
     pool = _adapalene_pool()
-    rec = rank(pool, _constraints(), composition=True, required_substances=["адапален"])
+    rec = rank(pool, _constraints(), hooks=composition_hooks(_constraints()))
 
     assert rec.best.candidate.source_product_id == "klenzit"
     assert any("дженерик-аналог" in p and "Differin" in p for p in rec.best.pros)

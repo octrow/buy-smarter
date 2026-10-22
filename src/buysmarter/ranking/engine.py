@@ -8,8 +8,9 @@ Alternatives) for the contract this module implements.
 import math
 import statistics
 from collections import Counter
+from collections.abc import Sequence
 from datetime import date
-from typing import TYPE_CHECKING, NamedTuple
+from typing import NamedTuple
 
 from buysmarter.i18n import kzt
 from buysmarter.ranking.audience import has_size
@@ -26,29 +27,20 @@ from buysmarter.ranking.flags import (
     SUSPICIOUS_PRICE_CON,
     UNVERIFIED_FEATURE_CON,
 )
-from buysmarter.ranking.ingredient_axis import (
-    build_ingredient_context,
-    equivalence_verdicts,
-    ingredient_cons,
-    required_concentration,
-    score_ingredient,
-)
 from buysmarter.ranking.model_tokens import extract_model_tokens, has_model_match
 from buysmarter.ranking.models import (
     AxisScore,
     Candidate,
-    IngredientContext,
     MarketContext,
+    PoolScoring,
     QueryConstraints,
+    RankHooks,
     Recommendation,
     ScoredCandidate,
 )
 from buysmarter.ranking.price_risk import LOW_CONFIDENCE_CAP, Risk, gap_con, price_risk
 from buysmarter.ranking.selection import assemble_recommendation
 from buysmarter.ranking.spec_conflicts import spec_conflicts
-
-if TYPE_CHECKING:
-    pass
 
 # Axis weights, sum to 100. No config system in v1 — edit here to retune.
 # v2 (docs/PLAN.md "Brand knowledge"): brand is a leading axis; marketplace
@@ -59,20 +51,6 @@ DEFAULT_WEIGHTS: dict[str, float] = {
     "specs": 20.0,
     "reviews": 12.0,
     "popularity": 8.0,
-    "availability": 10.0,
-}
-
-# Composition-driven categories (cosmetics/pharma, docs/PLAN.md): the active
-# substance is a leading axis and brand drops sharply, since a cheap generic with
-# the same substance+concentration is genuinely equivalent to the pricey brand.
-# Sum to 100, same as DEFAULT_WEIGHTS.
-COMPOSITION_WEIGHTS: dict[str, float] = {
-    "ingredient": 25.0,
-    "price": 25.0,
-    "specs": 15.0,
-    "brand": 10.0,
-    "reviews": 12.0,
-    "popularity": 3.0,
     "availability": 10.0,
 }
 
@@ -561,16 +539,11 @@ def _score_axes(
     market: MarketContext,
     price_axis: AxisScore,
     weights: dict[str, float],
-    ingredient_ctx: IngredientContext | None,
+    scoring: Sequence[PoolScoring],
     today: date,
 ) -> list[AxisScore]:
-    axes: list[AxisScore] = []
-    if ingredient_ctx is not None:
-        axes.append(
-            score_ingredient(
-                candidate, ingredient_ctx, weights, required_concentration(constraints)
-            )
-        )
+    # Extra axes come first (ADR-0005), then the base axes.
+    axes = [a for s in scoring if s.axis is not None and (a := s.axis(candidate, weights))]
     return axes + [
         _score_brand(candidate, weights),
         price_axis,
@@ -587,7 +560,7 @@ def _verdict_pros_cons(
     market: MarketContext,
     constraints: QueryConstraints,
     flags: _PriceFlags,
-    ingredient_ctx: IngredientContext | None,
+    scoring: Sequence[PoolScoring],
     missed_model: str | None,
     today: date,
 ) -> tuple[list[str], list[str]]:
@@ -606,9 +579,9 @@ def _verdict_pros_cons(
     cons.extend(_unverified_feature_cons(candidate, constraints))
     if constraints.size and not has_size(candidate.title, constraints.size):
         cons.append(_SIZE_UNVERIFIED_CON.format(size=constraints.size))
-    if ingredient_ctx is not None:
-        pros.extend(equivalence_verdicts(candidate, ingredient_ctx))
-        cons = ingredient_cons(cons, candidate, ingredient_ctx)
+    for extra in scoring:
+        if extra.notes is not None:
+            pros, cons = extra.notes(candidate, pros, cons)
     if missed_model is not None:
         cons.append(_MODEL_MISMATCH_CON.format(token=missed_model))
     cons.extend(spec_conflicts(candidate.title, candidate.specs))
@@ -638,15 +611,14 @@ def score(
     market: MarketContext,
     *,
     weights: dict[str, float] = DEFAULT_WEIGHTS,
-    ingredient_ctx: IngredientContext | None = None,
+    scoring: Sequence[PoolScoring] = (),
     today: date | None = None,
     model_tokens: tuple[str, ...] = (),
 ) -> ScoredCandidate:
     """Score one candidate against pool-relative market context.
 
-    ``ingredient_ctx`` switches on the composition-driven ingredient axis (and the
-    caller passes ``COMPOSITION_WEIGHTS``); left ``None`` for spec-driven categories,
-    which keep the exact original axis set and weights. ``today`` (Asia/Almaty) feeds
+    ``scoring`` are the extra axes and notes passed in, prepared over the passed
+    pool (``RankHooks.scoring``); ``weights`` must cover their axes. ``today`` (Asia/Almaty) feeds
     the delivery grouping; ``model_tokens`` are the query's model codes (see
     ``model_tokens.extract_model_tokens``), empty means no model relevance check.
     """
@@ -655,7 +627,7 @@ def score(
     price_axis = _penalize_suspicious_price(
         _apply_price_history(_score_price(candidate, market, weights), candidate), candidate, flags
     )
-    axes = _score_axes(candidate, constraints, market, price_axis, weights, ingredient_ctx, today)
+    axes = _score_axes(candidate, constraints, market, price_axis, weights, scoring, today)
     total = round(sum(a.score for a in axes), 2)
     model_miss = bool(model_tokens) and not has_model_match(candidate, model_tokens)
     if model_miss:
@@ -666,7 +638,7 @@ def score(
         market,
         constraints,
         flags,
-        ingredient_ctx,
+        scoring,
         model_tokens[0] if model_miss else None,
         today,
     )
@@ -702,37 +674,28 @@ def rank(
     candidates: list[Candidate],
     constraints: QueryConstraints,
     *,
-    composition: bool = False,
-    required_substances: list[str] | None = None,
     query: str | None = None,
+    hooks: RankHooks | None = None,
 ) -> Recommendation:
     """Filter, score, sort, and label the best + alternatives.
 
     ``query`` is the raw user request; its model codes (e.g. "F300") feed the soft
     model-relevance penalty. None or a category-only query means no effect.
 
-    ``composition`` (docs/PLAN.md "Composition-driven категории") switches to the
-    ingredient-weighted axes: ``required_substances`` are the canonical substances
-    the query targets, and an in-pool equivalence context is built so generic
-    analogs surface. A required substance is also a hard filter — a candidate whose
-    checked состав proves it absent is rejected. Spec-driven ranking is the default
-    and is unchanged.
+    ``hooks`` carry what the caller adds (ADR-0005): the weights, extra
+    rejection checks, and axes and notes prepared over the pool that passed. Without
+    them the ranking is the plain spec-driven one.
 
     Raises NoCandidatesPassed (a ValueError) if no candidate survives hard filtering.
     """
-    passed, rejected = apply_hard_filters(
-        candidates,
-        constraints,
-        required_substances=required_substances,
-    )
+    hooks = hooks or RankHooks()
+    passed, rejected = apply_hard_filters(candidates, constraints, hooks)
     if not passed:
         raise NoCandidatesPassed(dict(Counter(_reason_key(reason) for _, reason in rejected)))
 
     market = compute_market_context(passed)
-    weights = COMPOSITION_WEIGHTS if composition else DEFAULT_WEIGHTS
-    ingredient_ctx = (
-        build_ingredient_context(passed, required_substances or []) if composition else None
-    )
+    weights = hooks.weights or DEFAULT_WEIGHTS
+    scoring = [prepare(passed) for prepare in hooks.scoring]
     model_tokens = tuple(extract_model_tokens(query) if query else ())
     scored = [
         score(
@@ -740,7 +703,7 @@ def rank(
             constraints,
             market,
             weights=weights,
-            ingredient_ctx=ingredient_ctx,
+            scoring=scoring,
             model_tokens=model_tokens,
         )
         for c in passed

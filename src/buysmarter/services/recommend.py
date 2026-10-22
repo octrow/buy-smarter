@@ -24,16 +24,18 @@ from market_sources.base import ProductSource
 from pydantic import BaseModel, Field
 
 from buysmarter import telemetry
+from buysmarter.capabilities import REGISTRY
+from buysmarter.capabilities.composition import INGREDIENTS_UNCHECKED
+from buysmarter.capabilities.composition import NoSubstanceMatch as NoSubstanceMatch  # re-export
+from buysmarter.capabilities.flow import activate
 from buysmarter.config import get_settings
 from buysmarter.db.base import async_session
 from buysmarter.db.repo import (
     get_preference,
 )
-from buysmarter.knowledge.ingredients import IngredientBook, composition_text
 from buysmarter.knowledge.profile import ResolvedProfile
 from buysmarter.knowledge.store import resolve_profile
 from buysmarter.llm.adapter import LlmConfigError, LlmError, current_route
-from buysmarter.llm.ingredients import extract_ingredients
 from buysmarter.llm.prompts import parse_query, parse_query_naive
 from buysmarter.llm.relevance import (
     KEEP_THRESHOLD,
@@ -52,7 +54,6 @@ from buysmarter.ranking.audience import (
     strip_size,
 )
 from buysmarter.ranking.engine import NoCandidatesPassed, rank
-from buysmarter.ranking.filters import NO_SUBSTANCE_REASON, apply_hard_filters
 from buysmarter.ranking.models import (
     Candidate,
     QueryConstraints,
@@ -67,7 +68,6 @@ from buysmarter.services.collect import (
     resolve_sources,
     save_snapshots,
     stage,
-    substance_search_plan,
 )
 from buysmarter.services.matching import (
     UsedListing,
@@ -161,106 +161,6 @@ async def resolve_city(parsed_city: str | None, override: str | None) -> tuple[s
     return pref or _DEFAULT_CITY, True
 
 
-def _substance_confirmed_ids(
-    candidates: list[Candidate], book: IngredientBook | None, required_substances: list[str]
-) -> set[str]:
-    """source_product_ids whose title names a required substance or its equivalent.
-
-    These are the recall hits the category-relevance filter must not evict (an
-    adapalene gel is the answer to "крем с адапаленом", form factor aside).
-    """
-    if book is None or not required_substances:
-        return set()
-    needles = [
-        n.lower() for canonical in required_substances for n in book.title_needles_for(canonical)
-    ]
-    return {c.source_product_id for c in candidates if any(n in c.title.lower() for n in needles)}
-
-
-# --- Composition-driven categories (docs/PLAN.md) --------------------------
-
-
-def _sostav_text(candidate: Candidate) -> str:
-    """The candidate's composition/состав text for ingredient extraction, if any."""
-    return composition_text(candidate.specs)
-
-
-async def _extract_ingredients_into(
-    candidates: list[Candidate], category: str, book: IngredientBook, use_llm: bool
-) -> None:
-    """Populate ``detected_substances`` + ``concentration`` on each candidate.
-
-    One Jev request over the pool (LLM fallback, see ``llm/ingredients.py``);
-    detected names are mapped to the book's canonical substances and added to
-    any the title already confirmed. Only a candidate that got an answer is marked
-    ``ingredients_checked``; a failure leaves the rest unchecked, never "absent".
-    """
-    if not use_llm or not candidates:
-        return
-    items = [(c.title, _sostav_text(c)) for c in candidates]
-    detections = await extract_ingredients(category, book, items)
-    for cand, det in zip(candidates, detections, strict=True):
-        if det is None:
-            continue
-        canonicals = [book.canonical_for(s) or s for s in det.substances]
-        found = [*cand.detected_substances, *canonicals]
-        cand.detected_substances = list(dict.fromkeys(c for c in found if c))
-        cand.concentration = det.concentration or cand.concentration
-        cand.ingredients_checked = True
-
-
-def _mark_title_substances(
-    candidates: list[Candidate], book: IngredientBook, required_substances: list[str]
-) -> None:
-    """A title naming a required substance (or its equivalent) checks it: detected, checked.
-
-    ponytail: plain substring match, so "без адапалена" counts too; add negation
-    handling if such titles show up in real runs.
-    """
-    for canonical in required_substances:
-        needles = [n.lower() for n in book.title_needles_for(canonical)]
-        for cand in candidates:
-            if not any(n in cand.title.lower() for n in needles):
-                continue
-            if canonical not in cand.detected_substances:
-                cand.detected_substances = [*cand.detected_substances, canonical]
-            cand.ingredients_checked = True
-
-
-def _required_substances(book: IngredientBook, constraints: QueryConstraints) -> list[str]:
-    """Canonical substances the query targets (from category + required features)."""
-    text = " ".join([constraints.category, *constraints.required_features])
-    return book.resolve_in_text(text)
-
-
-_SUBSTANCE_ALTERNATIVES_TOP_N = 3
-
-
-class NoSubstanceMatch(Exception):
-    """No candidate contained the explicitly required active substance.
-
-    A product that lacks the requested active substance must never be
-    recommended as the best pick (docs/PLAN.md); when the required-substance
-    hard filter empties the pool we refuse to silently fall back and instead
-    surface the nearest rejected-by-substance candidates honestly. Carries the
-    substances required, how many candidates were checked, and those nearest
-    alternatives so the CLI/MCP render the same clear message.
-    """
-
-    def __init__(self, substances: list[str], checked: int, alternatives: list[Candidate]) -> None:
-        self.substances = substances
-        self.checked = checked
-        self.alternatives = alternatives
-        super().__init__(self.message())
-
-    def message(self) -> str:
-        subs = ", ".join(self.substances)
-        return (
-            f"Не найдено товаров с действующим веществом '{subs}' "
-            f"(проверено {self.checked} кандидатов). Ближайшие альтернативы без него:"
-        )
-
-
 class NoNewPick(ValueError):
     """No new product passed the hard filters; OLX may still have ads within the budget.
 
@@ -273,35 +173,6 @@ class NoNewPick(ValueError):
         self.rejected_reasons = rejected_reasons
         self.used_listings = used_listings
         super().__init__("no candidates passed hard filters")
-
-
-def _guard_substance_pool(
-    candidates: list[Candidate], constraints: QueryConstraints, required_substances: list[str]
-) -> None:
-    """Raise ``NoSubstanceMatch`` if the required-substance filter empties the pool.
-
-    Only fires when the pool empties *because of* the substance filter — if it
-    empties for another reason (e.g. budget), we stay silent and let ``rank``
-    raise its generic "no candidates" error, preserving the existing message.
-    """
-    passed, rejected = apply_hard_filters(
-        candidates,
-        constraints,
-        required_substances=required_substances,
-    )
-    if passed:
-        return
-    substance_rejects = [
-        cand for cand, reason in rejected if reason.startswith(NO_SUBSTANCE_REASON)
-    ]
-    if not substance_rejects:
-        return
-    top = sorted(
-        substance_rejects,
-        key=lambda c: (c.rating or 0.0, c.review_count or 0),
-        reverse=True,
-    )[:_SUBSTANCE_ALTERNATIVES_TOP_N]
-    raise NoSubstanceMatch(required_substances, len(candidates), top)
 
 
 def _measured[**P](
@@ -338,42 +209,6 @@ async def _resolve_knowledge(category: str, use_llm: bool) -> ResolvedProfile:
             category,
         )
     return profile
-
-
-def _substance_recall(
-    ingredient_book: IngredientBook | None, constraints: QueryConstraints
-) -> tuple[list[str], list[tuple[str, list[str]]] | None]:
-    """Required substances and the extra searches that surface them.
-
-    Composition-driven recall: substance + equivalence-name searches widen the
-    Kaspi pool so the actual active-substance products surface (docs/PLAN.md).
-    """
-    if ingredient_book is None:
-        return [], None
-    required = _required_substances(ingredient_book, constraints)
-    if not required:
-        return [], None
-    return required, substance_search_plan(ingredient_book, required)
-
-
-async def _verify_substances(
-    deduped: list[Candidate],
-    constraints: QueryConstraints,
-    ingredient_book: IngredientBook | None,
-    required_substances: list[str],
-    use_llm: bool,
-) -> None:
-    """Check состав across the pool (title, then extraction); refuse a pool proven empty.
-
-    Only checked candidates can be proven absent (``ranking.filters``), so a failed
-    extraction keeps the pool rather than raising ``NoSubstanceMatch``.
-    """
-    if ingredient_book is None:
-        return
-    _mark_title_substances(deduped, ingredient_book, required_substances)
-    await _extract_ingredients_into(deduped, constraints.category, ingredient_book, use_llm)
-    if required_substances:
-        _guard_substance_pool(deduped, constraints, required_substances)
 
 
 @_measured
@@ -413,21 +248,21 @@ async def recommend(
     # off the loop: picking Ozon's browser may launch one to probe it
     active = await asyncio.to_thread(resolve_sources, requested, source, ozon_source, olx_source)
     profile = await _resolve_knowledge(constraints.category, use_llm)
-    book, model_book, ingredient_book = (
-        profile.brand_book,
-        profile.model_book,
-        profile.ingredient_book,
-    )
-    composition = ingredient_book is not None
+    book, model_book = profile.brand_book, profile.model_book
+    capabilities = activate(REGISTRY, profile, constraints, query=query, use_llm=use_llm)
     city_id = kaspi_city_id(constraints.city)
-    required_substances, substance_plan = _substance_recall(ingredient_book, constraints)
 
     review_summary: ReviewSummary | None = None
     review_summary_note: str | None = None
     try:
         with stage("collect"):
             collected = await gather_sources(
-                active, constraints.category, city_id, book, constraints.budget_max, substance_plan
+                active,
+                constraints.category,
+                city_id,
+                book,
+                constraints.budget_max,
+                capabilities.searches(),
             )
         new_candidates, persist_rows = merge_new_goods(collected)
         with stage("official stores"):
@@ -435,14 +270,12 @@ async def recommend(
         # Attach 30-day price history (from prior runs' snapshots) before ranking
         # so the price axis can reward a genuine dip; best-effort, no-op keyless.
         await attach_price_history(new_candidates)
-        protected_ids = (
-            _substance_confirmed_ids(new_candidates, ingredient_book, required_substances)
-            if composition and required_substances
-            else set()
-        )
         with stage("relevance filter"):
             new_candidates = await _filter_relevant_candidates(
-                new_candidates, constraints.category, use_llm, protected_ids
+                new_candidates,
+                constraints.category,
+                use_llm,
+                capabilities.protected(new_candidates),
             )
         used_candidates = cast(list[Candidate], collected.get("olx") or [])
         deduped, notes = dedupe_cross_source(new_candidates, model_book)
@@ -451,16 +284,10 @@ async def recommend(
         if is_smartphone_category(constraints.category):
             with stage("kimovil"):
                 await enrich_with_kimovil(deduped)
-        await _verify_substances(
-            deduped, constraints, ingredient_book, required_substances, use_llm
-        )
+        await capabilities.enrich(deduped)
         with stage("ranking"):
             recommendation = rank(
-                deduped,
-                constraints,
-                composition=composition,
-                required_substances=required_substances,
-                query=query,
+                deduped, constraints, query=query, hooks=capabilities.rank_hooks()
             )
         # Second pass (still inside the try so sources stay open): fetch reviews
         # for the top Kaspi picks, discount fake-looking review axes, re-sort,
@@ -514,8 +341,7 @@ async def recommend(
         knowledge_missing=book is None and model_book is None,
         skipped_llm_steps=skipped_llm_steps,
         unavailable_sources=[name for name in requested if name not in active],
-        ingredients_unchecked=composition
-        and any(not s.candidate.ingredients_checked for s in recommendation.ranked),
+        ingredients_unchecked=capabilities.flags(recommendation).get(INGREDIENTS_UNCHECKED, False),
     )
 
 

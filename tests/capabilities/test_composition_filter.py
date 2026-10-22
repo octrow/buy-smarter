@@ -6,10 +6,14 @@ while a product whose состав we simply couldn't read survives (honest
 uncertainty), and that spec-driven ranking is untouched.
 """
 
-from buysmarter.ranking.engine import COMPOSITION_WEIGHTS, compute_market_context, rank, score
-from buysmarter.ranking.filters import NO_SUBSTANCE_REASON, apply_hard_filters
-from buysmarter.ranking.ingredient_axis import build_ingredient_context
+from buysmarter.capabilities.composition import NO_SUBSTANCE_REASON, Composition
+from buysmarter.capabilities.weights import combine
+from buysmarter.ranking.engine import DEFAULT_WEIGHTS, compute_market_context, rank, score
+from buysmarter.ranking.filters import apply_hard_filters
 from buysmarter.ranking.models import Candidate, QueryConstraints
+from tests.fakes import composition_hooks
+
+COMPOSITION_WEIGHTS = combine(DEFAULT_WEIGHTS, [Composition()])
 
 
 def _cand(pid: str, *, detected=None, specs=None, price=5000, checked=True) -> Candidate:
@@ -30,6 +34,11 @@ def _constraints() -> QueryConstraints:
     return QueryConstraints(category="крем с адапаленом")
 
 
+def _crem() -> QueryConstraints:
+    """A composition query that names no substance."""
+    return QueryConstraints(category="крем")
+
+
 def _axis(scored, name):
     return next(a for a in scored.axes if a.name == name)
 
@@ -41,7 +50,7 @@ def test_proven_absent_rejected_when_checked() -> None:
     # Состав declared, required substance not detected → proven absence.
     absent = _cand("a", detected=[], specs={"Состав": "вода, глицерин"})
     passed, rejected = apply_hard_filters(
-        [absent], _constraints(), required_substances=["адапален"]
+        [absent], _constraints(), composition_hooks(_constraints())
     )
     assert passed == []
     assert len(rejected) == 1
@@ -54,7 +63,7 @@ def test_proven_absent_rejected_when_checked() -> None:
 def test_present_candidate_passes() -> None:
     present = _cand("p", detected=["адапален"], specs={"Состав": "адапален 0.1%"})
     passed, rejected = apply_hard_filters(
-        [present], _constraints(), required_substances=["адапален"]
+        [present], _constraints(), composition_hooks(_constraints())
     )
     assert [c.source_product_id for c in passed] == ["p"]
     assert rejected == []
@@ -64,7 +73,7 @@ def test_null_composition_passes_as_data_gap() -> None:
     # No состав text at all → unverifiable, must NOT be rejected.
     unknown = _cand("u", detected=[], specs={})
     passed, rejected = apply_hard_filters(
-        [unknown], _constraints(), required_substances=["адапален"]
+        [unknown], _constraints(), composition_hooks(_constraints())
     )
     assert [c.source_product_id for c in passed] == ["u"]
     assert rejected == []
@@ -74,7 +83,7 @@ def test_unchecked_with_composition_is_kept() -> None:
     # Extraction did not run or gave no answer: absence is unknowable, keep it.
     absent = _cand("a", detected=[], specs={"Состав": "вода, глицерин"}, checked=False)
     passed, rejected = apply_hard_filters(
-        [absent], _constraints(), required_substances=["адапален"]
+        [absent], _constraints(), composition_hooks(_constraints())
     )
     assert [c.source_product_id for c in passed] == ["a"]
     assert rejected == []
@@ -85,7 +94,7 @@ def test_filter_decides_per_candidate() -> None:
     checked = _cand("c", detected=[], specs={"Состав": "вода"})
     unchecked = _cand("u", detected=[], specs={"Состав": "вода"}, checked=False)
     passed, rejected = apply_hard_filters(
-        [checked, unchecked], _constraints(), required_substances=["адапален"]
+        [checked, unchecked], _constraints(), composition_hooks(_constraints())
     )
     assert [c.source_product_id for c in passed] == ["u"]
     assert [c.source_product_id for c, _ in rejected] == ["c"]
@@ -93,7 +102,7 @@ def test_filter_decides_per_candidate() -> None:
 
 def test_no_required_substances_never_rejects() -> None:
     absent = _cand("a", detected=[], specs={"Состав": "вода"})
-    passed, _ = apply_hard_filters([absent], _constraints(), required_substances=[])
+    passed, _ = apply_hard_filters([absent], _crem(), composition_hooks(_crem()))
     assert [c.source_product_id for c in passed] == ["a"]
 
 
@@ -102,8 +111,8 @@ def test_no_required_substances_never_rejects() -> None:
 
 def _score_one(cand):
     market = compute_market_context([cand])
-    ctx = build_ingredient_context([cand], ["адапален"])
-    return score(cand, _constraints(), market, weights=COMPOSITION_WEIGHTS, ingredient_ctx=ctx)
+    scoring = [prepare([cand]) for prepare in composition_hooks(_constraints()).scoring]
+    return score(cand, _constraints(), market, weights=COMPOSITION_WEIGHTS, scoring=scoring)
 
 
 def test_unchecked_composition_gets_partial_credit_and_con() -> None:
@@ -127,12 +136,7 @@ def test_proven_absent_axis_is_zero() -> None:
 def test_rank_rejects_proven_absent_keeps_present() -> None:
     present = _cand("klenzit", detected=["адапален"], specs={"Состав": "адапален 0.1%"})
     absent = _cand("bioderma", detected=[], specs={"Состав": "вода, глицерин"})
-    rec = rank(
-        [present, absent],
-        _constraints(),
-        composition=True,
-        required_substances=["адапален"],
-    )
+    rec = rank([present, absent], _constraints(), hooks=composition_hooks(_constraints()))
     assert rec.best.candidate.source_product_id == "klenzit"
     ranked_ids = {s.candidate.source_product_id for s in rec.ranked}
     assert "bioderma" not in ranked_ids

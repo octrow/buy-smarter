@@ -282,7 +282,7 @@ Reviews and popularity are trusted less for unknown brands.
 - low confidence for a brand read only from the title, a risky price, or a pool with fewer than 3 tiered prices.
 
 **Pros and cons**: official seller, unknown brand, price risk, price history verdict, unverified features, unverified size, ingredient equivalence, model mismatch, spec conflicts in the title, fast delivery.
-Module: `ranking/engine`, `ranking/filters`, `ranking/price_risk`, `ranking/ingredient_axis`, `ranking/model_tokens`, `ranking/spec_conflicts`, `ranking/delivery`, `ranking/flags`
+Module: `ranking/engine`, `ranking/filters`, `ranking/price_risk`, `ranking/model_tokens`, `ranking/spec_conflicts`, `ranking/delivery`, `ranking/flags`
 
 ### 18. Roles
 

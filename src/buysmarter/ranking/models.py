@@ -5,6 +5,9 @@ engine consumes (already normalized/deduped upstream); everything else is
 engine output.
 """
 
+from collections.abc import Callable
+from dataclasses import dataclass
+
 from pydantic import BaseModel, Field
 
 
@@ -139,35 +142,6 @@ class MarketContext(BaseModel):
     pool_size: int
 
 
-class EquivalenceGroup(BaseModel):
-    """Pool members sharing one active substance (a generic-equivalence group).
-
-    ``cheapest``/``priciest`` identify the extremes by price so the ingredient
-    axis can attach the "аналог по действующему веществу" pros (docs/PLAN.md).
-    Identities are ``(source, source_product_id)`` pairs.
-    """
-
-    cheapest_id: tuple[str, str]
-    cheapest_name: str
-    cheapest_price: int
-    priciest_id: tuple[str, str]
-    priciest_name: str
-    priciest_price: int
-    size: int
-
-
-class IngredientContext(BaseModel):
-    """Pool-wide active-substance context for the composition-driven ingredient axis.
-
-    Computed once per ranking run (like ``MarketContext``). ``required_substances``
-    are the canonical substances the query targets; ``groups`` maps a substance to
-    its in-pool equivalence group when it has more than one member.
-    """
-
-    required_substances: list[str] = Field(default_factory=list)
-    groups: dict[str, EquivalenceGroup] = Field(default_factory=dict)
-
-
 class Recommendation(BaseModel):
     """Final ranking output: best pick + role-labeled alternatives."""
 
@@ -179,3 +153,35 @@ class Recommendation(BaseModel):
     # {"price exceeds budget": 3, "missing required feature(s)": 2}), for a
     # one-line "Отсеяно: ..." CLI/report summary. Empty when nothing rejected.
     rejected_reasons: dict[str, int] = Field(default_factory=dict)
+
+
+# --- What a caller adds to rank(): weights, checks and scoring ------------------
+# Plain functions over candidates; ranking stays pure.
+
+AxisFn = Callable[[Candidate, dict[str, float]], AxisScore | None]
+NotesFn = Callable[[Candidate, list[str], list[str]], tuple[list[str], list[str]]]
+
+
+@dataclass(frozen=True)
+class PoolScoring:
+    """One extra scoring, prepared over the candidates that passed the filters."""
+
+    axis: AxisFn | None = None
+    notes: NotesFn | None = None
+
+
+@dataclass(frozen=True)
+class RankHooks:
+    """Weights, extra rejection checks and scoring a caller adds to ``rank``.
+
+    ``reject_listing`` predicates run after the core's listing checks and get the listing
+    text (title and category path); ``hard_features`` adjust the features string-matched;
+    ``reject_content`` runs after the feature check; each ``scoring`` builder sees the
+    passed pool and returns an axis (scored before the base axes) and/or pros-cons notes.
+    """
+
+    weights: dict[str, float] | None = None
+    reject_listing: tuple[Callable[[str], str | None], ...] = ()
+    hard_features: tuple[Callable[[list[str]], list[str]], ...] = ()
+    reject_content: tuple[Callable[[Candidate], str | None], ...] = ()
+    scoring: tuple[Callable[[list[Candidate]], PoolScoring], ...] = ()

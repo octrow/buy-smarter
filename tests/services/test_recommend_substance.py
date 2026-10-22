@@ -11,6 +11,7 @@ empties the pool we refuse to fall back and raise ``NoSubstanceMatch``.
 import pytest
 from market_sources.base import RawProduct
 
+from buysmarter.capabilities import composition
 from buysmarter.knowledge.ingredients import (
     ActiveSubstance,
     EquivalentProduct,
@@ -93,7 +94,7 @@ def _patch_extraction(monkeypatch) -> None:
                 out.append(DetectedIngredients(index=i))
         return out
 
-    monkeypatch.setattr(svc, "extract_ingredients", _fake_extract)
+    monkeypatch.setattr(composition, "extract_ingredients", _fake_extract)
     monkeypatch.setattr(svc, "_no_llm_route", lambda: False)  # the fakes stand in for an LLM
 
 
@@ -209,7 +210,7 @@ async def test_failed_extraction_never_raises_no_substance_match(monkeypatch) ->
     async def _no_answer(category, book, items):
         return [None] * len(items)
 
-    monkeypatch.setattr(svc, "extract_ingredients", _no_answer)
+    monkeypatch.setattr(composition, "extract_ingredients", _no_answer)
     monkeypatch.setattr(svc, "_no_llm_route", lambda: False)
     stub = _StubKaspi(
         main=[_rp("bio", "Bioderma Sebium Hydra крем", 12000)],
@@ -238,7 +239,7 @@ async def test_title_substance_survives_a_failed_extraction(monkeypatch) -> None
     async def _no_answer(category, book, items):
         return [None] * len(items)
 
-    monkeypatch.setattr(svc, "extract_ingredients", _no_answer)
+    monkeypatch.setattr(composition, "extract_ingredients", _no_answer)
     monkeypatch.setattr(svc, "_no_llm_route", lambda: False)
     stub = _StubKaspi(
         main=[_rp("kl", "Клензит гель", 6000)],
@@ -267,7 +268,7 @@ async def test_no_llm_composition_run_flags_unchecked_ingredients(monkeypatch) -
     async def _must_not_run(category, book, items):
         raise AssertionError("no extraction with use_llm=False")
 
-    monkeypatch.setattr(svc, "extract_ingredients", _must_not_run)
+    monkeypatch.setattr(composition, "extract_ingredients", _must_not_run)
     stub = _StubKaspi(
         main=[_rp("bio", "Bioderma Sebium Hydra крем", 12000)],
         by_query={"Клензит": [_rp("kl", "Клензит гель", 6000)]},

@@ -269,7 +269,7 @@ RAM и память не копируются: в объявлении може�
 - уверенность ниже, если бренд только из названия, цена рискованная или в выборке меньше 3 цен с уровнем.
 
 **Плюсы и минусы**: официальный продавец, неизвестный бренд, риск цены, вердикт истории цен, непроверенные свойства, непроверенный размер, аналоги по составу, несовпадение модели, противоречия в названии, быстрая доставка.
-Модули: `ranking/engine`, `ranking/filters`, `ranking/price_risk`, `ranking/ingredient_axis`, `ranking/model_tokens`, `ranking/spec_conflicts`, `ranking/delivery`, `ranking/flags`
+Модули: `ranking/engine`, `ranking/filters`, `ranking/price_risk`, `ranking/model_tokens`, `ranking/spec_conflicts`, `ranking/delivery`, `ranking/flags`
 
 ### 18. Роли
 

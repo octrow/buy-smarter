@@ -5,6 +5,27 @@ from typing import Any
 
 from market_sources.base import RawOffer, RawProduct
 
+from buysmarter.capabilities import REGISTRY
+from buysmarter.capabilities.flow import activate
+from buysmarter.knowledge.ingredients import ActiveSubstance, IngredientBook
+from buysmarter.knowledge.profile import COMPOSITION, CapabilitySetting, ResolvedProfile
+from buysmarter.ranking.models import QueryConstraints, RankHooks
+
+
+def composition_profile(book: IngredientBook | None = None) -> ResolvedProfile:
+    """A profile with composition on (adapalene by default)."""
+    book = book or IngredientBook(substances=[ActiveSubstance(canonical="адапален")])
+    params = {"ingredient_book": book.model_dump(mode="json")}
+    return ResolvedProfile(
+        slug="test", capabilities={COMPOSITION: CapabilitySetting(params=params)}
+    )
+
+
+def composition_hooks(constraints: QueryConstraints) -> RankHooks:
+    """What the flow hands ``rank()`` for a composition category and these constraints."""
+    active = activate(REGISTRY, composition_profile(), constraints, query="", use_llm=False)
+    return active.rank_hooks()
+
 
 @dataclass
 class FakeSource:

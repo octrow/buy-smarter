@@ -3,15 +3,20 @@
 import pytest
 
 from buysmarter.capabilities.base import Capability, overrides
+from buysmarter.capabilities.composition import Composition
 from buysmarter.capabilities.weights import combine
-from buysmarter.ranking.engine import COMPOSITION_WEIGHTS, DEFAULT_WEIGHTS
+from buysmarter.ranking.engine import DEFAULT_WEIGHTS
 
-
-class _CompositionLike(Capability):
-    name = "composition"
-    axis_name = "ingredient"
-    axis_weight = 25.0
-    weight_shifts = {"brand": -15.0, "specs": -5.0, "popularity": -5.0}
+# The composition table before capabilities (ranking/engine.py COMPOSITION_WEIGHTS).
+_OLD_COMPOSITION_WEIGHTS = {
+    "ingredient": 25.0,
+    "price": 25.0,
+    "specs": 15.0,
+    "brand": 10.0,
+    "reviews": 12.0,
+    "popularity": 3.0,
+    "availability": 10.0,
+}
 
 
 class _Durability(Capability):
@@ -22,11 +27,11 @@ class _Durability(Capability):
 
 
 def test_composition_numbers_reproduce_the_old_composition_table() -> None:
-    assert combine(DEFAULT_WEIGHTS, [_CompositionLike()]) == COMPOSITION_WEIGHTS
+    assert combine(DEFAULT_WEIGHTS, [Composition()]) == _OLD_COMPOSITION_WEIGHTS
 
 
 def test_two_capabilities_with_shifts_clamp_at_zero_and_sum_to_100() -> None:
-    weights = combine(DEFAULT_WEIGHTS, [_CompositionLike(), _Durability()])
+    weights = combine(DEFAULT_WEIGHTS, [Composition(), _Durability()])
 
     assert weights["popularity"] == 0.0
     assert sum(weights.values()) == pytest.approx(100.0)

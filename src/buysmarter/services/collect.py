@@ -33,7 +33,6 @@ from buysmarter.db.repo import (
     upsert_product,
 )
 from buysmarter.knowledge.brands import BrandBook
-from buysmarter.knowledge.ingredients import IngredientBook
 from buysmarter.normalize.candidate import to_candidate
 from buysmarter.ranking.models import (
     Candidate,
@@ -249,51 +248,30 @@ def _card_brand_agrees(card: RawProduct, book: BrandBook, canonical: str) -> boo
     return not card_brand or book.resolve(card_brand)[0] == canonical
 
 
-# Substance-targeted recall (docs/PLAN.md "Composition-driven категории"): a
-# plain "крем с адапаленом" search on Kaspi is dominated by moisturizers "for use
-# during acne treatment" that contain no adapalene, while the actual adapalene
-# products hide behind their brand names (Клензит/Дифферин/Адаклин). Mirror the
-# brand-targeted recall: search the substance itself and each equivalence-group
-# product name, keep only cards whose title confirms the substance.
-_MAX_SUBSTANCE_SEARCHES = 5  # total extra searches across all required substances
-_SUBSTANCE_SEARCH_TOP_N = 3  # top cards per substance search kept
+# Extra searches a capability asks for (composition: each substance and its
+# equivalent products, which hide behind their brand names): mirror the
+# brand-targeted recall and keep only cards whose title names a needle.
+_EXTRA_SEARCH_TOP_N = 3  # top cards per extra search kept
 
 
-def substance_search_plan(
-    book: IngredientBook, required_substances: list[str]
-) -> list[tuple[str, list[str]]]:
-    """(query, title-needles) pairs for substance recall, capped and deduped by query."""
-    plan: list[tuple[str, list[str]]] = []
-    seen: set[str] = set()
-    for canonical in required_substances:
-        needles = book.title_needles_for(canonical)
-        for term in book.search_terms_for(canonical):
-            key = term.lower()
-            if key in seen:
-                continue
-            seen.add(key)
-            plan.append((term, needles))
-    return plan[:_MAX_SUBSTANCE_SEARCHES]
-
-
-async def _substance_targeted_products(
+async def _extra_search_products(
     source: ProductSource, plan: list[tuple[str, list[str]]], city_id: str | None
 ) -> list[RawProduct]:
-    """Search each substance/equivalent name; keep cards whose title confirms it.
+    """Run each extra search; keep cards whose title names one of its needles.
 
-    Title confirmation is recall-stage relevance only; the состав-based ingredient
-    extraction + hard filter downstream is the authoritative absence check.
+    Title confirmation is recall-stage relevance only; the capability's own checks
+    downstream (composition: состав extraction + hard filter) decide.
     """
     found: list[RawProduct] = []
     for query, needles in plan:
         try:
             cards = await source.search(query, city=city_id)
-        except Exception as exc:  # noqa: BLE001 - one bad substance search shouldn't kill recall
-            logger.warning("Substance search failed for %r: %r", query, exc)
+        except Exception as exc:  # noqa: BLE001 - one bad extra search shouldn't kill recall
+            logger.warning("Extra search failed for %r: %r", query, exc)
             continue
         lowered_needles = [n.lower() for n in needles]
         matched = [card for card in cards if any(n in card.title.lower() for n in lowered_needles)]
-        found.extend(matched[:_SUBSTANCE_SEARCH_TOP_N])
+        found.extend(matched[:_EXTRA_SEARCH_TOP_N])
     return found
 
 
@@ -346,7 +324,7 @@ async def _kaspi_search_pool(
     category: str,
     city_id: str | None,
     book: BrandBook | None,
-    substance_plan: list[tuple[str, list[str]]] | None,
+    extra_searches: list[tuple[str, list[str]]] | None,
 ) -> tuple[list[RawProduct], list[RawProduct]]:
     """Targeted (substance, then brand) hits and the rest of the main search, deduped."""
     stripped = strip_latin_tokens(category, book)
@@ -370,9 +348,9 @@ async def _kaspi_search_pool(
     # the ``_MAX_TARGETED_CARDS`` cut below drops the LEAST important brand's
     # hits first too, not an arbitrary one.
     targeted: list[RawProduct] = []
-    if substance_plan:
-        targeted += await _substance_targeted_products(source, substance_plan, city_id)
-        search_count += len(substance_plan)
+    if extra_searches:
+        targeted += await _extra_search_products(source, extra_searches, city_id)
+        search_count += len(extra_searches)
     if book is not None:
         targeted += await _brand_targeted_products(source, category, city_id, book)
         search_count += len(_brand_search_plan(book))
@@ -392,10 +370,10 @@ async def _collect_kaspi(
     category: str,
     city_id: str | None,
     book: BrandBook | None,
-    substance_plan: list[tuple[str, list[str]]] | None = None,
+    extra_searches: list[tuple[str, list[str]]] | None = None,
 ) -> tuple[list[Candidate], list[ProductRow]]:
     """Kaspi: brand/substance-targeted + main search, specs for all, offers for top N."""
-    targeted, rest = await _kaspi_search_pool(source, category, city_id, book, substance_plan)
+    targeted, rest = await _kaspi_search_pool(source, category, city_id, book, extra_searches)
     top = targeted + rest[:_MAX_CARDS]
     # Offer fetch (a real HTTP call each) is split evenly across the two
     # sub-pools instead of "first _OFFERS_FOR of the combined list": targeted
@@ -716,12 +694,12 @@ async def gather_sources(
     city_id: str | None,
     book: BrandBook | None,
     budget: int | None,
-    substance_plan: list[tuple[str, list[str]]] | None = None,
+    extra_searches: list[tuple[str, list[str]]] | None = None,
 ) -> dict[str, object]:
     """Run every active source's collector concurrently, isolating failures."""
     coros: dict[str, Awaitable[object]] = {}
     if "kaspi" in active:
-        coros["kaspi"] = _collect_kaspi(active["kaspi"], category, city_id, book, substance_plan)
+        coros["kaspi"] = _collect_kaspi(active["kaspi"], category, city_id, book, extra_searches)
     if "ozon" in active:
         coros["ozon"] = _collect_ozon(active["ozon"], category, book, budget)
     if "olx" in active:

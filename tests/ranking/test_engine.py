@@ -1354,10 +1354,14 @@ def test_concentration_feature_not_hard_filtered_when_substance_axis_active():
     """Live run 2026-10-13: «крем с адапаленом 0,1%» rejected 5 adapalene products
     as "missing required feature 0,1%" — concentration is graded on the
     ingredient axis (partial credit), not string-matched as a hard filter."""
-    cand = _candidate(title="Клензит гель адапален", specs={"Состав": "адапален"}, price=5_000)
-    constraints = _constraints(required_features=["0,1%"], budget_max=10_000)
+    from tests.fakes import composition_hooks
 
-    passed, _ = apply_hard_filters([cand], constraints, required_substances=["адапален"])
+    cand = _candidate(title="Клензит гель адапален", specs={"Состав": "адапален"}, price=5_000)
+    constraints = _constraints(
+        category="крем с адапаленом", required_features=["0,1%"], budget_max=10_000
+    )
+
+    passed, _ = apply_hard_filters([cand], constraints, composition_hooks(constraints))
     assert passed == [cand]
 
     passed, rejected = apply_hard_filters([cand], constraints)
