@@ -4,7 +4,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Changed
+- Model names for OLX ads come from Jev's confident picks only; the LLM runs only when Jev itself fails. Asked on
+  every unsure title it cost 40-60 s per search and once named every «iPhone 13» ad «Apple iPhone 17 Pro Max».
+- A related category is found by Jev only: when Jev is unsure there is no related category, instead of a 40-60 s
+  LLM call that answered «чехол для iPhone 15» → «смартфон».
+- `learn` says to split the notes into smaller files when the LLM answer comes back cut off.
+
 ### Fixed
+- A model title resolves to the entry with the longest matching alias: «Galaxy S24 FE» is the S24 FE, not
+  the S24, whatever order the models were learned in.
 - Kaspi: seller offers are fetched for 8 cards even when the brand-targeted search finds fewer than 4, so more
   main-search cards carry their cheapest seller price instead of the search-card price.
 - The city reaches OLX: a search for Astana or Shymkent no longer lists Almaty ads. Kaspi and OLX know 21 cities
