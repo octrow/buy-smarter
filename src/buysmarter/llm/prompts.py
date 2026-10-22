@@ -12,6 +12,7 @@ feature filters would over-reject in ranking's hard filter).
 import re
 
 from buysmarter.llm.adapter import generate
+from buysmarter.llm.budget import parse_budget
 from buysmarter.ranking.models import QueryConstraints
 
 # Query parsing is a trivial extraction task (pull a few fields out of one
@@ -82,19 +83,6 @@ async def parse_query(user_query: str) -> QueryConstraints:
     return result  # type: ignore[return-value]
 
 
-def _extract_budget(query: str) -> int | None:
-    m = re.search(r"(\d+)\s*[kк]\b", query, re.I)
-    if m:
-        return int(m.group(1)) * 1000
-    m = re.search(r"([\d\s]+?)\s*(?:₸|тг|тенге)", query, re.I)
-    if m:
-        return int(re.sub(r"\s", "", m.group(1)))
-    m = re.search(r"до\s+([\d\s]+)", query, re.I)
-    if m:
-        return int(re.sub(r"\s", "", m.group(1)))
-    return None
-
-
 def _extract_city(query: str) -> str | None:
     low = query.lower()
     for surface, canon in _CITY_CANON.items():
@@ -103,14 +91,13 @@ def _extract_city(query: str) -> str | None:
     return None
 
 
-def _extract_category(query: str) -> str:
-    text = re.sub(r"\d+\s*[kк]\b", " ", query, flags=re.I)
-    text = re.sub(r"[\d\s]+(?:₸|тг|тенге)", " ", text, flags=re.I)
-    text = re.sub(r"до\s+[\d\s]+", " ", text, flags=re.I)
+def _extract_category(text: str) -> str:
+    """The query without its budget (already cut), city and filler words."""
     for surface in _CITY_CANON:
         text = re.sub(re.escape(surface), " ", text, flags=re.I)
-    words = [w for w in re.split(r"[\s,.;]+", text) if w and w.lower() not in _STOPWORDS]
-    return " ".join(words).strip()
+    # a dot splits words, but not a fraction ("1.8 м")
+    words = re.split(r"[\s,;]+|(?<!\d)\.|\.(?!\d)", text)
+    return " ".join(w for w in words if w and w.lower() not in _STOPWORDS).strip()
 
 
 def parse_query_naive(user_query: str) -> QueryConstraints:
@@ -120,8 +107,9 @@ def parse_query_naive(user_query: str) -> QueryConstraints:
     (``services.recommend``) apply the stored-preference / "Алматы" default so
     the parsed-request panel can flag it as such.
     """
+    budget = parse_budget(user_query)
     return QueryConstraints(
-        category=_extract_category(user_query) or user_query.strip(),
+        category=_extract_category(budget.text) or user_query.strip(),
         city=_extract_city(user_query),
-        budget_max=_extract_budget(user_query),
+        budget_max=budget.budget_max,
     )
