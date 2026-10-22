@@ -8,6 +8,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - OLX: an ad padded with the shop's name («iphone 13 Shark Store») now matches the new iPhone 13 on the shared
   model number, and a no-name ad for another model number («TWS Pro 4» for «TWS Pro 6») is no longer offered
   as a cheaper option.
+- OLX: the saving is counted against a new product with the same storage («128 GB» against 128 GB, not 512 GB);
+  an ad whose storage no new product has shows without a saving. Kaspi and Ozon listings with different storage
+  are no longer merged as one product.
 
 ## [0.5.0] - 2026-10-22
 

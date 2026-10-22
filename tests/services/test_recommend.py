@@ -1778,3 +1778,25 @@ def test_an_unbranded_ad_for_another_model_number_is_left_out() -> None:
     )
 
     assert [listing.title for listing in listings] == [same.title]
+
+
+def test_the_saving_is_counted_against_the_new_one_with_the_same_storage() -> None:
+    new_128 = _cand("kaspi", "k1", "Смартфон Apple iPhone 13 128Gb черный", "Apple", 373000)
+    new_512 = _cand("kaspi", "k2", "Смартфон Apple iPhone 13 512Gb Dual Sim синий", "Apple", 529990)
+    used_128 = _cand("olx", "u1", "Iphone 13 128 gb midnight", "Apple", 150000)
+    used_256 = _cand("olx", "u2", "iPhone 13 4/256 отличное состояние", "Apple", 170000)
+
+    listings = match_used_listings([new_512, new_128], [used_128, used_256], None)
+
+    assert [(listing.title, listing.new_price) for listing in listings] == [
+        ("Iphone 13 128 gb midnight", 373000)
+    ]
+
+
+def test_new_listings_with_different_storage_are_not_merged() -> None:
+    a = _cand("kaspi", "k1", "Apple iPhone 13 128Gb черный", "Apple", 373000)
+    b = _cand("ozon", "o1", "Apple iPhone 13 256Gb черный", "Apple", 420000)
+
+    kept, _ = dedupe_cross_source([a, b])
+
+    assert len(kept) == 2

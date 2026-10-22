@@ -162,10 +162,29 @@ def _model_numbers_conflict(a: str, b: str) -> bool:
     return any(na[name] != nb[name] for name in na.keys() & nb.keys())
 
 
+# Storage: "128Gb", "1 ТБ", "4/256". The largest figure is the storage (RAM is the smaller one).
+_STORAGE = re.compile(r"(\d{1,4})\s*(gb|гб|tb|тб)(?![a-zа-я])|\b\d{1,2}/(\d{2,4})(?!\d)")
+_GB_PER_TB = 1024
+
+
+def _storage_gb(title: str) -> int | None:
+    sizes = [
+        int(slashed) if slashed else int(size) * (_GB_PER_TB if unit in ("tb", "тб") else 1)
+        for size, unit, slashed in _STORAGE.findall(title.lower())
+    ]
+    return max(sizes, default=None)
+
+
+def _variants_conflict(a: str, b: str) -> bool:
+    """Another model number ("iPhone 12" vs "13") or another storage ("128Gb" vs "512Gb")."""
+    sa, sb = _storage_gb(a), _storage_gb(b)
+    return _model_numbers_conflict(a, b) or (sa is not None and sb is not None and sa != sb)
+
+
 def _token_overlap(a: str, b: str) -> float:
-    """Overlap of two titles = |shared tokens| / |smaller token set|; 0 for another model number."""
+    """Overlap of two titles = |shared tokens| / |smaller token set|; 0 for another variant."""
     ta, tb = _title_tokens(a), _title_tokens(b)
-    if not ta or not tb or _model_numbers_conflict(a, b):
+    if not ta or not tb or _variants_conflict(a, b):
         return 0.0
     return len(ta & tb) / min(len(ta), len(tb))
 
@@ -176,7 +195,7 @@ def _same_brand(a: Candidate, b: Candidate) -> bool:
 
 def _canonical_match(a_title: str, b_title: str, model_book: ModelBook | None) -> bool:
     """True when both titles resolve to the same canonical model (strongest signal)."""
-    if model_book is None:
+    if model_book is None or _variants_conflict(a_title, b_title):
         return False
     a_canon = model_book.resolve(a_title)
     return a_canon is not None and a_canon == model_book.resolve(b_title)
