@@ -41,10 +41,12 @@ RELEVANCE_MODEL = "free-stack"
 # ponytail: tuned on 26 hand-labelled titles (docs/jev-migration.md);
 # retune after 50 real runs or at the first miss seen in one.
 KEEP_THRESHOLD = 0.25
-# OLX ads have no fail-open floor and come from a looser search: a neighbouring
-# product type ("туфли" for "кроссовки", ~0.5) must go, "кеды" (~0.6) may stay.
-# ponytail: tuned on one sneaker run; retune at the first wrong OLX listing.
-USED_KEEP_THRESHOLD = 0.55
+# OLX ads have no fail-open floor and come from a looser search, so they need a stricter cut.
+# At 0.55 it dropped 16 of 162 real ads (12 used iPhone 13 at 0.23-0.54) to stop 3 wrong ones;
+# 0.35 drops 5 and lets 6 through ("Мужские туфли Skechers" at 0.47 for "мужские кроссовки").
+# ponytail: tuned on 14 queries labelled 2026-10-22 (relevance score log lines);
+# retune when the user's labels land or at the first wrong OLX listing.
+USED_KEEP_THRESHOLD = 0.35
 
 # Noul criteria shared by every title question (Jev reads instructions literally,
 # so what counts as "no" is spelled out).
