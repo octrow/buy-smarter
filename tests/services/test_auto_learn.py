@@ -10,6 +10,7 @@ from buysmarter.services import auto_learn
 from buysmarter.services.auto_learn import (
     LEARN_FAILED_KEY,
     LEARNING_STARTED_KEY,
+    count_start,
     mark_learn_failed,
     mark_learning_started,
     should_auto_learn,
@@ -118,17 +119,17 @@ async def test_a_broken_mark_does_not_block() -> None:
 
 async def test_over_the_hourly_limit_nothing_is_learned(monkeypatch) -> None:
     monkeypatch.setenv("BUYSMARTER_AUTO_LEARN_PER_HOUR", "2")
-    await mark_learning_started("чайник")
+    count_start()
     assert await _ok()
 
-    await mark_learning_started("тостер")
+    count_start()
 
     assert not await _ok()
 
 
 async def test_the_hourly_window_slides(monkeypatch) -> None:
     monkeypatch.setenv("BUYSMARTER_AUTO_LEARN_PER_HOUR", "1")
-    await mark_learning_started("чайник")
+    count_start()
     assert not await _ok()
 
     auto_learn._starts[0] -= 3601  # the only start is now an hour old
@@ -171,3 +172,13 @@ async def test_a_failed_learn_is_marked_and_logged(monkeypatch, caplog) -> None:
     stored = await load_knowledge(CATEGORY) or {}
     assert LEARN_FAILED_KEY in stored and LEARNING_STARTED_KEY not in stored
     assert any(CATEGORY in r.getMessage() and r.exc_info for r in caplog.records)
+
+
+async def test_the_runner_counts_nothing_the_entry_point_does(monkeypatch) -> None:
+    async def _learn(category: str, **kwargs) -> None:
+        return None
+
+    monkeypatch.setattr(auto_learn, "learn_category", _learn)
+
+    assert await auto_learn.auto_learn(CATEGORY)
+    assert len(auto_learn._starts) == 0

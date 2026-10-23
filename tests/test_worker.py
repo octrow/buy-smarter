@@ -8,6 +8,7 @@ from fakeredis import FakeAsyncRedis
 
 from buysmarter import worker
 from buysmarter.jobs import JobStatus, JobStore, RecommendRequest
+from buysmarter.services import auto_learn as auto_learn_mod
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch
 from buysmarter.services.understanding import Clarification, NeedsClarification, NothingToSearch
@@ -261,6 +262,17 @@ async def test_the_same_category_is_dispatched_once(store, learning, monkeypatch
     await _run(store, learning)
 
     assert [name for name, _ in learning["kiq"]] == [CATEGORY]
+
+
+async def test_a_dispatch_counts_against_the_hourly_limit_where_it_is_decided(
+    store, learning, monkeypatch
+) -> None:
+    # the learn task may run in another process: only the dispatching one checks the limit
+    monkeypatch.setenv("BUYSMARTER_AUTO_LEARN", "true")
+
+    await _run(store, learning)
+
+    assert len(auto_learn_mod._starts) == 1
 
 
 async def test_a_false_condition_dispatches_nothing(store, learning, monkeypatch) -> None:

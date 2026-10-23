@@ -31,7 +31,12 @@ from buysmarter.cli.report import (
 )
 from buysmarter.config import get_settings
 from buysmarter.jobs import Job, JobStatus, JobStore, RecommendOutcome, get_redis
-from buysmarter.services.auto_learn import auto_learn, mark_learn_failed, should_auto_learn
+from buysmarter.services.auto_learn import (
+    auto_learn,
+    count_start,
+    mark_learn_failed,
+    should_auto_learn,
+)
 from buysmarter.services.recommend import (
     NoNewPick,
     NoSubstanceMatch,
@@ -148,6 +153,7 @@ async def _dispatch_learning(store: JobStore, result: RecommendResult, *, use_ll
         slot = _LEARN_SLOT_PREFIX + c.product_type.strip().lower()
         if not await store.redis.set(slot, "1", nx=True, ex=_LEARN_SLOT_TTL_S):
             return
+        count_start()
         await learn_category_job.kiq(c.product_type)
     except Exception:
         logger.exception("could not queue the learning of %r", c.product_type)

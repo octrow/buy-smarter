@@ -52,7 +52,7 @@ from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
-from buysmarter.services.auto_learn import auto_learn, should_auto_learn
+from buysmarter.services.auto_learn import auto_learn, count_start, should_auto_learn
 from buysmarter.services.collect import ALL_SOURCES, select_sources
 from buysmarter.services.doctor import (
     INSTALL_BROWSER,
@@ -407,6 +407,7 @@ async def _offer_learning(result: RecommendResult, *, use_llm: bool, force: bool
         return False
     name = escape(repr(c.product_type))
     console.print(f"[dim]Изучаю категорию {name}…[/dim]")
+    count_start()
     if not await auto_learn(c.product_type):
         console.print(f"[yellow]Категорию {name} изучить не удалось (см. лог).[/yellow]")
         return False

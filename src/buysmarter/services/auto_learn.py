@@ -70,7 +70,7 @@ async def should_auto_learn(
 
     ``knowledge_missing`` is the run's: no books were found for the request anywhere (own
     record, synonym, parent, related profile). Counts nothing: call
-    ``mark_learning_started`` when the learning really starts.
+    ``count_start`` when the entry point really starts (or queues) the learning.
     """
     if not knowledge_missing or intent not in _INTENTS or not use_llm:
         return False
@@ -91,9 +91,17 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
-async def mark_learning_started(product_type: str) -> None:
-    """Stamp the record and count the start against the hourly limit."""
+def count_start() -> None:
+    """Count one start against the hourly limit, in the process that decided it.
+
+    The entry point calls it, not the runner: the worker decides in the recommend process
+    and learns in a task that may run in another one.
+    """
     _starts.append(time.monotonic())
+
+
+async def mark_learning_started(product_type: str) -> None:
+    """Stamp the record: a learn is in progress."""
     await update_knowledge(product_type, {LEARNING_STARTED_KEY: _now()}, _WRITER)
 
 

@@ -25,7 +25,7 @@ from buysmarter.cli.report import (
 )
 from buysmarter.i18n import kzt
 from buysmarter.memory import prefs
-from buysmarter.services.auto_learn import auto_learn, should_auto_learn
+from buysmarter.services.auto_learn import auto_learn, count_start, should_auto_learn
 from buysmarter.services.collect import ALL_SOURCES, resolve_sources, select_sources
 from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, RecommendResult
 from buysmarter.services.recommend import recommend as run_recommend
@@ -61,6 +61,7 @@ async def _start_learning(result: RecommendResult, use_llm: bool) -> str:
         knowledge_missing=result.knowledge_missing,
     ):
         return ""
+    count_start()
     task = asyncio.create_task(auto_learn(c.product_type), name=repr(c.product_type))
     _LEARNING.add(task)
     task.add_done_callback(_learn_finished)
