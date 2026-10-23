@@ -20,7 +20,7 @@ query text
   ├─ 2  parse ................ text → constraints (intent, search phrase, product type, budget...)
   ├─ 2a clarify .............. ambiguous request → a question instead of a ranking
   ├─ 3  city ................. override > query > stored preference > Алматы
-  ├─ 4  clean constraints .... capabilities read the query (audience, size); implied features out
+  ├─ 4  clean constraints .... capabilities read the query (audience, size, fit, dims, exclude, original_only); implied features out
   ├─ 5  sources .............. Kaspi / Ozon (needs a browser) / OLX
   ├─ 6  category profile ..... books, capabilities, who owns each; capabilities switched on;
   │                            a capability may ask (runs before step 5: no browser for a question)
@@ -71,6 +71,7 @@ Examples:
 - "крем с адапаленом" → composition (if the profile has it): searches by substance, rejects products whose composition proves the substance absent.
 - "мужские кроссовки 42 размер" → audience and size; gender is a listing check everywhere, size an unverified con.
 - "смартфон iPhone 13" → benchmark by the providers' rule (Kimovil); "чехол на iPhone 15", "держатель телефона" → none.
+- "чехол на iPhone 15" → fit: the device joins the search phrase; "шины 205/55 R16" → dims (asks the size when the query has none); "шампунь без сульфатов" → exclude; "пылесос Dyson только оригинал" → original_only (suspected fakes hidden).
 - A category with no profile at all → no category capability, every brand scores as unknown.
 
 Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/benchmark`, `capabilities/composition`
@@ -83,13 +84,15 @@ They differ in defaults.
 
 | Entry | Sources by default | LLM by default | Notes |
 |---|---|---|---|
-| CLI `recommend` | kaspi, ozon, olx | on | on a terminal asks a clarification first (number or own text, next round), then a missing budget; off a terminal a question exits with code 3, nothing to search with 1; `--no-clarify` searches the first option |
-| Desktop GUI | user picks | on | calls `recommend()` in-process; merges excluded brands from settings into the parse; a clarification shows as a card under the form (option buttons, own answer: an option goes back as `answer`, own text joins the query; next round); `restricted_note` heads the report; "Изучить категорию" learns the product type, and the search it reruns keeps the answer and round; after a report with no brand data, the GUI starts learning the category on its own (kept per category in `gui/learning`, the search never waits; closing the window asks while one runs; when the on-screen category is learned the button becomes "Повторить поиск"); every report carries the group "Как оцениваем эту категорию" (`gui/capability_toggles`): a checkbox per category capability with its source in the text and a reset to automatic, written to the request's own profile on the core loop (the related profile found becomes its `parent`, never written to); a change only offers "Повторить поиск" |
+| CLI `recommend` | kaspi, ozon, olx | on | on a terminal asks a clarification first (number or own text, next round), then a missing budget; off a terminal a question exits with code 3, nothing to search with 1; `--no-clarify` searches the first option; a capability question's answer (tyre size) always joins the query, even when an option is picked; exit codes: marketplace HTTP error 2, `NoNewPick` 0 with OLX ads else 1 |
+| Desktop GUI | user picks | on | calls `recommend()` in-process; merges excluded brands from settings into the parse; a clarification shows as a card under the form (option buttons, own answer: an option goes back as `answer`, own text joins the query; next round); `restricted_note` heads the report; "Изучить категорию" learns the product type, and the search it reruns keeps the answer and round; after a report with no brand data, the GUI starts learning the category on its own (not when the run skipped LLM steps; kept per category in `gui/learning`, the search never waits; closing the window asks while one runs; when the on-screen category is learned the button becomes "Повторить поиск"); every report carries the group "Как оцениваем эту категорию" (`gui/capability_toggles`): a checkbox per category capability with its source in the text and a reset to automatic, written to the request's own profile on the core loop (the related profile found becomes its `parent`, never written to); a change only offers "Повторить поиск" |
 | MCP `recommend` | kaspi, ozon, olx | **off** (`parse_with_llm=False`) | passes `city or preference or Алматы` as an override: a city in the query is ignored, `city_defaulted` is always false; a clarification comes back as markdown telling the host to ask the human and call again with `answer` and `clarify_round` + 1 |
-| HTTP API + worker | `api_sources`, default kaspi + olx (no Ozon) | **off** (`use_llm=False`) | job queue in Redis, timeout per job, dedupe by request; a clarification is `no_match` with `reason="needs_clarification"` and `clarification`, the client posts again with `answer` and `clarify_round` + 1; `constraints` is the public `ParsedRequest` (`category` kept, deprecated) |
+| HTTP API + worker | `api_sources`, default kaspi + olx (no Ozon) | **off** (`use_llm=False`) | job queue in Redis; the same request within 15 minutes returns the same job; 10 new jobs per 600 s per client, else 429 with `Retry-After`; `X-API-Key` required when `BUYSMARTER_API_KEYS` is set; job timeout 300 s; auto-learning needs `use_llm=true` in the request and `BUYSMARTER_AUTO_LEARN=true`; a clarification is `no_match` with `reason="needs_clarification"` and `clarification`, the client posts again with `answer` and `clarify_round` + 1; `constraints` is the public `ParsedRequest` (`category` kept, deprecated) |
 | direct call | kaspi only | on | used by tests |
 
-Module: `cli/main`, `cli/clarify`, `gui/screens/search`, `gui/screens/clarify`, `gui/capability_toggles`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`
+Other MCP tools (`search_products`, `compare`, `get_preferences`, `set_preference`) do not call `recommend()`.
+
+Module: `cli/main`, `cli/clarify`, `cli/report`, `gui/screens/search`, `gui/screens/clarify`, `gui/screens/report`, `gui/learning`, `gui/capability_toggles`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`, `services/auto_learn`
 
 ## Steps
 
@@ -99,8 +102,8 @@ Decides: whether this run can use an LLM at all.
 Branches:
 - a route exists (API key in env or keyring, or the `claude` CLI) → LLM steps on;
 - no route → run goes no-LLM and reports the skipped steps (query parsing, review summaries, ingredient extraction);
-- user opted out (`--no-llm`, MCP/API defaults) → no-LLM, nothing reported as skipped.
-Without LLM these also stop: the LLM relevance pass, related-category matching by LLM, OLX title canonicalization. The skipped-steps list names only three of them.
+- user opted out (`--no-llm`, MCP/API defaults) → no-LLM, nothing reported as skipped;
+- in both no-LLM cases these also stop: the LLM relevance pass, related-category matching by LLM, OLX title canonicalization (the skipped-steps list names only the three above).
 Module: `llm/adapter`, `llm/keys`
 
 ### 2. Parse the request
@@ -120,7 +123,7 @@ Decides: whether the request is searched, or answered with a question (`NeedsCla
 In: the parse, the caller's `answer`, `clarify_round` (0, 1, 2) and `no_clarify`.
 - An `answer` equal to one of the parse's options narrows the request to it: intent product, search phrase and product type from the answer; budget, city and audience stay; no second parse. Any other answer is added to the query, which is parsed again.
 - Restricted goods are flagged here (see step 4), so a question carries the warning too.
-- Asks on (blank options dropped first): open with options, need with two or more options, multi with two or more products, service, unclear. Open or need without options and without a phrase count as unclear. A need with a phrase and no options ("шампунь от перхоти") is searched.
+- Asks on (blank options dropped first): open with options, need with two or more options, multi with two or more products, service, unclear. Open without options is unclear even with a phrase. Need, and multi with fewer than two options, are searched when they have a phrase ("шампунь от перхоти"), else unclear.
 - Last round (2) or `no_clarify`: with options, the first one is searched and reported as `assumed` ("Искал: крем для рук"); without options, `NothingToSearch` (a `ValueError`) with the reason.
 - A capability's `clarify` hook asks after step 6 by the same rules; on the last round the search goes on without the parameter.
 `NeedsClarification` is not a `ValueError`: each entry catches it first. No LLM: the naive parse is always product (unclear without letters), so only capabilities can ask.
@@ -149,7 +152,7 @@ Decides: final constraints before search.
 - Features already implied by the search phrase are dropped ("TWS" in "TWS наушники").
 - Condition words (б/у, новый) are dropped: used goods are OLX's job. They set `condition`; "used" adds a report note pointing to the OLX section.
 Then CLI/API overrides apply: budget, trusted brands only.
-Module: `services/recommend`, `services/understanding`, `capabilities/flow`, `capabilities/audience`, `capabilities/size`, `ranking/audience`
+Module: `services/recommend`, `services/understanding`, `capabilities/flow`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `ranking/audience`
 
 ### 5. Pick the sources
 
@@ -178,12 +181,9 @@ A product type seen first (nothing stored under it, with LLM) is classified by J
 Then capabilities are switched on (see Capabilities), and a capability's `clarify` hook may ask (step 2a). This step runs before step 5, so a question never starts a browser.
 No LLM: exact slug and synonyms only.
 Fails: never blocks. Missing knowledge sets `knowledge_missing` and weakens the brand axis.
-The run does not learn a whole category; it logs a hint to run `learn-category`.
-Whether a request may learn its category on its own is decided by `should_auto_learn` (`services/auto_learn`): no profile with books, intent `product`/`need`, parsed with the LLM, the `claude` CLI present, a product type of at most 60 letters/digits/spaces/hyphens, no `learning_started_at` mark younger than 15 minutes, no `learn_failed_at` younger than 24 hours, and fewer than `auto_learn_per_hour` (10) starts in the last hour in this process.
-
-The search never waits for the learning; `auto_learn` (mark started, `learn_category`, mark done; a failure is marked, logged and returned as `False`) is the one runner. MCP: after a `parse_with_llm=True` recommend that meets the condition, a background task, the report says to repeat the request in a few minutes. CLI: after the report on a terminal it asks "Изучить категорию сейчас?" (`--learn` learns without asking, off a terminal it never asks) and then offers to repeat the search. API/worker: off unless `BUYSMARTER_AUTO_LEARN=true`; then, after the job is finished, a separate taskiq task `buysmarter.learn_category` (600 s limit), deduplicated by a Redis `SET NX` slot per category. The desktop app is separate.
-It writes knowledge in four cases: aliases learned in step 21 (to the owner of the model book), healing, moving an old slug, and the classifier's capabilities.
-Module: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`, `services/auto_learn`, `mcp_server/server`, `cli/main`, `worker`
+The run itself writes knowledge in four cases: aliases learned in step 21 (to the owner of the model book), healing, moving an old slug, and the classifier's capabilities. It never learns a whole category; it logs a hint to run `learn-category`.
+Entry points write the rest, after the report: the learning marks (`services/auto_learn` `mark_*`), the learned books (`learn_category`) and the user's switches (`knowledge/store.set_user_choice`). When a category is learned on its own: see Learning a category.
+Module: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`
 
 ### 7. Extra searches (capabilities)
 
@@ -231,7 +231,7 @@ Module: `normalize/candidate`
 Decides: extra candidates from brand sites named in the brand book.
 Each store page is read as schema.org product data; offers a capability's listing check rejects (another audience, another tyre or mattress size) are dropped before the per-store cut, then the cheapest in-budget items are added.
 No brand book or no store URLs → nothing added. A store that blocks us → nothing from it.
-Module: `services/official_stores`
+Module: `services/official_stores`, `capabilities/flow`
 
 ### 11. Price history and review velocity
 
@@ -245,11 +245,11 @@ Decides: which candidates are the product at all (drops a battery in a robot-vac
 It judges the search phrase without excluded-substance phrases ("шампунь", not "шампунь без сульфатов"); the same for OLX ads (step 14).
 1. Protected: candidates a capability's `relevance` hook names skip the filter (composition: a title naming a required substance).
 2. Heuristic: accessory markers in the title → drop.
-3. LLM pass (only with LLM and more left than the floor still needs): Jev scores each title; below 0.25 → drop. If Jev fails, a fallback LLM returns a plain keep list with no threshold; if that fails too, everything stays.
+3. LLM pass (only with LLM and more left than the floor still needs): a title naming the queried model skips it (`names_query_model`); Jev scores each other title; below 0.25 → drop. If Jev fails, a fallback LLM returns a plain keep list with no threshold; if that fails too, everything stays.
 4. Floor: if fewer than 3 remain, protected ones included, the best-rated dropped ones come back.
 Every drop and restore is logged with its reason.
 Fails: fully fail-open.
-Module: `services/recommend`, `llm/relevance`, `llm/jev`
+Module: `services/recommend`, `llm/relevance`, `llm/jev`, `capabilities/composition`, `capabilities/flow`
 
 ### 13. Dedupe and reference prices
 
@@ -267,8 +267,10 @@ Module: `services/matching`, `normalize/candidate`
 Decides: which OLX ads stay. Runs at the same time as step 12: the two LLM passes are one wait.
 - a capability's listing check rejects it (another audience, another tyre or mattress size) → drop;
 - relevance threshold 0.35, stricter than step 12, and no floor: an empty section is fine, a wrong one is not.
+- a title naming the queried model skips the LLM pass (as in step 12);
+- with at least 5 priced ads, an ad priced under 0.3 of the median is dropped as bait (`_drop_bait_prices`; logged);
 - The threshold applies only on the Jev path; the fallback LLM keeps its own list. If both fail, only ads naming the queried model stay. Without LLM only the accessory heuristic runs.
-Module: `services/recommend`, `llm/relevance`
+Module: `services/recommend`, `llm/relevance`, `capabilities/flow`
 
 ### 15. Benchmark (capability enrich)
 
@@ -297,7 +299,7 @@ over budget → excluded brand → unknown brand when trusted-only → not avail
 Required features are checked only when the candidate has specs. Ozon cards past the top 4, official-store candidates and apparel variant cards skip the check (they get an "unverified" con). Benchmark (step 15) fills specs for phones, which turns the check on.
 "Proven absent" is decided per candidate: checked, the substance not detected, and a composition text present. Unchecked or no composition text is a data gap, not a rejection.
 Ingredient axis: substance present 25 (0.7 of it with an unknown or other concentration); unchecked 0.3 × 25 = 7.5 for every candidate, with the con "состав не проверен: <substance>?"; checked and absent 0.
-Nothing passes → error "no candidates passed hard filters".
+Nothing passes → `NoNewPick` (a `ValueError`: "no candidates passed hard filters") with the rejection reasons and the OLX ads (step 21). CLI: exit 0 with ads, else 1. Worker: `no_match` with `rejected_reasons` and `used_listings`. The same path runs when `original_only` hid every candidate (step 19).
 
 **Market context**: price reference and review maximums are computed from the passed pool, so price is judged relative to the pool.
 
@@ -325,7 +327,7 @@ Reviews and popularity are trusted less for unknown brands.
 Capability axes come before the base axes; weights follow the rule in Capabilities.
 
 **Pros and cons**: official seller, unknown brand, price risk, price history verdict, unverified features, then each capability's notes (size: unverified size; fit: "подходит к <device>"; dims: unverified size; exclude: composition not checked for the substance, or "без X" in the title; composition: ingredient equivalence, and it replaces "weak ingredient"), model mismatch, spec conflicts in the title, fast delivery.
-Module: `ranking/engine`, `ranking/filters`, `ranking/price_risk`, `capabilities/composition`, `capabilities/size`, `ranking/model_tokens`, `ranking/spec_conflicts`, `ranking/delivery`, `ranking/flags`
+Module: `ranking/engine`, `ranking/models`, `ranking/filters`, `ranking/price_risk`, `capabilities/composition`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/flow`, `capabilities/weights`, `ranking/model_tokens`, `ranking/spec_conflicts`, `ranking/delivery`, `ranking/flags`
 
 ### 18. Roles
 
@@ -342,13 +344,13 @@ Module: `ranking/selection`
 
 Decides: whether reviews change the ranking.
 1. Kaspi only, top 6 Kaspi candidates: fetch reviews; discount review axes that look fake; penalize a high share of defect complaints; check counterfeit signals.
-2. With LLM and summaries on: summaries for the top 3 of any source, chosen before penalties. The LLM writes the text (pros, cons, complaints, verdict, red flags); Jev decides counterfeit, reliability and the required-feature verdicts (Jev fails → none of them this run). Counterfeit or serious reliability concerns cut the score; review verdicts on required features apply.
+2. With LLM and summaries on: summaries for the top 3 of any source, chosen before penalties. A summary needs at least 5 review texts, else `review_summary_note` says why. The LLM writes the text (pros, cons, complaints, verdict, red flags); Jev decides counterfeit, reliability and the required-feature verdicts (Jev fails → none of them this run). Counterfeit or serious reliability concerns cut the score; review verdicts on required features apply.
 3. No LLM with required features: stem search over fetched reviews instead.
 With LLM and summaries off (`--no-review-summary`) required features are not checked in reviews at all.
 After each change the roles are picked again (step 18), so the best pick may change.
 With `original_only` the core then hides every candidate barred from roles (`ranking/selection.without_barred`): they leave the ranking, add to `rejected_count` and to the reason "suspected counterfeit" (shown as "подозрение на подделку"), and go to `RecommendResult.hidden`. All of them barred → nothing passed: the run takes the no-new-pick path with the OLX ads (step 21).
 The summary shown is the final best pick's.
-Module: `services/review_pass`, `ranking/review_trust`, `ranking/review_requirements`, `ranking/penalties`, `llm/review_summary`
+Module: `services/review_pass`, `services/recommend`, `ranking/selection`, `capabilities/original_only`, `ranking/review_trust`, `ranking/review_requirements`, `ranking/penalties`, `llm/review_summary`
 
 ### 20. Persist
 
@@ -365,17 +367,17 @@ Module: `services/collect`, `db/repo`
 Decides: the final warnings and the OLX section.
 - Cross-source notes from step 13 are attached ("также на ozon за …"); a big gap becomes a con.
 - First, with LLM and knowledge, OLX titles the model book missed are mapped to model names: Jev's confident picks only (unsure → no name), the LLM only when Jev fails; a name whose model number, line or storage contradicts the title is dropped. Learned aliases are saved to the profile that owns the model book (its own, the parent or the related profile); only the model book is written, and a borrowed book never creates a record under the query.
-- OLX ads are matched to every ranked candidate (same model or brand + title).
+- OLX ads are matched to every ranked candidate (same model or brand + title); an ad shows only if its price is under 0.7 of the matched new product's.
 - Then notable ads of trusted brands, only when a budget is set.
 - Then no-name ads cheaper than a no-name or tier-C best pick.
-Module: `services/matching`, `llm/canonicalize`
+Module: `services/matching`, `llm/canonicalize`, `knowledge/store`
 
 ### Output
 
 `RecommendResult`: the ranking, the constraints used, used listings, and flags the UI shows as warnings:
-`restricted_note` (first line of the report), `assumed` (the option searched on the last clarification round), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `hidden` (the suspected fakes "только оригинал" hid: "Скрыто подозрительных предложений: N" and their titles in the markdown and console reports, a group in the GUI, `RecommendOutcome.hidden` in the API, empty by default), `ingredients_unchecked` (set by the composition capability's report section: a ranked candidate whose composition was not checked, "Состав не проверен у N из M — вещество не подтверждено").
-Every surface renders the same result. `capabilities` (each registry capability: switch, active, who set it) gives the line "Как оценивали: состав — обучение; бенчмарк Kimovil — Jev." (sources: обучение, Jev, правило, запрос, включено/выключено вами), built once in `capabilities/provenance` and shown by the markdown and console reports, the GUI and the API (`RecommendOutcome.assessed_by`, empty by default so an old stored result still validates); no active capability, no line.
-Module: `services/recommend`, `capabilities/composition`, `capabilities/provenance`, `cli/report`
+`restricted_note` (first line of the report), `assumed` (the option searched on the last clarification round), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `hidden` (the suspected fakes "только оригинал" hid: "Скрыто подозрительных предложений: N" and their titles in the markdown and console reports, a group in the GUI, `RecommendOutcome.hidden` in the API, empty by default), `profile_found` (the related profile the lookup found), `capabilities` (below), `ingredients_unchecked` (set by the composition capability's report section: a ranked candidate whose composition was not checked, "Состав не проверен у N из M — вещество не подтверждено").
+Every surface renders the same result. `capabilities` (each registry capability: switch, active, who set it) gives the line "Как оценивали: состав — обучение; бенчмарк Kimovil — Jev." (sources: обучение, Jev, правило, запрос, включено/выключено вами), built once in `capabilities/provenance` and shown by the markdown and console reports, the GUI and the API (`RecommendOutcome.assessed_by`, empty by default so an old stored result still validates); no line when no capability took part and none was switched off by the user. `RecommendOutcome` carries `hidden` and `assessed_by`.
+Module: `services/recommend`, `capabilities/composition`, `capabilities/provenance`, `cli/report`, `jobs`, `gui/screens/report`
 
 ## Side flows
 
@@ -387,9 +389,11 @@ Builds category knowledge: brand book, model book, category type, ingredient boo
 - Official store prices are checked on real pages and kept as brand price floors.
 - Merged into the local store under the category name (other keys of the record stay); step 6 finds it next time.
 - `learn --file` merges with the category's own record only, never a parent's or a related one.
+- Automatic runs go through `services/auto_learn.auto_learn` (mark started, `learn_category`, mark done; a failure is marked, logged, returned as `False`). `should_auto_learn` decides: no profile with books, intent `product`/`need`, parsed with the LLM, the `claude` CLI present, a product type of at most 60 letters/digits/spaces/hyphens, no `learning_started_at` mark younger than 15 minutes, no `learn_failed_at` younger than 24 hours, and fewer than `auto_learn_per_hour` (default 10; `BUYSMARTER_AUTO_LEARN_PER_HOUR=0` turns it off) starts in the last hour in this process. The search never waits for it.
+- Who starts it: MCP after a `parse_with_llm=True` recommend (a background task; the report says to repeat in a few minutes); CLI after the report on a terminal asks "Изучить категорию сейчас?" (`--learn` learns without asking, off a terminal it never asks) and offers to repeat the search; API/worker only with `BUYSMARTER_AUTO_LEARN=true` and `use_llm=true`, after the job finishes, as the taskiq task `buysmarter.learn_category` (600 s limit, one Redis `SET NX` slot per category); the desktop app via `gui/learning`.
 - Variant: extract the same knowledge from the user's own notes; notes with more than 10 list items go in chunks of 10, each headed by the notes' intro, merged in code.
 Feeds: step 6, and through it steps 7, 8, 10, 13, 16, 17.
-Module: `knowledge/generate`, `knowledge/store`, `services/official_stores`
+Module: `knowledge/generate`, `knowledge/store`, `services/official_stores`, `services/auto_learn`, `gui/learning`
 
 ### Price tracking
 
@@ -409,8 +413,7 @@ Module: `services/doctor`
 Short list; details and fixes are in the plan (number in brackets).
 - City: an unknown city silently searches Almaty; Ozon gets no city; MCP ignores the city in the query (#3).
 - Dedupe still merges FE/SE variants, chip generations (M2/M3) and RAM-only variants; overlap is asymmetric (#13).
-- A query for an unknown category does not learn it (#1).
-- Capabilities are switched on by stored profiles and fallback rules; no Jev classifier or learning on first query yet (#2, phase 3).
+- Capabilities are switched on by stored profiles, the Jev classifier on the first sight of a product type (`ensure_profile`) and fallback rules. `recommend()` never learns a category itself; entry points may start learning after the report (Learning a category). Findings #1 and #2 are fixed.
 - MCP and the HTTP API run without LLM by default (#4).
 - Without an LLM there is no intent detection: only an unreadable query and capabilities ask, so MCP and the API (no LLM by default) search "подарок для мамы" as it is (phase 2).
 - Kaspi search has no budget cap (#5).
