@@ -53,7 +53,9 @@ from buysmarter.ranking.models import (
     Candidate,
     QueryConstraints,
     Recommendation,
+    ScoredCandidate,
 )
+from buysmarter.ranking.selection import SUSPECTED_COUNTERFEIT, without_barred
 from buysmarter.services.collect import (
     ProductRow,
     aclose,
@@ -122,6 +124,8 @@ class RecommendResult(BaseModel):
     # The stored record the profile lookup settled on; the switches' parent when it is not the
     # request's own.
     profile_found: str | None = None
+    # Suspected fakes hidden from the ranking ("только оригинал"), listed in the report.
+    hidden: list[ScoredCandidate] = Field(default_factory=list)
 
 
 def _no_llm_route() -> bool:
@@ -428,6 +432,7 @@ async def recommend(
         recommendation, review_summary, review_summary_note = await _rank(
             run, pool, active, with_review_summary
         )
+        recommendation, hidden = _hide_suspects(run, recommendation)
     except NoCandidatesPassed as exc:
         # rank() is the only raiser, so the pool and the OLX ads are already collected
         raise NoNewPick(exc.rejected_reasons, await _used_listings(run, pool, None)) from exc
@@ -455,7 +460,23 @@ async def recommend(
         assumed=assumed,
         capabilities=capability_states(REGISTRY, profile, constraints),
         profile_found=profile.found,
+        hidden=hidden,
     )
+
+
+def _hide_suspects(
+    run: _Run, recommendation: Recommendation
+) -> tuple[Recommendation, list[ScoredCandidate]]:
+    """Suspected fakes out of the ranking when a capability asks ("только оригинал")."""
+    if not run.capabilities.drops_barred:
+        return recommendation, []
+    kept, hidden = without_barred(recommendation)
+    if hidden:
+        logger.info("hidden as suspected fakes: %s", [s.candidate.title for s in hidden])
+    if kept is None:
+        reasons = dict(recommendation.rejected_reasons)
+        raise NoCandidatesPassed({**reasons, SUSPECTED_COUNTERFEIT: len(hidden)})
+    return kept, hidden
 
 
 def relevance_phrase(constraints: QueryConstraints) -> str:

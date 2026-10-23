@@ -170,6 +170,11 @@ class RecommendOutcome(BaseModel):
         "``used_listings`` then holds the OLX ads within the budget",
     )
 
+    hidden: list[Offer] = Field(
+        default_factory=list,
+        description="Suspected fakes hidden from the ranking by «только оригинал» (the "
+        "report lists them too)",
+    )
     assessed_by: list[str] = Field(
         default_factory=list,
         description="How the run assessed: each active capability and who decided "
@@ -189,6 +194,7 @@ class RecommendOutcome(BaseModel):
             assumed=result.assumed,
             restricted_note=result.restricted_note,
             budget_note=result.constraints.budget_note,
+            hidden=[Offer.from_scored(s) for s in result.hidden],
             assessed_by=assessed_entries(result.capabilities),
         )
 

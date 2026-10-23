@@ -119,8 +119,14 @@ class Dims(Capability):
             return constraints
         phrase = " ".join([_without_sizes(constraints.search_phrase), *dims.values()])
         features = [f for f in constraints.required_features if not dims_in(f)]
+        product_type = _without_sizes(constraints.product_type) or constraints.product_type
         return constraints.model_copy(
-            update={"dims": dims, "search_phrase": phrase.strip(), "required_features": features}
+            update={
+                "dims": dims,
+                "search_phrase": phrase.strip(),
+                "product_type": product_type,
+                "required_features": features,
+            }
         )
 
     def reject_listing(self, ctx: CapabilityContext, text: str) -> str | None:

@@ -220,3 +220,14 @@ def test_the_report_says_how_it_was_assessed(qtbot, result):
     screen = _shown(qtbot, result.model_copy(update={"capabilities": [state]}))
 
     assert "Как оценивали: бенчмарк Kimovil — Jev." in _texts(screen)
+
+
+def test_hidden_suspected_fakes_get_a_section_with_their_titles(qtbot, result):
+    fake = result.recommendation.ranked[2]
+    text = _texts(_shown(qtbot, result.model_copy(update={"hidden": [fake]})))
+    assert "Скрыто 1 подозрительных предложений" in text
+    assert "Xiaomi Water Flosser 2" in text
+
+
+def test_no_hidden_section_without_hidden_ones(qtbot, result):
+    assert "Скрыто" not in _texts(_shown(qtbot, result))

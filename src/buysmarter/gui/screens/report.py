@@ -24,6 +24,7 @@ from buysmarter.cli.report import (
     assessed_note,
     budget_text,
     format_rejected_reasons,
+    hidden_note,
     ingredients_unchecked_note,
     request_notes,
 )
@@ -320,6 +321,8 @@ class ReportScreen(QScrollArea):
             layout.addWidget(self.rejected)
         if result.used_listings:
             layout.addWidget(self._used_section(result))
+        if hidden := self._hidden_section(result):
+            layout.addWidget(hidden)
         layout.addWidget(self._toggles_section(result))
         if lines := could_not_verify(result, run):
             notes = _label("\n".join(lines), state="warning")
@@ -327,6 +330,15 @@ class ReportScreen(QScrollArea):
         layout.addStretch(1)
         self.setWidget(page)
         self._after_shown(result, run)
+
+    def _hidden_section(self, result: RecommendResult) -> QGroupBox | None:
+        """The suspected fakes "только оригинал" hid, each by title."""
+        note = hidden_note(result)
+        if note is None:
+            return None
+        titles = [_label(clean_title(s.candidate.title), role="muted") for s in result.hidden]
+        self.hidden = _group("Скрытые подозрительные", _label(note, role="muted"), *titles)
+        return self.hidden
 
     def _toggles_section(self, result: RecommendResult) -> CapabilityToggles:
         toggles = CapabilityToggles(

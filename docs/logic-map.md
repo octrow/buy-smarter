@@ -49,7 +49,7 @@ OLX never enters the ranking; it only feeds the used-market section.
 ## Capabilities
 
 The core flow is the same for every category. What differs are capabilities (CONTEXT.md):
-optional hooks the core calls at fixed points, in registry order (audience, size, fit, dims, exclude, benchmark, composition).
+optional hooks the core calls at fixed points, in registry order (audience, size, fit, dims, exclude, original_only, benchmark, composition).
 A hook a capability does not implement is not called.
 `ranking/` never imports capabilities: the flow hands `rank()` plain weights, predicates and functions (`RankHooks`).
 
@@ -60,6 +60,7 @@ A hook a capability does not implement is not called.
 | fit | request | `constraints.fit_target`: the parser, or "для/на/под/к <device>" in the query text (step 4) | `query` (4: the device joins the search phrase and leaves the product type), `notes` (17: "подходит к <device>"); the model penalty (17) looks for the whole device model |
 | dims | request | `constraints.dims` (tyre or mattress size: the parser, or a regex over the query for tyres and mattresses), or tyres or a mattress named without a size (step 4) | `query` (4: normalized size into the search phrase, out of the features), `clarify` (6: tyres or a mattress without a size; the answer joins the query, which is read again), `reject_listing` (10, 14, 17: another size of the same kind in the title), `reject_content` (17: the size specs say another size), `notes` (17: "размер не проверен") |
 | exclude | request | `constraints.exclude_substances`: the parser, or "без X", "безX…", "X-free", "free of X" in the query for a known substance (сульфаты, парабены, сахар, лактоза) (step 4) | `query` (4: canonical names; the phrases leave the required features, the substances composition reads and the relevance phrase, but stay in the search), `reject_content` (17: the composition text names the substance outside a negation), `notes` (17: "состав не проверен на X" without a composition text; "без X по названию" when the title says so) |
+| original_only | request | `constraints.original_only`: the parser, or "оригинал" / "только оригинал" in the query text, not "оригинальный" (step 4) | `query` (4: the word leaves the search phrase, the product type and the required features), `drops_barred` (19: after the review pass the core hides the candidates barred from roles, counts them as rejected and lists them in every report) |
 | benchmark | category | the profile, only with a provider from `BENCHMARK_PROVIDERS` (its parameter, else the provider whose rule takes the product type); without a profile setting, the providers' rule (`set_by: fallback`) | `enrich` (15: Kimovil specs and `benchmark_index`) |
 | composition | category | the profile: the composition capability with an ingredient book (old records: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, may stop the run), `prepare` + `axis` + `notes` (17), `section` (Output) |
 
@@ -72,7 +73,7 @@ Examples:
 - "смартфон iPhone 13" → benchmark by the providers' rule (Kimovil); "чехол на iPhone 15", "держатель телефона" → none.
 - A category with no profile at all → no category capability, every brand scores as unknown.
 
-Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/benchmark`, `capabilities/composition`
+Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/benchmark`, `capabilities/composition`
 
 ## Entry points
 
@@ -345,6 +346,7 @@ Decides: whether reviews change the ranking.
 3. No LLM with required features: stem search over fetched reviews instead.
 With LLM and summaries off (`--no-review-summary`) required features are not checked in reviews at all.
 After each change the roles are picked again (step 18), so the best pick may change.
+With `original_only` the core then hides every candidate barred from roles (`ranking/selection.without_barred`): they leave the ranking, add to `rejected_count` and to the reason "suspected counterfeit" (shown as "подозрение на подделку"), and go to `RecommendResult.hidden`. All of them barred → nothing passed: the run takes the no-new-pick path with the OLX ads (step 21).
 The summary shown is the final best pick's.
 Module: `services/review_pass`, `ranking/review_trust`, `ranking/review_requirements`, `ranking/penalties`, `llm/review_summary`
 
@@ -371,7 +373,7 @@ Module: `services/matching`, `llm/canonicalize`
 ### Output
 
 `RecommendResult`: the ranking, the constraints used, used listings, and flags the UI shows as warnings:
-`restricted_note` (first line of the report), `assumed` (the option searched on the last clarification round), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `ingredients_unchecked` (set by the composition capability's report section: a ranked candidate whose composition was not checked, "Состав не проверен у N из M — вещество не подтверждено").
+`restricted_note` (first line of the report), `assumed` (the option searched on the last clarification round), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `hidden` (the suspected fakes "только оригинал" hid: "Скрыто N подозрительных предложений" and their titles in the markdown and console reports, a group in the GUI, `RecommendOutcome.hidden` in the API, empty by default), `ingredients_unchecked` (set by the composition capability's report section: a ranked candidate whose composition was not checked, "Состав не проверен у N из M — вещество не подтверждено").
 Every surface renders the same result. `capabilities` (each registry capability: switch, active, who set it) gives the line "Как оценивали: состав — обучение; бенчмарк Kimovil — Jev." (sources: обучение, Jev, правило, запрос, включено/выключено вами), built once in `capabilities/provenance` and shown by the markdown and console reports, the GUI and the API (`RecommendOutcome.assessed_by`, empty by default so an old stored result still validates); no active capability, no line.
 Module: `services/recommend`, `capabilities/composition`, `capabilities/provenance`, `cli/report`
 

@@ -171,3 +171,7 @@ async def test_an_olx_ad_of_another_size_is_dropped():
 
 def test_the_prompt_keeps_sizes_out_of_the_features():
     assert '"dims": {"tyre": "205/55 R16"}' in parse_query_prompt("шины")
+
+
+def test_the_size_leaves_the_naive_product_type():
+    assert _read("матрас 160х200").product_type == "матрас"

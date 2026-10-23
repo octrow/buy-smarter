@@ -10,9 +10,19 @@ from buysmarter.capabilities.composition import Composition
 from buysmarter.capabilities.dims import Dims
 from buysmarter.capabilities.exclude import Exclude
 from buysmarter.capabilities.fit import Fit
+from buysmarter.capabilities.original_only import OriginalOnly
 from buysmarter.capabilities.size import Size
 
 REGISTRY: dict[str, Capability] = {
     cap.name: cap
-    for cap in (Audience(), Size(), Fit(), Dims(), Exclude(), Benchmark(), Composition())
+    for cap in (
+        Audience(),
+        Size(),
+        Fit(),
+        Dims(),
+        Exclude(),
+        OriginalOnly(),
+        Benchmark(),
+        Composition(),
+    )
 }

@@ -45,7 +45,7 @@ OLX в рейтинг не попадает, только в раздел б/у.
 ## Возможности
 
 Основной поток один для всех категорий. Различаются возможности (CONTEXT.md):
-необязательные хуки, которые ядро вызывает в фиксированных точках в порядке реестра (audience, size, fit, dims, exclude, benchmark, composition).
+необязательные хуки, которые ядро вызывает в фиксированных точках в порядке реестра (audience, size, fit, dims, exclude, original_only, benchmark, composition).
 Хук, которого у возможности нет, не вызывается.
 `ranking/` не импортирует возможности: поток отдаёт `rank()` готовые веса, предикаты и функции (`RankHooks`).
 
@@ -56,6 +56,7 @@ OLX в рейтинг не попадает, только в раздел б/у.
 | size | запросная | `constraints.size`: разбор или regex по тексту запроса для одежды (шаг 4) | `query` (4: размер уходит из поисковой фразы и из свойств одежды), `notes` (17: «размер не проверен») |
 | dims | запросная | `constraints.dims` (размер шин или матраса: разбор или regex по запросу для шин и матрасов) или шины и матрас без размера (шаг 4) | `query` (4: нормализованный размер в поисковую фразу, вон из свойств), `clarify` (6: шины или матрас без размера; ответ дописывается к запросу, и тот читается заново), `reject_listing` (10, 14, 17: другой размер того же вида в названии), `reject_content` (17: характеристики размера говорят другой), `notes` (17: «размер не проверен») |
 | exclude | запросная | `constraints.exclude_substances`: разбор или «без X», «безX…», «X-free», «free of X» в запросе для известного вещества (сульфаты, парабены, сахар, лактоза) (шаг 4) | `query` (4: канонические имена; фразы уходят из обязательных свойств, из текста, где composition ищет вещества, и из фразы релевантности, но остаются в поиске), `reject_content` (17: текст состава называет вещество вне отрицания), `notes` (17: «состав не проверен на X» без текста состава; «без X по названию», если так сказано в названии) |
+| original_only | запросная | `constraints.original_only`: разбор или «оригинал» / «только оригинал» в тексте запроса, не «оригинальный» (шаг 4) | `query` (4: слово уходит из поисковой фразы, типа товара и обязательных свойств), `drops_barred` (19: после прохода по отзывам ядро скрывает кандидатов, закрытых для ролей, считает их отсеянными и перечисляет в каждом отчёте) |
 | benchmark | категорийная | профиль, только с провайдером из `BENCHMARK_PROVIDERS` (его параметр, иначе провайдер, чьё правило берёт тип товара); без записи в профиле — правило провайдеров (`set_by: fallback`) | `enrich` (15: характеристики Kimovil и `benchmark_index`) |
 | composition | категорийная | профиль: возможность composition с книгой ингредиентов (старые записи: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, может остановить поиск), `prepare` + `axis` + `notes` (17), `section` («Результат») |
 
@@ -68,7 +69,7 @@ Composition даёт ровно прежнюю таблицу (ингредие�
 - «смартфон iPhone 13» → benchmark по правилу провайдеров (Kimovil); «чехол на iPhone 15», «держатель телефона» → нет.
 - Категория без профиля → категорийных возможностей нет, все бренды «неизвестные».
 
-Модули: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/benchmark`, `capabilities/composition`
+Модули: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/benchmark`, `capabilities/composition`
 
 ## Входы
 
@@ -336,6 +337,7 @@ Composition: обязательные вещества берутся из по�
 
 С LLM и выключенными сводками (`--no-review-summary`) обязательные свойства по отзывам не проверяются совсем.
 После каждой правки роли выбираются заново (шаг 18), лучший выбор может смениться.
+С `original_only` ядро затем скрывает всех кандидатов, закрытых для ролей (`ranking/selection.without_barred`): они уходят из рейтинга, прибавляются к `rejected_count` и к причине «suspected counterfeit» (показывается как «подозрение на подделку») и попадают в `RecommendResult.hidden`. Закрыты все → ничего не прошло: запуск идёт по пути «нового нет» с объявлениями OLX (шаг 21).
 Показывается сводка итогового лучшего.
 Модули: `services/review_pass`, `ranking/review_trust`, `ranking/review_requirements`, `ranking/penalties`, `llm/review_summary`
 
@@ -361,7 +363,7 @@ Composition: обязательные вещества берутся из по�
 ### Результат
 
 `RecommendResult`: рейтинг, итоговые ограничения, объявления б/у и флаги-предупреждения:
-`restricted_note` (первая строка отчёта), `assumed` (вариант, найденный на последнем раунде уточнения), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `ingredients_unchecked` (ставит раздел отчёта возможности composition: в рейтинге есть кандидат с непроверенным составом, «Состав не проверен у N из M — вещество не подтверждено»).
+`restricted_note` (первая строка отчёта), `assumed` (вариант, найденный на последнем раунде уточнения), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `hidden` (подозрительные предложения, скрытые «только оригинал»: «Скрыто N подозрительных предложений» и их названия в markdown- и консольном отчёте, группа в GUI, `RecommendOutcome.hidden` в API, по умолчанию пусто), `ingredients_unchecked` (ставит раздел отчёта возможности composition: в рейтинге есть кандидат с непроверенным составом, «Состав не проверен у N из M — вещество не подтверждено»).
 Все интерфейсы показывают один и тот же результат. `capabilities` (каждая возможность реестра: переключатель, активна ли, кто задал) даёт строку «Как оценивали: состав — обучение; бенчмарк Kimovil — Jev.» (источники: обучение, Jev, правило, запрос, включено/выключено вами); строится один раз в `capabilities/provenance` и показывается в markdown- и консольном отчёте, GUI и API (`RecommendOutcome.assessed_by`, по умолчанию пусто, поэтому старый сохранённый результат валидируется); нет активных возможностей — нет строки.
 Модули: `services/recommend`, `capabilities/composition`, `capabilities/provenance`, `cli/report`
 

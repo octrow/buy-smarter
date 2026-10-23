@@ -126,3 +126,7 @@ def test_a_whole_exclusion_list_leaves_the_phrase():
     assert strip_exclusions("шампунь без парабенов и сульфатов для волос", names) == (
         "шампунь для волос"
     )
+
+
+def test_the_exclusion_leaves_the_naive_product_type():
+    assert _read("шампунь без сульфатов").product_type == "шампунь"

@@ -134,8 +134,13 @@ class Exclude(Capability):
         if not names:
             return constraints
         features = [f for f in constraints.required_features if strip_exclusions(f, names)]
+        product_type = strip_exclusions(constraints.product_type, names)
         return constraints.model_copy(
-            update={"exclude_substances": names, "required_features": features}
+            update={
+                "exclude_substances": names,
+                "required_features": features,
+                "product_type": product_type or constraints.product_type,
+            }
         )
 
     def reject_content(self, ctx: CapabilityContext, candidate: Candidate) -> str | None:

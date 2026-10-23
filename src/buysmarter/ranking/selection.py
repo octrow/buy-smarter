@@ -329,3 +329,26 @@ def assemble_recommendation(
         rejected_count=rejected_count,
         rejected_reasons=rejected_reasons or {},
     )
+
+
+# Reason key for candidates hidden as suspected fakes (``without_barred``).
+SUSPECTED_COUNTERFEIT = "suspected counterfeit"
+
+
+def without_barred(
+    rec: Recommendation,
+) -> tuple[Recommendation | None, list[ScoredCandidate]]:
+    """The recommendation without the candidates barred from roles, and those hidden.
+
+    The hidden ones count as rejected (``SUSPECTED_COUNTERFEIT``); None when every
+    candidate is barred, so the caller can report that nothing passed.
+    """
+    hidden = [s for s in rec.ranked if _is_barred_from_roles(s)]
+    if not hidden:
+        return rec, []
+    kept = [s for s in rec.ranked if not _is_barred_from_roles(s)]
+    reasons = dict(rec.rejected_reasons)
+    reasons[SUSPECTED_COUNTERFEIT] = reasons.get(SUSPECTED_COUNTERFEIT, 0) + len(hidden)
+    if not kept:
+        return None, hidden
+    return assemble_recommendation(kept, rec.rejected_count + len(hidden), reasons), hidden

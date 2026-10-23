@@ -67,7 +67,9 @@ _FIELDS = (
     '- dims: a tyre or mattress size the user named, {"tyre": "205/55 R16"} or '
     '{"mattress": "160x200"}, else {}; never in required_features\n'
     "- exclude_substances: substances the goods must NOT contain ('без сульфатов' -> "
-    '["сульфаты"]), list; never in required_features\n\n'
+    '["сульфаты"]), list; never in required_features\n'
+    "- original_only: true when the user wants only the original (только оригинал), else "
+    "false; never in required_features or search_phrase\n\n"
 )
 _RULES = (
     "CRITICAL: ``search_phrase`` and ``product_type`` MUST be in RUSSIAN — the language of "
@@ -113,6 +115,8 @@ _EXAMPLES = (
     'Example: "шампунь без сульфатов" -> {"intent": "product", "search_phrase": '
     '"шампунь без сульфатов", "product_type": "шампунь", "exclude_substances": ["сульфаты"], '
     '"required_features": [], ...}\n'
+    'Example: "пылесос Dyson только оригинал" -> {"intent": "product", "search_phrase": '
+    '"пылесос Dyson", "product_type": "пылесос", "original_only": true, ...}\n'
     'Example: "шампунь от перхоти" -> {"intent": "need", "need": "перхоть", '
     '"search_phrase": "шампунь от перхоти", "product_type": "шампунь", "options": [], ...}\n'
     'Example: "чем снять боль в спине" -> {"intent": "need", "need": "боль в спине", '

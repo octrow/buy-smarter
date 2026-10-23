@@ -52,6 +52,7 @@ _REASON_LABELS_RU = {
     "other audience": "для другой аудитории (пол/возраст)",
     "other size": "другой размер",
     "excluded substance": "содержит исключённое вещество",
+    "suspected counterfeit": "подозрение на подделку",
 }
 
 
@@ -76,6 +77,23 @@ _fmt_price = kzt  # the GUI's "35 000 ₸" (no-break space), never "35,000"
 def _md_link(title: str, url: str | None) -> str:
     """Markdown ``[title](url)`` link, or the plain title when there's no URL."""
     return f"[{title}]({url})" if url else title
+
+
+def hidden_note(result: RecommendResult) -> str | None:
+    """ "Скрыто N подозрительных предложений": the fakes "только оригинал" took out, or None."""
+    if not result.hidden:
+        return None
+    return f"Скрыто {len(result.hidden)} подозрительных предложений (только оригинал)."
+
+
+def _hidden_md(result: RecommendResult) -> list[str]:
+    note = hidden_note(result)
+    if note is None:
+        return []
+    items = [
+        f"- {_md_link(clean_title(s.candidate.title), s.candidate.url)}" for s in result.hidden
+    ]
+    return ["", f"_{note}_", "", *items]
 
 
 def skipped_llm_note(result: RecommendResult) -> str | None:
@@ -316,6 +334,7 @@ def render_markdown(result: RecommendResult, top: int = 8) -> str:
     parts += _alternatives_md(result)
     parts += _top_md(result, top)
     parts += _used_md(result)
+    parts += _hidden_md(result)
     rejected = result.recommendation.rejected_count
     if rejected:
         parts += ["", f"_Не прошли фильтры: {rejected}._"]

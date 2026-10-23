@@ -169,3 +169,16 @@ def test_an_old_stored_outcome_without_the_assessment_still_validates() -> None:
     outcome = RecommendOutcome.model_validate({"report_markdown": "# old", "city_defaulted": True})
 
     assert outcome.assessed_by == []
+
+
+def test_the_outcome_lists_the_hidden_suspected_fakes(recommend_result) -> None:
+    hidden = recommend_result.recommendation.best
+    result = recommend_result.model_copy(update={"hidden": [hidden]})
+
+    outcome = RecommendOutcome.from_result(result, "# report")
+
+    assert [o.title for o in outcome.hidden] == [hidden.candidate.title]
+
+
+def test_an_old_stored_outcome_without_hidden_still_validates() -> None:
+    assert RecommendOutcome.model_validate({"report_markdown": "# old"}).hidden == []

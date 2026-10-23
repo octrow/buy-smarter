@@ -431,3 +431,30 @@ def test_the_report_says_how_it_was_assessed_only_when_something_was_active() ->
 
     assert "_Как оценивали: состав — обучение._" in render_markdown(with_state, top=2)
     assert "Как оценивали" not in render_markdown(plain, top=2)
+
+
+def _with_hidden(result: RecommendResult) -> RecommendResult:
+    fake = _scored("x1", "Ирригатор Waterp1k копия", 9000, 70.0, None)
+    return result.model_copy(update={"hidden": [fake]})
+
+
+def test_hidden_suspected_fakes_are_listed_in_the_markdown() -> None:
+    md = render_markdown(_with_hidden(_result(n_ranked=2)), top=8)
+
+    assert "Скрыто 1 подозрительных предложений" in md
+    assert "[Ирригатор Waterp1k копия](https://kaspi.kz/p/x1)" in md
+
+
+def test_no_hidden_line_without_hidden_ones() -> None:
+    assert "Скрыто" not in render_markdown(_result(n_ranked=2), top=8)
+
+
+def test_hidden_suspected_fakes_are_listed_in_the_console() -> None:
+    from buysmarter.cli import main
+
+    with main.console.capture() as capture:
+        main._render(_with_hidden(_result(n_ranked=2)), top=3)
+
+    out = capture.get()
+    assert "Скрыто 1 подозрительных предложений" in out
+    assert "Waterp1k" in out

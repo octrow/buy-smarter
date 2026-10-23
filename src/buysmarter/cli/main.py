@@ -23,13 +23,14 @@ from buysmarter.cli.report import (
     assessed_note,
     budget_text,
     format_rejected_reasons,
+    hidden_note,
     no_new_pick_text,
     request_notes,
     save_report,
     skipped_llm_note,
     unavailable_sources_note,
 )
-from buysmarter.i18n import USED_SECTION, checked_brands, kzt, used_con
+from buysmarter.i18n import USED_SECTION, checked_brands, clean_title, kzt, used_con
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.generate import (
     EXTRACT_KNOWLEDGE_MODEL,
@@ -253,6 +254,14 @@ def _render_used(used: list[UsedListing], ranked: list[ScoredCandidate]) -> None
     console.print(table)
 
 
+def _render_hidden(result: RecommendResult) -> None:
+    """The suspected fakes "только оригинал" hid, so a wrongly hidden product can be found."""
+    if note := hidden_note(result):
+        console.print(f"[yellow]{escape(note)}[/yellow]")
+        for scored in result.hidden:
+            console.print(f"[dim]  {escape(clean_title(scored.candidate.title))}[/dim]")
+
+
 def _render(result: RecommendResult, top: int) -> None:
     if result.restricted_note:
         console.print(f"[bold yellow]⚠ {escape(result.restricted_note)}[/bold yellow]")
@@ -271,6 +280,7 @@ def _render(result: RecommendResult, top: int) -> None:
     _render_alternatives(result.recommendation.alternatives)
     _render_top(result.recommendation.ranked, top)
     _render_used(result.used_listings, result.recommendation.ranked)
+    _render_hidden(result)
     if result.recommendation.rejected_count:
         console.print(
             f"[dim]{result.recommendation.rejected_count} candidate(s) "
