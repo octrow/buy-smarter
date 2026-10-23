@@ -54,6 +54,12 @@ class CapabilityToggles(QGroupBox):
         layout.setSpacing(SPACE["sm"])
         for name in self._states:
             layout.addWidget(self._build_row(name))
+        layout.addLayout(self._build_footer())
+        for name in self._states:
+            self._render(name)
+
+    def _build_footer(self) -> QHBoxLayout:
+        """The note and the rerun button shown after a change, hidden until then."""
         self.note = QLabel(wordWrap=True)
         self.note.setProperty("role", "caption")
         self.rerun_button = QPushButton(RERUN_TEXT)
@@ -63,11 +69,9 @@ class CapabilityToggles(QGroupBox):
         footer.setSpacing(SPACE["md"])
         footer.addWidget(self.note, 1)
         footer.addWidget(self.rerun_button)
-        layout.addLayout(footer)
         self.note.hide()
         self.rerun_button.hide()
-        for name in self._states:
-            self._render(name)
+        return footer
 
     def _build_row(self, name: str) -> QWidget:
         box, reset = QCheckBox(), QPushButton(RESET_TEXT)

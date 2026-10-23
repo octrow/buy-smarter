@@ -57,29 +57,34 @@ def capability_states(
 ) -> list[CapabilityState]:
     """Every registry capability's state for this query, in registry order."""
     automatic = _without_user(profile)
-    states = []
-    for cap in registry.values():
-        setting = cap.setting(profile, constraints)
-        auto = cap.setting(automatic, constraints)
-        stored = profile.capabilities.get(cap.name)
-        user = stored.user if stored is not None else None
-        shown = auto or setting
-        automatic_on = stored.enabled if stored and stored.set_by else auto is not None
-        params = shown.params if shown is not None else (stored.params if stored else {})
-        set_by = shown.set_by if shown is not None else (stored.set_by if stored else None)
-        states.append(
-            CapabilityState(
-                name=cap.name,
-                label=cap.label(params),
-                level=cap.level,
-                on=automatic_on if user is None else user,
-                active=setting is not None,
-                auto=automatic_on,
-                set_by=set_by,
-                user=user,
-            )
-        )
-    return states
+    return [_state(cap, profile, automatic, constraints) for cap in registry.values()]
+
+
+def _state(
+    cap: Capability,
+    profile: ResolvedProfile,
+    automatic: ResolvedProfile,
+    constraints: QueryConstraints,
+) -> CapabilityState:
+    """One capability: the effective setting against the one automatic writers left."""
+    setting = cap.setting(profile, constraints)
+    auto = cap.setting(automatic, constraints)
+    stored = profile.capabilities.get(cap.name)
+    user = stored.user if stored is not None else None
+    shown = auto or setting
+    automatic_on = stored.enabled if stored and stored.set_by else auto is not None
+    params = shown.params if shown is not None else (stored.params if stored else {})
+    set_by = shown.set_by if shown is not None else (stored.set_by if stored else None)
+    return CapabilityState(
+        name=cap.name,
+        label=cap.label(params),
+        level=cap.level,
+        on=automatic_on if user is None else user,
+        active=setting is not None,
+        auto=automatic_on,
+        set_by=set_by,
+        user=user,
+    )
 
 
 def toggle_text(state: CapabilityState) -> str:
