@@ -52,6 +52,7 @@ from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
+from buysmarter.services.auto_learn import auto_learn, should_auto_learn
 from buysmarter.services.collect import ALL_SOURCES, select_sources
 from buysmarter.services.doctor import (
     INSTALL_BROWSER,
@@ -78,6 +79,7 @@ from buysmarter.services.understanding import NeedsClarification, NothingToSearc
 _DEFAULT_TOP = DEFAULT_TOP
 
 app = typer.Typer(help="buy-smarter: AI-powered shopping assistant.")
+logger = logging.getLogger(__name__)
 console = Console()
 
 
@@ -327,6 +329,9 @@ def recommend(
     no_clarify: bool = typer.Option(
         False, "--no-clarify", help="Never ask: search the first option of an ambiguous request."
     ),
+    learn: bool = typer.Option(
+        False, "--learn", help="Learn a new category after the report without asking."
+    ),
 ) -> None:
     """Recommend the best product for a natural-language request.
 
@@ -371,6 +376,67 @@ def recommend(
     if save_path or not no_save:
         path = save_report(result, query, top, save_path)
         console.print(f"[green]Report saved to {escape(str(path))}[/green]")
+    if asyncio.run(_offer_learning(result, use_llm=not no_llm, force=learn)):
+        _rerun(query, city, budget, not no_llm, trusted_only, selected, top, no_clarify)
+
+
+_LEARN_PROMPT = "Изучить категорию сейчас (1–3 мин)?"
+_RERUN_PROMPT = "Повторить поиск с новыми знаниями?"
+
+
+def _on_terminal() -> bool:
+    return sys.stdin.isatty()
+
+
+async def _offer_learning(result: RecommendResult, *, use_llm: bool, force: bool) -> bool:
+    """After the report: learn a new category (asked on a terminal, or ``--learn``).
+
+    Returns True when it was learned and the user, on a terminal, wants the search repeated.
+    One event loop for the check and the learn: the store's connections belong to it.
+    """
+    c = result.constraints
+    if not await should_auto_learn(
+        c.product_type,
+        intent=c.intent,
+        use_llm=use_llm,
+        knowledge_missing=result.knowledge_missing,
+    ):
+        return False
+    tty = _on_terminal()
+    if not force and not (tty and typer.confirm(_LEARN_PROMPT, default=False)):
+        return False
+    name = escape(repr(c.product_type))
+    console.print(f"[dim]Изучаю категорию {name}…[/dim]")
+    if not await auto_learn(c.product_type):
+        console.print(f"[yellow]Категорию {name} изучить не удалось (см. лог).[/yellow]")
+        return False
+    console.print(f"[green]Категория {name} изучена.[/green]")
+    return tty and typer.confirm(_RERUN_PROMPT, default=False)
+
+
+def _rerun(
+    query: str,
+    city: str | None,
+    budget: int | None,
+    use_llm: bool,
+    trusted_only: bool,
+    sources: list[str],
+    top: int,
+    no_clarify: bool,
+) -> None:
+    """Search again with the new knowledge and show it (not saved: the report is already)."""
+    # ponytail: a failed rerun only prints; it does not map to the exit codes of the first run.
+    try:
+        result = asyncio.run(
+            recommend_pipeline(
+                query, city, budget, use_llm, trusted_only, sources, no_clarify=no_clarify
+            )
+        )
+    except Exception as exc:  # noqa: BLE001 - the first report stands; say why this one is missing
+        logger.exception("repeat search failed")
+        console.print(f"[red]Повторный поиск не удался: {escape(str(exc))}[/red]")
+        return
+    _render(result, top)
 
 
 def _parse_sources(raw: str) -> list[str]:

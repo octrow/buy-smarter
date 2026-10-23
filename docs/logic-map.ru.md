@@ -166,9 +166,11 @@ Kaspi и OLX получают город как свой id города (`marke
 Без LLM: только точный slug и синонимы.
 Никогда не блокирует. Нет знаний → `knowledge_missing`, ось бренда слабая.
 Целиком категорию запуск не учит, только пишет в лог подсказку про `learn-category`.
-Может ли запрос сам учить свою категорию, решает `should_auto_learn` (`services/auto_learn`; во входы пока не подключено): нет профиля с книгами, intent `product`/`need`, разбор через LLM, есть CLI `claude`, тип товара до 60 символов из букв, цифр, пробела и дефиса, нет отметки `learning_started_at` моложе 15 минут и `learn_failed_at` моложе 24 часов, за последний час в этом процессе меньше `auto_learn_per_hour` (10) запусков.
+Может ли запрос сам учить свою категорию, решает `should_auto_learn` (`services/auto_learn`): нет профиля с книгами, intent `product`/`need`, разбор через LLM, есть CLI `claude`, тип товара до 60 символов из букв, цифр, пробела и дефиса, нет отметки `learning_started_at` моложе 15 минут и `learn_failed_at` моложе 24 часов, за последний час в этом процессе меньше `auto_learn_per_hour` (10) запусков.
+
+Поиск не ждёт обучения; единственный запускатель — `auto_learn` (отметка старта, `learn_category`, отметка готовности; сбой отмечается, логируется и возвращается как `False`). MCP: после рекомендации с `parse_with_llm=True`, если условие выполнено, — фоновая задача, в отчёте просьба повторить запрос через несколько минут. CLI: после отчёта на терминале спрашивает «Изучить категорию сейчас?» (`--learn` учит без вопроса, не на терминале не спрашивает), затем предлагает повторить поиск. API/воркер: выключено, пока нет `BUYSMARTER_AUTO_LEARN=true`; тогда после завершения задачи — отдельная задача taskiq `buysmarter.learn_category` (лимит 600 с), дедуп через слот Redis `SET NX` на категорию. Десктоп — отдельно.
 Пишет он в четырёх случаях: синонимы моделей OLX из шага 21 (владельцу книги моделей), лечение, перенос старого slug и возможности от классификатора.
-Модули: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`, `services/auto_learn`
+Модули: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`, `services/auto_learn`, `mcp_server/server`, `cli/main`, `worker`
 
 ### 7. Доп. поиски (возможности)
 

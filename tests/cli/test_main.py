@@ -187,13 +187,13 @@ def _stub_recommend_pipeline(monkeypatch, result) -> None:
     monkeypatch.setattr(main, "setup_logging", lambda *a, **kw: None)
 
 
-def test_recommend_saves_report_by_default(monkeypatch, tmp_path) -> None:
+def test_recommend_saves_report_by_default(monkeypatch, tmp_path, recommend_result) -> None:
     """Reports must be written automatically — no --save flag needed."""
     saved_paths: list = []
     monkeypatch.setattr(
         main, "save_report", lambda *a, **kw: saved_paths.append(1) or tmp_path / "r.md"
     )
-    _stub_recommend_pipeline(monkeypatch, object())
+    _stub_recommend_pipeline(monkeypatch, recommend_result)
 
     result = runner.invoke(main.app, ["recommend", "ирригатор до 40000"])
 
@@ -202,12 +202,12 @@ def test_recommend_saves_report_by_default(monkeypatch, tmp_path) -> None:
     assert "Report saved to" in result.stdout
 
 
-def test_recommend_no_save_skips_report(monkeypatch, tmp_path) -> None:
+def test_recommend_no_save_skips_report(monkeypatch, tmp_path, recommend_result) -> None:
     saved_paths: list = []
     monkeypatch.setattr(
         main, "save_report", lambda *a, **kw: saved_paths.append(1) or tmp_path / "r.md"
     )
-    _stub_recommend_pipeline(monkeypatch, object())
+    _stub_recommend_pipeline(monkeypatch, recommend_result)
 
     result = runner.invoke(main.app, ["recommend", "ирригатор до 40000", "--no-save"])
 
@@ -216,11 +216,13 @@ def test_recommend_no_save_skips_report(monkeypatch, tmp_path) -> None:
     assert "Report saved to" not in result.stdout
 
 
-def test_recommend_save_path_saves_even_with_no_save(monkeypatch, tmp_path) -> None:
+def test_recommend_save_path_saves_even_with_no_save(
+    monkeypatch, tmp_path, recommend_result
+) -> None:
     saved_paths: list = []
     target = tmp_path / "custom.md"
     monkeypatch.setattr(main, "save_report", lambda *a, **kw: saved_paths.append(1) or target)
-    _stub_recommend_pipeline(monkeypatch, object())
+    _stub_recommend_pipeline(monkeypatch, recommend_result)
 
     result = runner.invoke(
         main.app,

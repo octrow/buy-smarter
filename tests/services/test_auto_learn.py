@@ -10,10 +10,12 @@ from buysmarter.services import auto_learn
 from buysmarter.services.auto_learn import (
     LEARN_FAILED_KEY,
     LEARNING_STARTED_KEY,
-    auto_learn as run_auto_learn,
     mark_learn_failed,
     mark_learning_started,
     should_auto_learn,
+)
+from buysmarter.services.auto_learn import (
+    auto_learn as run_auto_learn,
 )
 
 CATEGORY = "соковыжималка"

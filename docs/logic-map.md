@@ -172,9 +172,11 @@ Then capabilities are switched on (see Capabilities), and a capability's `clarif
 No LLM: exact slug and synonyms only.
 Fails: never blocks. Missing knowledge sets `knowledge_missing` and weakens the brand axis.
 The run does not learn a whole category; it logs a hint to run `learn-category`.
-Whether a request may learn its category on its own is decided by `should_auto_learn` (`services/auto_learn`; not wired into the entry points yet): no profile with books, intent `product`/`need`, parsed with the LLM, the `claude` CLI present, a product type of at most 60 letters/digits/spaces/hyphens, no `learning_started_at` mark younger than 15 minutes, no `learn_failed_at` younger than 24 hours, and fewer than `auto_learn_per_hour` (10) starts in the last hour in this process.
+Whether a request may learn its category on its own is decided by `should_auto_learn` (`services/auto_learn`): no profile with books, intent `product`/`need`, parsed with the LLM, the `claude` CLI present, a product type of at most 60 letters/digits/spaces/hyphens, no `learning_started_at` mark younger than 15 minutes, no `learn_failed_at` younger than 24 hours, and fewer than `auto_learn_per_hour` (10) starts in the last hour in this process.
+
+The search never waits for the learning; `auto_learn` (mark started, `learn_category`, mark done; a failure is marked, logged and returned as `False`) is the one runner. MCP: after a `parse_with_llm=True` recommend that meets the condition, a background task, the report says to repeat the request in a few minutes. CLI: after the report on a terminal it asks "Изучить категорию сейчас?" (`--learn` learns without asking, off a terminal it never asks) and then offers to repeat the search. API/worker: off unless `BUYSMARTER_AUTO_LEARN=true`; then, after the job is finished, a separate taskiq task `buysmarter.learn_category` (600 s limit), deduplicated by a Redis `SET NX` slot per category. The desktop app is separate.
 It writes knowledge in four cases: aliases learned in step 21 (to the owner of the model book), healing, moving an old slug, and the classifier's capabilities.
-Module: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`, `services/auto_learn`
+Module: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`, `services/auto_learn`, `mcp_server/server`, `cli/main`, `worker`
 
 ### 7. Extra searches (capabilities)
 

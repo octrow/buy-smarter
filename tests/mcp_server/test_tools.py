@@ -247,7 +247,9 @@ async def test_recommend_nonpositive_top_is_clamped(monkeypatch) -> None:
         return _stub_result()
 
     monkeypatch.setattr(server, "run_recommend", fake)
-    monkeypatch.setattr(server, "render_markdown", lambda result, top: str(seen.setdefault("top", top)))
+    monkeypatch.setattr(
+        server, "render_markdown", lambda result, top: str(seen.setdefault("top", top))
+    )
     await server.recommend("q", city="Алматы", top=-3)
     assert seen["top"] == 1
 
