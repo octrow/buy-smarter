@@ -69,6 +69,10 @@ class Capability:
     axis_weight: ClassVar[float] = 0.0
     weight_shifts: ClassVar[dict[str, float]] = {}
 
+    def label(self, params: dict[str, Any]) -> str:
+        """The name shown to the user; a capability may add what its parameters say."""
+        return self.title
+
     def setting(
         self, profile: ResolvedProfile, constraints: QueryConstraints
     ) -> CapabilitySetting | None:

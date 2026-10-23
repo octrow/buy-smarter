@@ -27,6 +27,7 @@ from buysmarter.cli.report import (
     request_notes,
 )
 from buysmarter.gui.bridge import CoreRunner
+from buysmarter.gui.capability_toggles import CapabilityToggles
 from buysmarter.gui.labels import (
     USED_SECTION,
     axis_label,
@@ -283,6 +284,7 @@ class ReportScreen(QScrollArea):
         self.used: QTableWidget | None = None
         self.learn_button: QPushButton | None = None
         self.rejected: QGroupBox | None = None
+        self.toggles: CapabilityToggles | None = None
         self._category = None
         self._ticker.stop()
         self._rerun_offered = False
@@ -315,12 +317,21 @@ class ReportScreen(QScrollArea):
             layout.addWidget(self.rejected)
         if result.used_listings:
             layout.addWidget(self._used_section(result))
+        layout.addWidget(self._toggles_section(result))
         if lines := could_not_verify(result, run):
             notes = _label("\n".join(lines), state="warning")
             layout.addWidget(_group("Не удалось проверить", notes))
         layout.addStretch(1)
         self.setWidget(page)
         self._after_shown(result, run)
+
+    def _toggles_section(self, result: RecommendResult) -> CapabilityToggles:
+        toggles = CapabilityToggles(
+            self._runner, _category(result), result.profile_found, result.capabilities
+        )
+        toggles.rerun_requested.connect(self.rerun_requested)
+        self.toggles = toggles
+        return toggles
 
     def _after_shown(self, result: RecommendResult, run: SearchRun) -> None:
         """Show this category's learning state, and start learning it if it may start itself."""

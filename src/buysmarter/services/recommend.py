@@ -30,6 +30,7 @@ from buysmarter.capabilities.classify import ensure_profile
 from buysmarter.capabilities.composition import INGREDIENTS_UNCHECKED
 from buysmarter.capabilities.composition import NoSubstanceMatch as NoSubstanceMatch  # re-export
 from buysmarter.capabilities.flow import ActiveCapabilities, activate, read_query
+from buysmarter.capabilities.provenance import CapabilityState, capability_states
 from buysmarter.config import get_settings
 from buysmarter.db.base import async_session
 from buysmarter.db.repo import (
@@ -115,6 +116,11 @@ class RecommendResult(BaseModel):
     restricted_note: str | None = None
     # The option searched for the user on the last clarification round ("крем для рук").
     assumed: str | None = None
+    # Each registry capability's state for this query and who decided it (phase 3, decision 13).
+    capabilities: list[CapabilityState] = Field(default_factory=list)
+    # The stored record the profile lookup settled on; the switches' parent when it is not the
+    # request's own.
+    profile_found: str | None = None
 
 
 def _no_llm_route() -> bool:
@@ -446,6 +452,8 @@ async def recommend(
         ingredients_unchecked=capabilities.flags(recommendation).get(INGREDIENTS_UNCHECKED, False),
         restricted_note=restricted_note(constraints.restricted),
         assumed=assumed,
+        capabilities=capability_states(REGISTRY, profile, constraints),
+        profile_found=profile.found,
     )
 
 

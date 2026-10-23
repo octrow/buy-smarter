@@ -80,12 +80,12 @@ They differ in defaults.
 | Entry | Sources by default | LLM by default | Notes |
 |---|---|---|---|
 | CLI `recommend` | kaspi, ozon, olx | on | on a terminal asks a clarification first (number or own text, next round), then a missing budget; off a terminal a question exits with code 3, nothing to search with 1; `--no-clarify` searches the first option |
-| Desktop GUI | user picks | on | calls `recommend()` in-process; merges excluded brands from settings into the parse; a clarification shows as a card under the form (option buttons, own answer: an option goes back as `answer`, own text joins the query; next round); `restricted_note` heads the report; "Изучить категорию" learns the product type, and the search it reruns keeps the answer and round; after a report with no brand data, the GUI starts learning the category on its own (kept per category in `gui/learning`, the search never waits; closing the window asks while one runs; when the on-screen category is learned the button becomes "Повторить поиск") |
+| Desktop GUI | user picks | on | calls `recommend()` in-process; merges excluded brands from settings into the parse; a clarification shows as a card under the form (option buttons, own answer: an option goes back as `answer`, own text joins the query; next round); `restricted_note` heads the report; "Изучить категорию" learns the product type, and the search it reruns keeps the answer and round; after a report with no brand data, the GUI starts learning the category on its own (kept per category in `gui/learning`, the search never waits; closing the window asks while one runs; when the on-screen category is learned the button becomes "Повторить поиск"); every report carries the group "Как оцениваем эту категорию" (`gui/capability_toggles`): a checkbox per category capability with its source in the text and a reset to automatic, written to the request's own profile on the core loop (the related profile found becomes its `parent`, never written to); a change only offers "Повторить поиск" |
 | MCP `recommend` | kaspi, ozon, olx | **off** (`parse_with_llm=False`) | passes `city or preference or Алматы` as an override: a city in the query is ignored, `city_defaulted` is always false; a clarification comes back as markdown telling the host to ask the human and call again with `answer` and `clarify_round` + 1 |
 | HTTP API + worker | `api_sources`, default kaspi + olx (no Ozon) | **off** (`use_llm=False`) | job queue in Redis, timeout per job, dedupe by request; a clarification is `no_match` with `reason="needs_clarification"` and `clarification`, the client posts again with `answer` and `clarify_round` + 1; `constraints` is the public `ParsedRequest` (`category` kept, deprecated) |
 | direct call | kaspi only | on | used by tests |
 
-Module: `cli/main`, `cli/clarify`, `gui/screens/search`, `gui/screens/clarify`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`
+Module: `cli/main`, `cli/clarify`, `gui/screens/search`, `gui/screens/clarify`, `gui/capability_toggles`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`
 
 ## Steps
 
@@ -366,7 +366,7 @@ Module: `services/matching`, `llm/canonicalize`
 `RecommendResult`: the ranking, the constraints used, used listings, and flags the UI shows as warnings:
 `restricted_note` (first line of the report), `assumed` (the option searched on the last clarification round), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `ingredients_unchecked` (set by the composition capability's report section: a ranked candidate whose composition was not checked, "Состав не проверен у N из M — вещество не подтверждено").
 Every surface renders the same result.
-Module: `services/recommend`, `capabilities/composition`, `cli/report`
+Module: `services/recommend`, `capabilities/composition`, `capabilities/provenance`, `cli/report`
 
 ## Side flows
 

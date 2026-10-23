@@ -5,6 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Unreleased]
 
 ### Added
+- A group "Как оцениваем эту категорию" on every report of the desktop app (phase 3): a switch for each category capability (composition, benchmark) that names who set it (learning, Jev, a rule, you) and a reset to automatic. A switch is saved to the request's own category profile, never to the related profile it was found through, and only offers a new search.
 - Auto-learning of a new category in the desktop app (phase 3): after a report with no brand data the app learns the category in the background, kept per category (a new report does not touch another's learning), asks before closing the window while one runs, and turns the button into "Повторить поиск" when the category on screen is learned.
 - Auto-learning of a new category (phase 3) in the MCP server, the HTTP worker and the CLI. MCP learns in the
   background after a `parse_with_llm=True` recommend and tells the client to repeat in a few minutes. The CLI asks

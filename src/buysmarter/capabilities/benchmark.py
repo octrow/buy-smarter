@@ -8,6 +8,8 @@ the provider whose rule takes the product type); without a profile setting the r
 alone decides (phase 3, decision 9).
 """
 
+from typing import Any
+
 from buysmarter.capabilities.base import Capability, CapabilityContext
 from buysmarter.capabilities.benchmark_providers import (
     BENCHMARK_PROVIDERS,
@@ -30,6 +32,11 @@ class Benchmark(Capability):
 
     name = BENCHMARK
     title = "Бенчмарк"
+
+    def label(self, params: dict[str, Any]) -> str:
+        """ "Бенчмарк Kimovil": the title and the provider's name, when it is known."""
+        provider = BENCHMARK_PROVIDERS.get(params.get(PROVIDER_KEY, ""))
+        return f"{self.title} {provider.label}" if provider else self.title
 
     def setting(
         self, profile: ResolvedProfile, constraints: QueryConstraints
