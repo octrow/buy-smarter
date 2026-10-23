@@ -75,3 +75,11 @@ def test_score_adds_conflict_as_con_without_changing_total():
 
     assert "название: 10000 мАч, характеристики: 5000 мАч" in conflicting.cons
     assert conflicting.total_score == clean.total_score
+
+
+def test_unit_after_a_size_chain_applies_to_every_side():
+    specs = {"Ширина": "160 см", "Длина": "200 см", "Высота": "22 см"}
+    assert spec_conflicts("Матрас Ортопед, 160x200x22 см", specs) == []
+    assert spec_conflicts("Матрас 160х200 см", {"Ширина": "140 см"}) == [
+        "название: 160 см, характеристики: 140 см"
+    ]

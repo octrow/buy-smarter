@@ -39,6 +39,12 @@ _NUMBER_UNIT_RE = re.compile(
     + r")(?![^\W\d_])",
     re.IGNORECASE,
 )
+# A size chain ("160x200x22 см", "160х200 см"): the unit after the last side is every side's.
+_SIZE_CHAIN_RE = re.compile(
+    r"(?P<sides>\d+(?:[.,]\d+)?(?:\s*[xх×*]\s*\d+(?:[.,]\d+)?)+)\s*(?P<unit>см|мм)(?![^\W\d_])",
+    re.IGNORECASE,
+)
+_SIDE_SPLIT_RE = re.compile(r"\s*[xх×*]\s*", re.IGNORECASE)
 # Relative tolerance for "the same number" (rounding in marketing copy).
 _NUMBER_TOLERANCE = 0.01
 _CONFLICT_TEMPLATE = "название: {title} {unit}, характеристики: {spec} {unit}"
@@ -51,6 +57,10 @@ def _to_float(raw_num: str) -> float:
 def _numbers_by_unit(text: str) -> list[tuple[str, float, str]]:
     """(raw number, value, canonical unit) for every number+unit pair in ``text``."""
     found = []
+    text = _SIZE_CHAIN_RE.sub(
+        lambda m: " ".join(f"{side} {m['unit']}" for side in _SIDE_SPLIT_RE.split(m["sides"])),
+        text,
+    )
     for raw_num, raw_unit in _NUMBER_UNIT_RE.findall(text):
         unit = _UNIT_ALIASES[raw_unit.lower()]
         found.append((raw_num, _to_float(raw_num), unit))

@@ -45,14 +45,14 @@ _NEGATION_BEFORE = re.compile(
 )
 _FREE_AFTER = re.compile(r"[\w]*[\s\-]*free(?!\w)", re.IGNORECASE)
 _WINDOW = 30
-# "без сульфатов", "безлактозный", "sulfate-free", "free of parabens".
+# "без сульфатов", "безлактозный", "бессульфатный", "sulfate-free", "free of parabens".
 # A list after "без": "без X, Y и Z", "без X и без Y".
 # The parse drops commas ("без сульфатов, парабенов" -> "без сульфатов парабенов"), so a bare
 # space also continues the list, but only before a known substance.
 _SUBSTANCE_WORD = "(?=(?:" + "|".join(k.stem for k in _KNOWN.values()) + r")\w*)"
 _LIST = r"\w+(?:(?:\s*,\s*|\s+(?:и|или|and|or)\s+)(?:без\s+)?\w+|\s+" + _SUBSTANCE_WORD + r"\w+)*"
 _QUERY_RE = re.compile(
-    rf"(?<!\w)без[\s-]?(?P<a>{_LIST})|(?P<b>\w+)[\s-]free(?!\w)|(?<!\w)free\s+of\s+(?P<c>{_LIST})",
+    rf"(?<!\w)бе[зс][\s-]?(?P<a>{_LIST})|(?P<b>\w+)[\s-]free(?!\w)|(?<!\w)free\s+of\s+(?P<c>{_LIST})",
     re.IGNORECASE,
 )
 _LIST_SPLIT = re.compile(r"\s*,\s*|\s+(?:и|или|and|or)\s+(?:без\s+)?|\s+", re.IGNORECASE)
