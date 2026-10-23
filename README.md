@@ -53,6 +53,14 @@ The report goes on with a review summary, alternatives (best value, best budget)
   category gets them via `learn-category`, so "me 705" on OLX resolves to "Xiaomi Water Flosser 2". Without it,
   every brand ranks as unknown: run `learn-category "смартфон"` once before phone queries. Knowledge goes to
   the local store.
+- **Auto-learning.** A query for a category with no knowledge anywhere starts learning it in the background
+  (opus with web search, 1-3 minutes) in the desktop app, MCP (with `parse_with_llm`) and the CLI (it asks;
+  `--learn` skips the question). The search never waits; repeat it once the category is learned. At most 10
+  starts per hour (`BUYSMARTER_AUTO_LEARN_PER_HOUR`); `0` turns auto-learning off. The API never learns on its
+  own unless `BUYSMARTER_AUTO_LEARN=true`.
+- **How the category is judged.** Every report says which capabilities took part and who decided ("Как
+  оценивали: состав — обучение"); the desktop app lets you switch a category capability on or off for your
+  query's category, or reset it to automatic.
 - **Phone specs from Kimovil.** For smartphone queries each model is looked up on Kimovil: its overall index
   (0–100) goes into the specs axis ("Kimovil 83/100"), and refresh rate, battery, fast charging, chipset, AnTuTu
   and IP rating are added in Kaspi's wording, so "120 Гц" or "5000 мАч" as a required feature can match. Results
@@ -265,6 +273,9 @@ curl -s 'localhost:8000/history?q=wp-100'
   `result.used_listings` (the OLX ads within the budget, possibly empty); `report_markdown` shows both.
 - The same request within 15 minutes returns the same job (200). Each client may start 10 new jobs per 10 minutes,
   then gets 429 with `Retry-After` (`BUYSMARTER_RATE_LIMIT_JOBS`, `BUYSMARTER_RATE_LIMIT_WINDOW_S`).
+- Auto-learning is off in the API: `BUYSMARTER_AUTO_LEARN=true` queues a separate `buysmarter.learn_category`
+  task after a job for a new category (once per category, 600 s limit, `BUYSMARTER_AUTO_LEARN_PER_HOUR`).
+  `result.assessed_by` lists the capabilities that took part and who decided.
 - `BUYSMARTER_API_KEYS=k1,k2` requires `X-API-Key`. `BUYSMARTER_SOURCES` lists the marketplaces the API accepts:
   `kaspi,olx` by default, `ozon` needs the worker's Chromium image.
 - A worker that dies mid-run loses nothing: its job is picked up by another worker after twice the job timeout

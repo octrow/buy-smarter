@@ -182,3 +182,10 @@ async def test_the_runner_counts_nothing_the_entry_point_does(monkeypatch) -> No
 
     assert await auto_learn.auto_learn(CATEGORY)
     assert len(auto_learn._starts) == 0
+
+
+async def test_a_zero_hourly_limit_turns_auto_learning_off(monkeypatch) -> None:
+    # the off switch of the GUI and MCP (the worker also has BUYSMARTER_AUTO_LEARN)
+    monkeypatch.setenv("BUYSMARTER_AUTO_LEARN_PER_HOUR", "0")
+
+    assert not await _ok()

@@ -17,7 +17,7 @@ How a category was judged before capabilities; still read and written for older 
 _Avoid_: category kind, mode
 
 **Learning a category**:
-Building category knowledge for a category that has none, from web research or the user's notes. Today a separate step the user starts; planned to happen on the first query for an unknown category.
+Building category knowledge for a category that has none, from web research or the user's notes. The user starts it (`learn-category`, `learn`, the report's button), or it starts itself after the first query for a category with no books anywhere (auto-learning: desktop app and MCP by default, the API only when switched on); the search never waits for it.
 _Avoid_: training, category creation
 
 **Category profile**:
@@ -25,7 +25,7 @@ Everything the assistant knows about how to judge one product category: its bran
 _Avoid_: category config, category settings
 
 **Capability**:
-One optional way of judging offers, switched on either by the category profile (a category capability) or by the query's own words (a request capability): composition (active substances), benchmark (a performance index such as Kimovil), audience, size, counterfeit checks, official stores, used market. A capability can add searches, enrich candidates, reject candidates, score an axis, add pros and cons, or add a report section. The core flow is the same for every category; capabilities are what differ.
+One optional way of judging offers, switched on either by the category profile (a category capability) or by the query's own words (a request capability): composition (active substances), benchmark (a performance index such as Kimovil), audience, size, counterfeit checks, official stores, used market. A capability can add searches, enrich candidates, reject candidates, score an axis, add pros and cons, or add a report section. The core flow is the same for every category; capabilities are what differ. A category capability's automatic value comes from learning, Jev or a rule; the user's own choice (`user`: on, off or not set) wins over it, and no automatic writer ever changes it.
 _Avoid_: module (that word means a code module), plugin, trait, feature (that word means a required product property)
 
 **Category capability** / **Request capability**:

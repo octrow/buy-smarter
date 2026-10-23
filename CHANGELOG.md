@@ -12,7 +12,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   background after a `parse_with_llm=True` recommend and tells the client to repeat in a few minutes. The CLI asks
   "Изучить категорию сейчас?" after the report on a terminal (`--learn` learns without asking) and offers to repeat
   the search. The worker does it only with `BUYSMARTER_AUTO_LEARN=true`: a separate `buysmarter.learn_category`
-  task (600 s limit, one per category at a time), queued after the recommend job is finished.
+  task (600 s limit, one per category at a time), queued after the recommend job is finished. Everywhere at most
+  10 starts per hour (`BUYSMARTER_AUTO_LEARN_PER_HOUR`); `0` turns auto-learning off.
 - Request understanding (ADR-0005, phase 2): the parse returns the request intent (product, need, open, multi,
   service, unclear), the search phrase, the product type, options, a restricted flag and the condition. An ambiguous
   request gets a question instead of a ranking, at most two rounds; on the last one the first option is searched
