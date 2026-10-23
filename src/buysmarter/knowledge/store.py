@@ -377,6 +377,18 @@ def _has_composition(profile: CategoryProfile) -> bool:
     return bool(profile.capabilities and COMPOSITION in profile.capabilities)
 
 
+def _absorb_capabilities(
+    payload: dict[str, Any], bookless: dict[str, CapabilitySetting]
+) -> dict[str, Any]:
+    """``payload``'s capabilities after a bookless record's: its automatic values by
+    precedence, then its user choices as the user's writer would set them."""
+    automatic = {n: s.model_dump(mode="json") for n, s in bookless.items()}
+    choices = {n: {"user": s.user} for n, s in bookless.items() if s.user is not None}
+    caps = merge_capabilities(stored_capabilities(payload) or {}, automatic, by_user=False)
+    stored = stored_capabilities({CAPABILITIES_KEY: caps}) or {}
+    return merge_capabilities(stored, choices, by_user=True)
+
+
 def _retarget(
     old: str, new: str, bookless: dict[str, CapabilitySetting] | None = None
 ) -> repo.RecordEdit:
@@ -387,21 +399,13 @@ def _retarget(
     (phase 3, decisions 1 and 3).
     """
     stamp = {_UPDATED_BY: _RENAME_WRITER, _UPDATED_AT: datetime.now(UTC).isoformat()}
-    incoming = {n: s.model_dump(mode="json") for n, s in (bookless or {}).items()}
-    choices = {n: {"user": s.user} for n, s in (bookless or {}).items() if s.user is not None}
 
     def edit(slug: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         if slug == new:
             synonyms = [s for s in payload.get(SYNONYMS_KEY) or [] if s != old]
             moved = {**payload, SYNONYMS_KEY: [*synonyms, old], **stamp}
-            if incoming:
-                caps = merge_capabilities(
-                    stored_capabilities(payload) or {}, incoming, by_user=False
-                )
-                caps = merge_capabilities(
-                    stored_capabilities({CAPABILITIES_KEY: caps}) or {}, choices, by_user=True
-                )
-                moved[CAPABILITIES_KEY] = caps
+            if bookless:
+                moved[CAPABILITIES_KEY] = _absorb_capabilities(payload, bookless)
             return moved
         if payload.get(PARENT_KEY) == old:
             return {**payload, PARENT_KEY: new, **stamp}
