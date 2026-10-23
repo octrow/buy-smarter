@@ -196,3 +196,125 @@ async def test_a_redelivered_finished_job_does_not_run_again(
     await worker.run_job(store, job_id)
 
     assert len(calls) == 1
+
+
+# --- auto-learning (phase 3, decision 12) ----------------------------------
+
+CATEGORY = "соковыжималка"
+
+
+@pytest.fixture
+def learning(store, monkeypatch, recommend_result):
+    """A finished recommend for a category with no books; ``kiq`` records what it was given."""
+    recommend_result.constraints.product_type = CATEGORY
+    recommend_result.knowledge_missing = True
+    seen: dict = {"kiq": [], "condition": []}
+
+    async def ok():
+        return recommend_result
+
+    _pipeline(monkeypatch, ok)
+
+    async def condition(product_type, **kwargs):
+        seen["condition"].append((product_type, kwargs))
+        return True
+
+    async def kiq(product_type):
+        job = await store.get(seen["job_id"])
+        seen["kiq"].append((product_type, job.status))
+
+    monkeypatch.setattr(worker, "should_auto_learn", condition)
+    monkeypatch.setattr(worker.learn_category_job, "kiq", kiq)
+    return seen
+
+
+async def _run(store, seen, **request) -> None:
+    seen["job_id"] = await _queued(store, use_llm=True, **request)
+    await worker.run_job(store, seen["job_id"])
+
+
+async def test_auto_learning_is_off_by_default(store, learning) -> None:
+    await _run(store, learning)
+
+    assert learning["kiq"] == [] and learning["condition"] == []
+
+
+async def test_a_new_category_is_dispatched_after_the_job_is_done(
+    store, learning, monkeypatch
+) -> None:
+    monkeypatch.setenv("BUYSMARTER_AUTO_LEARN", "true")
+
+    await _run(store, learning)
+
+    assert learning["kiq"] == [(CATEGORY, JobStatus.DONE)]
+    assert learning["condition"][0][1] == {
+        "intent": "product",
+        "use_llm": True,
+        "knowledge_missing": True,
+    }
+
+
+async def test_the_same_category_is_dispatched_once(store, learning, monkeypatch) -> None:
+    monkeypatch.setenv("BUYSMARTER_AUTO_LEARN", "true")
+
+    await _run(store, learning)
+    await _run(store, learning)
+
+    assert [name for name, _ in learning["kiq"]] == [CATEGORY]
+
+
+async def test_a_false_condition_dispatches_nothing(store, learning, monkeypatch) -> None:
+    monkeypatch.setenv("BUYSMARTER_AUTO_LEARN", "true")
+
+    async def no(*_a, **_k):
+        return False
+
+    monkeypatch.setattr(worker, "should_auto_learn", no)
+    await _run(store, learning)
+
+    assert learning["kiq"] == []
+
+
+async def test_a_dispatch_failure_does_not_fail_the_job(
+    store, learning, monkeypatch, caplog
+) -> None:
+    monkeypatch.setenv("BUYSMARTER_AUTO_LEARN", "true")
+
+    async def broken(_name):
+        raise ConnectionError("broker down")
+
+    monkeypatch.setattr(worker.learn_category_job, "kiq", broken)
+    await _run(store, learning)
+
+    assert (await store.get(learning["job_id"])).status is JobStatus.DONE
+    assert any(CATEGORY in r.getMessage() and r.exc_info for r in caplog.records)
+
+
+async def test_the_learn_task_runs_the_shared_runner(monkeypatch) -> None:
+    ran: list[str] = []
+
+    async def runner(name):
+        ran.append(name)
+        return True
+
+    monkeypatch.setattr(worker, "auto_learn", runner)
+    await worker.learn_category_job(CATEGORY)
+
+    assert ran == [CATEGORY]
+
+
+async def test_a_learn_over_its_timeout_is_marked_failed(monkeypatch) -> None:
+    marked: list[str] = []
+
+    async def forever(_name):
+        await asyncio.sleep(10)
+
+    async def failed(name):
+        marked.append(name)
+
+    monkeypatch.setattr(worker, "auto_learn", forever)
+    monkeypatch.setattr(worker, "mark_learn_failed", failed)
+    monkeypatch.setattr(worker, "LEARN_TIMEOUT_S", 0.01)
+    await worker.learn_category_job(CATEGORY)
+
+    assert marked == [CATEGORY]
