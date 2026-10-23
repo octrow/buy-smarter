@@ -315,20 +315,23 @@ async def _collect(run: _Run, active: dict[str, ProductSource]) -> _Pool:
     # so the price axis can reward a genuine dip; best-effort, no-op keyless.
     await attach_price_history(new_candidates)
     with stage("relevance filter"):
-        new_candidates = await _filter_relevant_candidates(
-            new_candidates,
-            constraints.search_phrase,
-            run.use_llm,
-            capabilities.protected(new_candidates),
+        # independent LLM passes (new goods, OLX ads): one wait instead of two
+        new_candidates, used = await asyncio.gather(
+            _filter_relevant_candidates(
+                new_candidates,
+                constraints.search_phrase,
+                run.use_llm,
+                capabilities.protected(new_candidates),
+            ),
+            _filter_used(
+                cast(list[Candidate], collected.get("olx") or []),
+                constraints,
+                run.use_llm,
+                capabilities.reject_listing,
+            ),
         )
     deduped, notes = dedupe_cross_source(new_candidates, model_book)
     deduped = attach_reference_prices(deduped, book, model_book)
-    used = await _filter_used(
-        cast(list[Candidate], collected.get("olx") or []),
-        constraints,
-        run.use_llm,
-        capabilities.reject_listing,
-    )
     return _Pool(deduped, notes, used, persist_rows)
 
 

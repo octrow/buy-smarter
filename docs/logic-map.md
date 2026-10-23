@@ -252,7 +252,7 @@ Module: `services/matching`, `normalize/candidate`
 
 ### 14. Filter used listings
 
-Decides: which OLX ads stay.
+Decides: which OLX ads stay. Runs at the same time as step 12: the two LLM passes are one wait.
 - a capability's listing check rejects it (another audience) → drop;
 - relevance threshold 0.35, stricter than step 12, and no floor: an empty section is fine, a wrong one is not.
 - The threshold applies only on the Jev path; the fallback LLM keeps its own list. If both fail, only ads naming the queried model stay. Without LLM only the accessory heuristic runs.

@@ -20,6 +20,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - The JSON schema sent to the LLM with each request no longer carries field `description`s and `title`s (types, enums,
   required fields and `$defs` stay): they were 25-45% of a request's text. The Pydantic models keep their descriptions
   and still validate the answer. The LLM cache key holds the model's class name, not the schema text, so the cache stays valid.
+- The relevance passes over new goods and over OLX ads run at the same time: one LLM wait instead of two.
 
 ## [0.7.0] - 2026-10-23
 

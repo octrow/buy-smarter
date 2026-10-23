@@ -1,5 +1,8 @@
 """Tests for wiring the category-relevance filter into the recommend pipeline."""
 
+import asyncio
+from types import SimpleNamespace
+
 from buysmarter.llm import relevance as rel
 from buysmarter.ranking.models import Candidate
 from buysmarter.services import recommend as svc
@@ -134,3 +137,39 @@ async def test_protected_candidates_count_towards_the_floor() -> None:
     )
 
     assert kept == gels
+
+
+async def test_new_and_used_relevance_passes_run_at_the_same_time(monkeypatch) -> None:
+    both_started = asyncio.Barrier(2)
+
+    async def _waits_for_the_other(candidates, *args, **kwargs):
+        await asyncio.wait_for(both_started.wait(), timeout=1)
+        return candidates
+
+    async def _nothing(*args, **kwargs):
+        return None
+
+    async def _no_stores(*args, **kwargs):
+        return []
+
+    async def _sources(*args, **kwargs):
+        return {"olx": [_cand("o1", "Пылесос б/у")]}
+
+    monkeypatch.setattr(svc, "gather_sources", _sources)
+    monkeypatch.setattr(svc, "official_candidates", _no_stores)
+    monkeypatch.setattr(svc, "attach_price_history", _nothing)
+    monkeypatch.setattr(svc, "_filter_relevant_candidates", _waits_for_the_other)
+    monkeypatch.setattr(svc, "_filter_used", _waits_for_the_other)
+    capabilities = SimpleNamespace(
+        searches=lambda: [], reject_listing=lambda text: None, protected=lambda cands: set()
+    )
+    run = SimpleNamespace(
+        constraints=SimpleNamespace(search_phrase="пылесос", city="almaty", budget_max=None),
+        profile=SimpleNamespace(brand_book=None, model_book=None),
+        capabilities=capabilities,
+        use_llm=True,
+    )
+
+    pool = await svc._collect(run, {})
+
+    assert [c.source_product_id for c in pool.used] == ["o1"]
