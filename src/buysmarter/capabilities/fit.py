@@ -49,10 +49,10 @@ _DEVICE_WORDS = {
 # A first word that is a unit or a socket, not a device ("на 64 GB", "лампа на E27").
 _UNITS = frozenset({"gb", "tb", "mb", "mah", "w", "l", "mm", "cm", "kg", "ml", "v", "hz"})
 _SOCKETS = re.compile(r"^(?:e\d{2}|gu\d{1,2}|g\d{1,2})$", re.IGNORECASE)
-# A number glued to its unit ("65W", "20000mAh", "64GB") is a spec, not a device.
-_GLUED_UNIT = re.compile(
-    r"^\d+(?:[.,]\d+)?(?:gb|tb|mb|mah|w|wh|l|mm|cm|kg|ml|v|hz|гб|тб|мач|вт)$", re.IGNORECASE
-)
+# A first word that starts with a digit ("65W", "20000mAh", "2m", "6000Pa") is a spec, not a
+# device. ponytail: a device spelled with a leading digit ("3DS") is not found; it is searched
+# by the category as before.
+_SPEC_START = re.compile(r"^\d")
 _MAX_TARGET_WORDS = 5
 
 
@@ -71,10 +71,10 @@ def _target_words(rest: str) -> list[str]:
 
 
 def _is_target(words: list[str]) -> bool:
-    if not words or words[0].isdigit():
+    if not words or _SPEC_START.match(words[0]):
         return False
     first = words[0].lower()
-    if first in _UNITS or _SOCKETS.match(first) or _GLUED_UNIT.match(first):
+    if first in _UNITS or _SOCKETS.match(first):
         return False
     known = first in {w.lower() for w in _DEVICE_WORDS.values()}
     return known or _HAS_LATIN_AND_DIGIT.match(" ".join(words)) is not None
@@ -110,9 +110,11 @@ class Fit(Capability):
 
     def query(self, ctx: CapabilityContext, constraints: QueryConstraints) -> QueryConstraints:
         """The target from the parse or the text; in the search phrase, out of the type."""
-        target = constraints.fit_target or fit_target(ctx.query)
+        parsed = constraints.fit_target
+        target = parsed if parsed and not _SPEC_START.match(parsed) else fit_target(ctx.query)
         if not target:
-            return constraints
+            # a spec the parser took for a device is dropped, so the capability stays off
+            return constraints.model_copy(update={"fit_target": None}) if parsed else constraints
         target = " ".join(_device_word(w) for w in target.split())
         phrase = constraints.search_phrase
         if compact(target) not in compact(phrase):

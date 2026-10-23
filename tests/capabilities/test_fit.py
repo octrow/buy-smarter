@@ -30,6 +30,10 @@ from buysmarter.ranking.models import Candidate, QueryConstraints
         ("повербанк на 20000mAh", None),
         ("флешка на 64GB", None),
         ("лампа на 10W", None),
+        ("кабель на 2m", None),
+        ("кабель на 1.5м", None),
+        ("зарядка на 65Вт", None),
+        ("пылесос на 6000Pa", None),
         ("чехол к айфону 15", "iPhone 15"),
     ],
 )
@@ -58,6 +62,18 @@ def test_a_parse_without_the_model_in_the_search_phrase_gets_it_back():
     read = _read("зарядка для Xiaomi 13", parsed)
 
     assert read.search_phrase == "зарядка Xiaomi 13"
+
+
+@pytest.mark.parametrize("parsed_target", ["65W", "64GB", "2m", "20000mAh"])
+def test_a_glued_unit_the_parser_called_a_device_is_dropped(parsed_target):
+    parsed = QueryConstraints(
+        search_phrase="зарядка", product_type="зарядка", fit_target=parsed_target
+    )
+
+    read = _read("зарядка на " + parsed_target, parsed)
+
+    assert read.fit_target is None
+    assert read.search_phrase == "зарядка"
 
 
 def test_no_fit_leaves_the_constraints_alone():

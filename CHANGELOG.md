@@ -32,6 +32,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   and still validate the answer. The LLM cache key holds the model's class name, not the schema text, so the cache stays valid.
 - The relevance passes over new goods and over OLX ads run at the same time: one LLM wait instead of two.
 
+### Fixed
+- Compatibility (phase 4) no longer reads a spec glued to its unit as a device: "зарядка на 65W", "повербанк на 20000mAh", "флешка на 64GB", "кабель на 2m" get no fit target, also when the parser returns one.
+
 ## [0.7.0] - 2026-10-23
 
 ### Changed
