@@ -225,7 +225,7 @@ def test_the_report_says_how_it_was_assessed(qtbot, result):
 def test_hidden_suspected_fakes_get_a_section_with_their_titles(qtbot, result):
     fake = result.recommendation.ranked[2]
     text = _texts(_shown(qtbot, result.model_copy(update={"hidden": [fake]})))
-    assert "Скрыто 1 подозрительных предложений" in text
+    assert "Скрыто подозрительных предложений (только оригинал): 1" in text
     assert "Xiaomi Water Flosser 2" in text
 
 

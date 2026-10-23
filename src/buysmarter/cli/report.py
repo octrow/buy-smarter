@@ -80,10 +80,13 @@ def _md_link(title: str, url: str | None) -> str:
 
 
 def hidden_note(result: RecommendResult) -> str | None:
-    """ "Скрыто N подозрительных предложений": the fakes "только оригинал" took out, or None."""
+    """The note on the fakes "только оригинал" took out, or None.
+
+    "Скрыто подозрительных предложений (только оригинал): N" keeps the noun clear of the number.
+    """
     if not result.hidden:
         return None
-    return f"Скрыто {len(result.hidden)} подозрительных предложений (только оригинал)."
+    return f"Скрыто подозрительных предложений (только оригинал): {len(result.hidden)}."
 
 
 def _hidden_md(result: RecommendResult) -> list[str]:

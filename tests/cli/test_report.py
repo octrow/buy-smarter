@@ -441,7 +441,7 @@ def _with_hidden(result: RecommendResult) -> RecommendResult:
 def test_hidden_suspected_fakes_are_listed_in_the_markdown() -> None:
     md = render_markdown(_with_hidden(_result(n_ranked=2)), top=8)
 
-    assert "Скрыто 1 подозрительных предложений" in md
+    assert "Скрыто подозрительных предложений (только оригинал): 1" in md
     assert "[Ирригатор Waterp1k копия](https://kaspi.kz/p/x1)" in md
 
 
@@ -456,5 +456,5 @@ def test_hidden_suspected_fakes_are_listed_in_the_console() -> None:
         main._render(_with_hidden(_result(n_ranked=2)), top=3)
 
     out = capture.get()
-    assert "Скрыто 1 подозрительных предложений" in out
+    assert "Скрыто подозрительных предложений (только оригинал): 1" in out
     assert "Waterp1k" in out
