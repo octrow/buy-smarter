@@ -49,7 +49,7 @@ OLX never enters the ranking; it only feeds the used-market section.
 ## Capabilities
 
 The core flow is the same for every category. What differs are capabilities (CONTEXT.md):
-optional hooks the core calls at fixed points, in registry order (audience, size, fit, dims, exclude, original_only, used_only, used_market, benchmark, composition).
+optional hooks the core calls at fixed points, in registry order (audience, size, fit, dims, exclude, original_only, used_only, used_market, official_stores, benchmark, composition).
 A hook a capability does not implement is not called.
 `ranking/` never imports capabilities: the flow hands `rank()` plain weights, predicates and functions (`RankHooks`).
 
@@ -63,6 +63,7 @@ A hook a capability does not implement is not called.
 | original_only | request | `constraints.original_only`: the parser, or "оригинал" / "только оригинал" in the query text, not "оригинальный" (step 4) | `query` (4: the word leaves the search phrase, the product type and the required features), `drops_barred` (19: after the review pass the core hides the candidates barred from roles, counts them as rejected and lists them in every report) |
 | used_only | request | `constraints.condition == "used"`: the parser or a condition word in the required features ("б/у", "бу", "used") (step 4) | `sources` (5: adds OLX to the marketplaces, before they are opened, unless it is there); the report shows the used section first, in the CLI, the desktop app, markdown and MCP (21) |
 | used_market | category | on unless the profile says off: no entry means on (`set_by: fallback`); learning or the user's switch turns it off | `sources` (5: takes OLX out of the marketplaces when off; a used query keeps it). Collecting, filtering and both used sections stay in the core |
+| official_stores | category | on unless the profile says off (no entry means on, `set_by: fallback`) | `candidates` (10: `official_candidates` with the shared `reject_listing`, so every request rejection reaches the store offers) |
 | benchmark | category | the profile, only with a provider from `BENCHMARK_PROVIDERS` (its parameter, else the provider whose rule takes the product type); without a profile setting, the providers' rule (`set_by: fallback`) | `enrich` (15: Kimovil specs and `benchmark_index`) |
 | composition | category | the profile: the composition capability with an ingredient book (old records: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, may stop the run), `prepare` + `axis` + `notes` (17), `section` (Output) |
 
@@ -76,7 +77,7 @@ Examples:
 - "чехол на iPhone 15" → fit: the device joins the search phrase; "шины 205/55 R16" → dims (asks the size when the query has none); "шампунь без сульфатов" → exclude; "пылесос Dyson только оригинал" → original_only (suspected fakes hidden); "б/у ноутбук" → used_only (OLX added, its section first).
 - A category with no profile at all → no category capability, every brand scores as unknown.
 
-Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/benchmark`, `capabilities/composition`
+Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/official_stores`, `capabilities/benchmark`, `capabilities/composition`
 
 ## Entry points
 
@@ -231,10 +232,10 @@ Module: `normalize/candidate`
 
 ### 10. Official stores
 
-Decides: extra candidates from brand sites named in the brand book.
+Decides: extra candidates from brand sites named in the brand book. The official_stores capability's `candidates` hook does it (on unless the category switched it off); the step is a no-op when it is off.
 Each store page is read as schema.org product data; offers a capability's listing check rejects (another audience, another tyre or mattress size) are dropped before the per-store cut, then the cheapest in-budget items are added.
 No brand book or no store URLs → nothing added. A store that blocks us → nothing from it.
-Module: `services/official_stores`, `capabilities/flow`
+Module: `services/official_stores`, `capabilities/official_stores`, `capabilities/flow`
 
 ### 11. Price history and review velocity
 

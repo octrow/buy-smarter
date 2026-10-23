@@ -75,7 +75,6 @@ from buysmarter.services.matching import (
     used_market,
     used_market_without_pick,
 )
-from buysmarter.services.official_stores import official_candidates
 from buysmarter.services.review_pass import review_pass
 from buysmarter.services.understanding import (
     NeedsClarification,
@@ -322,7 +321,7 @@ async def _collect(run: _Run, active: dict[str, ProductSource]) -> _Pool:
         )
     new_candidates, persist_rows = merge_new_goods(collected)
     with stage("official stores"):
-        new_candidates += await official_candidates(book, constraints, capabilities.reject_listing)
+        new_candidates += await capabilities.candidates()
     # Attach 30-day price history (from prior runs' snapshots) before ranking
     # so the price axis can reward a genuine dip; best-effort, no-op keyless.
     await attach_price_history(new_candidates)

@@ -156,12 +156,14 @@ async def test_new_and_used_relevance_passes_run_at_the_same_time(monkeypatch) -
         return {"olx": [_cand("o1", "Пылесос б/у")]}
 
     monkeypatch.setattr(svc, "gather_sources", _sources)
-    monkeypatch.setattr(svc, "official_candidates", _no_stores)
     monkeypatch.setattr(svc, "attach_price_history", _nothing)
     monkeypatch.setattr(svc, "_filter_relevant_candidates", _waits_for_the_other)
     monkeypatch.setattr(svc, "_filter_used", _waits_for_the_other)
     capabilities = SimpleNamespace(
-        searches=lambda: [], reject_listing=lambda text: None, protected=lambda cands: set()
+        searches=lambda: [],
+        candidates=_no_stores,
+        reject_listing=lambda text: None,
+        protected=lambda cands: set(),
     )
     run = SimpleNamespace(
         constraints=SimpleNamespace(

@@ -48,7 +48,7 @@ OLX в рейтинг не попадает, только в раздел б/у.
 ## Возможности
 
 Основной поток один для всех категорий. Различаются возможности (CONTEXT.md):
-необязательные хуки, которые ядро вызывает в фиксированных точках в порядке реестра (audience, size, fit, dims, exclude, original_only, used_only, used_market, benchmark, composition).
+необязательные хуки, которые ядро вызывает в фиксированных точках в порядке реестра (audience, size, fit, dims, exclude, original_only, used_only, used_market, official_stores, benchmark, composition).
 Хук, которого у возможности нет, не вызывается.
 `ranking/` не импортирует возможности: поток отдаёт `rank()` готовые веса, предикаты и функции (`RankHooks`).
 
@@ -62,6 +62,7 @@ OLX в рейтинг не попадает, только в раздел б/у.
 | original_only | запросная | `constraints.original_only`: разбор или «оригинал» / «только оригинал» в тексте запроса, не «оригинальный» (шаг 4) | `query` (4: слово уходит из поисковой фразы, типа товара и обязательных свойств), `drops_barred` (19: после прохода по отзывам ядро скрывает кандидатов, закрытых для ролей, считает их отсеянными и перечисляет в каждом отчёте) |
 | used_only | запросная | `constraints.condition == "used"`: разбор или слово состояния среди обязательных свойств («б/у», «бу», «used») (шаг 4) | `sources` (5: добавляет OLX к площадкам до их открытия, если его нет); отчёт показывает раздел б/у первым: в CLI, приложении, markdown и MCP (21) |
 | used_market | категорийная | включена, пока профиль не скажет «выключить»: нет записи = включена (`set_by: fallback`); выключают обучение или переключатель пользователя | `sources` (5: убирает OLX из площадок, когда выключена; запрос про б/у его оставляет). Сбор, фильтр и оба раздела б/у остаются в ядре |
+| official_stores | категорийная | включена, пока профиль не скажет «выключить» (нет записи = включена, `set_by: fallback`) | `candidates` (10: `official_candidates` с общим `reject_listing`, поэтому каждый запросный отказ доходит до предложений магазинов) |
 | benchmark | категорийная | профиль, только с провайдером из `BENCHMARK_PROVIDERS` (его параметр, иначе провайдер, чьё правило берёт тип товара); без записи в профиле — правило провайдеров (`set_by: fallback`) | `enrich` (15: характеристики Kimovil и `benchmark_index`) |
 | composition | категорийная | профиль: возможность composition с книгой ингредиентов (старые записи: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, может остановить поиск), `prepare` + `axis` + `notes` (17), `section` («Результат») |
 
@@ -75,7 +76,7 @@ Composition даёт ровно прежнюю таблицу (ингредие�
 - «чехол на iPhone 15» → fit: устройство входит в поисковую фразу; «шины 205/55 R16» → dims (спрашивает размер, если его нет в запросе); «шампунь без сульфатов» → exclude; «пылесос Dyson только оригинал» → original_only (подозрительные скрыты); «б/у ноутбук» → used_only (добавлен OLX, его раздел первым).
 - Категория без профиля → категорийных возможностей нет, все бренды «неизвестные».
 
-Модули: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/benchmark`, `capabilities/composition`
+Модули: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/official_stores`, `capabilities/benchmark`, `capabilities/composition`
 
 ## Входы
 
@@ -229,9 +230,9 @@ Composition: обязательные вещества берутся из по�
 
 ### 10. Официальные магазины
 
-Решает: доп. кандидатов с сайтов брендов из книги брендов. Страница магазина читается как данные товара schema.org. Предложения, которые отсекает проверка объявлений от возможностей (другая аудитория, другой размер шин или матраса), убираются до среза по магазину, потом берутся самые дешёвые в бюджете.
+Решает: доп. кандидатов с сайтов брендов из книги брендов. Делает это хук `candidates` возможности official_stores (включена, пока категория её не выключила); выключена → шаг ничего не делает. Страница магазина читается как данные товара schema.org. Предложения, которые отсекает проверка объявлений от возможностей (другая аудитория, другой размер шин или матраса), убираются до среза по магазину, потом берутся самые дешёвые в бюджете.
 Нет книги или адресов → ничего. Магазин блокирует → от него ничего.
-Модули: `services/official_stores`, `capabilities/flow`
+Модули: `services/official_stores`, `capabilities/official_stores`, `capabilities/flow`
 
 ### 11. История цен и отзывов
 
