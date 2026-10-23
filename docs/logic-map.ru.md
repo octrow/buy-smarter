@@ -166,8 +166,9 @@ Kaspi и OLX получают город как свой id города (`marke
 Без LLM: только точный slug и синонимы.
 Никогда не блокирует. Нет знаний → `knowledge_missing`, ось бренда слабая.
 Целиком категорию запуск не учит, только пишет в лог подсказку про `learn-category`.
+Может ли запрос сам учить свою категорию, решает `should_auto_learn` (`services/auto_learn`; во входы пока не подключено): нет профиля с книгами, intent `product`/`need`, разбор через LLM, есть CLI `claude`, тип товара до 60 символов из букв, цифр, пробела и дефиса, нет отметки `learning_started_at` моложе 15 минут и `learn_failed_at` моложе 24 часов, за последний час в этом процессе меньше `auto_learn_per_hour` (10) запусков.
 Пишет он в четырёх случаях: синонимы моделей OLX из шага 21 (владельцу книги моделей), лечение, перенос старого slug и возможности от классификатора.
-Модули: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`
+Модули: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`, `services/auto_learn`
 
 ### 7. Доп. поиски (возможности)
 

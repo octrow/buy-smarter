@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     worker_metrics_port: int = Field(9000, validation_alias="BUYSMARTER_WORKER_METRICS_PORT")
     job_timeout_s: int = Field(300, validation_alias="BUYSMARTER_JOB_TIMEOUT_S")
 
+    # Auto-learning of a new category (services.auto_learn): starts allowed per hour.
+    auto_learn_per_hour: int = Field(10, validation_alias="BUYSMARTER_AUTO_LEARN_PER_HOUR")
+
 
 def get_settings() -> Settings:
     """Return a Settings instance (call site can cache if desired)."""

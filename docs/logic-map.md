@@ -172,8 +172,9 @@ Then capabilities are switched on (see Capabilities), and a capability's `clarif
 No LLM: exact slug and synonyms only.
 Fails: never blocks. Missing knowledge sets `knowledge_missing` and weakens the brand axis.
 The run does not learn a whole category; it logs a hint to run `learn-category`.
+Whether a request may learn its category on its own is decided by `should_auto_learn` (`services/auto_learn`; not wired into the entry points yet): no profile with books, intent `product`/`need`, parsed with the LLM, the `claude` CLI present, a product type of at most 60 letters/digits/spaces/hyphens, no `learning_started_at` mark younger than 15 minutes, no `learn_failed_at` younger than 24 hours, and fewer than `auto_learn_per_hour` (10) starts in the last hour in this process.
 It writes knowledge in four cases: aliases learned in step 21 (to the owner of the model book), healing, moving an old slug, and the classifier's capabilities.
-Module: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`
+Module: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`, `services/auto_learn`
 
 ### 7. Extra searches (capabilities)
 
