@@ -1,9 +1,6 @@
 """Report screen: the explainable result of one search, in the CLI report's terms."""
 
-from collections.abc import Callable, Coroutine
-from typing import Any
-
-from PySide6.QtCore import QElapsedTimer, Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -29,7 +26,7 @@ from buysmarter.cli.report import (
     ingredients_unchecked_note,
     request_notes,
 )
-from buysmarter.gui.bridge import CoreRunner, Job
+from buysmarter.gui.bridge import CoreRunner
 from buysmarter.gui.labels import (
     USED_SECTION,
     axis_label,
@@ -41,6 +38,7 @@ from buysmarter.gui.labels import (
     source_label,
     used_con,
 )
+from buysmarter.gui.learning import CategoryLearning, Learn
 from buysmarter.gui.prefs_fields import kzt
 from buysmarter.gui.screens.alternatives import (
     AXES_START,
@@ -68,13 +66,12 @@ _BAR_STEPS = 100
 _LOW_SHARE = 0.4  # an axis bar under this share of its max reads as a weak spot
 _HIGH_SHARE = 0.8
 _TICK_MS = 1000
+_RERUN_TEXT = "Повторить поиск"
 _OPEN_HINT = "Двойной клик по строке — открыть предложение на маркетплейсе."
 _USED_HINT = (
     "Если модель объявления не распознана, оно сравнивается с ближайшим новым товаром "
     "по цене — проверьте, что это то же самое."
 )
-
-type Learn = Callable[[str], Coroutine[Any, Any, Any]]
 
 
 def open_offer(url: str | None) -> None:
@@ -103,6 +100,10 @@ def best_notes(best: ScoredCandidate) -> list[tuple[str, str]]:
     if best.candidate.best_seller:
         notes.append(("", f"Продавец: {best.candidate.best_seller}"))
     return notes
+
+
+def _category(result: RecommendResult) -> str:
+    return result.constraints.product_type or result.constraints.search_phrase
 
 
 def _label(text: str, *, name: str = "", role: str = "", state: str = "") -> QLabel:
@@ -251,14 +252,23 @@ class ReportScreen(QScrollArea):
 
     rerun_requested = Signal()
 
-    def __init__(self, runner: CoreRunner | None = None, learn: Learn = learn_category) -> None:
+    def __init__(
+        self,
+        runner: CoreRunner | None = None,
+        learn: Learn = learn_category,
+        learning: CategoryLearning | None = None,
+    ) -> None:
         super().__init__()
         self._runner = runner
-        self._learn = learn
-        self._learn_job: Job | None = None
-        self._elapsed = QElapsedTimer()
+        # Shared with the main window, so a learn outlives the report that started it.
+        self.learning = learning or CategoryLearning(runner, learn)
+        self._category: str | None = None  # the on-screen report's, when it lacks knowledge
+        self._learn_blocked = False
+        self._rerun_offered = False
         self._ticker = QTimer(self, interval=_TICK_MS)
-        self._ticker.timeout.connect(self._show_learning)
+        self._ticker.timeout.connect(self._render_learning)
+        self.learning.started.connect(self._on_learning_changed)
+        self.learning.settled.connect(self._on_learning_changed)
         self.setWidgetResizable(True)
         self.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         empty = _label(
@@ -273,6 +283,10 @@ class ReportScreen(QScrollArea):
         self.used: QTableWidget | None = None
         self.learn_button: QPushButton | None = None
         self.rejected: QGroupBox | None = None
+        self._category = None
+        self._ticker.stop()
+        self._rerun_offered = False
+        self._learn_blocked = False
         page = QWidget()
         page.setObjectName("page")
         page.setMaximumWidth(CONTENT_MAX_WIDTH)
@@ -306,10 +320,26 @@ class ReportScreen(QScrollArea):
             layout.addWidget(_group("Не удалось проверить", notes))
         layout.addStretch(1)
         self.setWidget(page)
+        self._after_shown(result, run)
+
+    def _after_shown(self, result: RecommendResult, run: SearchRun) -> None:
+        """Show this category's learning state, and start learning it if it may start itself."""
+        if not result.knowledge_missing:
+            return
+        category = self._category = _category(result)
+        self.learning.forget(category)
+        self._render_learning()
+        if not result.skipped_llm_steps:
+            self.learning.auto_start(
+                category,
+                intent=result.constraints.intent,
+                use_llm=run.use_llm,
+                knowledge_missing=True,
+            )
 
     def _knowledge_banner(self, result: RecommendResult) -> QFrame:
         # Learned under the profile key, so the next search finds it (phase 2, decision 13).
-        category = result.constraints.product_type or result.constraints.search_phrase
+        category = _category(result)
         banner = QFrame()
         banner.setObjectName("banner")
         column = QVBoxLayout(banner)
@@ -324,49 +354,57 @@ class ReportScreen(QScrollArea):
         self.learn_button = QPushButton("Изучить категорию")
         set_state(self.learn_button, "primary", "true")
         self.learn_status = _label("")
+        self.learn_button.setAccessibleName("Изучить категорию")
+        self.learn_status.setAccessibleName("Статус изучения категории")
         if result.skipped_llm_steps or self._runner is None:
+            self._learn_blocked = True
             self.learn_button.setEnabled(False)
             self.learn_status.setText("Нужен AI: настройте его на экране «Состояние и ключи».")
-        self.learn_button.clicked.connect(lambda: self.start_learning(category))
+        self.learn_button.clicked.connect(lambda: self._on_learn_clicked(category))
         column.addWidget(_row(self.learn_button, self.learn_status))
         return banner
 
+    def _on_learn_clicked(self, category: str) -> None:
+        if self._rerun_offered:
+            self.rerun_requested.emit()
+        else:
+            self.start_learning(category)
+
     def start_learning(self, category: str) -> None:
-        if self._runner is None or self._learn_job is not None or self.learn_button is None:
+        if self._runner is None or self.learn_button is None:
             return
-        self.learn_button.setEnabled(False)
-        self._elapsed.start()
-        self._ticker.start()
-        self._show_learning()
-        self._learn_job = self._runner.submit(self._learn(category))
-        self._learn_job.finished.connect(lambda _k: self._learned(category))
-        self._learn_job.failed.connect(self._learn_failed)
+        self.learning.start(category)
 
-    def _show_learning(self) -> None:
-        if self._elapsed.isValid():
-            self.learn_status.setText(f"Изучаю категорию… {self._elapsed.elapsed() // 1000} с")
+    def _on_learning_changed(self, category: str) -> None:
+        if category == self._category:  # another category's learning is not this report's
+            self._render_learning()
 
-    def _stop_learning(self) -> None:
-        self._learn_job = None
+    def _render_learning(self) -> None:
+        """Draw the on-screen category's state in the banner: running, learned or failed."""
+        category, button = self._category, self.learn_button
+        if category is None or button is None or self._learn_blocked:
+            return
+        if self.learning.running(category):
+            self._ticker.start()
+            secs = self.learning.elapsed_s(category)
+            self._set_learn_status(f"Изучаю категорию… {secs} с", "")
+            button.setEnabled(False)
+            return
         self._ticker.stop()
-        self._elapsed.invalidate()
-
-    def _learned(self, category: str) -> None:
-        self._stop_learning()
-        if self.learn_button is None:  # the report was replaced meanwhile
+        outcome = self.learning.outcome(category)
+        if outcome is None:
             return
-        self.learn_status.setText(f"Готово: бренды для «{category}» сохранены.")
-        self.learn_button.setText("Повторить поиск")
-        self.learn_button.clicked.disconnect()
-        self.learn_button.clicked.connect(self.rerun_requested.emit)
-        self.learn_button.setEnabled(True)
+        self._rerun_offered = outcome == ""
+        button.setEnabled(True)
+        if outcome == "":
+            self._set_learn_status(f"Готово: бренды для «{category}» сохранены.", "ok")
+            button.setText(_RERUN_TEXT)
+        else:
+            self._set_learn_status(outcome, "error")
 
-    def _learn_failed(self, message: str) -> None:
-        self._stop_learning()
-        if self.learn_button is None:  # the report was replaced meanwhile
-            return
-        self.learn_button.setEnabled(True)
-        self.learn_status.setText(message)
+    def _set_learn_status(self, text: str, state: str) -> None:
+        self.learn_status.setText(text)
+        set_state(self.learn_status, "state", state)
 
     def _best_section(self, best: ScoredCandidate) -> QGroupBox:
         cand = best.candidate

@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 from buysmarter import local_store
 from buysmarter.cli.report import DEFAULT_TOP, save_report
 from buysmarter.gui.bridge import USER_ERROR, CoreRunner
+from buysmarter.gui.learning import CategoryLearning
 from buysmarter.gui.screens.history import HistoryScreen
 from buysmarter.gui.screens.preferences import PreferencesScreen
 from buysmarter.gui.screens.report import ReportScreen
@@ -62,6 +63,7 @@ _SCREEN_ROLE = Qt.ItemDataRole.UserRole  # a nav item's index in the screen stac
 _ICON_ROLE = Qt.ItemDataRole.UserRole + 1  # its icon name, to re-draw on a scheme change
 _SHELL_TIMEOUT_S = 5
 _CLOSE_WHILE_SEARCHING = "Поиск ещё идёт. Закрыть приложение и остановить его?"
+_CLOSE_WHILE_LEARNING = "Идёт изучение категории. Закрыть приложение и прервать его?"
 
 
 def inherit_login_path() -> None:
@@ -98,7 +100,8 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(*_MIN_SIZE)
         self.runner = runner
         self.search = SearchScreen(runner)
-        self.report = ReportScreen(runner)
+        self.learning = CategoryLearning(runner)
+        self.report = ReportScreen(runner, learning=self.learning)
         self.preferences = PreferencesScreen(runner)
         self.history = HistoryScreen(runner)
         self.saved = SavedScreen()
@@ -211,12 +214,19 @@ class MainWindow(QMainWindow):
                 item.setIcon(icon(name))
 
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802 - Qt override
-        """Ask before closing over a running search; ``run`` then cancels it on shutdown."""
-        if self.search.is_running():
+        """Ask before closing over a running search or learning; ``run`` then cancels it."""
+        question = (
+            _CLOSE_WHILE_SEARCHING
+            if self.search.is_running()
+            else _CLOSE_WHILE_LEARNING
+            if self.learning.any_running()
+            else None
+        )
+        if question is not None:
             answer = QMessageBox.question(
                 self,
                 _TITLE,
-                _CLOSE_WHILE_SEARCHING,
+                question,
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
             )
