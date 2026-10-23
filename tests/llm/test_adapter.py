@@ -1,12 +1,14 @@
 """Adapter tests: structured parse, retry-once, cache hit, stable key. No network."""
 
+import json
+from enum import StrEnum
 from types import SimpleNamespace
 
 import httpx
 import openai
 import pytest
 from claude_cli import ClaudeCliError, ClaudeResult
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from buysmarter.config import Settings
 from buysmarter.llm import adapter
@@ -420,3 +422,36 @@ async def test_fallback_is_a_different_combo_per_model(monkeypatch, model, fallb
 def test_combo_name_reaches_the_cli_as_is() -> None:
     assert adapter._cli_model("sub-first") == "sub-first"
     assert adapter._cli_model("deepseek-chat") == "sonnet"
+
+
+class _Kind(StrEnum):
+    NEW = "new"
+    USED = "used"
+
+
+class _Inner(BaseModel):
+    """Inner docstring."""
+
+    code: str = Field(description="inner field doc")
+
+
+class _Documented(BaseModel):
+    """Class docstring that must not reach the prompt."""
+
+    title: str = Field(description="a field that is itself called title")
+    kind: _Kind = Field(description="enum doc")
+    items: list[_Inner] = Field(description="list doc")
+    note: str | None = Field(default=None, description="optional doc")
+
+
+def test_system_prompt_schema_drops_descriptions_and_titles_but_keeps_structure() -> None:
+    prompt = adapter._system_prompt(_Documented, supports_json_mode=True)
+    schema = json.loads(prompt.split("JSON schema:\n", 1)[1])
+
+    assert "description" not in prompt
+    assert '"title": {"type"' in prompt  # a field named title survives, its metadata does not
+    assert set(schema["properties"]) == {"title", "kind", "items", "note"}
+    assert schema["required"] == ["title", "kind", "items"]
+    assert schema["$defs"]["_Kind"]["enum"] == ["new", "used"]
+    assert schema["$defs"]["_Inner"]["required"] == ["code"]
+    assert len(prompt) < len(json.dumps(_Documented.model_json_schema()))

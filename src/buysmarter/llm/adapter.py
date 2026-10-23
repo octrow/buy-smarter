@@ -195,8 +195,34 @@ def _make_client(route: Route) -> AsyncOpenAI:
     return AsyncOpenAI(api_key=route.api_key, base_url=route.provider.base_url)
 
 
+# Keys under these hold names chosen by the model's author (a field called "title" is real).
+_NAME_MAPS = ("properties", "$defs")
+_DOC_KEYS = ("description", "title")
+
+
+def _compact_schema(node: Any) -> Any:
+    """The JSON schema without ``description``/``title`` at any depth: types, enums, required stay.
+
+    Field descriptions were 25-45% of a request's text; the model fills a field from its name,
+    type and the user prompt. Validation uses the full Pydantic model, not this copy.
+    """
+    if isinstance(node, list):
+        return [_compact_schema(item) for item in node]
+    if not isinstance(node, dict):
+        return node
+    return {
+        key: (
+            {name: _compact_schema(sub) for name, sub in value.items()}
+            if key in _NAME_MAPS
+            else _compact_schema(value)
+        )
+        for key, value in node.items()
+        if key not in _DOC_KEYS
+    }
+
+
 def _system_prompt(response_model: type[BaseModel], supports_json_mode: bool) -> str:
-    schema = json.dumps(response_model.model_json_schema())
+    schema = json.dumps(_compact_schema(response_model.model_json_schema()))
     prompt = (
         "You are a precise data extraction assistant. Respond with a single JSON "
         f"object that conforms exactly to this JSON schema:\n{schema}"
