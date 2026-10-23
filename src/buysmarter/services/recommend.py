@@ -30,7 +30,7 @@ from buysmarter.capabilities.classify import ensure_profile
 from buysmarter.capabilities.composition import INGREDIENTS_UNCHECKED
 from buysmarter.capabilities.composition import NoSubstanceMatch as NoSubstanceMatch  # re-export
 from buysmarter.capabilities.exclude import strip_exclusions
-from buysmarter.capabilities.flow import ActiveCapabilities, activate, read_query
+from buysmarter.capabilities.flow import ActiveCapabilities, activate, pick_sources, read_query
 from buysmarter.capabilities.provenance import CapabilityState, capability_states
 from buysmarter.config import get_settings
 from buysmarter.db.base import async_session
@@ -423,7 +423,8 @@ async def recommend(
     profile = await _resolve_knowledge(constraints, use_llm)
     capabilities = activate(REGISTRY, profile, constraints, query=query, use_llm=use_llm)
     ask_capability(capabilities.question(), constraints, ask.round, ask.no_clarify)
-    requested = sources or ["kaspi"]
+    # capabilities add or remove marketplaces (a used query brings OLX) before they are opened
+    requested = pick_sources(REGISTRY, profile, constraints, sources or ["kaspi"])
     # off the loop: picking Ozon's browser may launch one to probe it
     active = await asyncio.to_thread(resolve_sources, requested, source, ozon_source, olx_source)
     run = _Run(query, constraints, profile, capabilities, use_llm)

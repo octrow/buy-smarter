@@ -231,3 +231,24 @@ def test_hidden_suspected_fakes_get_a_section_with_their_titles(qtbot, result):
 
 def test_no_hidden_section_without_hidden_ones(qtbot, result):
     assert "Скрыто" not in _texts(_shown(qtbot, result))
+
+
+def _group_titles(screen) -> list[str]:
+    from PySide6.QtWidgets import QGroupBox
+
+    layout = screen.widget().layout()
+    items = (layout.itemAt(i).widget() for i in range(layout.count()))
+    return [w.title() for w in items if isinstance(w, QGroupBox)]
+
+
+def test_a_used_query_shows_the_used_section_first(qtbot, result):
+    constraints = result.constraints.model_copy(update={"condition": "used"})
+    screen = _shown(qtbot, result.model_copy(update={"constraints": constraints}))
+
+    assert _group_titles(screen)[0] == "На OLX (частники)"
+
+
+def test_a_new_query_shows_the_used_section_after_the_ranking(qtbot, result):
+    titles = _group_titles(_shown(qtbot, result))
+
+    assert titles.index("На OLX (частники)") > 0

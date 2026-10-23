@@ -474,7 +474,7 @@ class SearchScreen(QWidget):
         if state == "running" and self._job is not None and self._stage_text != _CANCELLING:
             self._stage_text = stage_label(stage)
             self._show_stage()
-        if source in self._states and self._states[source] != "skipped":
+        if source in self._states:  # a capability may open a source the user did not pick (OLX)
             self._states[source] = "skipped" if state == "cancelled" else state
             self._show_states()
 

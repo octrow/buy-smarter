@@ -458,3 +458,32 @@ def test_hidden_suspected_fakes_are_listed_in_the_console() -> None:
     out = capture.get()
     assert "Скрыто подозрительных предложений (только оригинал): 1" in out
     assert "Waterp1k" in out
+
+
+def _used_query(result: RecommendResult) -> RecommendResult:
+    constraints = result.constraints.model_copy(update={"condition": "used"})
+    return result.model_copy(update={"constraints": constraints})
+
+
+def test_a_used_query_puts_the_used_section_before_the_best_pick_and_says_so_once() -> None:
+    md = render_markdown(_used_query(_result()), top=2)
+
+    assert md.index("## На OLX (частники)") < md.index("## Лучший выбор")
+    assert md.count("Вы искали б/у") == 1
+    assert "смотрите раздел" not in md
+
+
+def test_a_new_query_keeps_the_used_section_last() -> None:
+    md = render_markdown(_result(), top=2)
+
+    assert md.index("## Лучший выбор") < md.index("## На OLX (частники)")
+
+
+def test_a_used_query_shows_the_used_table_first_in_the_console() -> None:
+    from buysmarter.cli import main
+
+    with main.console.capture() as capture:
+        main._render(_used_query(_result()), top=2)
+
+    out = capture.get()
+    assert out.index("На OLX (частники)") < out.index("Best pick")

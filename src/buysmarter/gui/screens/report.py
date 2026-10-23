@@ -27,6 +27,7 @@ from buysmarter.cli.report import (
     hidden_note,
     ingredients_unchecked_note,
     request_notes,
+    used_first,
 )
 from buysmarter.gui.bridge import CoreRunner
 from buysmarter.gui.capability_toggles import CapabilityToggles
@@ -311,6 +312,7 @@ class ReportScreen(QScrollArea):
         layout.addLayout(heading)
         if result.knowledge_missing:
             layout.addWidget(self._knowledge_banner(result))
+        self._add_used(layout, result, first=True)
         layout.addWidget(self._best_section(result.recommendation.best))
         if result.review_summary is not None and (said := _summary_lines(result.review_summary)):
             widgets = [_label(text, state=state) for state, text in said]
@@ -319,8 +321,7 @@ class ReportScreen(QScrollArea):
         if result.recommendation.rejected_count:
             self.rejected = _group("Отсеяно", _label(rejected_line(result), role="muted"))
             layout.addWidget(self.rejected)
-        if result.used_listings:
-            layout.addWidget(self._used_section(result))
+        self._add_used(layout, result, first=False)
         if hidden := self._hidden_section(result):
             layout.addWidget(hidden)
         layout.addWidget(self._toggles_section(result))
@@ -330,6 +331,11 @@ class ReportScreen(QScrollArea):
         layout.addStretch(1)
         self.setWidget(page)
         self._after_shown(result, run)
+
+    def _add_used(self, layout: QVBoxLayout, result: RecommendResult, *, first: bool) -> None:
+        """The OLX section, leading the page of a used query and closing the others."""
+        if result.used_listings and used_first(result) == first:
+            layout.addWidget(self._used_section(result))
 
     def _hidden_section(self, result: RecommendResult) -> QGroupBox | None:
         """The suspected fakes "только оригинал" hid, each by title."""

@@ -49,7 +49,7 @@ OLX never enters the ranking; it only feeds the used-market section.
 ## Capabilities
 
 The core flow is the same for every category. What differs are capabilities (CONTEXT.md):
-optional hooks the core calls at fixed points, in registry order (audience, size, fit, dims, exclude, original_only, benchmark, composition).
+optional hooks the core calls at fixed points, in registry order (audience, size, fit, dims, exclude, original_only, used_only, benchmark, composition).
 A hook a capability does not implement is not called.
 `ranking/` never imports capabilities: the flow hands `rank()` plain weights, predicates and functions (`RankHooks`).
 
@@ -61,6 +61,7 @@ A hook a capability does not implement is not called.
 | dims | request | `constraints.dims` (tyre or mattress size: the parser, or a regex over the query for tyres and mattresses), or tyres or a mattress named without a size (step 4) | `query` (4: normalized size into the search phrase, out of the features), `clarify` (6: tyres or a mattress without a size; the answer joins the query, which is read again), `reject_listing` (10, 14, 17: another size of the same kind in the title), `reject_content` (17: the size specs say another size), `notes` (17: "размер не проверен") |
 | exclude | request | `constraints.exclude_substances`: the parser, or "без X", "безX…", "X-free", "free of X" in the query for a known substance (сульфаты, парабены, сахар, лактоза) (step 4) | `query` (4: canonical names; the phrases leave the required features, the substances composition reads and the relevance phrase, but stay in the search), `reject_content` (17: the composition text names the substance outside a negation), `notes` (17: "состав не проверен на X" without a composition text; "без X по названию" when the title says so) |
 | original_only | request | `constraints.original_only`: the parser, or "оригинал" / "только оригинал" in the query text, not "оригинальный" (step 4) | `query` (4: the word leaves the search phrase, the product type and the required features), `drops_barred` (19: after the review pass the core hides the candidates barred from roles, counts them as rejected and lists them in every report) |
+| used_only | request | `constraints.condition == "used"`: the parser or a condition word in the required features ("б/у", "бу", "used") (step 4) | `sources` (5: adds OLX to the marketplaces, before they are opened, unless it is there); the report shows the used section first, in the CLI, the desktop app, markdown and MCP (21) |
 | benchmark | category | the profile, only with a provider from `BENCHMARK_PROVIDERS` (its parameter, else the provider whose rule takes the product type); without a profile setting, the providers' rule (`set_by: fallback`) | `enrich` (15: Kimovil specs and `benchmark_index`) |
 | composition | category | the profile: the composition capability with an ingredient book (old records: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, may stop the run), `prepare` + `axis` + `notes` (17), `section` (Output) |
 
@@ -71,10 +72,10 @@ Examples:
 - "крем с адапаленом" → composition (if the profile has it): searches by substance, rejects products whose composition proves the substance absent.
 - "мужские кроссовки 42 размер" → audience and size; gender is a listing check everywhere, size an unverified con.
 - "смартфон iPhone 13" → benchmark by the providers' rule (Kimovil); "чехол на iPhone 15", "держатель телефона" → none.
-- "чехол на iPhone 15" → fit: the device joins the search phrase; "шины 205/55 R16" → dims (asks the size when the query has none); "шампунь без сульфатов" → exclude; "пылесос Dyson только оригинал" → original_only (suspected fakes hidden).
+- "чехол на iPhone 15" → fit: the device joins the search phrase; "шины 205/55 R16" → dims (asks the size when the query has none); "шампунь без сульфатов" → exclude; "пылесос Dyson только оригинал" → original_only (suspected fakes hidden); "б/у ноутбук" → used_only (OLX added, its section first).
 - A category with no profile at all → no category capability, every brand scores as unknown.
 
-Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/benchmark`, `capabilities/composition`
+Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/benchmark`, `capabilities/composition`
 
 ## Entry points
 
@@ -150,7 +151,7 @@ Decides: final constraints before search.
   - dims: a tyre size ("205/55R16", "205/55 Р16", "ZR16", "R16C" → "205/55 R16") or a mattress size ("160х200", "200 на 160" → "160x200", sides sorted), read for tyres and mattresses only (by word start: "шины", "автошины", "резина", "покрышки", "матрас"; not "машина", "резинка", "наматрасник"); every size form leaves the search phrase and the normalized one is appended; size phrases leave the required features;
   - exclude: "без сульфатов", "безлактозное", "sulfate-free" give the known substance it names (не "без проводов"); a list is read whole: "без сульфатов и парабенов", "без сульфатов, парабенов" (the parse drops the comma, so a bare space continues the list before a known substance) exclude both; an LLM value maps to the same names, an unknown one is kept as is. Needles are concrete (SLS, SLES, laureth/lauryl sulfate, лаурет/лаурилсульфат; parabens; сахар, сахароза, sucrose, not сахарозаменитель; лактоза, lactose), so "магния сульфат" is no sulfate; a needle after "без", "не содержит", "free of" or before "-free" is skipped.
 - Features already implied by the search phrase are dropped ("TWS" in "TWS наушники").
-- Condition words (б/у, новый) are dropped: used goods are OLX's job. They set `condition`; "used" adds a report note pointing to the OLX section.
+- Condition words (б/у, новый) are dropped: used goods are OLX's job. They set `condition`; "used" switches the used_only capability on (step 5) and adds a report note that the OLX section comes first.
 Then CLI/API overrides apply: budget, trusted brands only.
 Module: `services/recommend`, `services/understanding`, `capabilities/flow`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `ranking/audience`
 
@@ -158,9 +159,10 @@ Module: `services/recommend`, `services/understanding`, `capabilities/flow`, `ca
 
 Decides: which marketplaces this run queries.
 Branches:
+- The caller's list (default Kaspi) goes through every capability's `sources` hook, after the profile is known: used_only adds OLX to a used query ("б/у ноутбук"), once.
 - Ozon needs a real browser; none found → Ozon is left out and listed in `unavailable_sources`.
 - Kaspi may go through a proxy (`kaspi_proxy`).
-Module: `services/collect`, `services/ozon_browser`
+Module: `services/collect`, `services/ozon_browser`, `capabilities/used_only`, `capabilities/flow`
 
 ### 6. Resolve the category profile
 
@@ -364,7 +366,7 @@ Module: `services/collect`, `db/repo`
 
 ### 21. Notes and used market
 
-Decides: the final warnings and the OLX section.
+Decides: the final warnings and the OLX section. A used query (`condition` "used") shows the section before the best pick, in every surface (`cli/report.used_first`); otherwise it comes last.
 - Cross-source notes from step 13 are attached ("также на ozon за …"); a big gap becomes a con.
 - First, with LLM and knowledge, OLX titles the model book missed are mapped to model names: Jev's confident picks only (unsure → no name), the LLM only when Jev fails; a name whose model number, line or storage contradicts the title is dropped. Learned aliases are saved to the profile that owns the model book (its own, the parent or the related profile); only the model book is written, and a borrowed book never creates a record under the query.
 - OLX ads are matched to every ranked candidate (same model or brand + title); an ad shows only if its price is under 0.7 of the matched new product's.

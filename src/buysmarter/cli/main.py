@@ -29,6 +29,7 @@ from buysmarter.cli.report import (
     save_report,
     skipped_llm_note,
     unavailable_sources_note,
+    used_first,
 )
 from buysmarter.i18n import USED_SECTION, checked_brands, clean_title, kzt, used_con
 from buysmarter.knowledge.brands import BrandBook
@@ -275,11 +276,15 @@ def _render(result: RecommendResult, top: int) -> None:
     for note in notes:
         if note:
             console.print(f"[yellow]{escape(note)}[/yellow]")
+    used = (result.used_listings, result.recommendation.ranked)
+    if used_first(result):
+        _render_used(*used)
     _render_best(result.recommendation.best)
     _render_review_summary(result.review_summary)
     _render_alternatives(result.recommendation.alternatives)
     _render_top(result.recommendation.ranked, top)
-    _render_used(result.used_listings, result.recommendation.ranked)
+    if not used_first(result):
+        _render_used(*used)
     _render_hidden(result)
     if result.recommendation.rejected_count:
         console.print(

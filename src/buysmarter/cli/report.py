@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 from buysmarter.capabilities.provenance import assessed_entries, assessed_line
+from buysmarter.capabilities.used_only import USED
 from buysmarter.i18n import (
     BEST_ROLE,
     ROLE_LABELS,
@@ -131,7 +132,12 @@ def assessed_note(result: RecommendResult) -> str | None:
     return assessed_line(assessed_entries(result.capabilities))
 
 
-USED_CONDITION_NOTE = "Вы искали б/у — смотрите раздел «Б/у на OLX»."
+USED_CONDITION_NOTE = "Вы искали б/у: объявления с OLX идут первым разделом, новые товары ниже."
+
+
+def used_first(result: RecommendResult) -> bool:
+    """True when the query asked for second-hand goods: the used section leads every report."""
+    return result.constraints.condition == USED
 
 
 def request_notes(result: RecommendResult) -> list[str]:
@@ -142,7 +148,7 @@ def request_notes(result: RecommendResult) -> list[str]:
         notes.append(f"Искал: {result.assumed} — уточните запрос, если нужно другое.")
     if c.budget_note:
         notes.append(f"{c.budget_note[:1].upper()}{c.budget_note[1:]}.")
-    if c.condition == "used":
+    if used_first(result):
         notes.append(USED_CONDITION_NOTE)
     return notes
 
@@ -332,11 +338,14 @@ def render_markdown(result: RecommendResult, top: int = 8) -> str:
     if result.restricted_note:
         parts += [f"> ⚠ {result.restricted_note}", ""]
     parts += _constraints_md(result)
+    if used_first(result):
+        parts += _used_md(result)
     parts += _best_md(result)
     parts += _review_summary_md(result)
     parts += _alternatives_md(result)
     parts += _top_md(result, top)
-    parts += _used_md(result)
+    if not used_first(result):
+        parts += _used_md(result)
     parts += _hidden_md(result)
     rejected = result.recommendation.rejected_count
     if rejected:

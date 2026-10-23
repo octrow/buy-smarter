@@ -304,6 +304,28 @@ def test_a_finished_search_shows_what_each_marketplace_brought(qtbot, runner, re
     assert not screen.report_button.isHidden()
 
 
+def test_a_marketplace_a_capability_opened_shows_its_progress(qtbot, runner, result):
+    """A used query brings in OLX though the form left it unticked: its state must follow."""
+
+    async def recommend(query, **kwargs):
+        async def ok():
+            return []
+
+        await _safe("kaspi", ok())
+        await _safe("olx", ok())
+        return result
+
+    screen = SearchScreen(runner, recommend=recommend)
+    qtbot.addWidget(screen)
+    screen.sources["olx"].setChecked(False)
+    screen.query.setText("б/у ирригатор")
+
+    with qtbot.waitSignal(screen.report_ready, timeout=WAIT_MS):
+        screen.start()
+
+    assert screen.status["olx"].text().startswith(STATE_LABELS["done"])
+
+
 def _reports(*names):
     from pathlib import Path
 
