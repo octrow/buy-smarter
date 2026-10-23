@@ -29,6 +29,10 @@ from tests.fakes import composition_profile
         ("без сахара и лактозы", ["сахар", "лактоза"]),
         ("крем без SLS, парабенов и без сахара", ["сульфаты", "парабены", "сахар"]),
         ("наушники с ANC без JBL", []),
+        ("шампунь без сульфатов, парабенов", ["сульфаты", "парабены"]),
+        ("шампунь без сульфатов парабенов", ["сульфаты", "парабены"]),
+        ("шампунь без сульфатов, парабенов и силиконов", ["сульфаты", "парабены"]),
+        ("шампунь без сульфатов силиконов", ["сульфаты"]),
     ],
 )
 def test_excluded_substances_are_read_from_the_query(query, excluded):
@@ -130,3 +134,19 @@ def test_a_whole_exclusion_list_leaves_the_phrase():
 
 def test_the_exclusion_leaves_the_naive_product_type():
     assert _read("шампунь без сульфатов").product_type == "шампунь"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "шампунь без сульфатов и парабенов",
+        "шампунь без сульфатов, парабенов",
+        "шампунь без сульфатов парабенов",
+    ],
+)
+def test_every_substance_of_a_without_list_is_excluded_and_leaves_the_phrase(query):
+    read = _read(query)
+
+    assert read.exclude_substances == ["сульфаты", "парабены"]
+    assert read.product_type == "шампунь"
+    assert relevance_phrase(read) == "шампунь"

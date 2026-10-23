@@ -34,6 +34,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ### Fixed
 - Compatibility (phase 4) no longer reads a spec glued to its unit as a device: "зарядка на 65W", "повербанк на 20000mAh", "флешка на 64GB", "кабель на 2m" get no fit target, also when the parser returns one.
+- Excluded substances (phase 4) are read from the whole "без X и Y" list: "шампунь без сульфатов и парабенов" and "без сульфатов, парабенов" exclude both, and the list leaves the product type and the relevance phrase.
 
 ## [0.7.0] - 2026-10-23
 
