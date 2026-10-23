@@ -26,7 +26,7 @@ def _cli_and_empty_limit(monkeypatch):
 
 
 async def _ok(category: str = CATEGORY, **kw) -> bool:
-    args = {"intent": "product", "use_llm": True, **kw}
+    args = {"intent": "product", "use_llm": True, "knowledge_missing": True, **kw}
     return await should_auto_learn(category, **args)
 
 
@@ -43,6 +43,11 @@ async def test_a_profile_with_books_is_not_learned_again() -> None:
     await save_knowledge(CATEGORY, BrandBook(tiers={"Philips": "A"}), None, "opus")
 
     assert not await _ok()
+
+
+async def test_books_found_for_the_request_elsewhere_are_not_learned_again() -> None:
+    # a synonym, a parent or a related profile ("солнцезащитный крем" → "косметика")
+    assert not await _ok(knowledge_missing=False)
 
 
 async def test_a_record_without_books_is_still_learned() -> None:

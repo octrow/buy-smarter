@@ -59,12 +59,18 @@ def _younger_than(raw: dict[str, Any], key: str, ttl: timedelta) -> bool:
     return datetime.now(UTC) - stamp < ttl
 
 
-async def should_auto_learn(product_type: str, *, intent: str, use_llm: bool) -> bool:
+async def should_auto_learn(
+    product_type: str, *, intent: str, use_llm: bool, knowledge_missing: bool
+) -> bool:
     """Every clause of decision 8; ``use_llm`` is the request's, ``intent`` the parsed one.
 
-    Counts nothing: call ``mark_learning_started`` when the learning really starts.
+    ``knowledge_missing`` is the run's: no books were found for the request anywhere (own
+    record, synonym, parent, related profile). Counts nothing: call
+    ``mark_learning_started`` when the learning really starts.
     """
-    if intent not in _INTENTS or not use_llm or not _valid_name(product_type):
+    if not knowledge_missing or intent not in _INTENTS or not use_llm:
+        return False
+    if not _valid_name(product_type):
         return False
     if not claude_available() or _over_limit():
         return False
