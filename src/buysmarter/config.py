@@ -62,6 +62,8 @@ class Settings(BaseSettings):
     job_timeout_s: int = Field(300, validation_alias="BUYSMARTER_JOB_TIMEOUT_S")
 
     # Auto-learning of a new category (services.auto_learn): starts allowed per hour.
+    # Off by default in the API/worker: it is open, the knowledge is shared and a learn is paid.
+    auto_learn: bool = Field(False, validation_alias="BUYSMARTER_AUTO_LEARN")
     auto_learn_per_hour: int = Field(10, validation_alias="BUYSMARTER_AUTO_LEARN_PER_HOUR")
 
 

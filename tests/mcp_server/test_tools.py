@@ -3,7 +3,11 @@
 No network/LLM — the service layer is stubbed; preferences use the suite's tmp store.
 """
 
+import asyncio
 import inspect
+import logging
+
+import pytest
 
 from buysmarter.mcp_server import server
 from buysmarter.ranking.models import (
@@ -240,10 +244,10 @@ async def test_recommend_nonpositive_top_is_clamped(monkeypatch) -> None:
     seen = {}
 
     async def fake(*a, **k):
-        return "r"
+        return _stub_result()
 
     monkeypatch.setattr(server, "run_recommend", fake)
-    monkeypatch.setattr(server, "render_markdown", lambda result, top: seen.setdefault("top", top))
+    monkeypatch.setattr(server, "render_markdown", lambda result, top: str(seen.setdefault("top", top)))
     await server.recommend("q", city="Алматы", top=-3)
     assert seen["top"] == 1
 
@@ -282,3 +286,76 @@ def test_ozon_without_a_browser_is_a_clear_error():
 
     with pytest.raises(ValueError, match="no browser"):
         server._source_for("ozon")
+
+
+# --- auto-learning in the background (phase 3, decision 11) ----------------
+
+
+def _missing_result() -> RecommendResult:
+    result = _stub_result()
+    result.constraints.product_type = "соковыжималка"
+    result.knowledge_missing = True
+    return result
+
+
+@pytest.fixture
+def learn_calls(monkeypatch) -> list[str]:
+    calls: list[str] = []
+
+    async def fake_recommend(query, **kwargs):
+        return _missing_result()
+
+    async def condition(*_a, **_k):
+        return True
+
+    async def fake_learn(product_type: str) -> bool:
+        calls.append(product_type)
+        return True
+
+    monkeypatch.setattr(server, "run_recommend", fake_recommend)
+    monkeypatch.setattr(server, "should_auto_learn", condition)
+    monkeypatch.setattr(server, "auto_learn", fake_learn)
+    return calls
+
+
+async def test_a_new_category_is_learned_in_the_background(learn_calls) -> None:
+    tool = await _get_tool("recommend")
+    out = await tool.fn("соковыжималка", parse_with_llm=True)
+    await asyncio.gather(*server._LEARNING)
+
+    assert learn_calls == ["соковыжималка"]
+    assert "изучается" in out and "повторите запрос" in out
+
+
+async def test_the_condition_gets_the_request_llm_flag(monkeypatch, learn_calls) -> None:
+    seen: dict = {}
+
+    async def condition(product_type, **kwargs):
+        seen.update(kwargs, product_type=product_type)
+        return False
+
+    monkeypatch.setattr(server, "should_auto_learn", condition)
+    tool = await _get_tool("recommend")
+    out = await tool.fn("соковыжималка")
+
+    assert seen == {
+        "product_type": "соковыжималка",
+        "intent": "product",
+        "use_llm": False,
+        "knowledge_missing": True,
+    }
+    assert learn_calls == [] and "изучается" not in out
+
+
+async def test_a_learn_that_raises_is_logged(monkeypatch, learn_calls, caplog) -> None:
+    async def boom(product_type: str) -> bool:
+        raise RuntimeError("marks store down")
+
+    monkeypatch.setattr(server, "auto_learn", boom)
+    tool = await _get_tool("recommend")
+    with caplog.at_level(logging.ERROR, logger=server.logger.name):
+        await tool.fn("соковыжималка", parse_with_llm=True)
+        await asyncio.gather(*server._LEARNING, return_exceptions=True)
+        await asyncio.sleep(0)
+
+    assert any(r.exc_info and "соковыжималка" in r.getMessage() for r in caplog.records)

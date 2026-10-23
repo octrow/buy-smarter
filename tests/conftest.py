@@ -8,6 +8,8 @@ from pathlib import Path
 
 # Before any test imports buysmarter.worker: an in-process broker, no Redis stream.
 os.environ.setdefault("BUYSMARTER_BROKER", "memory")
+# Auto-learning is off in the API/worker unless a test turns it on.
+os.environ["BUYSMARTER_AUTO_LEARN"] = "false"
 
 # Before any buysmarter import (db.base builds its engine at import): the whole suite uses one tmp
 # SQLite store and tmp legacy paths, never the developer's data dir, Postgres or ~/.config files.
@@ -99,6 +101,19 @@ def _no_live_claude(monkeypatch):
     monkeypatch.setattr(adapter, "arun_claude", _blocked)
     # The LLM route must not depend on whether this machine has the CLI (CI does not).
     monkeypatch.setattr(adapter, "claude_available", lambda: False)
+
+
+@pytest.fixture(autouse=True)
+def _no_auto_learn(monkeypatch):
+    """No test starts a real learn: the classifier says "no CLI" and a learn itself is blocked."""
+    from buysmarter.services import auto_learn
+
+    async def _blocked(*_args, **_kwargs):
+        raise RuntimeError("test reached a live learn: mock auto_learn.learn_category")
+
+    monkeypatch.setattr(auto_learn, "claude_available", lambda: False)
+    monkeypatch.setattr(auto_learn, "learn_category", _blocked)
+    auto_learn.reset_limit()
 
 
 @pytest.fixture(autouse=True)

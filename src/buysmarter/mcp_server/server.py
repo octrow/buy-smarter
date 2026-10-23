@@ -25,8 +25,9 @@ from buysmarter.cli.report import (
 )
 from buysmarter.i18n import kzt
 from buysmarter.memory import prefs
+from buysmarter.services.auto_learn import auto_learn, should_auto_learn
 from buysmarter.services.collect import ALL_SOURCES, resolve_sources, select_sources
-from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch
+from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, RecommendResult
 from buysmarter.services.recommend import recommend as run_recommend
 from buysmarter.services.understanding import Clarification, NeedsClarification
 
@@ -35,6 +36,35 @@ logger = logging.getLogger(__name__)
 mcp: FastMCP = FastMCP("buy-smarter")
 
 _DEFAULT_CITY = "Алматы"
+
+# Learning tasks in flight: a task nobody references can be collected mid-run.
+_LEARNING: set[asyncio.Task[bool]] = set()
+
+
+def _learn_finished(task: asyncio.Task[bool]) -> None:
+    _LEARNING.discard(task)
+    if not task.cancelled() and (exc := task.exception()) is not None:
+        logger.error("background learning of %s failed", task.get_name(), exc_info=exc)
+
+
+async def _start_learning(result: RecommendResult, use_llm: bool) -> str:
+    """Start learning a new category in the background (decision 11); the note for the report.
+
+    The search never waits for it. The runner logs its own failures; the callback logs
+    whatever else escapes it.
+    """
+    c = result.constraints
+    if not await should_auto_learn(
+        c.product_type,
+        intent=c.intent,
+        use_llm=use_llm,
+        knowledge_missing=result.knowledge_missing,
+    ):
+        return ""
+    task = asyncio.create_task(auto_learn(c.product_type), name=repr(c.product_type))
+    _LEARNING.add(task)
+    task.add_done_callback(_learn_finished)
+    return f"\n_Категория «{c.product_type}» изучается: повторите запрос через несколько минут._\n"
 
 
 def _source_for(name: str) -> ProductSource:
@@ -150,7 +180,7 @@ async def recommend(
         return render_no_new_pick_markdown(exc)
     except ValueError as exc:
         return f"No recommendation: {exc}"
-    return render_markdown(result, max(top, 1))
+    return render_markdown(result, max(top, 1)) + await _start_learning(result, parse_with_llm)
 
 
 def _clarification_markdown(clarification: Clarification) -> str:

@@ -4,6 +4,7 @@ Only the condition and the marks live here; the entry points (GUI, MCP, worker, 
 where to run it and start the learning. The search never waits for the result.
 """
 
+import logging
 import re
 import time
 from collections import deque
@@ -13,8 +14,11 @@ from typing import Any
 from claude_cli import claude_available
 
 from buysmarter.config import get_settings
+from buysmarter.knowledge.generate import learn_category
 from buysmarter.knowledge.profile import has_books
 from buysmarter.knowledge.store import load_knowledge, update_knowledge
+
+logger = logging.getLogger(__name__)
 
 LEARNING_STARTED_KEY = "learning_started_at"
 LEARN_FAILED_KEY = "learn_failed_at"
@@ -103,3 +107,20 @@ async def mark_learn_failed(product_type: str) -> None:
 async def mark_learning_done(product_type: str) -> None:
     """A finished learn: drop the in-progress mark (the books now make it a profile)."""
     await update_knowledge(product_type, {}, _WRITER, drop=(LEARNING_STARTED_KEY,))
+
+
+async def auto_learn(product_type: str) -> bool:
+    """Learn the category in full: mark started, learn, mark done (the runner of every entry point).
+
+    A failure is marked (no retry for 24 hours), logged with the category, and returned as
+    ``False``; it does not propagate, so a background task never dies unseen.
+    """
+    try:
+        await mark_learning_started(product_type)
+        await learn_category(product_type)
+        await mark_learning_done(product_type)
+    except Exception:
+        logger.exception("auto-learning of category %r failed", product_type)
+        await mark_learn_failed(product_type)
+        return False
+    return True

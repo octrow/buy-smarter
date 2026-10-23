@@ -10,6 +10,7 @@ from buysmarter.services import auto_learn
 from buysmarter.services.auto_learn import (
     LEARN_FAILED_KEY,
     LEARNING_STARTED_KEY,
+    auto_learn as run_auto_learn,
     mark_learn_failed,
     mark_learning_started,
     should_auto_learn,
@@ -141,3 +142,30 @@ async def test_a_failure_mark_replaces_the_learn_in_progress_mark() -> None:
     assert LEARN_FAILED_KEY in stored
     assert LEARNING_STARTED_KEY not in stored
     assert not await _ok()
+
+
+async def test_a_finished_learn_leaves_no_in_progress_mark(monkeypatch) -> None:
+    learned: list[str] = []
+
+    async def fake_learn(category: str):
+        learned.append(category)
+        assert LEARNING_STARTED_KEY in (await load_knowledge(category) or {})
+
+    monkeypatch.setattr(auto_learn, "learn_category", fake_learn)
+
+    assert await run_auto_learn(CATEGORY) is True
+    stored = await load_knowledge(CATEGORY) or {}
+    assert learned == [CATEGORY]
+    assert LEARNING_STARTED_KEY not in stored and LEARN_FAILED_KEY not in stored
+
+
+async def test_a_failed_learn_is_marked_and_logged(monkeypatch, caplog) -> None:
+    async def boom(category: str):
+        raise RuntimeError("web search down")
+
+    monkeypatch.setattr(auto_learn, "learn_category", boom)
+
+    assert await run_auto_learn(CATEGORY) is False
+    stored = await load_knowledge(CATEGORY) or {}
+    assert LEARN_FAILED_KEY in stored and LEARNING_STARTED_KEY not in stored
+    assert any(CATEGORY in r.getMessage() and r.exc_info for r in caplog.records)
