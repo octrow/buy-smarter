@@ -60,7 +60,10 @@ The report goes on with a review summary, alternatives (best value, best budget)
   own unless `BUYSMARTER_AUTO_LEARN=true`.
 - **How the category is judged.** Every report says which capabilities took part and who decided ("Как
   оценивали: состав — обучение"); the desktop app lets you switch a category capability on or off for your
-  query's category, or reset it to automatic.
+  query's category, or reset it to automatic. "Рынок б/у" (OLX) and "Официальные магазины" (brand sites) are
+  such switches too: on by default, off for a category when learning or you say so.
+- **Used goods.** A query like "б/у ноутбук" ("только б/у") adds OLX by itself, even if you did not tick it, and
+  puts the OLX section first in the CLI, the desktop app and the markdown report (CLI, MCP, API).
 - **Phone specs from Kimovil.** For smartphone queries each model is looked up on Kimovil: its overall index
   (0–100) goes into the specs axis ("Kimovil 83/100"), and refresh rate, battery, fast charging, chipset, AnTuTu
   and IP rating are added in Kaspi's wording, so "120 Гц" or "5000 мАч" as a required feature can match. Results

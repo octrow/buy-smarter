@@ -29,7 +29,7 @@ One optional way of judging offers, switched on either by the category profile (
 _Avoid_: module (that word means a code module), plugin, trait, feature (that word means a required product property)
 
 **Category capability** / **Request capability**:
-The two levels of capabilities. A category capability belongs to the category profile and holds for every query in that category (composition, benchmark, counterfeit checks, official stores, used market). A request capability comes from one query's own words and holds only for it (audience, size and dimensions, compatibility with a device, excluded substances, original only, used only, delivery deadline, country of origin). Both plug into the core the same way.
+The two levels of capabilities. A category capability belongs to the category profile and holds for every query in that category (composition, benchmark, counterfeit checks, official stores, used market). Official stores and the used market are on until learning or the user switches them off; a used query ("б/у ноутбук") keeps OLX whatever the used market switch says. A request capability comes from one query's own words and holds only for it (audience, size and dimensions, compatibility with a device, excluded substances, original only, used only, delivery deadline, country of origin). Both plug into the core the same way.
 _Avoid_: global capability, query feature
 
 **Restricted category**:
