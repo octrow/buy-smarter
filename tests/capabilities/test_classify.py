@@ -132,3 +132,11 @@ async def test_without_an_llm_jev_is_never_called(monkeypatch) -> None:
 
 def test_only_category_capabilities_with_a_question_are_asked() -> None:
     assert set(capability_questions()) == {"cap_composition", "bench_kimovil"}
+
+
+@pytest.mark.parametrize(("noul", "on"), [(0.58, False), (0.53, False), (0.76, True)])
+def test_a_borderline_answer_leaves_composition_to_learning(noul: float, on: bool) -> None:
+    # measured on the step-3 list: "зубная паста" 0.58, "шампунь" 0.53, "шампунь от перхоти" 0.76
+    settings = classify.settings_from({"cap_composition": {"noul": noul}})
+
+    assert settings["composition"].enabled is on

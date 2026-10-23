@@ -35,9 +35,11 @@ from buysmarter.llm.jev import system_one
 
 logger = logging.getLogger(__name__)
 
-# ponytail: no live Jev measurement yet (plan step 3 skipped: Jev not available here);
-# 0.5 is the plain yes/no cut. Retune on the step-3 list at the first live run.
-CLASSIFY_MIN_NOUL = 0.5
+# Measured 2026-10-23 (plan step 3): no ≤ 0.13, borderline "шампунь" 0.47-0.53 and
+# "зубная паста" 0.58, yes ≥ 0.76 ("шампунь от перхоти", "витамины", "крем от акне");
+# phones 0.96-0.98 against ≤ 0.04. The cut sits between borderline and yes: a borderline
+# category gets composition from learning, not from Jev.
+CLASSIFY_MIN_NOUL = 0.65
 _WRITER = "jev"
 _CAP = "cap_"
 _BENCH = "bench_"
