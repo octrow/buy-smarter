@@ -21,6 +21,7 @@ _REQUEST_SOURCE = "запрос"
 _BY_USER_ON = "включено вами"
 _BY_USER_OFF = "выключено вами"
 _NOT_ON = "не включено"
+_OFF = "выключено"
 _NO_DATA = ", но нет данных"
 
 
@@ -40,6 +41,7 @@ class CapabilityState(BaseModel):
     auto: bool
     set_by: SetBy | None = None
     user: bool | None = None
+    default_on: bool = False
 
 
 def _without_user(profile: ResolvedProfile) -> ResolvedProfile:
@@ -84,6 +86,7 @@ def _state(
         auto=automatic_on,
         set_by=set_by,
         user=user,
+        default_on=cap.default_on,
     )
 
 
@@ -111,13 +114,23 @@ def _source_short(state: CapabilityState) -> str:
     return _SET_BY_SHORT[state.set_by] if state.set_by else ""
 
 
+def _worth_saying(state: CapabilityState) -> bool:
+    """Took part, or the user switched it off; a default-on one only once somebody decided."""
+    if state.default_on and state.user is None:
+        return not state.on or state.set_by != "fallback"
+    return state.active or state.user is False
+
+
+def _entry(state: CapabilityState) -> str:
+    source = _source_short(state)
+    if state.default_on and state.user is None and not state.on:
+        source = f"{_OFF}: {source}"
+    return f"{state.label[:1].lower()}{state.label[1:]} — {source}"
+
+
 def assessed_entries(states: list[CapabilityState]) -> list[str]:
     """ "состав — обучение" for each capability that took part or that the user switched off."""
-    return [
-        f"{state.label[:1].lower()}{state.label[1:]} — {_source_short(state)}"
-        for state in states
-        if state.active or state.user is False
-    ]
+    return [_entry(state) for state in states if _worth_saying(state)]
 
 
 def assessed_line(entries: list[str]) -> str | None:

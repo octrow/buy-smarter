@@ -5,6 +5,7 @@ from buysmarter.capabilities.flow import activate, read_query
 from buysmarter.knowledge.profile import ResolvedProfile
 from buysmarter.ranking.engine import rank
 from buysmarter.ranking.models import Candidate, QueryConstraints
+from tests.fakes import judging
 
 _PROFILE = ResolvedProfile(slug="кроссовки")
 
@@ -79,7 +80,7 @@ def test_no_audience_in_the_query_switches_nothing_on() -> None:
         REGISTRY, _PROFILE, QueryConstraints(search_phrase="кроссовки"), query="", use_llm=False
     )
 
-    assert active.items == []
+    assert judging(active) == []
     assert active.reject_listing("Кроссовки женские") is None
 
 

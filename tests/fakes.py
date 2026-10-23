@@ -6,7 +6,7 @@ from typing import Any
 from market_sources.base import RawOffer, RawProduct
 
 from buysmarter.capabilities import REGISTRY
-from buysmarter.capabilities.flow import activate
+from buysmarter.capabilities.flow import ActiveCapabilities, activate
 from buysmarter.knowledge.ingredients import ActiveSubstance, IngredientBook
 from buysmarter.knowledge.profile import COMPOSITION, CapabilitySetting, ResolvedProfile
 from buysmarter.ranking.models import QueryConstraints, RankHooks
@@ -27,6 +27,11 @@ def capability_hooks(
     """What the flow hands ``rank()`` for this profile (none by default) and constraints."""
     profile = profile or ResolvedProfile(slug="test")
     return activate(REGISTRY, profile, constraints, query="", use_llm=False).rank_hooks()
+
+
+def judging(active: ActiveCapabilities) -> list[str]:
+    """The capabilities on for a query that judge offers: the default-on switches left out."""
+    return [cap.name for cap, _ in active.items if not cap.default_on]
 
 
 def composition_hooks(constraints: QueryConstraints) -> RankHooks:

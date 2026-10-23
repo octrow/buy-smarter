@@ -49,7 +49,7 @@ OLX never enters the ranking; it only feeds the used-market section.
 ## Capabilities
 
 The core flow is the same for every category. What differs are capabilities (CONTEXT.md):
-optional hooks the core calls at fixed points, in registry order (audience, size, fit, dims, exclude, original_only, used_only, benchmark, composition).
+optional hooks the core calls at fixed points, in registry order (audience, size, fit, dims, exclude, original_only, used_only, used_market, benchmark, composition).
 A hook a capability does not implement is not called.
 `ranking/` never imports capabilities: the flow hands `rank()` plain weights, predicates and functions (`RankHooks`).
 
@@ -62,6 +62,7 @@ A hook a capability does not implement is not called.
 | exclude | request | `constraints.exclude_substances`: the parser, or "без X", "безX…", "X-free", "free of X" in the query for a known substance (сульфаты, парабены, сахар, лактоза) (step 4) | `query` (4: canonical names; the phrases leave the required features, the substances composition reads and the relevance phrase, but stay in the search), `reject_content` (17: the composition text names the substance outside a negation), `notes` (17: "состав не проверен на X" without a composition text; "без X по названию" when the title says so) |
 | original_only | request | `constraints.original_only`: the parser, or "оригинал" / "только оригинал" in the query text, not "оригинальный" (step 4) | `query` (4: the word leaves the search phrase, the product type and the required features), `drops_barred` (19: after the review pass the core hides the candidates barred from roles, counts them as rejected and lists them in every report) |
 | used_only | request | `constraints.condition == "used"`: the parser or a condition word in the required features ("б/у", "бу", "used") (step 4) | `sources` (5: adds OLX to the marketplaces, before they are opened, unless it is there); the report shows the used section first, in the CLI, the desktop app, markdown and MCP (21) |
+| used_market | category | on unless the profile says off: no entry means on (`set_by: fallback`); learning or the user's switch turns it off | `sources` (5: takes OLX out of the marketplaces when off; a used query keeps it). Collecting, filtering and both used sections stay in the core |
 | benchmark | category | the profile, only with a provider from `BENCHMARK_PROVIDERS` (its parameter, else the provider whose rule takes the product type); without a profile setting, the providers' rule (`set_by: fallback`) | `enrich` (15: Kimovil specs and `benchmark_index`) |
 | composition | category | the profile: the composition capability with an ingredient book (old records: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, may stop the run), `prepare` + `axis` + `notes` (17), `section` (Output) |
 
@@ -75,7 +76,7 @@ Examples:
 - "чехол на iPhone 15" → fit: the device joins the search phrase; "шины 205/55 R16" → dims (asks the size when the query has none); "шампунь без сульфатов" → exclude; "пылесос Dyson только оригинал" → original_only (suspected fakes hidden); "б/у ноутбук" → used_only (OLX added, its section first).
 - A category with no profile at all → no category capability, every brand scores as unknown.
 
-Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/benchmark`, `capabilities/composition`
+Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/benchmark`, `capabilities/composition`
 
 ## Entry points
 
@@ -159,10 +160,10 @@ Module: `services/recommend`, `services/understanding`, `capabilities/flow`, `ca
 
 Decides: which marketplaces this run queries.
 Branches:
-- The caller's list (default Kaspi) goes through every capability's `sources` hook, after the profile is known: used_only adds OLX to a used query ("б/у ноутбук"), once.
+- The caller's list (default Kaspi) goes through every capability's `sources` hook, after the profile is known: used_only adds OLX to a used query ("б/у ноутбук"), once; used_market takes OLX out when the category switched the used market off (the user's choice outranks learning), unless the query is a used one. A source a capability took out is not "unavailable".
 - Ozon needs a real browser; none found → Ozon is left out and listed in `unavailable_sources`.
 - Kaspi may go through a proxy (`kaspi_proxy`).
-Module: `services/collect`, `services/ozon_browser`, `capabilities/used_only`, `capabilities/flow`
+Module: `services/collect`, `services/ozon_browser`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/flow`
 
 ### 6. Resolve the category profile
 
@@ -378,7 +379,7 @@ Module: `services/matching`, `llm/canonicalize`, `knowledge/store`
 
 `RecommendResult`: the ranking, the constraints used, used listings, and flags the UI shows as warnings:
 `restricted_note` (first line of the report), `assumed` (the option searched on the last clarification round), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `hidden` (the suspected fakes "только оригинал" hid: "Скрыто подозрительных предложений: N" and their titles in the markdown and console reports, a group in the GUI, `RecommendOutcome.hidden` in the API, empty by default), `profile_found` (the related profile the lookup found), `capabilities` (below), `ingredients_unchecked` (set by the composition capability's report section: a ranked candidate whose composition was not checked, "Состав не проверен у N из M — вещество не подтверждено").
-Every surface renders the same result. `capabilities` (each registry capability: switch, active, who set it) gives the line "Как оценивали: состав — обучение; бенчмарк Kimovil — Jev." (sources: обучение, Jev, правило, запрос, включено/выключено вами), built once in `capabilities/provenance` and shown by the markdown and console reports, the GUI and the API (`RecommendOutcome.assessed_by`, empty by default so an old stored result still validates); no line when no capability took part and none was switched off by the user. `RecommendOutcome` carries `hidden` and `assessed_by`.
+Every surface renders the same result. `capabilities` (each registry capability: switch, active, who set it) gives the line "Как оценивали: состав — обучение; бенчмарк Kimovil — Jev." (sources: обучение, Jev, правило, запрос, включено/выключено вами), built once in `capabilities/provenance` and shown by the markdown and console reports, the GUI and the API (`RecommendOutcome.assessed_by`, empty by default so an old stored result still validates); no line when no capability took part and none was switched off by the user. A category capability that is on by default (used_market) is named only once learning or the user decided about it ("рынок б/у — выключено: обучение"). `RecommendOutcome` carries `hidden` and `assessed_by`.
 Module: `services/recommend`, `capabilities/composition`, `capabilities/provenance`, `cli/report`, `jobs`, `gui/screens/report`
 
 ## Side flows

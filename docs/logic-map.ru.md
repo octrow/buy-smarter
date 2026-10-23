@@ -48,7 +48,7 @@ OLX в рейтинг не попадает, только в раздел б/у.
 ## Возможности
 
 Основной поток один для всех категорий. Различаются возможности (CONTEXT.md):
-необязательные хуки, которые ядро вызывает в фиксированных точках в порядке реестра (audience, size, fit, dims, exclude, original_only, used_only, benchmark, composition).
+необязательные хуки, которые ядро вызывает в фиксированных точках в порядке реестра (audience, size, fit, dims, exclude, original_only, used_only, used_market, benchmark, composition).
 Хук, которого у возможности нет, не вызывается.
 `ranking/` не импортирует возможности: поток отдаёт `rank()` готовые веса, предикаты и функции (`RankHooks`).
 
@@ -61,6 +61,7 @@ OLX в рейтинг не попадает, только в раздел б/у.
 | exclude | запросная | `constraints.exclude_substances`: разбор или «без X», «безX…», «X-free», «free of X» в запросе для известного вещества (сульфаты, парабены, сахар, лактоза) (шаг 4) | `query` (4: канонические имена; фразы уходят из обязательных свойств, из текста, где composition ищет вещества, и из фразы релевантности, но остаются в поиске), `reject_content` (17: текст состава называет вещество вне отрицания), `notes` (17: «состав не проверен на X» без текста состава; «без X по названию», если так сказано в названии) |
 | original_only | запросная | `constraints.original_only`: разбор или «оригинал» / «только оригинал» в тексте запроса, не «оригинальный» (шаг 4) | `query` (4: слово уходит из поисковой фразы, типа товара и обязательных свойств), `drops_barred` (19: после прохода по отзывам ядро скрывает кандидатов, закрытых для ролей, считает их отсеянными и перечисляет в каждом отчёте) |
 | used_only | запросная | `constraints.condition == "used"`: разбор или слово состояния среди обязательных свойств («б/у», «бу», «used») (шаг 4) | `sources` (5: добавляет OLX к площадкам до их открытия, если его нет); отчёт показывает раздел б/у первым: в CLI, приложении, markdown и MCP (21) |
+| used_market | категорийная | включена, пока профиль не скажет «выключить»: нет записи = включена (`set_by: fallback`); выключают обучение или переключатель пользователя | `sources` (5: убирает OLX из площадок, когда выключена; запрос про б/у его оставляет). Сбор, фильтр и оба раздела б/у остаются в ядре |
 | benchmark | категорийная | профиль, только с провайдером из `BENCHMARK_PROVIDERS` (его параметр, иначе провайдер, чьё правило берёт тип товара); без записи в профиле — правило провайдеров (`set_by: fallback`) | `enrich` (15: характеристики Kimovil и `benchmark_index`) |
 | composition | категорийная | профиль: возможность composition с книгой ингредиентов (старые записи: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, может остановить поиск), `prepare` + `axis` + `notes` (17), `section` («Результат») |
 
@@ -74,7 +75,7 @@ Composition даёт ровно прежнюю таблицу (ингредие�
 - «чехол на iPhone 15» → fit: устройство входит в поисковую фразу; «шины 205/55 R16» → dims (спрашивает размер, если его нет в запросе); «шампунь без сульфатов» → exclude; «пылесос Dyson только оригинал» → original_only (подозрительные скрыты); «б/у ноутбук» → used_only (добавлен OLX, его раздел первым).
 - Категория без профиля → категорийных возможностей нет, все бренды «неизвестные».
 
-Модули: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/benchmark`, `capabilities/composition`
+Модули: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/benchmark`, `capabilities/composition`
 
 ## Входы
 
@@ -155,11 +156,11 @@ Kaspi и OLX получают город как свой id города (`marke
 ### 5. Источники
 
 Решает: какие площадки опрашивает этот запуск.
-- Список вызывающего (по умолчанию Kaspi) проходит через хук `sources` каждой возможности, когда профиль уже известен: used_only добавляет OLX к запросу про б/у («б/у ноутбук»), один раз.
+- Список вызывающего (по умолчанию Kaspi) проходит через хук `sources` каждой возможности, когда профиль уже известен: used_only добавляет OLX к запросу про б/у («б/у ноутбук»), один раз; used_market убирает OLX, если категория выключила рынок б/у (выбор пользователя сильнее обучения), кроме запроса про б/у. Площадка, убранная возможностью, не считается «недоступной».
 - Ozon нужен настоящий браузер; нет браузера → Ozon выключен и попадает в `unavailable_sources`.
 - Kaspi может идти через прокси (`kaspi_proxy`).
 
-Модули: `services/collect`, `services/ozon_browser`, `capabilities/used_only`, `capabilities/flow`
+Модули: `services/collect`, `services/ozon_browser`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/flow`
 
 ### 6. Профиль категории
 
@@ -376,7 +377,7 @@ Composition: обязательные вещества берутся из по�
 
 `RecommendResult`: рейтинг, итоговые ограничения, объявления б/у и флаги-предупреждения:
 `restricted_note` (первая строка отчёта), `assumed` (вариант, найденный на последнем раунде уточнения), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `hidden` (подозрительные предложения, скрытые «только оригинал»: «Скрыто подозрительных предложений: N» и их названия в markdown- и консольном отчёте, группа в GUI, `RecommendOutcome.hidden` в API, по умолчанию пусто), `profile_found` (похожий профиль, найденный при поиске), `capabilities` (ниже), `ingredients_unchecked` (ставит раздел отчёта возможности composition: в рейтинге есть кандидат с непроверенным составом, «Состав не проверен у N из M — вещество не подтверждено»).
-Все интерфейсы показывают один и тот же результат. `capabilities` (каждая возможность реестра: переключатель, активна ли, кто задал) даёт строку «Как оценивали: состав — обучение; бенчмарк Kimovil — Jev.» (источники: обучение, Jev, правило, запрос, включено/выключено вами); строится один раз в `capabilities/provenance` и показывается в markdown- и консольном отчёте, GUI и API (`RecommendOutcome.assessed_by`, по умолчанию пусто, поэтому старый сохранённый результат валидируется); нет строки, если ни одна возможность не участвовала и пользователь ничего не выключал. `RecommendOutcome` несёт `hidden` и `assessed_by`.
+Все интерфейсы показывают один и тот же результат. `capabilities` (каждая возможность реестра: переключатель, активна ли, кто задал) даёт строку «Как оценивали: состав — обучение; бенчмарк Kimovil — Jev.» (источники: обучение, Jev, правило, запрос, включено/выключено вами); строится один раз в `capabilities/provenance` и показывается в markdown- и консольном отчёте, GUI и API (`RecommendOutcome.assessed_by`, по умолчанию пусто, поэтому старый сохранённый результат валидируется); нет строки, если ни одна возможность не участвовала и пользователь ничего не выключал. Категорийная возможность, включённая по умолчанию (used_market), называется, только когда о ней решили обучение или пользователь («рынок б/у — выключено: обучение»). `RecommendOutcome` несёт `hidden` и `assessed_by`.
 Модули: `services/recommend`, `capabilities/composition`, `capabilities/provenance`, `cli/report`, `jobs`, `gui/screens/report`
 
 ## Побочные потоки

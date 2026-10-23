@@ -12,6 +12,7 @@ from buysmarter.capabilities.exclude import Exclude
 from buysmarter.capabilities.fit import Fit
 from buysmarter.capabilities.original_only import OriginalOnly
 from buysmarter.capabilities.size import Size
+from buysmarter.capabilities.used_market import UsedMarket
 from buysmarter.capabilities.used_only import UsedOnly
 
 REGISTRY: dict[str, Capability] = {
@@ -24,6 +25,7 @@ REGISTRY: dict[str, Capability] = {
         Exclude(),
         OriginalOnly(),
         UsedOnly(),
+        UsedMarket(),
         Benchmark(),
         Composition(),
     )

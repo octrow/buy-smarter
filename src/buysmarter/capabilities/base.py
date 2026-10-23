@@ -74,6 +74,7 @@ class Capability:
     axis_weight: ClassVar[float] = 0.0
     weight_shifts: ClassVar[dict[str, float]] = {}
     drops_barred: ClassVar[bool] = False
+    default_on: ClassVar[bool] = False
 
     def label(self, params: dict[str, Any]) -> str:
         """The name shown to the user; a capability may add what its parameters say."""
@@ -148,6 +149,25 @@ class Capability:
     def clarify(self, ctx: CapabilityContext) -> Question | None:
         """A parameter the capability cannot judge without, asked before the search."""
         return None
+
+
+class DefaultOn(Capability):
+    """A category capability that works until something switches it off.
+
+    An absent profile entry means "on" (``set_by: fallback``, the rule): the used market and
+    the official stores ran for every category before they became switches. Learning or the
+    user turns them off; the user's choice outranks learning, as for every capability.
+    """
+
+    default_on: ClassVar[bool] = True
+
+    def setting(
+        self, profile: ResolvedProfile, constraints: QueryConstraints
+    ) -> CapabilitySetting | None:
+        stored = profile.capabilities.get(self.name)
+        if stored is None:
+            return CapabilitySetting(set_by="fallback")
+        return stored if stored.on else None
 
 
 def overrides(capability: Capability, hook: str) -> bool:

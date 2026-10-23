@@ -6,7 +6,7 @@ from buysmarter.capabilities.flow import activate
 from buysmarter.knowledge.profile import COMPOSITION, CapabilitySetting, ResolvedProfile
 from buysmarter.ranking.engine import rank
 from buysmarter.ranking.models import Candidate, QueryConstraints
-from tests.fakes import composition_profile
+from tests.fakes import composition_profile, judging
 
 _QUERY = QueryConstraints(search_phrase="крем с адапаленом", required_features=["0,1%"])
 
@@ -29,7 +29,7 @@ def test_jevs_composition_without_a_book_ranks_as_spec_driven() -> None:
 
     active = activate(REGISTRY, profile, _QUERY, query="", use_llm=False)
 
-    assert active.items == []
+    assert judging(active) == []
     assert active.rank_hooks().weights is None
     pool = [_cand("kl", "Клензит гель адапален")]
     assert active.flags(rank(pool, _QUERY, hooks=active.rank_hooks())) == {}
@@ -57,5 +57,5 @@ async def test_an_unchecked_ranked_candidate_raises_the_flag() -> None:
 def test_spec_driven_profile_activates_nothing() -> None:
     active = activate(REGISTRY, ResolvedProfile(slug="x"), _QUERY, query="", use_llm=False)
 
-    assert active.items == []
+    assert judging(active) == []
     assert active.searches() == []

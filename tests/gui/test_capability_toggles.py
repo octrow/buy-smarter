@@ -53,7 +53,10 @@ def _wait_for_note(qtbot, screen):
 def test_only_category_level_capabilities_are_listed_with_their_source(qtbot, runner, result):
     screen = _screen(qtbot, runner, _result(result))
 
-    assert set(screen.toggles.checkboxes) == {"benchmark", "composition"}
+    assert set(screen.toggles.checkboxes) == {"benchmark", "composition", "used_market"}
+    market = screen.toggles.checkboxes["used_market"]
+    assert market.text() == "Рынок б/у — включено правилом"
+    assert market.isChecked()
     box = screen.toggles.checkboxes["composition"]
     assert box.text() == "Состав — включено обучением"
     assert box.isChecked()
