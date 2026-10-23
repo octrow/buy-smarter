@@ -405,3 +405,24 @@ def test_nothing_new_and_nothing_on_olx_is_a_failed_search(monkeypatch) -> None:
 
     assert result.exit_code == 1
     assert "На OLX тоже ничего." in result.stdout
+
+
+def test_the_console_report_says_how_it_was_assessed(recommend_result) -> None:
+    from buysmarter.capabilities.provenance import CapabilityState
+
+    state = CapabilityState(
+        name="composition",
+        label="Состав",
+        level="category",
+        on=False,
+        active=False,
+        auto=True,
+        set_by="learned",
+        user=False,
+    )
+    result = recommend_result.model_copy(update={"capabilities": [state]})
+
+    with main.console.capture() as capture:
+        main._render(result, 3)
+
+    assert "Как оценивали: состав — выключено вами." in capture.get()

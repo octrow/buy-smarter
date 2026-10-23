@@ -411,3 +411,23 @@ def test_unchecked_composition_is_noted_with_how_many_candidates() -> None:
 
 def test_checked_composition_has_no_unchecked_note() -> None:
     assert "Состав не проверен" not in render_markdown(_result(), top=8)
+
+
+def test_the_report_says_how_it_was_assessed_only_when_something_was_active() -> None:
+    from buysmarter.capabilities.provenance import CapabilityState
+
+    state = CapabilityState(
+        name="composition",
+        label="Состав",
+        level="category",
+        on=True,
+        active=True,
+        auto=True,
+        set_by="learned",
+    )
+    plain = _result()
+
+    with_state = plain.model_copy(update={"capabilities": [state]})
+
+    assert "_Как оценивали: состав — обучение._" in render_markdown(with_state, top=2)
+    assert "Как оценивали" not in render_markdown(plain, top=2)

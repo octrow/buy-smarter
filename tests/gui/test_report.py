@@ -202,3 +202,21 @@ def test_unchecked_composition_is_listed_under_could_not_verify(qtbot, result):
     text = _texts(_shown(qtbot, result))
     assert "Не удалось проверить" in text
     assert f"Состав не проверен у {total} из {total} — вещество не подтверждено" in text
+
+
+def test_the_report_says_how_it_was_assessed(qtbot, result):
+    from buysmarter.capabilities.provenance import CapabilityState
+
+    state = CapabilityState(
+        name="benchmark",
+        label="Бенчмарк Kimovil",
+        level="category",
+        on=True,
+        active=True,
+        auto=True,
+        set_by="jev",
+    )
+
+    screen = _shown(qtbot, result.model_copy(update={"capabilities": [state]}))
+
+    assert "Как оценивали: бенчмарк Kimovil — Jev." in _texts(screen)

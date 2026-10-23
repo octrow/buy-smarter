@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter.cli.report import (
+    assessed_note,
     budget_text,
     format_rejected_reasons,
     ingredients_unchecked_note,
@@ -304,6 +305,8 @@ class ReportScreen(QScrollArea):
         heading.addWidget(_label(constraints, role="muted"))
         for note in request_notes(result):
             heading.addWidget(_label(note, state="warning"))
+        if assessed := assessed_note(result):
+            heading.addWidget(_label(assessed, role="muted"))
         layout.addLayout(heading)
         if result.knowledge_missing:
             layout.addWidget(self._knowledge_banner(result))

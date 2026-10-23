@@ -20,6 +20,7 @@ from buysmarter.cli.clarify import ask as ask_clarification
 from buysmarter.cli.report import (
     DEFAULT_TOP,
     ROLE_LABELS,
+    assessed_note,
     budget_text,
     format_rejected_reasons,
     no_new_pick_text,
@@ -256,7 +257,12 @@ def _render(result: RecommendResult, top: int) -> None:
     if result.restricted_note:
         console.print(f"[bold yellow]⚠ {escape(result.restricted_note)}[/bold yellow]")
     _render_constraints(result.constraints, result.city_defaulted)
-    notes = (*request_notes(result), skipped_llm_note(result), unavailable_sources_note(result))
+    notes = (
+        *request_notes(result),
+        assessed_note(result),
+        skipped_llm_note(result),
+        unavailable_sources_note(result),
+    )
     for note in notes:
         if note:
             console.print(f"[yellow]{escape(note)}[/yellow]")

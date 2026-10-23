@@ -92,3 +92,29 @@ def toggle_text(state: CapabilityState) -> str:
         how = f"{'включено' if state.on else 'выключено'} {_SET_BY_IN_FULL[state.set_by]}"
     no_data = state.on and not state.active
     return f"{state.label} — {how}{_NO_DATA if no_data else ''}"
+
+
+ASSESSED_PREFIX = "Как оценивали: "
+
+
+def _source_short(state: CapabilityState) -> str:
+    """Who decided, short: the user, the learning, Jev, a rule, or the request itself."""
+    if state.user is not None:
+        return _BY_USER_ON if state.user else _BY_USER_OFF
+    if state.set_by == "fallback" and state.level == "request":
+        return _REQUEST_SOURCE
+    return _SET_BY_SHORT[state.set_by] if state.set_by else ""
+
+
+def assessed_entries(states: list[CapabilityState]) -> list[str]:
+    """ "состав — обучение" for each capability that took part or that the user switched off."""
+    return [
+        f"{state.label[:1].lower()}{state.label[1:]} — {_source_short(state)}"
+        for state in states
+        if state.active or state.user is False
+    ]
+
+
+def assessed_line(entries: list[str]) -> str | None:
+    """The "Как оценивали: …" line every render shows, or ``None`` when nothing took part."""
+    return f"{ASSESSED_PREFIX}{'; '.join(entries)}." if entries else None

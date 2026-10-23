@@ -17,6 +17,7 @@ from typing import Any, cast
 from pydantic import BaseModel, Field, model_validator
 from redis.asyncio import Redis
 
+from buysmarter.capabilities.provenance import assessed_entries
 from buysmarter.config import get_settings
 from buysmarter.ranking.models import ScoredCandidate
 from buysmarter.services.collect import ALL_SOURCES
@@ -165,6 +166,12 @@ class RecommendOutcome(BaseModel):
         "``used_listings`` then holds the OLX ads within the budget",
     )
 
+    assessed_by: list[str] = Field(
+        default_factory=list,
+        description="How the run assessed: each active capability and who decided "
+        '("состав — обучение"); empty when none took part',
+    )
+
     @classmethod
     def from_result(cls, result: RecommendResult, report_markdown: str) -> "RecommendOutcome":
         rec = result.recommendation
@@ -178,6 +185,7 @@ class RecommendOutcome(BaseModel):
             assumed=result.assumed,
             restricted_note=result.restricted_note,
             budget_note=result.constraints.budget_note,
+            assessed_by=assessed_entries(result.capabilities),
         )
 
 

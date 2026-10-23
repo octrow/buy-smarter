@@ -144,3 +144,28 @@ def test_still_three_terminal_statuses() -> None:
 def test_clarify_round_is_bounded() -> None:
     with pytest.raises(ValidationError):
         RecommendRequest(query="подарок", clarify_round=3)
+
+
+def test_the_outcome_lists_how_the_run_assessed(recommend_result) -> None:
+    from buysmarter.capabilities.provenance import CapabilityState
+
+    state = CapabilityState(
+        name="composition",
+        label="Состав",
+        level="category",
+        on=True,
+        active=True,
+        auto=True,
+        set_by="learned",
+    )
+    result = recommend_result.model_copy(update={"capabilities": [state]})
+
+    outcome = RecommendOutcome.from_result(result, "# report")
+
+    assert outcome.assessed_by == ["состав — обучение"]
+
+
+def test_an_old_stored_outcome_without_the_assessment_still_validates() -> None:
+    outcome = RecommendOutcome.model_validate({"report_markdown": "# old", "city_defaulted": True})
+
+    assert outcome.assessed_by == []

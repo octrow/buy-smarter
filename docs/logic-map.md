@@ -365,7 +365,7 @@ Module: `services/matching`, `llm/canonicalize`
 
 `RecommendResult`: the ranking, the constraints used, used listings, and flags the UI shows as warnings:
 `restricted_note` (first line of the report), `assumed` (the option searched on the last clarification round), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `ingredients_unchecked` (set by the composition capability's report section: a ranked candidate whose composition was not checked, "Состав не проверен у N из M — вещество не подтверждено").
-Every surface renders the same result.
+Every surface renders the same result. `capabilities` (each registry capability: switch, active, who set it) gives the line "Как оценивали: состав — обучение; бенчмарк Kimovil — Jev." (sources: обучение, Jev, правило, запрос, включено/выключено вами), built once in `capabilities/provenance` and shown by the markdown and console reports, the GUI and the API (`RecommendOutcome.assessed_by`, empty by default so an old stored result still validates); no active capability, no line.
 Module: `services/recommend`, `capabilities/composition`, `capabilities/provenance`, `cli/report`
 
 ## Side flows

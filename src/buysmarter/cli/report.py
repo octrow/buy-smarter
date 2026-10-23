@@ -13,6 +13,7 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
+from buysmarter.capabilities.provenance import assessed_entries, assessed_line
 from buysmarter.i18n import (
     BEST_ROLE,
     ROLE_LABELS,
@@ -102,6 +103,11 @@ def unavailable_sources_note(result: RecommendResult) -> str | None:
     return f"Пропущено ({names}): нет браузера. Что установить, подскажет `buysmarter doctor`."
 
 
+def assessed_note(result: RecommendResult) -> str | None:
+    """ "Как оценивали: состав — обучение." for every render, or None when nothing took part."""
+    return assessed_line(assessed_entries(result.capabilities))
+
+
 USED_CONDITION_NOTE = "Вы искали б/у — смотрите раздел «Б/у на OLX»."
 
 
@@ -143,6 +149,7 @@ def _constraints_md(result: RecommendResult) -> list[str]:
         lines.append(f"- **Без брендов:** {', '.join(c.excluded_brands)}")
     notes = (
         *request_notes(result),
+        assessed_note(result),
         skipped_llm_note(result),
         unavailable_sources_note(result),
         ingredients_unchecked_note(result),
