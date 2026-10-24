@@ -8,6 +8,7 @@ import pytest
 from market_sources.base import RawProduct
 from typer.testing import CliRunner
 
+from buysmarter.cli import console as terminal
 from buysmarter.cli import main
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.services.matching import UsedListing
@@ -24,7 +25,7 @@ def test_review_summary_panel_rendered() -> None:
         verdict_line="Хороший выбор за свои деньги",
     )
     with main.console.capture() as capture:
-        main._render_review_summary(summary)
+        terminal._render_review_summary(summary)
     out = capture.get()
 
     assert "Отзывы кратко" in out
@@ -36,7 +37,7 @@ def test_review_summary_panel_rendered() -> None:
 
 def test_review_summary_panel_skipped_when_none() -> None:
     with main.console.capture() as capture:
-        main._render_review_summary(None)
+        terminal._render_review_summary(None)
     assert capture.get() == ""
 
 
@@ -106,7 +107,7 @@ async def test_restricted_goods_are_searched_with_a_warning_first(
     assert result.restricted_note
     assert result.recommendation.best is not None
     with main.console.capture() as capture:
-        main._render(result, top=3)
+        terminal.render(result, top=3)
     first_line = capture.get().strip().splitlines()[0]
     assert first_line.startswith("⚠ Табак")
 
@@ -194,7 +195,7 @@ def _stub_recommend_pipeline(monkeypatch, result) -> None:
         return result
 
     monkeypatch.setattr(main, "recommend_pipeline", _fake_pipeline)
-    monkeypatch.setattr(main, "_render", lambda *a, **kw: None)
+    monkeypatch.setattr(main, "render", lambda *a, **kw: None)
     # The Typer callback wires up real logging on every invocation; keep these
     # unit tests from touching the real log file.
     monkeypatch.setattr(main, "setup_logging", lambda *a, **kw: None)
@@ -272,7 +273,7 @@ def test_render_top_marks_barred_candidate_with_warning() -> None:
     mimic = _scored_candidate("2", mimic_brand="JBL")
 
     with main.console.capture() as capture:
-        main._render_top([clean, mimic], top=8)
+        terminal._render_top([clean, mimic], top=8)
     out = capture.get()
 
     assert "⚠ Product 2" in out
@@ -286,7 +287,7 @@ def test_render_used_shows_dash_for_standalone_saving() -> None:
     listing = UsedListing(title="Waterpik WP-660 б/у", price=18000, standalone=True)
 
     with main.console.capture() as capture:
-        main._render_used([listing], [])
+        terminal.render_used([listing], [])
     out = capture.get()
 
     assert "—" in out
@@ -299,7 +300,7 @@ def test_render_best_marks_barred_fallback_candidate() -> None:
     mimic_best = _scored_candidate("1", mimic_brand="JBL")
 
     with main.console.capture() as capture:
-        main._render_best(mimic_best)
+        terminal._render_best(mimic_best)
     out = capture.get()
 
     assert "⚠ Product 1" in out
@@ -310,7 +311,7 @@ def test_render_best_no_marker_for_clean_candidate() -> None:
     clean_best = _scored_candidate("1")
 
     with main.console.capture() as capture:
-        main._render_best(clean_best)
+        terminal._render_best(clean_best)
     out = capture.get()
 
     assert "⚠" not in out
@@ -327,7 +328,7 @@ def test_render_top_survives_markup_like_title() -> None:
         candidate=cand, total_score=50.0, confidence=0.5, axes=[], pros=[], cons=[]
     )
     with main.console.capture() as capture:
-        main._render_top([scored], 5)
+        terminal._render_top([scored], 5)
     assert "[IPX7]" in capture.get()
 
 
@@ -344,7 +345,7 @@ def test_render_best_survives_markup_like_text() -> None:
         cons=["bad [/w]"],
     )
     with main.console.capture() as capture:
-        main._render_best(scored)
+        terminal._render_best(scored)
     assert "[/x]" in capture.get()
 
 
@@ -436,6 +437,6 @@ def test_the_console_report_says_how_it_was_assessed(recommend_result) -> None:
     result = recommend_result.model_copy(update={"capabilities": [state]})
 
     with main.console.capture() as capture:
-        main._render(result, 3)
+        terminal.render(result, 3)
 
     assert "Как оценивали: состав — выключено вами." in capture.get()

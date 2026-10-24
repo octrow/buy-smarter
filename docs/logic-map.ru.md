@@ -93,7 +93,7 @@ Composition даёт ровно прежнюю таблицу (ингредие�
 
 Другие инструменты MCP (`search_products`, `compare`, `get_preferences`, `set_preference`) `recommend()` не вызывают.
 
-Модули: `cli/main`, `cli/clarify`, `cli/learning`, `cli/report`, `gui/screens/search`, `gui/screens/clarify`, `gui/screens/report`, `gui/learning`, `gui/capability_toggles`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`, `services/auto_learn`
+Модули: `cli/main`, `cli/console`, `cli/clarify`, `cli/learning`, `cli/report`, `gui/screens/search`, `gui/screens/clarify`, `gui/screens/report`, `gui/learning`, `gui/capability_toggles`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`, `services/auto_learn`
 
 ## Шаги
 
@@ -380,7 +380,7 @@ Composition: обязательные вещества берутся из по�
 `RecommendResult`: рейтинг, итоговые ограничения, объявления б/у и флаги-предупреждения:
 `restricted_note` (первая строка отчёта), `assumed` (вариант, найденный на последнем раунде уточнения), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `hidden` (подозрительные предложения, скрытые «только оригинал»: «Скрыто подозрительных предложений: N» и их названия в markdown- и консольном отчёте, группа в GUI, `RecommendOutcome.hidden` в API, по умолчанию пусто), `profile_found` (похожий профиль, найденный при поиске), `capabilities` (ниже), `ingredients_unchecked` (ставит раздел отчёта возможности composition: в рейтинге есть кандидат с непроверенным составом, «Состав не проверен у N из M — вещество не подтверждено»).
 Все интерфейсы показывают один и тот же результат. `capabilities` (каждая возможность реестра: переключатель, активна ли, кто задал) даёт строку «Как оценивали: состав — обучение; бенчмарк Kimovil — Jev.» (источники: обучение, Jev, правило, запрос, включено/выключено вами); строится один раз в `capabilities/provenance` и показывается в markdown- и консольном отчёте, GUI и API (`RecommendOutcome.assessed_by`, по умолчанию пусто, поэтому старый сохранённый результат валидируется); нет строки, если ни одна возможность не участвовала и пользователь ничего не выключал. Категорийная возможность, включённая по умолчанию (used_market), называется, только когда о ней решили обучение или пользователь («рынок б/у — выключено: обучение»). `RecommendOutcome` несёт `hidden` и `assessed_by`.
-Модули: `services/recommend`, `capabilities/composition`, `capabilities/provenance`, `cli/report`, `jobs`, `gui/screens/report`
+Модули: `services/recommend`, `capabilities/composition`, `capabilities/provenance`, `cli/report`, `cli/console`, `jobs`, `gui/screens/report`
 
 ## Побочные потоки
 

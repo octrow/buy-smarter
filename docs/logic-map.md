@@ -95,7 +95,7 @@ They differ in defaults.
 
 Other MCP tools (`search_products`, `compare`, `get_preferences`, `set_preference`) do not call `recommend()`.
 
-Module: `cli/main`, `cli/clarify`, `cli/learning`, `cli/report`, `gui/screens/search`, `gui/screens/clarify`, `gui/screens/report`, `gui/learning`, `gui/capability_toggles`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`, `services/auto_learn`
+Module: `cli/main`, `cli/console`, `cli/clarify`, `cli/learning`, `cli/report`, `gui/screens/search`, `gui/screens/clarify`, `gui/screens/report`, `gui/learning`, `gui/capability_toggles`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`, `services/auto_learn`
 
 ## Steps
 
@@ -382,7 +382,7 @@ Module: `services/matching`, `llm/canonicalize`, `knowledge/store`
 `RecommendResult`: the ranking, the constraints used, used listings, and flags the UI shows as warnings:
 `restricted_note` (first line of the report), `assumed` (the option searched on the last clarification round), `city_defaulted`, `knowledge_missing`, `skipped_llm_steps`, `unavailable_sources`, `review_summary_note`, `hidden` (the suspected fakes "только оригинал" hid: "Скрыто подозрительных предложений: N" and their titles in the markdown and console reports, a group in the GUI, `RecommendOutcome.hidden` in the API, empty by default), `profile_found` (the related profile the lookup found), `capabilities` (below), `ingredients_unchecked` (set by the composition capability's report section: a ranked candidate whose composition was not checked, "Состав не проверен у N из M — вещество не подтверждено").
 Every surface renders the same result. `capabilities` (each registry capability: switch, active, who set it) gives the line "Как оценивали: состав — обучение; бенчмарк Kimovil — Jev." (sources: обучение, Jev, правило, запрос, включено/выключено вами), built once in `capabilities/provenance` and shown by the markdown and console reports, the GUI and the API (`RecommendOutcome.assessed_by`, empty by default so an old stored result still validates); no line when no capability took part and none was switched off by the user. A category capability that is on by default (used_market) is named only once learning or the user decided about it ("рынок б/у — выключено: обучение"). `RecommendOutcome` carries `hidden` and `assessed_by`.
-Module: `services/recommend`, `capabilities/composition`, `capabilities/provenance`, `cli/report`, `jobs`, `gui/screens/report`
+Module: `services/recommend`, `capabilities/composition`, `capabilities/provenance`, `cli/report`, `cli/console`, `jobs`, `gui/screens/report`
 
 ## Side flows
 

@@ -450,10 +450,10 @@ def test_no_hidden_line_without_hidden_ones() -> None:
 
 
 def test_hidden_suspected_fakes_are_listed_in_the_console() -> None:
-    from buysmarter.cli import main
+    from buysmarter.cli import console as terminal
 
-    with main.console.capture() as capture:
-        main._render(_with_hidden(_result(n_ranked=2)), top=3)
+    with terminal.console.capture() as capture:
+        terminal.render(_with_hidden(_result(n_ranked=2)), top=3)
 
     out = capture.get()
     assert "Скрыто подозрительных предложений (только оригинал): 1" in out
@@ -480,10 +480,10 @@ def test_a_new_query_keeps_the_used_section_last() -> None:
 
 
 def test_a_used_query_shows_the_used_table_first_in_the_console() -> None:
-    from buysmarter.cli import main
+    from buysmarter.cli import console as terminal
 
-    with main.console.capture() as capture:
-        main._render(_used_query(_result()), top=2)
+    with terminal.console.capture() as capture:
+        terminal.render(_used_query(_result()), top=2)
 
     out = capture.get()
     assert out.index("На OLX (частники)") < out.index("Best pick")
