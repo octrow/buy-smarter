@@ -36,6 +36,7 @@ def cli(monkeypatch, recommend_result: RecommendResult) -> dict[str, Any]:
     }
 
     async def parse(query: str, use_llm: bool) -> QueryConstraints:
+        seen["parsed"] = seen.get("parsed", 0) + 1
         return QueryConstraints(search_phrase=query, budget_max=40000)  # no budget question
 
     async def recommend(query: str, **kwargs: Any) -> RecommendResult:
@@ -61,6 +62,7 @@ def cli(monkeypatch, recommend_result: RecommendResult) -> dict[str, Any]:
 
     monkeypatch.setattr(main, "run_parse_request", parse)
     monkeypatch.setattr(main, "run_recommend", recommend)
+    monkeypatch.setattr(learning, "run_recommend", recommend)
     monkeypatch.setattr(learning, "auto_learn", learn)
     monkeypatch.setattr(learning, "learn_category", learn_by_hand)
     monkeypatch.setattr(main.typer, "confirm", confirm)
@@ -104,7 +106,7 @@ def test_no_searches_now_learns_in_the_background_and_offers_the_rerun(cli) -> N
     assert result.exit_code == 0
     assert cli["asked"] == [_first(), _RERUN]
     assert cli["learned"] == [CATEGORY]
-    assert cli["learn_first"] == [True, False, True]  # the rerun: books now, nothing to learn
+    assert cli["learn_first"] == [True, False, False]  # the rerun: the settled search
     out = result.stdout
     assert out.index("Waterpik") < out.index("изучена") < out.rindex("Waterpik")
 
@@ -175,7 +177,7 @@ def test_a_report_without_books_offers_to_learn_by_hand_then_the_rerun(cli) -> N
 
     assert cli["asked"] == [_by_hand(), _RERUN]
     assert cli["learned"] == [CATEGORY]
-    assert cli["learn_first"] == [True, True]
+    assert cli["learn_first"] == [True, False]
     assert result.stdout.count("Best pick") == 2
 
 
@@ -215,3 +217,13 @@ def test_a_zero_hourly_limit_says_learning_is_off(cli, monkeypatch) -> None:
     result = _recommend()
 
     assert "выключено" in result.stdout
+
+
+def test_the_rerun_repeats_the_settled_search_without_asking_again(cli) -> None:
+    # as the app's «Повторить поиск»: the same answer, round and budget, no new parse
+    cli["replies"] = [False, True]
+
+    _recommend()
+
+    assert cli["parsed"] == 1
+    assert cli["asked"] == [_first(), _RERUN]

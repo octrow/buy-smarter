@@ -5,6 +5,7 @@ import functools
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 import httpx
 import typer
@@ -458,6 +459,7 @@ async def recommend_pipeline(
     no_clarify: bool = False,
     learn: bool = False,
     background: dict[str, asyncio.Task[bool]] | None = None,
+    settled: dict[str, Any] | None = None,
 ) -> RecommendResult:
     """Parse once, settle any question, prompt for a missing budget, then recommend.
 
@@ -465,7 +467,8 @@ async def recommend_pipeline(
     user's own text joins the query, which is parsed again) and the next round runs; the
     budget typed once holds for every round. Off a terminal ``NeedsClarification`` leaves.
     A new category is learned before the search with ``learn``, or asked about on a terminal;
-    a "no" learns it in ``background`` while the search runs.
+    a "no" learns it in ``background`` while the search runs. ``settled`` gets the arguments of
+    the search that ran, so a repeat asks nothing again.
     """
     parsed = await run_parse_request(query, use_llm)
     answer, clarify_round, budget_asked = None, 0, False
@@ -476,20 +479,24 @@ async def recommend_pipeline(
             if not budget_asked:
                 _, understood, _ = await understand_request(query, parsed, use_llm, ask)
                 budget, budget_asked = _resolve_budget(budget, understood.budget_max), True
-            return await run_recommend(
-                query,
-                city=city,
-                budget=budget,
-                use_llm=use_llm,
-                trusted_only=trusted_only,
-                sources=sources,
-                parsed=parsed,
-                with_review_summary=with_review_summary,
-                answer=answer,
-                clarify_round=clarify_round,
-                no_clarify=no_clarify,
-                learn_first=learn_first,
-            )
+            call: dict[str, Any] = {
+                "query": query,
+                "city": city,
+                "budget": budget,
+                "use_llm": use_llm,
+                "trusted_only": trusted_only,
+                "sources": sources,
+                "parsed": parsed,
+                "with_review_summary": with_review_summary,
+                "answer": answer,
+                "clarify_round": clarify_round,
+                "no_clarify": no_clarify,
+                "learn_first": learn_first,
+            }
+            if settled is not None:  # for «Повторить поиск»: the same answer, round and budget
+                settled.clear()
+                settled.update(call)
+            return await run_recommend(**call)
         except NeedsLearning as exc:
             learn_first = False
             await learn_before_search(exc.category, force=learn, background=background)

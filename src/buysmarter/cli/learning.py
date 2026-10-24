@@ -8,6 +8,7 @@ Before the search: learn first, or search now while the category learns in the b
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -16,6 +17,7 @@ from rich.markup import escape
 from buysmarter.knowledge.generate import learn_category
 from buysmarter.services.auto_learn import auto_learn, count_start
 from buysmarter.services.recommend import RecommendResult
+from buysmarter.services.recommend import recommend as run_recommend
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -69,10 +71,12 @@ async def search_and_follow_up(
     One event loop for all of it: a learn started in the background lives on this loop.
     """
     background: dict[str, asyncio.Task[bool]] = {}
-    result = await search(learn=learn, background=background)
+    settled: dict[str, Any] = {}
+    result = await search(learn=learn, background=background, settled=settled)
     show(result)
     if await _learned_after_report(result, background, use_llm=use_llm, tty=tty):
-        show(await search())
+        # the settled search again, as the app's «Повторить поиск»: nothing is asked twice
+        show(await run_recommend(**{**settled, "learn_first": False}))
 
 
 async def _learned_after_report(
