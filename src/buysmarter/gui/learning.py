@@ -1,8 +1,8 @@
 """Category learning, kept per category so a new report never cancels or breaks another's.
 
-One ``CategoryLearning`` lives in the main window and is shared with the report screen. A learn
-is either automatic (decision 11: the condition of ``should_auto_learn`` holds, the search never
-waits) or started by the "Изучить категорию" button.
+One ``CategoryLearning`` lives in the main window and is shared with the search and report
+screens. A learn is either automatic (``learn_now``: the search stopped with ``NeedsLearning``
+to learn a new category first, #26) or started by the "Изучить категорию" button.
 """
 
 import time
@@ -16,6 +16,7 @@ from buysmarter.knowledge.generate import learn_category
 from buysmarter.services.auto_learn import auto_learn, count_start, should_auto_learn
 
 LEARN_FAILED = "Не удалось изучить категорию. Подробности — в лог-файле."
+LEARN_CANCELLED = "Изучение категории отменено."
 
 type Learn = Callable[[str], Coroutine[Any, Any, Any]]
 
@@ -76,9 +77,20 @@ class CategoryLearning(QObject):
 
     def _decided(self, category: str, allowed: bool) -> None:
         self._checking.discard(category)
-        if allowed and category not in self._jobs:
-            count_start()  # here, where it is decided: the runner does not count
-            self._begin(category, auto_learn(category))
+        if allowed:
+            self.learn_now(category)
+
+    def learn_now(self, category: str) -> None:
+        """Learn the category with ``auto_learn``: its condition already held."""
+        if self._runner is None or category in self._jobs:
+            return
+        count_start()  # here, where it is decided: the runner does not count
+        self._begin(category, auto_learn(category))
+
+    def cancel(self, category: str) -> None:
+        """Stop the category's learn; ``settled`` fires with ``LEARN_CANCELLED``."""
+        if (job := self._jobs.get(category)) is not None:
+            job.cancel()
 
     def _begin(self, category: str, work: Coroutine[Any, Any, Any]) -> None:
         if self._runner is None or category in self._jobs:
@@ -93,7 +105,7 @@ class CategoryLearning(QObject):
             lambda ok: self._settle(category, "" if ok is not False else LEARN_FAILED)
         )
         job.failed.connect(lambda _msg: self._settle(category, USER_ERROR))
-        job.cancelled.connect(lambda: self._settle(category, LEARN_FAILED))
+        job.cancelled.connect(lambda: self._settle(category, LEARN_CANCELLED))
         self.started.emit(category)
 
     def _settle(self, category: str, outcome: str) -> None:

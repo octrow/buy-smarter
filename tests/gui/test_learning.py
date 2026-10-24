@@ -196,3 +196,30 @@ def test_the_default_guard_keeps_real_learning_out(qtbot, runner, result):
     screen.show_result(_missing(result, "ирригатор"), _RUN)  # claude_available is False in tests
     qtbot.wait(150)
     assert not screen.learning.any_running()
+
+
+def test_learn_now_counts_one_start_and_learns(qtbot, runner, fakes, counted):
+    learning = CategoryLearning(runner)
+    learning.learn_now("кофемолка")
+    learning.learn_now("кофемолка")  # already running: neither a second learn nor a count
+    qtbot.waitUntil(lambda: fakes.learned == ["кофемолка"], timeout=_WAIT_MS)
+    assert counted == [1] and fakes.decided == []
+    with qtbot.waitSignal(learning.settled, timeout=_WAIT_MS):
+        fakes.release("кофемолка")
+    assert learning.outcome("кофемолка") == ""
+
+
+def test_cancel_stops_the_learn_and_says_so(qtbot, runner, fakes, counted):
+    learning = CategoryLearning(runner)
+    learning.learn_now("кофемолка")
+    qtbot.waitUntil(lambda: fakes.learned == ["кофемолка"], timeout=_WAIT_MS)
+    with qtbot.waitSignal(learning.settled, timeout=_WAIT_MS):
+        learning.cancel("кофемолка")
+    assert not learning.running("кофемолка")
+    assert learning.outcome("кофемолка") == gui_learning.LEARN_CANCELLED
+
+
+def test_cancel_of_a_category_not_learning_does_nothing(runner):
+    learning = CategoryLearning(runner)
+    learning.cancel("кофемолка")
+    assert learning.outcome("кофемолка") is None
