@@ -50,8 +50,12 @@ class CategoryLearning(QObject):
         return self._outcome.get(category)
 
     def forget(self, category: str) -> None:
-        """A fresh report of the category: its last outcome is stale (a running learn stays)."""
-        if category not in self._jobs:
+        """A fresh report of the category: a failure is stale (a running learn stays).
+
+        A finished learn stays: a report still missing the books was searched before it ended
+        («Искать без изучения»), so the rerun offer is right.
+        """
+        if category not in self._jobs and self._outcome.get(category) != "":
             self._outcome.pop(category, None)
 
     def start(self, category: str) -> None:

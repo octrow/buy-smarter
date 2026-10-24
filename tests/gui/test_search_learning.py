@@ -4,7 +4,7 @@ import pytest
 
 from buysmarter.gui import app as gui_app
 from buysmarter.gui.learning import CategoryLearning
-from buysmarter.gui.screens.search import SearchScreen
+from buysmarter.gui.screens.search import STATE_LABELS, SearchScreen
 from buysmarter.services.auto_learn import NeedsLearning
 from tests.gui.conftest import WAIT_MS
 from tests.gui.test_app import _no_prefs
@@ -47,6 +47,7 @@ def test_the_search_waits_for_the_learning_then_runs_with_it(qtbot, waiting, fak
     screen = waiting
 
     assert "Изучаю категорию «кофемолка» с AI (1–3 мин, платно)" in screen.stage.text()
+    assert screen.status["kaspi"].text() == STATE_LABELS["waiting"]  # not «пропущен»
     assert not screen.skip_learning_button.isHidden()
     assert screen.cancel_button.isEnabled() and not screen.start_button.isEnabled()
     assert screen.is_running()

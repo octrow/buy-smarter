@@ -556,10 +556,11 @@ class SearchScreen(QWidget):
     def _on_finished(
         self, result: RecommendResult | NoRecommendation | AskUser | LearnFirst
     ) -> None:
-        self._settle()
         if isinstance(result, LearnFirst):
+            self._job = None  # no marketplace ran yet: they keep waiting, not «пропущен»
             self._wait_for_learning(result.category)
             return
+        self._settle()
         if isinstance(result, AskUser):
             self._asked = result.clarification
             self.recent_box.hide()  # the question takes its place: the screen does not scroll

@@ -191,3 +191,19 @@ def test_a_zero_hourly_limit_says_auto_learning_is_off(qtbot, runner, result, mo
     screen = _screen(qtbot, runner)
     screen.show_result(_missing(result, "ирригатор"), _RUN)
     assert "выключено" in _status(screen)
+
+
+def test_a_learning_that_ended_before_its_report_still_offers_the_rerun(
+    qtbot, runner, result, fakes, counted
+):
+    # «Искать без изучения»: the learning may end while the search still runs (#26 live run)
+    screen = _screen(qtbot, runner)
+    screen.learning.learn_now("ирригатор")
+    qtbot.waitUntil(lambda: fakes.learned == ["ирригатор"], timeout=_WAIT_MS)
+    fakes.release("ирригатор")
+    qtbot.waitUntil(lambda: not screen.learning.running("ирригатор"), timeout=_WAIT_MS)
+
+    screen.show_result(_missing(result, "ирригатор"), _RUN)
+
+    assert screen.learn_button.text() == _RERUN
+    assert "Готово" in _status(screen)
