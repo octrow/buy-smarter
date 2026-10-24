@@ -1,9 +1,11 @@
 """When a request may start learning its category on its own (phase 3, decision 8).
 
 Only the condition and the marks live here; the entry points (GUI, MCP, worker, CLI) decide
-where to run it and start the learning. The search never waits for the result.
+where to run it and start the learning. The GUI and the CLI learn a new category before its
+first search (``NeedsLearning``, finding #26); MCP and the worker learn after the report.
 """
 
+import asyncio
 import logging
 import re
 import time
@@ -40,7 +42,16 @@ def reset_limit() -> None:
     _starts.clear()
 
 
-def _over_limit() -> bool:
+class NeedsLearning(Exception):  # noqa: N818 - an outcome, not an error
+    """The search stopped before any marketplace: learn ``category`` first, then search again."""
+
+    def __init__(self, category: str) -> None:
+        super().__init__(category)
+        self.category = category
+
+
+def over_limit() -> bool:
+    """The hourly limit of learning starts is used up (``0`` per hour: always)."""
     now = time.monotonic()
     while _starts and now - _starts[0] >= _WINDOW_S:
         _starts.popleft()
@@ -76,7 +87,7 @@ async def should_auto_learn(
         return False
     if not _valid_name(product_type):
         return False
-    if not claude_available() or _over_limit():
+    if not claude_available() or over_limit():
         return False
     raw = await load_knowledge(product_type) or {}
     if has_books(raw):
@@ -85,6 +96,16 @@ async def should_auto_learn(
         _younger_than(raw, LEARNING_STARTED_KEY, _LEARNING_TTL)
         or _younger_than(raw, LEARN_FAILED_KEY, _FAILED_TTL)
     )
+
+
+async def check_learn_first(
+    product_type: str, *, intent: str, use_llm: bool, knowledge_missing: bool
+) -> None:
+    """Raise ``NeedsLearning`` when the category may learn now (``should_auto_learn``)."""
+    if await should_auto_learn(
+        product_type, intent=intent, use_llm=use_llm, knowledge_missing=knowledge_missing
+    ):
+        raise NeedsLearning(product_type)
 
 
 def _now() -> str:
@@ -121,12 +142,16 @@ async def auto_learn(product_type: str) -> bool:
     """Learn the category in full: mark started, learn, mark done (the runner of every entry point).
 
     A failure is marked (no retry for 24 hours), logged with the category, and returned as
-    ``False``; it does not propagate, so a background task never dies unseen.
+    ``False``; it does not propagate, so a background task never dies unseen. A cancel is not a
+    failure: the in-progress mark is dropped, so the next search may learn at once.
     """
     try:
         await mark_learning_started(product_type)
         await learn_category(product_type)
         await mark_learning_done(product_type)
+    except asyncio.CancelledError:
+        await asyncio.shield(mark_learning_done(product_type))
+        raise
     except Exception:
         logger.exception("auto-learning of category %r failed", product_type)
         await mark_learn_failed(product_type)

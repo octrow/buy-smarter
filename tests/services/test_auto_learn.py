@@ -1,5 +1,6 @@
 """The auto-learning condition (phase 3, decision 8): each clause on its own."""
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -10,9 +11,12 @@ from buysmarter.services import auto_learn
 from buysmarter.services.auto_learn import (
     LEARN_FAILED_KEY,
     LEARNING_STARTED_KEY,
+    NeedsLearning,
+    check_learn_first,
     count_start,
     mark_learn_failed,
     mark_learning_started,
+    over_limit,
     should_auto_learn,
 )
 from buysmarter.services.auto_learn import (
@@ -189,3 +193,43 @@ async def test_a_zero_hourly_limit_turns_auto_learning_off(monkeypatch) -> None:
     monkeypatch.setenv("BUYSMARTER_AUTO_LEARN_PER_HOUR", "0")
 
     assert not await _ok()
+
+
+async def test_a_new_category_stops_the_search_to_learn_first() -> None:
+    with pytest.raises(NeedsLearning) as caught:
+        await check_learn_first(CATEGORY, intent="product", use_llm=True, knowledge_missing=True)
+
+    assert caught.value.category == CATEGORY
+
+
+async def test_a_category_that_may_not_learn_lets_the_search_go() -> None:
+    await check_learn_first(CATEGORY, intent="product", use_llm=True, knowledge_missing=False)
+
+
+async def test_the_limit_is_readable_by_the_entry_points(monkeypatch) -> None:
+    monkeypatch.setenv("BUYSMARTER_AUTO_LEARN_PER_HOUR", "1")
+    assert not over_limit()
+
+    count_start()
+
+    assert over_limit()
+
+
+async def test_a_cancelled_learn_leaves_no_mark(monkeypatch) -> None:
+    started = asyncio.Event()
+
+    async def endless(category: str):
+        started.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(auto_learn, "learn_category", endless)
+    task = asyncio.create_task(run_auto_learn(CATEGORY))
+    await started.wait()
+
+    task.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    stored = await load_knowledge(CATEGORY) or {}
+    assert LEARNING_STARTED_KEY not in stored and LEARN_FAILED_KEY not in stored
+    assert await _ok()  # the next search may learn it at once
