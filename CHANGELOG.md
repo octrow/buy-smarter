@@ -15,6 +15,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   MCP, the HTTP API and the worker still learn after the report.
 
 ### Fixed
+- The CLI report reads in Russian, as the saved report and the desktop app: headings, axis names and
+  explanations, pros and cons, marketplace names, the hard-filter count (CLI ↔ GUI parity #14).
 - In the desktop app a city or budget named in the query beats the saved ones again: the city and budget
   fields stay empty and show the saved values as hints ("из запроса, иначе …"), and the report says "(по
   умолчанию)" for a saved city. The core now falls back to the saved budget after the query, as it does for the
