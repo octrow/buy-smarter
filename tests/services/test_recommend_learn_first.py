@@ -28,7 +28,7 @@ def source(monkeypatch) -> FakeSource:
     return FakeSource("kaspi", [])
 
 
-def _profile(monkeypatch, profile: ResolvedProfile) -> None:
+def _resolve_to(monkeypatch, profile: ResolvedProfile) -> None:
     async def _resolve(category: str, **_: Any) -> ResolvedProfile:
         return profile
 
@@ -42,7 +42,7 @@ async def _run(source: FakeSource, **kwargs: Any):
 
 
 async def test_a_new_category_stops_before_any_marketplace(monkeypatch, source):
-    _profile(monkeypatch, ResolvedProfile(slug="кофемолка"))
+    _resolve_to(monkeypatch, ResolvedProfile(slug="кофемолка"))
 
     with pytest.raises(NeedsLearning) as caught:
         await _run(source, learn_first=True)
@@ -52,7 +52,7 @@ async def test_a_new_category_stops_before_any_marketplace(monkeypatch, source):
 
 
 async def test_without_learn_first_the_search_goes_as_before(monkeypatch, source):
-    _profile(monkeypatch, ResolvedProfile(slug="кофемолка"))
+    _resolve_to(monkeypatch, ResolvedProfile(slug="кофемолка"))
 
     with pytest.raises(ValueError):  # an empty marketplace: nothing to recommend
         await _run(source)
@@ -67,7 +67,7 @@ async def test_a_related_profile_with_books_is_not_waited_for(monkeypatch, sourc
         brand_book=BrandBook(tiers={"La Roche-Posay": "A"}),
         found="средства-от-акне",
     )
-    _profile(monkeypatch, related)
+    _resolve_to(monkeypatch, related)
 
     with pytest.raises(ValueError):  # searched, nothing found
         await _run(source, learn_first=True)
