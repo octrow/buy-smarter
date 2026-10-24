@@ -55,8 +55,9 @@ The report goes on with a review summary, alternatives (best value, best budget)
   the local store.
 - **Auto-learning.** A query for a category with no knowledge anywhere learns it first (opus with web search,
   1-3 minutes, paid), then searches with it. The desktop app shows the learning with a timer: "Искать без
-  изучения" searches now while it goes on, "Отмена" stops both. The CLI asks before the search on a terminal
-  (default yes); `--learn` learns without asking, also off a terminal. A failed learn searches without the
+  изучения" searches now while it goes on, "Отмена" stops both. The CLI offers the same choices on a terminal:
+  learn first (default) or search now while it learns, then repeat the search; `--learn` learns first without
+  asking, also off a terminal. A failed learn searches without the
   knowledge. MCP (with `parse_with_llm`) learns in the background after the report: repeat the query once it is
   done. At most 10 starts per hour (`BUYSMARTER_AUTO_LEARN_PER_HOUR`); `0` turns auto-learning off, and the
   report says so. The API never learns on its own unless `BUYSMARTER_AUTO_LEARN=true`.

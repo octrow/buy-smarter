@@ -1,11 +1,16 @@
-"""CLI learning of a new category before its search (#26): the question and ``--learn``."""
+"""CLI learning of a new category, the same choices as the desktop app (#26, ADR-0006).
+
+Before the search: learn first (yes, ``--learn``) or search now while it learns in the background
+(no, as «Искать без изучения»), then «Повторить поиск?». After a report without books: learn by
+hand (as the report's «Изучить категорию»), then «Повторить поиск?».
+"""
 
 from typing import Any
 
 import pytest
 from typer.testing import CliRunner
 
-from buysmarter.cli import main
+from buysmarter.cli import learning, main
 from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services.auto_learn import NeedsLearning
 from buysmarter.services.recommend import RecommendResult
@@ -16,33 +21,48 @@ CATEGORY = "соковыжималка"
 
 @pytest.fixture
 def cli(monkeypatch, recommend_result: RecommendResult) -> dict[str, Any]:
-    """A new category: ``recommend`` stops for it while ``learn_first`` is on.
+    """A new category: ``recommend`` stops for it until a learn was tried; books after a good one.
 
-    Records each run's ``learn_first``, the learns and the questions.
+    Records each run's ``learn_first``, the learns and the questions; ``replies`` answers the
+    questions in order (then ``yes``).
     """
-    recommend_result.knowledge_missing = True
-    seen: dict[str, Any] = {"learn_first": [], "learned": [], "asked": [], "yes": False}
+    recommend_result.constraints.product_type = CATEGORY
+    seen: dict[str, Any] = {
+        "learn_first": [],
+        "learned": [],
+        "asked": [],
+        "replies": [],
+        "yes": False,
+    }
 
     async def parse(query: str, use_llm: bool) -> QueryConstraints:
         return QueryConstraints(search_phrase=query, budget_max=40000)  # no budget question
 
     async def recommend(query: str, **kwargs: Any) -> RecommendResult:
         seen["learn_first"].append(kwargs["learn_first"])
-        if kwargs["learn_first"] and seen.get("new", True):
+        if kwargs["learn_first"] and seen.get("new", True) and not seen["learned"]:
             raise NeedsLearning(CATEGORY)
-        return recommend_result
+        missing = not seen.get("books", False)
+        return recommend_result.model_copy(update={"knowledge_missing": missing})
 
     async def learn(product_type: str) -> bool:
         seen["learned"].append(product_type)
-        return seen.get("learn_ok", True)
+        seen["books"] = seen.get("learn_ok", True)
+        return seen["books"]
+
+    async def learn_by_hand(category: str, **_: Any) -> None:
+        await learn(category)
+        if not seen["books"]:
+            raise RuntimeError("web search down")
 
     def confirm(text: str, **kwargs: Any) -> bool:
         seen["asked"].append((text, kwargs.get("default")))
-        return seen["yes"]
+        return seen["replies"].pop(0) if seen["replies"] else seen["yes"]
 
     monkeypatch.setattr(main, "run_parse_request", parse)
     monkeypatch.setattr(main, "run_recommend", recommend)
-    monkeypatch.setattr(main, "auto_learn", learn)
+    monkeypatch.setattr(learning, "auto_learn", learn)
+    monkeypatch.setattr(learning, "learn_category", learn_by_hand)
     monkeypatch.setattr(main.typer, "confirm", confirm)
     monkeypatch.setattr(main, "setup_logging", lambda *a, **kw: None)
     monkeypatch.setattr(main, "_on_terminal", lambda: True)
@@ -53,28 +73,60 @@ def _recommend(*flags: str):
     return runner.invoke(main.app, ["recommend", CATEGORY, "--no-save", *flags])
 
 
-def _question() -> tuple[str, bool]:
-    return main._LEARN_PROMPT.format(category=CATEGORY), True
+def _first() -> tuple[str, bool]:
+    return learning.LEARN_PROMPT.format(category=CATEGORY), True
 
 
-def test_on_a_terminal_the_question_comes_before_the_search_and_yes_learns(cli) -> None:
+def _by_hand() -> tuple[str, bool]:
+    return learning.LEARN_NOW_PROMPT.format(category=CATEGORY), False
+
+
+_RERUN = (learning.RERUN_PROMPT, True)
+
+
+def test_yes_learns_before_the_search(cli) -> None:
     cli["yes"] = True
 
     result = _recommend()
 
     assert result.exit_code == 0
-    assert cli["asked"] == [_question()]  # default yes: [Y/n]
+    assert cli["asked"] == [_first()]  # default yes: [Y/n]; learned, so nothing after the report
     assert cli["learned"] == [CATEGORY]
     assert cli["learn_first"] == [True, False]
     assert result.stdout.index("изучена") < result.stdout.index("Waterpik")
 
 
-def test_no_searches_without_learning(cli) -> None:
+def test_no_searches_now_learns_in_the_background_and_offers_the_rerun(cli) -> None:
+    cli["replies"] = [False, True]  # search now; then repeat the search
+
     result = _recommend()
 
     assert result.exit_code == 0
-    assert cli["learned"] == [] and cli["learn_first"] == [True, False]
-    assert "Waterpik" in result.stdout
+    assert cli["asked"] == [_first(), _RERUN]
+    assert cli["learned"] == [CATEGORY]
+    assert cli["learn_first"] == [True, False, True]  # the rerun: books now, nothing to learn
+    out = result.stdout
+    assert out.index("Waterpik") < out.index("изучена") < out.rindex("Waterpik")
+
+
+def test_no_and_no_rerun_shows_one_report(cli) -> None:
+    cli["replies"] = [False, False]
+
+    result = _recommend()
+
+    assert cli["asked"] == [_first(), _RERUN]
+    assert cli["learn_first"] == [True, False]
+    assert result.stdout.count("Best pick") == 1
+
+
+def test_a_failed_background_learn_is_said_and_no_rerun_is_offered(cli) -> None:
+    cli["replies"], cli["learn_ok"] = [False], False
+
+    result = _recommend()
+
+    assert result.exit_code == 0
+    assert "не удалось" in result.stdout
+    assert cli["asked"] == [_first()]
 
 
 def test_the_learn_flag_learns_before_the_search_without_asking(cli) -> None:
@@ -85,7 +137,7 @@ def test_the_learn_flag_learns_before_the_search_without_asking(cli) -> None:
     assert cli["learn_first"] == [True, False]
 
 
-def test_off_a_terminal_without_the_flag_nothing_waits(cli, monkeypatch) -> None:
+def test_off_a_terminal_without_the_flag_nothing_waits_or_asks(cli, monkeypatch) -> None:
     monkeypatch.setattr(main, "_on_terminal", lambda: False)
 
     _recommend()
@@ -103,24 +155,47 @@ def test_the_learn_flag_learns_off_a_terminal(cli, monkeypatch) -> None:
     assert cli["learn_first"] == [True, False]
 
 
-def test_a_category_that_may_not_learn_is_searched_at_once(cli) -> None:
-    cli["new"] = False
-
-    _recommend()
-
-    assert cli["learn_first"] == [True]
-    assert cli["asked"] == [] and cli["learned"] == []
-
-
-def test_a_failed_learn_is_reported_and_the_search_goes_on(cli) -> None:
-    cli["yes"], cli["learn_ok"] = True, False
+def test_a_failed_learn_first_is_said_and_the_search_goes_on(cli) -> None:
+    cli["replies"], cli["learn_ok"] = [True, False], False  # learn first; not by hand later
 
     result = _recommend()
 
     assert result.exit_code == 0
     assert "не удалось" in result.stdout
     assert cli["learn_first"] == [True, False]
+    assert cli["asked"] == [_first(), _by_hand()]
     assert "Waterpik" in result.stdout
+
+
+def test_a_report_without_books_offers_to_learn_by_hand_then_the_rerun(cli) -> None:
+    cli["new"] = False  # the condition does not hold (limit, intent…): the report's button
+    cli["yes"] = True
+
+    result = _recommend()
+
+    assert cli["asked"] == [_by_hand(), _RERUN]
+    assert cli["learned"] == [CATEGORY]
+    assert cli["learn_first"] == [True, True]
+    assert result.stdout.count("Best pick") == 2
+
+
+def test_learning_by_hand_that_fails_is_said(cli) -> None:
+    cli["new"], cli["learn_ok"], cli["yes"] = False, False, True
+
+    result = _recommend()
+
+    assert result.exit_code == 0
+    assert "не удалось" in result.stdout
+    assert cli["asked"] == [_by_hand()]
+
+
+def test_no_learning_by_hand_off_a_terminal_or_without_the_llm(cli, monkeypatch) -> None:
+    cli["new"] = False
+    _recommend("--no-llm")
+    monkeypatch.setattr(main, "_on_terminal", lambda: False)
+    _recommend()
+
+    assert cli["asked"] == []
 
 
 def test_a_used_up_hourly_limit_is_said_after_the_report(cli, monkeypatch) -> None:

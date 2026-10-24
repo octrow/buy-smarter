@@ -1,6 +1,7 @@
 """Typer CLI entry point for buy-smarter."""
 
 import asyncio
+import functools
 import logging
 import sys
 from pathlib import Path
@@ -17,6 +18,7 @@ from buysmarter import local_store
 from buysmarter.cli.clarify import CLARIFY_PROMPT as CLARIFY_PROMPT  # re-export
 from buysmarter.cli.clarify import EXIT_CLARIFY, print_clarification
 from buysmarter.cli.clarify import ask as ask_clarification
+from buysmarter.cli.learning import learn_before_search, search_and_follow_up
 from buysmarter.cli.report import (
     DEFAULT_TOP,
     ROLE_LABELS,
@@ -57,8 +59,6 @@ from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandida
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.auto_learn import (
     NeedsLearning,
-    auto_learn,
-    count_start,
     limit_note,
     over_limit,
 )
@@ -366,19 +366,33 @@ def recommend(
     the exit code is 3.
     """
     selected = _parse_sources(sources)
-    try:
-        result = asyncio.run(
-            recommend_pipeline(
-                query,
-                city,
-                budget,
-                not no_llm,
-                trusted_only,
-                selected,
-                with_review_summary=not no_review_summary,
-                no_clarify=no_clarify,
-                learn=learn,
+    use_llm = not no_llm
+    search = functools.partial(
+        recommend_pipeline,
+        query,
+        city,
+        budget,
+        use_llm,
+        trusted_only,
+        selected,
+        with_review_summary=not no_review_summary,
+        no_clarify=no_clarify,
+    )
+
+    def show(result: RecommendResult) -> None:
+        _render(result, top)
+        if save_path or not no_save:
+            path = save_report(result, query, top, save_path)
+            console.print(f"[green]Report saved to {escape(str(path))}[/green]")
+        if result.knowledge_missing and use_llm and over_limit():
+            manual = f"buysmarter learn-category {result.constraints.product_type!r}"
+            console.print(
+                f"[yellow]{escape(limit_note())} Изучить вручную: {escape(manual)}[/yellow]"
             )
+
+    try:
+        asyncio.run(
+            search_and_follow_up(search, show, learn=learn, use_llm=use_llm, tty=_on_terminal())
         )
     except NeedsClarification as exc:
         print_clarification(console, exc.clarification)
@@ -400,41 +414,10 @@ def recommend(
     except httpx.HTTPError as exc:
         console.print(f"[red]Marketplace request failed: {escape(repr(exc))}[/red]")
         raise typer.Exit(code=2) from exc
-    _render(result, top)
-    if save_path or not no_save:
-        path = save_report(result, query, top, save_path)
-        console.print(f"[green]Report saved to {escape(str(path))}[/green]")
-    if result.knowledge_missing and not no_llm and over_limit():
-        manual = f"buysmarter learn-category {result.constraints.product_type!r}"
-        console.print(f"[yellow]{escape(limit_note())} Изучить вручную: {escape(manual)}[/yellow]")
-
-
-_LEARN_PROMPT = (
-    "Категория «{category}» новая. Изучить её перед поиском "
-    "(AI с поиском в интернете, 1–3 мин, платно)?"
-)
 
 
 def _on_terminal() -> bool:
     return sys.stdin.isatty()
-
-
-async def _learn_before_search(category: str, *, force: bool) -> None:
-    """Learn a new category before its search: with ``--learn``, or when the user agrees.
-
-    A failed learn is said and the search goes on without the books.
-    """
-    if not force and not typer.confirm(_LEARN_PROMPT.format(category=category), default=True):
-        return
-    name = escape(repr(category))
-    console.print(f"[dim]Изучаю категорию {name}…[/dim]")
-    count_start()
-    if await auto_learn(category):
-        console.print(f"[green]Категория {name} изучена.[/green]")
-    else:
-        console.print(
-            f"[yellow]Категорию {name} изучить не удалось (см. лог), ищу без неё.[/yellow]"
-        )
 
 
 def _parse_sources(raw: str) -> list[str]:
@@ -474,13 +457,15 @@ async def recommend_pipeline(
     with_review_summary: bool = True,
     no_clarify: bool = False,
     learn: bool = False,
+    background: dict[str, asyncio.Task[bool]] | None = None,
 ) -> RecommendResult:
     """Parse once, settle any question, prompt for a missing budget, then recommend.
 
     On a terminal a clarification is asked here (an option goes back as ``answer``, the
     user's own text joins the query, which is parsed again) and the next round runs; the
     budget typed once holds for every round. Off a terminal ``NeedsClarification`` leaves.
-    A new category is learned before the search with ``learn``, or asked about on a terminal.
+    A new category is learned before the search with ``learn``, or asked about on a terminal;
+    a "no" learns it in ``background`` while the search runs.
     """
     parsed = await run_parse_request(query, use_llm)
     answer, clarify_round, budget_asked = None, 0, False
@@ -507,7 +492,7 @@ async def recommend_pipeline(
             )
         except NeedsLearning as exc:
             learn_first = False
-            await _learn_before_search(exc.category, force=learn)
+            await learn_before_search(exc.category, force=learn, background=background)
         except NeedsClarification as exc:
             if not sys.stdin.isatty():
                 raise
