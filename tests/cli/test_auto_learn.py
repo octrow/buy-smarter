@@ -1,4 +1,4 @@
-"""CLI auto-learning (phase 3, decision 11): the question after the report and ``--learn``."""
+"""CLI learning of a new category before its search (#26): the question and ``--learn``."""
 
 from typing import Any
 
@@ -6,6 +6,8 @@ import pytest
 from typer.testing import CliRunner
 
 from buysmarter.cli import main
+from buysmarter.ranking.models import QueryConstraints
+from buysmarter.services.auto_learn import NeedsLearning
 from buysmarter.services.recommend import RecommendResult
 
 runner = CliRunner()
@@ -14,29 +16,32 @@ CATEGORY = "соковыжималка"
 
 @pytest.fixture
 def cli(monkeypatch, recommend_result: RecommendResult) -> dict[str, Any]:
-    """A finished run for a new category; records the condition calls, learns, and questions."""
-    recommend_result.constraints.product_type = CATEGORY
-    recommend_result.knowledge_missing = True
-    seen: dict[str, Any] = {"condition": [], "learned": [], "asked": [], "runs": 0, "yes": False}
+    """A new category: ``recommend`` stops for it while ``learn_first`` is on.
 
-    async def pipeline(*_args, **_kwargs):
-        seen["runs"] += 1
+    Records each run's ``learn_first``, the learns and the questions.
+    """
+    recommend_result.knowledge_missing = True
+    seen: dict[str, Any] = {"learn_first": [], "learned": [], "asked": [], "yes": False}
+
+    async def parse(query: str, use_llm: bool) -> QueryConstraints:
+        return QueryConstraints(search_phrase=query, budget_max=40000)  # no budget question
+
+    async def recommend(query: str, **kwargs: Any) -> RecommendResult:
+        seen["learn_first"].append(kwargs["learn_first"])
+        if kwargs["learn_first"] and seen.get("new", True):
+            raise NeedsLearning(CATEGORY)
         return recommend_result
 
-    async def condition(product_type, **kwargs):
-        seen["condition"].append((product_type, kwargs))
-        return seen.get("holds", True)
-
-    async def learn(product_type):
+    async def learn(product_type: str) -> bool:
         seen["learned"].append(product_type)
         return seen.get("learn_ok", True)
 
-    def confirm(text, **_kwargs):
-        seen["asked"].append(text)
+    def confirm(text: str, **kwargs: Any) -> bool:
+        seen["asked"].append((text, kwargs.get("default")))
         return seen["yes"]
 
-    monkeypatch.setattr(main, "recommend_pipeline", pipeline)
-    monkeypatch.setattr(main, "should_auto_learn", condition)
+    monkeypatch.setattr(main, "run_parse_request", parse)
+    monkeypatch.setattr(main, "run_recommend", recommend)
     monkeypatch.setattr(main, "auto_learn", learn)
     monkeypatch.setattr(main.typer, "confirm", confirm)
     monkeypatch.setattr(main, "setup_logging", lambda *a, **kw: None)
@@ -48,78 +53,90 @@ def _recommend(*flags: str):
     return runner.invoke(main.app, ["recommend", CATEGORY, "--no-save", *flags])
 
 
-def test_on_a_terminal_the_question_follows_the_report_and_yes_learns(cli) -> None:
+def _question() -> tuple[str, bool]:
+    return main._LEARN_PROMPT.format(category=CATEGORY), True
+
+
+def test_on_a_terminal_the_question_comes_before_the_search_and_yes_learns(cli) -> None:
     cli["yes"] = True
 
     result = _recommend()
 
     assert result.exit_code == 0
-    assert cli["asked"][0] == main._LEARN_PROMPT
+    assert cli["asked"] == [_question()]  # default yes: [Y/n]
     assert cli["learned"] == [CATEGORY]
-    assert result.stdout.index("Waterpik") < result.stdout.index("изучена")
+    assert cli["learn_first"] == [True, False]
+    assert result.stdout.index("изучена") < result.stdout.index("Waterpik")
 
 
-def test_the_condition_gets_the_parsed_intent_and_the_run_flags(cli) -> None:
-    _recommend()
-
-    assert cli["condition"] == [
-        (CATEGORY, {"intent": "product", "use_llm": True, "knowledge_missing": True})
-    ]
-
-
-def test_no_means_no_learning(cli) -> None:
+def test_no_searches_without_learning(cli) -> None:
     result = _recommend()
 
     assert result.exit_code == 0
-    assert cli["asked"] == [main._LEARN_PROMPT] and cli["learned"] == []
+    assert cli["learned"] == [] and cli["learn_first"] == [True, False]
+    assert "Waterpik" in result.stdout
 
 
-def test_after_learning_the_search_can_be_repeated(cli) -> None:
-    cli["yes"] = True
-
-    _recommend()
-
-    assert cli["asked"] == [main._LEARN_PROMPT, main._RERUN_PROMPT]
-    assert cli["runs"] == 2
-
-
-def test_the_learn_flag_learns_without_the_learn_question(cli) -> None:
+def test_the_learn_flag_learns_before_the_search_without_asking(cli) -> None:
     result = _recommend("--learn")
 
     assert result.exit_code == 0
-    assert cli["learned"] == [CATEGORY] and cli["asked"] == [main._RERUN_PROMPT]
+    assert cli["asked"] == [] and cli["learned"] == [CATEGORY]
+    assert cli["learn_first"] == [True, False]
 
 
-def test_off_a_terminal_it_never_asks(cli, monkeypatch) -> None:
+def test_off_a_terminal_without_the_flag_nothing_waits(cli, monkeypatch) -> None:
     monkeypatch.setattr(main, "_on_terminal", lambda: False)
 
     _recommend()
 
+    assert cli["learn_first"] == [False]
     assert cli["asked"] == [] and cli["learned"] == []
 
 
-def test_the_learn_flag_works_off_a_terminal_and_does_not_ask_to_repeat(cli, monkeypatch) -> None:
+def test_the_learn_flag_learns_off_a_terminal(cli, monkeypatch) -> None:
     monkeypatch.setattr(main, "_on_terminal", lambda: False)
 
     _recommend("--learn")
 
-    assert cli["learned"] == [CATEGORY] and cli["asked"] == [] and cli["runs"] == 1
+    assert cli["learned"] == [CATEGORY] and cli["asked"] == []
+    assert cli["learn_first"] == [True, False]
 
 
-def test_when_the_condition_fails_nothing_is_asked_or_learned(cli) -> None:
-    cli["holds"] = False
+def test_a_category_that_may_not_learn_is_searched_at_once(cli) -> None:
+    cli["new"] = False
 
     _recommend()
-    _recommend("--learn")
 
+    assert cli["learn_first"] == [True]
     assert cli["asked"] == [] and cli["learned"] == []
 
 
-def test_a_failed_learn_is_reported_and_the_exit_code_stays_0(cli) -> None:
+def test_a_failed_learn_is_reported_and_the_search_goes_on(cli) -> None:
     cli["yes"], cli["learn_ok"] = True, False
 
     result = _recommend()
 
     assert result.exit_code == 0
     assert "не удалось" in result.stdout
-    assert cli["asked"] == [main._LEARN_PROMPT]
+    assert cli["learn_first"] == [True, False]
+    assert "Waterpik" in result.stdout
+
+
+def test_a_used_up_hourly_limit_is_said_after_the_report(cli, monkeypatch) -> None:
+    cli["new"] = False
+    monkeypatch.setattr(main, "over_limit", lambda: True)
+
+    result = _recommend()
+
+    assert "лимит" in result.stdout
+
+
+def test_a_zero_hourly_limit_says_learning_is_off(cli, monkeypatch) -> None:
+    cli["new"] = False
+    monkeypatch.setattr(main, "over_limit", lambda: True)
+    monkeypatch.setenv("BUYSMARTER_AUTO_LEARN_PER_HOUR", "0")
+
+    result = _recommend()
+
+    assert "выключено" in result.stdout

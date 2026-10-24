@@ -31,6 +31,7 @@ from buysmarter.cli.report import (
     unavailable_sources_note,
     used_first,
 )
+from buysmarter.config import get_settings
 from buysmarter.i18n import USED_SECTION, checked_brands, clean_title, kzt, used_con
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.generate import (
@@ -55,7 +56,7 @@ from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
-from buysmarter.services.auto_learn import auto_learn, count_start, should_auto_learn
+from buysmarter.services.auto_learn import NeedsLearning, auto_learn, count_start, over_limit
 from buysmarter.services.collect import ALL_SOURCES, select_sources
 from buysmarter.services.doctor import (
     INSTALL_BROWSER,
@@ -351,7 +352,7 @@ def recommend(
         False, "--no-clarify", help="Never ask: search the first option of an ambiguous request."
     ),
     learn: bool = typer.Option(
-        False, "--learn", help="Learn a new category after the report without asking."
+        False, "--learn", help="Learn a new category before searching, without asking."
     ),
 ) -> None:
     """Recommend the best product for a natural-language request.
@@ -371,6 +372,7 @@ def recommend(
                 selected,
                 with_review_summary=not no_review_summary,
                 no_clarify=no_clarify,
+                learn=learn,
             )
         )
     except NeedsClarification as exc:
@@ -397,68 +399,42 @@ def recommend(
     if save_path or not no_save:
         path = save_report(result, query, top, save_path)
         console.print(f"[green]Report saved to {escape(str(path))}[/green]")
-    if asyncio.run(_offer_learning(result, use_llm=not no_llm, force=learn)):
-        _rerun(query, city, budget, not no_llm, trusted_only, selected, top, no_clarify)
+    if result.knowledge_missing and not no_llm and over_limit():
+        console.print(f"[yellow]{_limit_note(result.constraints.product_type)}[/yellow]")
 
 
-_LEARN_PROMPT = "Изучить категорию сейчас (1–3 мин)?"
-_RERUN_PROMPT = "Повторить поиск с новыми знаниями?"
+_LEARN_PROMPT = (
+    "Категория «{category}» новая. Изучить её перед поиском "
+    "(AI с поиском в интернете, 1–3 мин, платно)?"
+)
 
 
 def _on_terminal() -> bool:
     return sys.stdin.isatty()
 
 
-async def _offer_learning(result: RecommendResult, *, use_llm: bool, force: bool) -> bool:
-    """After the report: learn a new category (asked on a terminal, or ``--learn``).
+def _limit_note(category: str) -> str:
+    per_hour = get_settings().auto_learn_per_hour
+    state = "выключено" if per_hour <= 0 else f"на паузе: лимит {per_hour} в час исчерпан"
+    return f"Автоизучение {state}. Изучить вручную: buysmarter learn-category {category!r}"
 
-    Returns True when it was learned and the user, on a terminal, wants the search repeated.
-    One event loop for the check and the learn: the store's connections belong to it.
+
+async def _learn_before_search(category: str, *, force: bool) -> None:
+    """Learn a new category before its search: with ``--learn``, or when the user agrees.
+
+    A failed learn is said and the search goes on without the books.
     """
-    c = result.constraints
-    if not await should_auto_learn(
-        c.product_type,
-        intent=c.intent,
-        use_llm=use_llm,
-        knowledge_missing=result.knowledge_missing,
-    ):
-        return False
-    tty = _on_terminal()
-    if not force and not (tty and typer.confirm(_LEARN_PROMPT, default=False)):
-        return False
-    name = escape(repr(c.product_type))
+    if not force and not typer.confirm(_LEARN_PROMPT.format(category=category), default=True):
+        return
+    name = escape(repr(category))
     console.print(f"[dim]Изучаю категорию {name}…[/dim]")
     count_start()
-    if not await auto_learn(c.product_type):
-        console.print(f"[yellow]Категорию {name} изучить не удалось (см. лог).[/yellow]")
-        return False
-    console.print(f"[green]Категория {name} изучена.[/green]")
-    return tty and typer.confirm(_RERUN_PROMPT, default=False)
-
-
-def _rerun(
-    query: str,
-    city: str | None,
-    budget: int | None,
-    use_llm: bool,
-    trusted_only: bool,
-    sources: list[str],
-    top: int,
-    no_clarify: bool,
-) -> None:
-    """Search again with the new knowledge and show it (not saved: the report is already)."""
-    # ponytail: a failed rerun only prints; it does not map to the exit codes of the first run.
-    try:
-        result = asyncio.run(
-            recommend_pipeline(
-                query, city, budget, use_llm, trusted_only, sources, no_clarify=no_clarify
-            )
+    if await auto_learn(category):
+        console.print(f"[green]Категория {name} изучена.[/green]")
+    else:
+        console.print(
+            f"[yellow]Категорию {name} изучить не удалось (см. лог), ищу без неё.[/yellow]"
         )
-    except Exception as exc:  # noqa: BLE001 - the first report stands; say why this one is missing
-        logger.exception("repeat search failed")
-        console.print(f"[red]Повторный поиск не удался: {escape(str(exc))}[/red]")
-        return
-    _render(result, top)
 
 
 def _parse_sources(raw: str) -> list[str]:
@@ -497,15 +473,18 @@ async def recommend_pipeline(
     sources: list[str] | None = None,
     with_review_summary: bool = True,
     no_clarify: bool = False,
+    learn: bool = False,
 ) -> RecommendResult:
     """Parse once, settle any question, prompt for a missing budget, then recommend.
 
     On a terminal a clarification is asked here (an option goes back as ``answer``, the
     user's own text joins the query, which is parsed again) and the next round runs; the
     budget typed once holds for every round. Off a terminal ``NeedsClarification`` leaves.
+    A new category is learned before the search with ``learn``, or asked about on a terminal.
     """
     parsed = await run_parse_request(query, use_llm)
     answer, clarify_round, budget_asked = None, 0, False
+    learn_first = learn or _on_terminal()
     while True:
         ask = Clarify(answer, clarify_round, no_clarify)
         try:
@@ -524,7 +503,11 @@ async def recommend_pipeline(
                 answer=answer,
                 clarify_round=clarify_round,
                 no_clarify=no_clarify,
+                learn_first=learn_first,
             )
+        except NeedsLearning as exc:
+            learn_first = False
+            await _learn_before_search(exc.category, force=learn)
         except NeedsClarification as exc:
             if not sys.stdin.isatty():
                 raise
