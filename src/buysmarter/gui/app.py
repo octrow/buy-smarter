@@ -99,8 +99,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(_TITLE)
         self.setMinimumSize(*_MIN_SIZE)
         self.runner = runner
-        self.search = SearchScreen(runner)
-        self.learning = CategoryLearning(runner)
+        self.learning = CategoryLearning(runner)  # shared: the search learns, the report shows it
+        self.search = SearchScreen(runner, learning=self.learning)
         self.report = ReportScreen(runner, learning=self.learning)
         self.preferences = PreferencesScreen(runner)
         self.history = HistoryScreen(runner)

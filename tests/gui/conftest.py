@@ -1,7 +1,10 @@
 """Shared GUI fixtures: a live CoreRunner and a fixture RecommendResult."""
 
+import asyncio
+
 import pytest
 
+from buysmarter.gui import learning as gui_learning
 from buysmarter.gui.bridge import CoreRunner
 from buysmarter.ranking.models import (
     AxisScore,
@@ -81,3 +84,43 @@ def make_result() -> RecommendResult:
     ]
     constraints = QueryConstraints(search_phrase="ирригатор", city="Алматы", budget_max=40000)
     return RecommendResult(recommendation=rec, constraints=constraints, used_listings=used)
+
+
+class Fakes:
+    """Stand-ins for the decision and the learn; a learn waits on a gate per category."""
+
+    def __init__(self) -> None:
+        self.allowed = True
+        self.outcome = True
+        self.decided: list[str] = []
+        self.learned: list[str] = []
+        self.gates: dict[str, asyncio.Event] = {}
+
+    async def decide(self, category, **_kw):
+        self.decided.append(category)
+        return self.allowed
+
+    async def learn(self, category):
+        self.learned.append(category)
+        gate = self.gates.setdefault(category, asyncio.Event())
+        await gate.wait()
+        return self.outcome
+
+    def release(self, category):
+        gate = self.gates[category]
+        gate._loop.call_soon_threadsafe(gate.set)  # the gate lives on the core loop
+
+
+@pytest.fixture
+def fakes(monkeypatch):
+    f = Fakes()
+    monkeypatch.setattr(gui_learning, "should_auto_learn", f.decide)
+    monkeypatch.setattr(gui_learning, "auto_learn", f.learn)
+    return f
+
+
+@pytest.fixture
+def counted(monkeypatch):
+    starts = []
+    monkeypatch.setattr(gui_learning, "count_start", lambda: starts.append(1))
+    return starts

@@ -1,9 +1,5 @@
 """Auto-learning from the report screen: per category, a new report keeps the other's learning."""
 
-import asyncio
-
-import pytest
-
 from buysmarter.gui import app as gui_app
 from buysmarter.gui import learning as gui_learning
 from buysmarter.gui.learning import CategoryLearning
@@ -14,46 +10,6 @@ from tests.gui.test_app import _no_prefs
 _RUN = SearchRun("ирригатор", True, {"kaspi": "done"})
 _WAIT_MS = 3000
 _RERUN = "Повторить поиск"
-
-
-class Fakes:
-    """Stand-ins for the decision and the learn; a learn waits on a gate per category."""
-
-    def __init__(self) -> None:
-        self.allowed = True
-        self.outcome = True
-        self.decided: list[str] = []
-        self.learned: list[str] = []
-        self.gates: dict[str, asyncio.Event] = {}
-
-    async def decide(self, category, **_kw):
-        self.decided.append(category)
-        return self.allowed
-
-    async def learn(self, category):
-        self.learned.append(category)
-        gate = self.gates.setdefault(category, asyncio.Event())
-        await gate.wait()
-        return self.outcome
-
-    def release(self, category):
-        gate = self.gates[category]
-        gate._loop.call_soon_threadsafe(gate.set)  # the gate lives on the core loop
-
-
-@pytest.fixture
-def fakes(monkeypatch):
-    f = Fakes()
-    monkeypatch.setattr(gui_learning, "should_auto_learn", f.decide)
-    monkeypatch.setattr(gui_learning, "auto_learn", f.learn)
-    return f
-
-
-@pytest.fixture
-def counted(monkeypatch):
-    starts = []
-    monkeypatch.setattr(gui_learning, "count_start", lambda: starts.append(1))
-    return starts
 
 
 def _missing(result, category):

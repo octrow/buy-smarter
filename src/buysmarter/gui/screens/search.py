@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 
 from buysmarter.cli.report import no_new_pick_text, saved_reports
 from buysmarter.gui.bridge import CoreRunner, Job
+from buysmarter.gui.learning import CategoryLearning
 from buysmarter.gui.prefs_fields import (
     BUDGET,
     CITY,
@@ -40,6 +41,7 @@ from buysmarter.gui.screens.clarify import ClarificationBox
 from buysmarter.gui.screens.saved import ListReports, report_parts
 from buysmarter.gui.theme import SPACE, bind_icon, set_state
 from buysmarter.ranking.models import QueryConstraints
+from buysmarter.services.auto_learn import NeedsLearning
 from buysmarter.services.collect import ALL_SOURCES
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, RecommendResult
@@ -68,6 +70,7 @@ STAGE_LABELS = {
 }
 _STARTING = "Запускаю поиск"
 _CANCELLING = "Отменяю"
+_LEARNING = "Изучаю категорию «{category}» (AI с поиском в интернете, 1–3 мин, платно)"
 _USE_LLM_HINT = "Нужен claude CLI (экран «Состояние и ключи»); с ним поиск идёт дольше."
 _START_TEXT = "Найти"
 _RUNNING_TEXT = "Ищу…"
@@ -146,6 +149,13 @@ class NoRecommendation:
 
 
 @dataclass(frozen=True)
+class LearnFirst:
+    """The core stopped to learn a new category before its search (``NeedsLearning``)."""
+
+    category: str
+
+
+@dataclass(frozen=True)
 class AskUser:
     """The core asks back before it searches (``services.understanding``)."""
 
@@ -164,9 +174,14 @@ class SearchScreen(QWidget):
         recommend: Recommend = run_recommend,
         parse: Parse = run_parse_request,
         list_reports: ListReports = saved_reports,
+        learning: CategoryLearning | None = None,
     ) -> None:
         super().__init__()
         self._runner = runner
+        self.learning = learning or CategoryLearning(runner)
+        self.learning.settled.connect(self._on_learning_settled)
+        self._learning_for: str | None = None  # the category this search waits for
+        self._learn_note = ""  # a failed learn, said next to the counts
         self._recommend = recommend
         self._parse = parse
         self._excluded_brands: list[str] = []
@@ -207,6 +222,10 @@ class SearchScreen(QWidget):
         self.cancel_button = QPushButton("Отмена")
         self.cancel_button.setEnabled(False)
         self.cancel_button.clicked.connect(self.cancel)
+        self.skip_learning_button = QPushButton("Искать без изучения")
+        self.skip_learning_button.setAccessibleName("Искать без изучения категории")
+        self.skip_learning_button.clicked.connect(self.skip_learning)
+        self.skip_learning_button.hide()
         self.report_button = QPushButton("Открыть отчёт")
         self.report_button.clicked.connect(self.open_report.emit)
         self.report_button.hide()
@@ -279,6 +298,7 @@ class SearchScreen(QWidget):
         row.setSpacing(SPACE["sm"])
         row.addLayout(status, 1)
         row.addWidget(self.cancel_button, alignment=Qt.AlignmentFlag.AlignTop)
+        row.addWidget(self.skip_learning_button, alignment=Qt.AlignmentFlag.AlignTop)
         row.addWidget(self.report_button, alignment=Qt.AlignmentFlag.AlignTop)
         row.addWidget(self.start_button, alignment=Qt.AlignmentFlag.AlignTop)
         return row
@@ -376,6 +396,7 @@ class SearchScreen(QWidget):
 
     def start(self) -> None:
         """A new search from the form: any earlier question is dropped."""
+        self._learn_note = ""
         self._launch()
 
     def rerun(self) -> None:
@@ -394,8 +415,10 @@ class SearchScreen(QWidget):
         self.query.setText(f"{self.query.text().strip()} {reply}")
         self._launch(clarify_round=asked.round + 1)
 
-    def _launch(self, answer: str | None = None, clarify_round: int = 0) -> None:
-        if self._job is not None:
+    def _launch(
+        self, answer: str | None = None, clarify_round: int = 0, *, learn_first: bool = True
+    ) -> None:
+        if self.is_running():
             return
         query = self.query.text().strip()
         selected = [
@@ -426,6 +449,7 @@ class SearchScreen(QWidget):
             use_llm=self._run.use_llm,
             sources=selected,
             excluded_brands=self._excluded_brands,
+            learn_first=learn_first,
             **rounds,
         )
         self._job = self._runner.submit(self._progress.track(coro))
@@ -435,7 +459,7 @@ class SearchScreen(QWidget):
 
     async def _search(
         self, query: str, *, excluded_brands: list[str], **kwargs: Any
-    ) -> RecommendResult | NoRecommendation | AskUser:
+    ) -> RecommendResult | NoRecommendation | AskUser | LearnFirst:
         # Runs on the core loop thread: takes plain values only, never touches a widget.
         try:
             if excluded_brands:
@@ -445,6 +469,8 @@ class SearchScreen(QWidget):
             return await self._recommend(query, **kwargs)
         except NeedsClarification as exc:  # not a ValueError: a question, not "nothing found"
             return AskUser(exc.clarification)
+        except NeedsLearning as exc:
+            return LearnFirst(exc.category)
         except NothingToSearch as exc:
             return NoRecommendation(str(exc))
         except NoSubstanceMatch as exc:
@@ -461,9 +487,15 @@ class SearchScreen(QWidget):
             return NoRecommendation(f"Не нашлось подходящих предложений: {exc}")
 
     def is_running(self) -> bool:
-        return self._job is not None
+        return self._job is not None or self._learning_for is not None
 
     def cancel(self) -> None:
+        if (category := self._learning_for) is not None:
+            self._learning_for = None
+            self.learning.cancel(category)
+            self._set_running(False)
+            self.message.setText("Поиск отменён.")
+            return
         if self._job is not None:
             self.cancel_button.setEnabled(False)
             self._stage_text = _CANCELLING
@@ -499,8 +531,35 @@ class SearchScreen(QWidget):
         self._states = {n: final.get(s, s) for n, s in self._states.items()}
         self._show_states()
 
-    def _on_finished(self, result: RecommendResult | NoRecommendation | AskUser) -> None:
+    def _wait_for_learning(self, category: str) -> None:
+        """Learn the new category first; the search runs again when it ends (#26)."""
+        self._learning_for = category
+        self.learning.learn_now(category)
+        self._set_running(True)
+        self._stage_text = _LEARNING.format(category=category)
+        self._show_stage()
+
+    def skip_learning(self) -> None:
+        """Search now without the books; the learning goes on and the report shows it."""
+        if self._learning_for is None:
+            return
+        self._learning_for = None
+        self._launch(*self._last_rounds, learn_first=False)
+
+    def _on_learning_settled(self, category: str) -> None:
+        if category != self._learning_for:
+            return
+        self._learning_for = None
+        self._learn_note = self.learning.outcome(category) or ""
+        self._launch(*self._last_rounds, learn_first=False)
+
+    def _on_finished(
+        self, result: RecommendResult | NoRecommendation | AskUser | LearnFirst
+    ) -> None:
         self._settle()
+        if isinstance(result, LearnFirst):
+            self._wait_for_learning(result.category)
+            return
         if isinstance(result, AskUser):
             self._asked = result.clarification
             self.recent_box.hide()  # the question takes its place: the screen does not scroll
@@ -525,7 +584,8 @@ class SearchScreen(QWidget):
         line = f"Найдено предложений: {new}"
         if counts["olx"]:
             line += f", б/у на OLX: {counts['olx']}"
-        self.message.setText(line + ".")
+        note, self._learn_note = self._learn_note, ""
+        self.message.setText(f"{note} {line}.".strip())
 
     def note_saved(self) -> None:
         """Say where the finished search's report went; it now heads the recent searches."""
@@ -554,6 +614,7 @@ class SearchScreen(QWidget):
             self._elapsed.invalidate()
             self.stage.clear()
         self.cancel_button.setEnabled(running)
+        self.skip_learning_button.setVisible(self._learning_for is not None)
         self.use_llm.setEnabled(not running)
         for name, box in self.sources.items():
             box.setEnabled(not running and name not in self._unavailable)

@@ -47,7 +47,13 @@ def test_search_runs_with_progress_and_hands_the_result_to_the_report(qtbot, run
     assert calls == [
         (
             "ирригатор до 40000 Алматы",
-            {"city": None, "budget": None, "use_llm": True, "sources": ["kaspi", "ozon"]},
+            {
+                "city": None,
+                "budget": None,
+                "use_llm": True,
+                "sources": ["kaspi", "ozon"],
+                "learn_first": True,
+            },
         )
     ]
     assert screen.start_button.isEnabled() and not screen.cancel_button.isEnabled()
