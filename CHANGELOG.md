@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-24
+
 ### Added
 - "Только б/у" (phase 4): "б/у ноутбук" adds OLX by itself, before the marketplaces are opened (even when the form or `--sources` did not name it), and every report shows the OLX section first (markdown, console, desktop app, MCP). The note "Вы искали б/у: объявления с OLX идут первым разделом, новые товары ниже." replaces the old "смотрите раздел" line. The desktop app now shows the progress of a marketplace a request opened for you.
 - Category switches "Рынок б/у" and "Официальные магазины" (phase 4) in the desktop app's "Как оцениваем эту категорию" group: on by default, off for a category by learning or by you. Off, the used market takes OLX out of the marketplaces (a used query keeps it) and the official stores add no brand-site offers; their sections and the shared listing check stay in the core. The "Как оценивали" line names them only once learning or you decided ("рынок б/у — выключено: обучение").
@@ -27,6 +29,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   warning on the first line of the report, never refused. Without an LLM a whole-word list flags them.
 - The budget range ("30-40 тыс") and a note for a budget in another currency are shown in the report; "б/у" in a
   query adds a pointer to the OLX section.
+- A «Настроить» link next to «Как оценивали» at the top of a report in the desktop app scrolls to the category switches.
 
 ### Changed
 - The JSON schema sent to the LLM with each request no longer carries field `description`s and `title`s (types, enums,
@@ -35,6 +38,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - The relevance passes over new goods and over OLX ads run at the same time: one LLM wait instead of two.
 
 ### Fixed
+- A size chain in a title gives its unit to every side: "Матрас 160x200x22 см" no longer gets the con
+  "название: 22 см, характеристики: 160 см".
+- "Бессульфатный" (and other "бес…" spellings) reads as "без сульфатов": such a title gets the pro, such a query the exclusion.
 - Compatibility (phase 4) no longer reads a spec glued to its unit as a device: "зарядка на 65W", "повербанк на 20000mAh", "флешка на 64GB", "кабель на 2m" get no fit target, also when the parser returns one.
 - Excluded substances (phase 4) are read from the whole "без X и Y" list: "шампунь без сульфатов и парабенов" and "без сульфатов, парабенов" exclude both, and the list leaves the product type and the relevance phrase.
 
