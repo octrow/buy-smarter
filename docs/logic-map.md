@@ -423,3 +423,5 @@ Short list; details and fixes are in the plan (number in brackets).
 - Kaspi search has no budget cap (#5).
 - `refresh` collects without category knowledge (#6).
 - After review penalties a new best pick may have no summary (#14).
+- A query's own record of a general type ("крем") hides the closer related profile's books ("средства-от-акне") (#25).
+- A new category is searched before it is learned; the first result has no brands or composition (#26).
