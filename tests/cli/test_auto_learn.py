@@ -124,7 +124,7 @@ def test_no_and_no_rerun_shows_one_report(cli) -> None:
 
     assert cli.asked == [_first(), _RERUN]
     assert cli.learn_first == [True, False]
-    assert result.stdout.count("Best pick") == 1
+    assert result.stdout.count("Лучший выбор") == 1
 
 
 def test_a_failed_background_learn_is_said_and_no_rerun_is_offered(cli) -> None:
@@ -184,7 +184,7 @@ def test_a_report_without_books_offers_to_learn_by_hand_then_the_rerun(cli) -> N
     assert cli.asked == [_by_hand(), _RERUN]
     assert cli.learned == [CATEGORY]
     assert cli.learn_first == [True, False]
-    assert result.stdout.count("Best pick") == 2
+    assert result.stdout.count("Лучший выбор") == 2
 
 
 def test_learning_by_hand_that_fails_is_said(cli) -> None:

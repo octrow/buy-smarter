@@ -23,9 +23,9 @@ from PySide6.QtWidgets import (
 from buysmarter.cli.report import (
     assessed_note,
     budget_text,
-    format_rejected_reasons,
     hidden_note,
     ingredients_unchecked_note,
+    rejected_line,
     request_notes,
     used_first,
 )
@@ -146,14 +146,6 @@ def _axis_bar(score: float, max_score: float) -> QProgressBar:
     bar.setTextVisible(False)
     bar.setProperty("level", bar_level(score, max_score))
     return bar
-
-
-def rejected_line(result: RecommendResult) -> str:
-    rec = result.recommendation
-    line = f"Отсеяно жёсткими фильтрами: {rec.rejected_count}."
-    if rec.rejected_reasons:
-        line += f"\n{format_rejected_reasons(rec.rejected_reasons)}"
-    return line
 
 
 def could_not_verify(result: RecommendResult, run: SearchRun) -> list[str]:

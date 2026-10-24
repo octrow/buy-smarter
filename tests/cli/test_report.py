@@ -486,4 +486,30 @@ def test_a_used_query_shows_the_used_table_first_in_the_console() -> None:
         terminal.render(_used_query(_result()), top=2)
 
     out = capture.get()
-    assert out.index("На OLX (частники)") < out.index("Best pick")
+    assert out.index("На OLX (частники)") < out.index("Лучший выбор")
+
+
+def test_the_console_reads_in_russian_as_the_markdown_and_the_app() -> None:
+    from buysmarter.cli import console as terminal
+
+    with terminal.console.capture() as capture:
+        terminal.render(_result(), top=3)
+
+    out = capture.get()
+    for russian in (
+        "Запрос",
+        "Категория:",
+        "Лучший выбор",
+        "Ось",
+        "Цена",
+        "выгодная цена",
+        "Другие варианты",
+        "Дешевле",
+        "Лучшие предложения (топ 3)",
+        "Kaspi",
+        "Отсеяно жёсткими фильтрами: 2",
+    ):
+        assert russian in out, russian
+    for english in ("Parsed request", "Best pick", "Axis", "Alternatives", "Top candidates"):
+        assert english not in out, english
+    assert "strong price" not in out and "rejected by hard filters" not in out

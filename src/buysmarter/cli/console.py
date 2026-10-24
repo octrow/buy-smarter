@@ -6,17 +6,28 @@ from rich.panel import Panel
 from rich.table import Table
 
 from buysmarter.cli.report import (
-    ROLE_LABELS,
     assessed_note,
     budget_text,
-    format_rejected_reasons,
     hidden_note,
+    rejected_line,
     request_notes,
     skipped_llm_note,
     unavailable_sources_note,
     used_first,
 )
-from buysmarter.i18n import USED_SECTION, checked_brands, clean_title, kzt, used_con
+from buysmarter.i18n import (
+    BEST_ROLE,
+    ROLE_LABELS,
+    USED_SECTION,
+    axis_label,
+    checked_brands,
+    clean_title,
+    explain,
+    kzt,
+    pro_con,
+    source_label,
+    used_con,
+)
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
@@ -29,15 +40,15 @@ console = Console()
 def _render_constraints(c: QueryConstraints, city_defaulted: bool = False) -> None:
     city_note = " (по умолчанию)" if city_defaulted else ""
     lines = [
-        f"[bold]Category:[/bold] {c.search_phrase}",
-        f"[bold]City:[/bold] {c.city or '-'}{city_note}",
-        f"[bold]Budget:[/bold] {budget_text(c)}",
+        f"[bold]Категория:[/bold] {escape(c.search_phrase)}",
+        f"[bold]Город:[/bold] {escape(c.city or '-')}{city_note}",
+        f"[bold]Бюджет:[/bold] {budget_text(c)}",
     ]
     if c.required_features:
-        lines.append(f"[bold]Required:[/bold] {', '.join(c.required_features)}")
+        lines.append(f"[bold]Нужно:[/bold] {escape(', '.join(c.required_features))}")
     if c.excluded_brands:
-        lines.append(f"[bold]Excluded:[/bold] {', '.join(c.excluded_brands)}")
-    console.print(Panel("\n".join(lines), title="Parsed request", expand=False))
+        lines.append(f"[bold]Без брендов:[/bold] {escape(', '.join(c.excluded_brands))}")
+    console.print(Panel("\n".join(lines), title="Запрос", expand=False))
 
 
 def _render_best(best: ScoredCandidate) -> None:
@@ -47,37 +58,39 @@ def _render_best(best: ScoredCandidate) -> None:
     # all-barred fallback — nothing trustworthy was left to prefer. That must
     # be visible, not silently presented as an endorsed pick.
     barred = is_barred(best)
-    title = f"⚠ {cand.title}" if barred else cand.title
+    title = f"⚠ {clean_title(cand.title)}" if barred else clean_title(cand.title)
     header = (
-        f"🥇 [bold]{escape(title)}[/bold]  [dim]\\[{escape(cand.source)}][/dim]\n"
-        f"Score: [bold]{best.total_score:.0f}[/bold]/100   "
-        f"Confidence: [bold]{best.confidence:.0%}[/bold]\n"
-        f"Price: [bold]{kzt(cand.price)}[/bold]"
+        f"🥇 [bold]{escape(title)}[/bold]  [dim]\\[{source_label(cand.source)}][/dim]\n"
+        f"Баллы: [bold]{best.total_score:.0f}[/bold]/100   "
+        f"Уверенность: [bold]{best.confidence:.0%}[/bold]\n"
+        f"Цена: [bold]{kzt(cand.price)}[/bold]"
     )
     if barred:
         header += "\n[bold red]все кандидаты под подозрением — проверьте вручную[/bold red]"
     if best.review_penalty > 0:
-        header += f"\n[red]Penalty: отзывы (−{best.review_penalty:.0f})[/red]"
+        header += f"\n[red]Штраф: отзывы (−{best.review_penalty:.0f})[/red]"
     if cand.best_seller:
         header += f"\nПродавец: {escape(cand.best_seller)}"
     if cand.url:
         header += f"\n{escape(cand.url)}"
-    console.print(Panel(header, title="Best pick", expand=False))
+    console.print(Panel(header, title=BEST_ROLE, expand=False))
 
     table = Table(show_header=True, header_style="bold")
-    table.add_column("Axis")
-    table.add_column("Score", justify="right")
-    table.add_column("Why")
+    table.add_column("Ось")
+    table.add_column("Баллы", justify="right")
+    table.add_column("Почему")
     for axis in best.axes:
         table.add_row(
-            escape(axis.name), f"{axis.score:.1f}/{axis.max_score:.0f}", escape(axis.explanation)
+            axis_label(axis.name),
+            f"{axis.score:.1f}/{axis.max_score:.0f}",
+            escape(explain(axis.explanation)),
         )
     console.print(table)
 
     if best.pros:
-        console.print("[green]+ " + escape("  + ".join(best.pros)) + "[/green]")
+        console.print("[green]+ " + escape("  + ".join(map(pro_con, best.pros))) + "[/green]")
     if best.cons:
-        console.print("[red]- " + escape("  - ".join(best.cons)) + "[/red]")
+        console.print("[red]- " + escape("  - ".join(map(pro_con, best.cons))) + "[/red]")
 
 
 def _render_review_summary(summary: ReviewSummary | None) -> None:
@@ -102,12 +115,12 @@ def _product_cell(title: str, url: str | None) -> str:
 
 def _render_alternatives(alts: dict[str, ScoredCandidate]) -> None:
     seen: set[str] = set()
-    table = Table(title="Alternatives", show_header=True, header_style="bold")
-    table.add_column("Role")
-    table.add_column("Source")
-    table.add_column("Product")
-    table.add_column("Price", justify="right")
-    table.add_column("Score", justify="right")
+    table = Table(title="Другие варианты", show_header=True, header_style="bold")
+    table.add_column("Роль")
+    table.add_column("Маркетплейс")
+    table.add_column("Товар")
+    table.add_column("Цена", justify="right")
+    table.add_column("Баллы", justify="right")
     for role, scored in alts.items():
         key = scored.candidate.source_product_id
         if key in seen:
@@ -115,8 +128,8 @@ def _render_alternatives(alts: dict[str, ScoredCandidate]) -> None:
         seen.add(key)
         table.add_row(
             ROLE_LABELS.get(role, role),
-            scored.candidate.source,
-            _product_cell(scored.candidate.title, scored.candidate.url),
+            source_label(scored.candidate.source),
+            _product_cell(clean_title(scored.candidate.title), scored.candidate.url),
             f"{kzt(scored.candidate.price)}",
             f"{scored.total_score:.0f}",
         )
@@ -135,24 +148,24 @@ def _render_top(scored: list[ScoredCandidate], top: int) -> None:
     ranked = distinct_variants(scored, top)
     if not ranked:
         return
-    title = f"Top candidates (top {len(ranked)})"
+    title = f"Лучшие предложения (топ {len(ranked)})"
     table = Table(title=title, show_header=True, header_style="bold")
     table.add_column("#", justify="right")
-    table.add_column("Source")
-    table.add_column("Product")
-    table.add_column("Price", justify="right")
-    table.add_column("Score", justify="right")
-    table.add_column("Tier")
+    table.add_column("Маркетплейс")
+    table.add_column("Товар")
+    table.add_column("Цена", justify="right")
+    table.add_column("Баллы", justify="right")
+    table.add_column("Бренд")
     for i, s in enumerate(ranked, start=1):
         c = s.candidate
         # A barred candidate (suspicious price, dup-price-gap, mimicry, or a
         # review-summary counterfeit verdict) stays visible in this table but
         # gets a visible "⚠" marker — it can never win best/alternative roles
         # (docs/PLAN.md "Ranking-фиксы"), and the table shouldn't hide that.
-        title_text = f"⚠ {c.title}" if is_barred(s) else c.title
+        title_text = f"⚠ {clean_title(c.title)}" if is_barred(s) else clean_title(c.title)
         table.add_row(
             str(i),
-            c.source,
+            source_label(c.source),
             _product_cell(title_text, c.url),
             f"{kzt(c.price)}",
             f"{s.total_score:.0f}",
@@ -166,11 +179,11 @@ def render_used(used: list[UsedListing], ranked: list[ScoredCandidate]) -> None:
         return
     brands = checked_brands(s.candidate for s in ranked)
     table = Table(title=USED_SECTION, show_header=True, header_style="bold")
-    table.add_column("Listing")
-    table.add_column("Price", justify="right")
-    table.add_column("Saving vs new", justify="right")
-    table.add_column("City")
-    table.add_column("Con")
+    table.add_column("Объявление")
+    table.add_column("Цена", justify="right")
+    table.add_column("Дешевле нового на", justify="right")
+    table.add_column("Город")
+    table.add_column("Минус")
     for listing in used:
         title = f"{listing.title} → {listing.canonical}" if listing.canonical else listing.title
         saving_cell = "—" if listing.standalone else f"-{kzt(listing.saving)}"
@@ -216,13 +229,7 @@ def render(result: RecommendResult, top: int) -> None:
         render_used(*used)
     _render_hidden(result)
     if result.recommendation.rejected_count:
-        console.print(
-            f"[dim]{result.recommendation.rejected_count} candidate(s) "
-            "rejected by hard filters.[/dim]"
-        )
-        if result.recommendation.rejected_reasons:
-            breakdown = format_rejected_reasons(result.recommendation.rejected_reasons)
-            console.print(f"[dim]Отсеяно: {breakdown}[/dim]")
+        console.print(f"[dim]{escape(rejected_line(result))}[/dim]")
 
 
 def render_no_substance(exc: NoSubstanceMatch) -> None:
@@ -239,9 +246,9 @@ def render_no_substance(exc: NoSubstanceMatch) -> None:
         show_header=True,
         header_style="bold",
     )
-    table.add_column("Product")
-    table.add_column("Price", justify="right")
-    table.add_column("Rating", justify="right")
+    table.add_column("Товар")
+    table.add_column("Цена", justify="right")
+    table.add_column("Рейтинг", justify="right")
     for cand in exc.alternatives:
         rating = f"{cand.rating:.1f}" if cand.rating is not None else "-"
         table.add_row(_product_cell(cand.title, cand.url), f"{kzt(cand.price)}", rating)

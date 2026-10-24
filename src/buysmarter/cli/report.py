@@ -66,6 +66,15 @@ def format_rejected_reasons(reasons: dict[str, int]) -> str:
     )
 
 
+def rejected_line(result: RecommendResult) -> str:
+    """How many candidates the hard filters dropped, then why, as the app and the console say."""
+    rec = result.recommendation
+    line = f"Отсеяно жёсткими фильтрами: {rec.rejected_count}."
+    if rec.rejected_reasons:
+        line += f"\n{format_rejected_reasons(rec.rejected_reasons)}"
+    return line
+
+
 def no_new_pick_text(reasons: dict[str, int], has_used: bool) -> str:
     """What to say when no new product passed: why, and whether OLX has something."""
     head = f"Новых предложений нет: {format_rejected_reasons(reasons)}."
