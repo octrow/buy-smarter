@@ -136,6 +136,20 @@ def unavailable_sources_note(result: RecommendResult) -> str | None:
     return f"Пропущено ({names}): нет браузера. Что установить, подскажет `buysmarter doctor`."
 
 
+def found_counts(result: RecommendResult) -> Counter[str]:
+    """How many ranked offers each marketplace brought; OLX counts its ads."""
+    counts = Counter(s.candidate.source for s in result.recommendation.ranked)
+    counts["olx"] += len(result.used_listings)
+    return counts
+
+
+def found_line(counts: Counter[str]) -> str:
+    """ "Найдено предложений: N, б/у на OLX: M." under the search, in the app and the console."""
+    new = sum(n for name, n in counts.items() if name != "olx")
+    olx = f", б/у на OLX: {counts['olx']}" if counts["olx"] else ""
+    return f"Найдено предложений: {new}{olx}."
+
+
 def failed_source_notes(result: RecommendResult) -> list[str]:
     """A line per marketplace whose search failed, as the app's «Не удалось проверить»."""
     return [

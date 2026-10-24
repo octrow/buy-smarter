@@ -1,7 +1,6 @@
 """Search screen: the request form, live per-marketplace progress and cancel."""
 
 import logging
-from collections import Counter
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -20,7 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from buysmarter.cli.report import no_new_pick_text, saved_reports
+from buysmarter.cli.report import found_counts, found_line, no_new_pick_text, saved_reports
 from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.learning import CategoryLearning
 from buysmarter.gui.prefs_fields import (
@@ -40,6 +39,7 @@ from buysmarter.gui.progress import Progress
 from buysmarter.gui.screens.clarify import ClarificationBox
 from buysmarter.gui.screens.saved import ListReports, report_parts
 from buysmarter.gui.theme import SPACE, bind_icon, set_state
+from buysmarter.i18n import stage_label
 from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services.auto_learn import NeedsLearning
 from buysmarter.services.collect import ALL_SOURCES
@@ -61,16 +61,6 @@ STATE_LABELS = {
     "failed": "ошибка",
 }
 
-# The core's stage names (services.recommend / collect) as the user reads them.
-STAGE_LABELS = {
-    "knowledge resolve": "Уточняю модель товара",
-    "query parse": "Разбираю запрос",
-    "collect": "Собираю предложения",
-    "relevance filter": "Отбираю подходящие",
-    "kimovil": "Сверяю характеристики",
-    "ranking": "Ранжирую",
-    "review summaries": "Свожу отзывы",
-}
 _STARTING = "Запускаю поиск"
 _CANCELLING = "Отменяю"
 _LEARNING = "Изучаю категорию «{category}» с AI (1–3 мин, платно)"
@@ -116,11 +106,6 @@ def _clear(layout: QVBoxLayout) -> None:
     while (item := layout.takeAt(0)) is not None:
         if (widget := item.widget()) is not None:
             widget.deleteLater()
-
-
-def stage_label(stage: str) -> str:
-    """A core stage name in Russian; ``collect[kaspi]`` reads as ``collect``."""
-    return STAGE_LABELS.get(stage.split("[", 1)[0], "Работаю")
 
 
 type Recommend = Callable[..., Awaitable[RecommendResult]]
@@ -586,17 +571,12 @@ class SearchScreen(QWidget):
 
     def _show_counts(self, result: RecommendResult) -> None:
         """What each marketplace brought, next to its status and as one summary line."""
-        counts = Counter(s.candidate.source for s in result.recommendation.ranked)
-        counts["olx"] += len(result.used_listings)
+        counts = found_counts(result)
         for name, label in self.status.items():
             if self._states.get(name) == "done":
                 label.setText(f"{STATE_LABELS['done']} · {counts[name]}")
-        new = sum(n for name, n in counts.items() if name != "olx")
-        line = f"Найдено предложений: {new}"
-        if counts["olx"]:
-            line += f", б/у на OLX: {counts['olx']}"
         note, self._learn_note = self._learn_note, ""
-        self.message.setText(f"{note} {line}.".strip())
+        self.message.setText(f"{note} {found_line(counts)}".strip())
 
     def note_saved(self) -> None:
         """Say where the finished search's report went; it now heads the recent searches."""

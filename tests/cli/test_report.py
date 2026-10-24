@@ -577,3 +577,12 @@ def test_the_console_olx_table_says_what_each_ad_was_compared_with_as_the_app() 
     assert "Сравнили с" in out
     assert out.count("MEO705") == 2  # the ad's model name, then the product it was compared with
     assert "18 000 ₸" in out and "-18" not in out  # "Дешевле нового на" already says less
+
+
+def test_the_console_says_how_much_was_found_as_the_app() -> None:
+    from buysmarter.cli import console as terminal
+
+    with terminal.console.capture() as capture:
+        terminal.render(_result(), top=3)
+
+    assert "Найдено предложений: 5, б/у на OLX: 1." in capture.get()

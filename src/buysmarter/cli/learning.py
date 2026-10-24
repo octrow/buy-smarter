@@ -14,6 +14,7 @@ import typer
 from rich.console import Console
 from rich.markup import escape
 
+from buysmarter.cli.progress import stages
 from buysmarter.knowledge.generate import learn_category
 from buysmarter.services.auto_learn import auto_learn, count_start
 from buysmarter.services.recommend import RecommendResult
@@ -76,7 +77,9 @@ async def search_and_follow_up(
     show(result)
     if await _learned_after_report(result, background, use_llm=use_llm, tty=tty):
         # the settled search again, as the app's «Повторить поиск»: nothing is asked twice
-        show(await run_recommend(**{**settled, "learn_first": False}))
+        with stages(console):
+            rerun = await run_recommend(**{**settled, "learn_first": False})
+        show(rerun)
 
 
 async def _learned_after_report(

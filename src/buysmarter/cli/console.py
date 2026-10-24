@@ -10,6 +10,8 @@ from buysmarter.cli.report import (
     assessed_note,
     budget_text,
     failed_source_notes,
+    found_counts,
+    found_line,
     hidden_note,
     ingredients_unchecked_note,
     rejected_line,
@@ -207,8 +209,9 @@ def render(
     result: RecommendResult, top: int, *, use_llm: bool = True, summary: bool = True
 ) -> None:
     """The report in the terminal; ``use_llm``/``summary`` say why a review summary is missing."""
-    if result.restricted_note:
+    if result.restricted_note:  # always the first line
         console.print(f"[bold yellow]⚠ {escape(result.restricted_note)}[/bold yellow]")
+    console.print(found_line(found_counts(result)))
     _render_constraints(result.constraints, result.city_defaulted)
     notes = (
         *request_notes(result),

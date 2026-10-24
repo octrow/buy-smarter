@@ -19,6 +19,7 @@ from buysmarter.cli.clarify import EXIT_CLARIFY, print_clarification
 from buysmarter.cli.clarify import ask as ask_clarification
 from buysmarter.cli.console import console, render, render_no_substance, render_used
 from buysmarter.cli.learning import learn_before_search, search_and_follow_up
+from buysmarter.cli.progress import stages
 from buysmarter.cli.report import (
     DEFAULT_TOP,
     no_new_pick_text,
@@ -263,7 +264,8 @@ async def recommend_pipeline(
             if settled is not None:  # for «Повторить поиск»: the same answer, round and budget
                 settled.clear()
                 settled.update(call)
-            return await run_recommend(**call)
+            with stages(console):
+                return await run_recommend(**call)
         except NeedsLearning as exc:
             learn_first = False
             await learn_before_search(exc.category, force=learn, background=background)

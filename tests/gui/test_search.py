@@ -4,7 +4,8 @@ import asyncio
 import threading
 
 from buysmarter.gui.bridge import USER_ERROR
-from buysmarter.gui.screens.search import STAGE_LABELS, STATE_LABELS, SearchScreen, stage_label
+from buysmarter.gui.screens.search import STATE_LABELS, SearchScreen
+from buysmarter.i18n import STAGE_LABELS, stage_label
 from buysmarter.ranking.models import Candidate, QueryConstraints
 from buysmarter.services.collect import _safe
 from buysmarter.services.matching import UsedListing

@@ -59,6 +59,23 @@ _WEAK = {
 _REFERENCE = {"trusted-brand": "по известным брендам", "pool": "по всем предложениям"}
 
 
+# The core's stage names (services.recommend / collect) as the user reads them.
+STAGE_LABELS = {
+    "knowledge resolve": "Уточняю модель товара",
+    "query parse": "Разбираю запрос",
+    "collect": "Собираю предложения",
+    "relevance filter": "Отбираю подходящие",
+    "kimovil": "Сверяю характеристики",
+    "ranking": "Ранжирую",
+    "review summaries": "Свожу отзывы",
+}
+
+
+def stage_label(stage: str) -> str:
+    """A core stage name in Russian; ``collect[kaspi]`` reads as ``collect``."""
+    return STAGE_LABELS.get(stage.split("[", 1)[0], "Работаю")
+
+
 def axis_label(name: str) -> str:
     return AXIS_LABELS.get(name, name)
 
