@@ -93,6 +93,7 @@ logger = logging.getLogger(__name__)
 # yields one (docs/INIT_DATA.md, most users are in Almaty).
 _DEFAULT_CITY = "Алматы"
 _CITY_PREFERENCE_KEY = "city"
+_BUDGET_PREFERENCE_KEY = "budget"
 # What a run with no LLM route (no key, no claude CLI) does without the LLM.
 NO_LLM_STEPS = ("query parsing", "review summaries", "ingredient extraction")
 
@@ -154,15 +155,28 @@ async def parse_request(query: str, use_llm: bool) -> QueryConstraints:
     return await _parse(query, use_llm)
 
 
-async def _city_preference() -> str | None:
-    """Best-effort lookup of a stored city preference; ``None`` on any failure."""
+async def _preference(key: str) -> Any | None:
+    """Best-effort lookup of a stored preference; ``None`` on any failure."""
     try:
         async with async_session() as session:
-            value = await get_preference(session, _CITY_PREFERENCE_KEY)
+            return await get_preference(session, key)
     except Exception as exc:  # noqa: BLE001 - a dead DB must not block a default
-        logger.warning("City preference lookup failed (DB unavailable?): %r", exc)
+        logger.warning("Preference %r lookup failed (DB unavailable?): %r", key, exc)
         return None
+
+
+async def _city_preference() -> str | None:
+    value = await _preference(_CITY_PREFERENCE_KEY)
     return value if isinstance(value, str) and value else None
+
+
+async def stored_budget() -> int | None:
+    """The saved budget in KZT (a number, or "40 000" from older saves); ``None`` when unset or 0.
+
+    The fallback after ``--budget`` / the app's field and the query, like the stored city.
+    """
+    digits = "".join(str(await _preference(_BUDGET_PREFERENCE_KEY) or "").split())
+    return (int(digits) or None) if digits.isdigit() else None
 
 
 async def resolve_city(parsed_city: str | None, override: str | None) -> tuple[str, bool]:
@@ -304,8 +318,10 @@ async def _constraints(
     trusted_only: bool,
     use_llm: bool,
 ) -> tuple[QueryConstraints, bool]:
-    """Resolve the city, let capabilities read the query, apply the caller's overrides."""
+    """Resolve the city and budget, let capabilities read the query, apply the overrides."""
     resolved_city, city_defaulted = await resolve_city(base_constraints.city, city)
+    if budget is None and base_constraints.budget_max is None:
+        budget = await stored_budget()
     constraints = read_query(REGISTRY, base_constraints, query=query, use_llm=use_llm)
     return _apply_overrides(constraints, resolved_city, budget, trusted_only), city_defaulted
 

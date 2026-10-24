@@ -46,6 +46,9 @@ def budget_box() -> QSpinBox:
     box.setGroupSeparatorShown(True)
     # QSS horizontal padding does not reach a spin box's text: inset it like a QLineEdit's.
     box.lineEdit().setTextMargins(SPACE["sm"], 0, SPACE["sm"], 0)
+    # 0 shows the special text ("без лимита", a hint): muted, as a line edit's placeholder.
+    box.valueChanged.connect(lambda value: set_state(box, "state", "" if value else "hint"))
+    set_state(box, "state", "hint")
     return box
 
 

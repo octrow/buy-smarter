@@ -15,6 +15,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   MCP, the HTTP API and the worker still learn after the report.
 
 ### Fixed
+- In the desktop app a city or budget named in the query beats the saved ones again: the city and budget
+  fields stay empty and show the saved values as hints ("из запроса, иначе …"), and the report says "(по
+  умолчанию)" for a saved city. The core now falls back to the saved budget after the query, as it does for the
+  city, so the CLI uses it too and does not ask for a budget when one is saved (CLI ↔ GUI parity #1).
 - A cancelled learn no longer blocks auto-learning of its category for 15 minutes.
 
 ## [0.8.0] - 2026-10-24

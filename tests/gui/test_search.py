@@ -106,12 +106,20 @@ def test_empty_query_does_not_start(qtbot, runner):
     assert "Введите запрос" in screen.message.text()
 
 
-def test_saved_preferences_prefill_the_form(qtbot, runner):
-    screen = SearchScreen(runner)
+def test_saved_city_and_budget_are_hints_so_the_query_still_wins(qtbot, runner, result):
+    # as the CLI: field > query > saved; the core falls back to the saved ones itself
+    calls = []
+    screen = SearchScreen(runner, recommend=_stub_recommend(result, calls))
     qtbot.addWidget(screen)
     screen.apply_prefs({"city": "Астана", "budget": "40 000", "marketplaces": "kaspi, olx"})
-    assert screen.city.text() == "Астана"
-    assert screen.budget.value() == 40000
+    assert screen.city.text() == "" and "Астана" in screen.city.placeholderText()
+    assert screen.budget.value() == 0 and "40\xa0000" in screen.budget.specialValueText()
+    assert screen.budget.property("state") == "hint"  # muted, as the city's placeholder
+
+    screen.query.setText("ирригатор до 30000 Караганда")
+    with qtbot.waitSignal(screen.report_ready, timeout=WAIT_MS):
+        screen.start()
+    assert calls[0][1]["city"] is None and calls[0][1]["budget"] is None
     assert {n: b.isChecked() for n, b in screen.sources.items()} == {
         "kaspi": True,
         "ozon": False,

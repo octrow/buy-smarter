@@ -49,7 +49,7 @@ def test_a_menu_launch_takes_path_from_the_login_shell_past_rc_banners(monkeypat
     assert os.environ["PATH"] == "/nvm/bin:/usr/bin"
 
 
-def test_window_prefills_search_from_saved_prefs_and_opens_the_report(
+def test_window_hints_saved_prefs_on_search_and_opens_the_report(
     qtbot, runner, result, monkeypatch
 ):
     async def saved():
@@ -58,7 +58,7 @@ def test_window_prefills_search_from_saved_prefs_and_opens_the_report(
     monkeypatch.setattr(gui_app.prefs, "get_all", saved)
     window = gui_app.MainWindow(runner)
     qtbot.addWidget(window)
-    qtbot.waitUntil(lambda: window.search.city.text() == "Астана", timeout=WAIT_MS)
+    qtbot.waitUntil(lambda: "Астана" in window.search.city.placeholderText(), timeout=WAIT_MS)
 
     window.search.report_ready.emit(result, SearchRun("q", True, {"kaspi": "done"}))
     assert window.stack.currentWidget() is window.report

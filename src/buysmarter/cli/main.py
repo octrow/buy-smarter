@@ -80,6 +80,7 @@ from buysmarter.services.recommend import (
     NoNewPick,
     NoSubstanceMatch,
     RecommendResult,
+    stored_budget,
     understand_request,
 )
 from buysmarter.services.recommend import parse_request as run_parse_request
@@ -432,14 +433,16 @@ def _parse_sources(raw: str) -> list[str]:
 _BUDGET_PROMPT = "Бюджет в ₸ (Enter — без лимита)"
 
 
-def _resolve_budget(budget: int | None, parsed_budget: int | None) -> int | None:
+def _resolve_budget(
+    budget: int | None, parsed_budget: int | None, saved: int | None = None
+) -> int | None:
     """Fill in a missing budget interactively, TTY only.
 
-    ``--budget`` wins outright; a budget already found in the query is left
-    alone (``recommend`` keeps it, no override needed); otherwise ask — but
+    ``--budget`` wins outright; a budget already found in the query or a ``saved`` one is left
+    alone (``recommend`` keeps or falls back to it, no override needed); otherwise ask — but
     only on a real terminal, so scripts/CI never block on stdin.
     """
-    if budget is not None or parsed_budget is not None:
+    if budget is not None or parsed_budget is not None or saved is not None:
         return budget
     if not sys.stdin.isatty():
         return None
@@ -478,7 +481,8 @@ async def recommend_pipeline(
         try:
             if not budget_asked:
                 _, understood, _ = await understand_request(query, parsed, use_llm, ask)
-                budget, budget_asked = _resolve_budget(budget, understood.budget_max), True
+                saved = await stored_budget()
+                budget, budget_asked = _resolve_budget(budget, understood.budget_max, saved), True
             call: dict[str, Any] = {
                 "query": query,
                 "city": city,

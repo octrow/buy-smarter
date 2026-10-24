@@ -5,7 +5,7 @@ from buysmarter.gui.screens.preferences import PreferencesScreen
 from tests.gui.conftest import WAIT_MS
 
 
-def test_a_saved_city_prefills_search_after_recreating_the_window(qtbot, runner):
+def test_saved_prefs_reach_search_after_recreating_the_window(qtbot, runner):
     first = gui_app.MainWindow(runner)
     qtbot.addWidget(first)
     page = first.preferences
@@ -15,12 +15,12 @@ def test_a_saved_city_prefills_search_after_recreating_the_window(qtbot, runner)
     page.excluded.setText("Noname,  Generic ,")
     with qtbot.waitSignal(page.saved, timeout=WAIT_MS):
         page.save()
-    assert first.search.city.text() == "Шымкент"  # the open window's next search too
+    assert "Шымкент" in first.search.city.placeholderText()  # the open window's next search too
 
     second = gui_app.MainWindow(runner)
     qtbot.addWidget(second)
-    qtbot.waitUntil(lambda: second.search.city.text() == "Шымкент", timeout=WAIT_MS)
-    assert second.search.budget.value() == 50000
+    qtbot.waitUntil(lambda: "Шымкент" in second.search.city.placeholderText(), timeout=WAIT_MS)
+    assert "50\xa0000" in second.search.budget.specialValueText()
     assert not second.search.sources["olx"].isChecked()
     assert second.preferences.excluded.text() == "Noname, Generic"
 

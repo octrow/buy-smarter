@@ -176,6 +176,19 @@ def test_budget_in_query_skips_prompt(monkeypatch) -> None:
     assert resolved is None
 
 
+def test_a_saved_budget_skips_the_prompt(monkeypatch) -> None:
+    # as the app: the saved budget is the fallback, nothing to ask
+    def _fail_prompt(*args, **kwargs):  # pragma: no cover - must not be called
+        raise AssertionError("should not prompt when a budget is saved")
+
+    monkeypatch.setattr(main.sys, "stdin", _FakeStdin(tty=True))
+    monkeypatch.setattr(main.typer, "prompt", _fail_prompt)
+
+    resolved = main._resolve_budget(None, None, saved=40000)
+
+    assert resolved is None  # the core falls back to the saved one
+
+
 def _stub_recommend_pipeline(monkeypatch, result) -> None:
     async def _fake_pipeline(*args, **kwargs):
         return result

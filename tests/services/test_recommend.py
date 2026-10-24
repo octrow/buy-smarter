@@ -184,6 +184,50 @@ async def test_city_not_defaulted_when_query_states_it(stub_source: StubKaspiSou
     assert result.city_defaulted is False
 
 
+@pytest.fixture
+def saved_budget(monkeypatch) -> None:
+    from buysmarter.services import recommend as recommend_module
+
+    async def _saved() -> int:
+        return 50000
+
+    monkeypatch.setattr(recommend_module, "stored_budget", _saved)
+
+
+async def test_a_saved_budget_applies_when_neither_the_query_nor_the_caller_names_one(
+    stub_source: StubKaspiSource, saved_budget
+) -> None:
+    result = await recommend(
+        "ирригатор портативный", use_llm=False, source=stub_source, persist=False
+    )
+    assert result.constraints.budget_max == 50000
+
+
+async def test_the_query_and_the_caller_budget_beat_the_saved_one(
+    stub_source: StubKaspiSource, saved_budget
+) -> None:
+    query = "ирригатор портативный до 40000 тг"
+    from_query = await recommend(query, use_llm=False, source=stub_source, persist=False)
+    from_caller = await recommend(
+        query, budget=45000, use_llm=False, source=stub_source, persist=False
+    )
+    assert from_query.constraints.budget_max == 40000
+    assert from_caller.constraints.budget_max == 45000
+
+
+@pytest.mark.parametrize(("stored", "budget"), [(40000, 40000), ("40 000", 40000), (0, None)])
+async def test_stored_budget_reads_a_number_or_older_text_and_zero_is_no_limit(
+    monkeypatch, stored, budget
+) -> None:
+    from buysmarter.services import recommend as recommend_module
+
+    async def _preference(key: str) -> object:
+        return stored if key == "budget" else None
+
+    monkeypatch.setattr(recommend_module, "_preference", _preference)
+    assert await recommend_module.stored_budget() == budget
+
+
 async def test_city_override_wins_and_is_not_marked_defaulted(
     stub_source: StubKaspiSource,
 ) -> None:

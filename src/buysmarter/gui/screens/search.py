@@ -50,6 +50,9 @@ from buysmarter.services.recommend import recommend as run_recommend
 from buysmarter.services.understanding import Clarification, NeedsClarification, NothingToSearch
 
 _QUERY_PLACEHOLDER = "нужен ирригатор, IPX7, до 40000 тг, Алматы"
+# Empty city and budget fields: the query's, else the saved ones (``apply_prefs`` names them).
+_CITY_HINT = "из запроса или настроек"
+_BUDGET_HINT = "из запроса или без лимита"
 STATE_LABELS = {
     "waiting": "в очереди",
     "running": "ищет…",
@@ -204,8 +207,9 @@ class SearchScreen(QWidget):
     def _build(self) -> None:
         self.query = QLineEdit(placeholderText=_QUERY_PLACEHOLDER)
         self.query.returnPressed.connect(self.start)
-        self.city = QLineEdit(placeholderText="из запроса или настроек")
+        self.city = QLineEdit(placeholderText=_CITY_HINT)
         self.budget = budget_box()
+        self.budget.setSpecialValueText(_BUDGET_HINT)
         self.use_llm = checked_box("AI: разбор запроса и отзывы")
         self.use_llm.setToolTip(_USE_LLM_HINT)
         self.sources = source_boxes()
@@ -370,11 +374,17 @@ class SearchScreen(QWidget):
         self.start()
 
     def apply_prefs(self, prefs: Mapping[str, Any]) -> None:
-        """Pre-fill from saved preferences; excluded brands apply to every search."""
-        # A city the user typed wins over a default arriving later.
-        if isinstance(city := prefs.get(CITY), str) and not self.city.isModified():
-            self.city.setText(city)
-        self.budget.setValue(as_budget(prefs.get(BUDGET)))
+        """Show saved city and budget as hints; excluded brands apply to every search.
+
+        The fields stay empty: the core falls back to the saved city and budget only when
+        neither a field nor the query names one, as ``--city``/``--budget`` in the CLI.
+        """
+        city = prefs.get(CITY)
+        self.city.setPlaceholderText(f"из запроса, иначе {city}" if city else _CITY_HINT)
+        budget = as_budget(prefs.get(BUDGET))
+        self.budget.setSpecialValueText(
+            f"из запроса, иначе {kzt(budget)}" if budget else _BUDGET_HINT
+        )
         check_sources(self.sources, prefs.get(MARKETPLACES))
         for name in self._unavailable:  # health checks may have landed first
             self.sources[name].setChecked(False)

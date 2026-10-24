@@ -37,6 +37,8 @@ _CARD_TITLE_BAND_PX = 52
 # Fusion draws a group box title this far in from its rect: pulled back, it lines up with the card's content.
 _CARD_TITLE_INSET_PX = 2
 _SPIN_TEXT_PX = 19
+# A hint in a spin box reads as a line edit's placeholder: the text at half alpha (Qt's #AARRGGBB).
+_PLACEHOLDER_ALPHA = "80"
 # Pages stop growing here: on a wide monitor a line of text or a table row stays readable.
 CONTENT_MAX_WIDTH = 1200
 
@@ -146,6 +148,7 @@ QLineEdit:hover, QSpinBox:hover, QComboBox:hover {{ border-color: {p["text_muted
 QLineEdit:focus, QSpinBox:focus, QComboBox:focus {{ border: 2px solid {p["accent"]}; padding: {s["sm"] - 3}px {s["sm"] - 1}px; }}
 QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled {{ color: {p["disabled"]}; background: {p["window"]}; border-color: {p["border"]}; }}
 QSpinBox {{ min-height: {_SPIN_TEXT_PX}px; }}
+QSpinBox[state="hint"], QSpinBox[state="hint"] QLineEdit {{ color: #{_PLACEHOLDER_ALPHA}{p["text"][1:]}; }}
 QSpinBox::up-button, QSpinBox::down-button {{ width: 0; border: none; }}
 QComboBox QAbstractItemView {{ background: {p["surface"]}; border: 1px solid {p["border"]}; selection-background-color: {p["accent_soft"]}; selection-color: {p["text"]}; outline: 0; }}
 
