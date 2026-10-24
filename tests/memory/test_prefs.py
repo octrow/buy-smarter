@@ -94,3 +94,44 @@ async def test_legacy_import_survives_a_failed_rename(legacy_file, monkeypatch, 
 
     assert await prefs.get_all() == {"city": "Алматы"}
     assert "Could not rename" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("stored", "items"),
+    [
+        (["Noname", " Generic ", ""], ["Noname", "Generic"]),
+        ("Noname,  Generic ,", ["Noname", "Generic"]),
+        (None, []),
+        (5, []),
+    ],
+)
+def test_as_list_reads_a_stored_list_or_a_comma_separated_string(stored, items) -> None:
+    assert prefs.as_list(stored) == items
+
+
+@pytest.mark.parametrize(
+    ("stored", "budget"),
+    [
+        (40000, 40000),
+        ("40 000", 40000),
+        ("40\xa0000", 40000),
+        (None, 0),
+        ("abc", 0),
+        (10**12, prefs.BUDGET_MAX),
+    ],
+)
+def test_as_budget_reads_a_number_or_its_text_and_zero_is_no_limit(stored, budget) -> None:
+    assert prefs.as_budget(stored) == budget
+
+
+@pytest.mark.parametrize(
+    ("stored", "sources"),
+    [
+        (["kaspi", "OLX", "kaspi"], ["kaspi", "olx"]),
+        ("ozon, avito", ["ozon"]),
+        ("avito", []),
+        (None, []),
+    ],
+)
+def test_as_sources_keeps_the_known_marketplaces_once(stored, sources) -> None:
+    assert prefs.as_sources(stored) == sources

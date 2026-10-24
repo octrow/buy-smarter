@@ -17,8 +17,16 @@ from typing import Any
 from buysmarter.db import repo
 from buysmarter.db.base import async_session
 from buysmarter.local_store import set_aside
+from buysmarter.services.collect import ALL_SOURCES
 
 logger = logging.getLogger(__name__)
+
+# The keys the app, the CLI and MCP read and write.
+CITY = "city"  # the core reads this one too (services.recommend.resolve_city)
+BUDGET = "budget"  # and this one (services.recommend.stored_budget)
+MARKETPLACES = "marketplaces"
+EXCLUDED_BRANDS = "excluded_brands"
+BUDGET_MAX = 100_000_000
 
 _DEFAULT_PREFS_FILE = Path.home() / ".config" / "buysmarter" / "prefs.json"
 
@@ -27,6 +35,26 @@ def _legacy_file() -> Path:
     """The pre-store JSON file (``$BUYSMARTER_PREFS_FILE`` overrides)."""
     override = os.environ.get("BUYSMARTER_PREFS_FILE")
     return Path(override).expanduser() if override else _DEFAULT_PREFS_FILE
+
+
+def as_list(value: Any) -> list[str]:
+    """A stored list or comma-separated string as clean, non-empty items."""
+    items = value.split(",") if isinstance(value, str) else value
+    if not isinstance(items, list):
+        return []
+    return [text for item in items if (text := str(item).strip())]
+
+
+def as_budget(value: Any) -> int:
+    """A stored budget (int or "40 000") in KZT; 0 means no limit."""
+    digits = "".join(str(value or "").split())  # also drops the no-break space of "40 000"
+    return min(int(digits), BUDGET_MAX) if digits.isdigit() else 0
+
+
+def as_sources(value: Any) -> list[str]:
+    """The known marketplaces of a stored list, once each, in the stored order; ``[]`` if none."""
+    names = dict.fromkeys(name.lower() for name in as_list(value))
+    return [name for name in names if name in ALL_SOURCES]
 
 
 async def get_all() -> dict[str, Any]:

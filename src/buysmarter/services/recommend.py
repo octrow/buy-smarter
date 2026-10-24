@@ -47,6 +47,7 @@ from buysmarter.llm.relevance import (
     filter_relevant,
 )
 from buysmarter.llm.review_summary import ReviewSummary
+from buysmarter.memory.prefs import BUDGET, CITY, as_budget
 from buysmarter.normalize.candidate import attach_reference_prices
 from buysmarter.ranking.engine import NoCandidatesPassed, rank
 from buysmarter.ranking.models import (
@@ -92,8 +93,6 @@ logger = logging.getLogger(__name__)
 # Last-resort city when neither the query, --city, nor a stored preference
 # yields one (docs/INIT_DATA.md, most users are in Almaty).
 _DEFAULT_CITY = "Алматы"
-_CITY_PREFERENCE_KEY = "city"
-_BUDGET_PREFERENCE_KEY = "budget"
 # What a run with no LLM route (no key, no claude CLI) does without the LLM.
 NO_LLM_STEPS = ("query parsing", "review summaries", "ingredient extraction")
 
@@ -168,7 +167,7 @@ async def _preference(key: str) -> Any | None:
 
 
 async def _city_preference() -> str | None:
-    value = await _preference(_CITY_PREFERENCE_KEY)
+    value = await _preference(CITY)
     return value if isinstance(value, str) and value else None
 
 
@@ -177,8 +176,7 @@ async def stored_budget() -> int | None:
 
     The fallback after ``--budget`` / the app's field and the query, like the stored city.
     """
-    digits = "".join(str(await _preference(_BUDGET_PREFERENCE_KEY) or "").split())
-    return (int(digits) or None) if digits.isdigit() else None
+    return as_budget(await _preference(BUDGET)) or None
 
 
 async def resolve_city(parsed_city: str | None, override: str | None) -> tuple[str, bool]:
