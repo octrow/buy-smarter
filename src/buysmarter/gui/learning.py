@@ -13,7 +13,7 @@ from PySide6.QtCore import QObject, Signal
 
 from buysmarter.gui.bridge import USER_ERROR, CoreRunner, Job
 from buysmarter.knowledge.generate import learn_category
-from buysmarter.services.auto_learn import auto_learn, count_start, should_auto_learn
+from buysmarter.services.auto_learn import auto_learn, count_start
 
 LEARN_FAILED = "Не удалось изучить категорию. Подробности — в лог-файле."
 LEARN_CANCELLED = "Изучение категории отменено."
@@ -34,7 +34,6 @@ class CategoryLearning(QObject):
         self._jobs: dict[str, Job] = {}
         self._began: dict[str, float] = {}
         self._outcome: dict[str, str] = {}  # "" = learned, otherwise the failure message
-        self._checking: set[str] = set()
 
     def running(self, category: str) -> bool:
         return category in self._jobs
@@ -58,27 +57,6 @@ class CategoryLearning(QObject):
     def start(self, category: str) -> None:
         """The manual path: learn the category with the injected ``learn``."""
         self._begin(category, self._learn(category))
-
-    def auto_start(
-        self, category: str, *, intent: str, use_llm: bool, knowledge_missing: bool
-    ) -> None:
-        """Learn the category in the background if decision 8 allows; the caller never waits."""
-        if self._runner is None or category in self._jobs or category in self._checking:
-            return
-        self._checking.add(category)
-        decision = self._runner.submit(
-            should_auto_learn(
-                category, intent=intent, use_llm=use_llm, knowledge_missing=knowledge_missing
-            )
-        )
-        decision.finished.connect(lambda allowed: self._decided(category, bool(allowed)))
-        decision.failed.connect(lambda _msg: self._checking.discard(category))
-        decision.cancelled.connect(lambda: self._checking.discard(category))
-
-    def _decided(self, category: str, allowed: bool) -> None:
-        self._checking.discard(category)
-        if allowed:
-            self.learn_now(category)
 
     def learn_now(self, category: str) -> None:
         """Learn the category with ``auto_learn``: its condition already held."""

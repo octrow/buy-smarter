@@ -58,6 +58,14 @@ def over_limit() -> bool:
     return len(_starts) >= get_settings().auto_learn_per_hour
 
 
+def limit_note() -> str:
+    """Why a new category was not learned before its search: the hourly limit (or it is off)."""
+    per_hour = get_settings().auto_learn_per_hour
+    if per_hour <= 0:
+        return "Автоизучение выключено."
+    return f"Автоизучение на паузе: лимит {per_hour} в час исчерпан."
+
+
 def _valid_name(product_type: str) -> bool:
     name = product_type.strip()
     return 0 < len(name) <= _MAX_NAME_LEN and _NAME_RE.fullmatch(name) is not None

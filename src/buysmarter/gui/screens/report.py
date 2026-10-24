@@ -60,6 +60,7 @@ from buysmarter.knowledge.generate import learn_category
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import is_barred
+from buysmarter.services.auto_learn import limit_note, over_limit
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import RecommendResult
 
@@ -343,7 +344,7 @@ class ReportScreen(QScrollArea):
             layout.addWidget(_group("Не удалось проверить", notes))
         layout.addStretch(1)
         self.setWidget(page)
-        self._after_shown(result, run)
+        self._after_shown(result)
 
     def _add_used(self, layout: QVBoxLayout, result: RecommendResult, *, first: bool) -> None:
         """The OLX section, leading the page of a used query and closing the others."""
@@ -371,20 +372,13 @@ class ReportScreen(QScrollArea):
         self.toggles = toggles
         return toggles
 
-    def _after_shown(self, result: RecommendResult, run: SearchRun) -> None:
-        """Show this category's learning state, and start learning it if it may start itself."""
+    def _after_shown(self, result: RecommendResult) -> None:
+        """Show this category's learning state; the search starts a new category's learning."""
         if not result.knowledge_missing:
             return
         category = self._category = _category(result)
         self.learning.forget(category)
         self._render_learning()
-        if not result.skipped_llm_steps:
-            self.learning.auto_start(
-                category,
-                intent=result.constraints.intent,
-                use_llm=run.use_llm,
-                knowledge_missing=True,
-            )
 
     def _knowledge_banner(self, result: RecommendResult) -> QFrame:
         # Learned under the profile key, so the next search finds it (phase 2, decision 13).
@@ -409,6 +403,8 @@ class ReportScreen(QScrollArea):
             self._learn_blocked = True
             self.learn_button.setEnabled(False)
             self.learn_status.setText("Нужен AI: настройте его на экране «Состояние и ключи».")
+        elif over_limit():
+            self.learn_status.setText(f"{limit_note()} Изучите кнопкой «Изучить категорию».")
         self.learn_button.clicked.connect(lambda: self._on_learn_clicked(category))
         column.addWidget(_row(self.learn_button, self.learn_status))
         return banner

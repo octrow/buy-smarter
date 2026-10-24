@@ -1,8 +1,13 @@
-"""Auto-learning from the report screen: per category, a new report keeps the other's learning."""
+"""Learning on the report screen: per category, a new report keeps the other's learning.
+
+The search starts a new category's learning (#26); the report only shows it and offers the
+manual button.
+"""
 
 from buysmarter.gui import app as gui_app
 from buysmarter.gui import learning as gui_learning
 from buysmarter.gui.learning import CategoryLearning
+from buysmarter.gui.screens import report as report_screen
 from buysmarter.gui.screens.report import ReportScreen
 from buysmarter.gui.screens.search import SearchRun
 from tests.gui.test_app import _no_prefs
@@ -30,15 +35,15 @@ def _status(screen) -> str:
 
 
 def _learning_on_screen(qtbot, runner, result, fakes, category="ирригатор"):
+    """The report of a category whose learning the search started."""
     screen = _screen(qtbot, runner)
+    screen.learning.learn_now(category)
     screen.show_result(_missing(result, category), _RUN)
     qtbot.waitUntil(lambda: fakes.learned == [category], timeout=_WAIT_MS)
     return screen
 
 
-def test_a_report_with_missing_knowledge_starts_learning_and_counts_it(
-    qtbot, runner, result, fakes, counted
-):
+def test_a_report_shows_the_learning_the_search_started(qtbot, runner, result, fakes, counted):
     screen = _learning_on_screen(qtbot, runner, result, fakes)
     qtbot.waitUntil(lambda: "Изучаю категорию" in _status(screen), timeout=_WAIT_MS)
     assert counted == [1]
@@ -46,23 +51,19 @@ def test_a_report_with_missing_knowledge_starts_learning_and_counts_it(
     fakes.release("ирригатор")
 
 
-def test_no_auto_start_when_the_condition_does_not_hold(qtbot, runner, result, fakes, counted):
-    fakes.allowed = False
+def test_a_report_starts_no_learning_on_its_own(qtbot, runner, result, fakes, counted):
     screen = _screen(qtbot, runner)
     screen.show_result(_missing(result, "ирригатор"), _RUN)
-    qtbot.waitUntil(lambda: fakes.decided == ["ирригатор"], timeout=_WAIT_MS)
     qtbot.wait(100)
     assert fakes.learned == []
     assert counted == []
     assert screen.learn_button.isEnabled()  # the manual button stays
 
 
-def test_no_auto_start_when_an_llm_step_was_skipped(qtbot, runner, result, fakes, counted):
+def test_the_learn_button_is_off_when_an_llm_step_was_skipped(qtbot, runner, result):
     skipped = _missing(result, "ирригатор").model_copy(update={"skipped_llm_steps": ["review"]})
     screen = _screen(qtbot, runner)
     screen.show_result(skipped, _RUN)
-    qtbot.wait(100)
-    assert fakes.decided == []
     assert not screen.learn_button.isEnabled()
 
 
@@ -70,10 +71,7 @@ def test_a_new_report_keeps_the_other_categorys_learning_and_shows_its_own_statu
     qtbot, runner, result, fakes, counted
 ):
     screen = _learning_on_screen(qtbot, runner, result, fakes)
-    fakes.allowed = False
     screen.show_result(_missing(result, "чайник"), _RUN)
-    qtbot.waitUntil(lambda: fakes.decided == ["ирригатор", "чайник"], timeout=_WAIT_MS)
-    qtbot.wait(100)
     assert screen.learning.running("ирригатор")
     assert "Изучаю" not in _status(screen)
     assert screen.learn_button.isEnabled()
@@ -93,7 +91,6 @@ def test_finishing_the_category_on_screen_offers_a_rerun(qtbot, runner, result, 
 
 def test_finishing_another_category_offers_nothing_here(qtbot, runner, result, fakes, counted):
     screen = _learning_on_screen(qtbot, runner, result, fakes)
-    fakes.allowed = False
     screen.show_result(_missing(result, "чайник"), _RUN)
     fakes.release("ирригатор")
     qtbot.waitUntil(lambda: not screen.learning.running("ирригатор"), timeout=_WAIT_MS)
@@ -112,8 +109,7 @@ def test_a_failed_learn_says_so_in_words(qtbot, runner, result, fakes, counted):
     assert screen.learn_status.property("state") == "error"
 
 
-def test_the_new_controls_have_accessible_names(qtbot, runner, result, fakes):
-    fakes.allowed = False
+def test_the_new_controls_have_accessible_names(qtbot, runner, result):
     screen = _screen(qtbot, runner)
     screen.show_result(_missing(result, "ирригатор"), _RUN)
     assert screen.learn_button.accessibleName()
@@ -159,7 +155,7 @@ def test_learn_now_counts_one_start_and_learns(qtbot, runner, fakes, counted):
     learning.learn_now("кофемолка")
     learning.learn_now("кофемолка")  # already running: neither a second learn nor a count
     qtbot.waitUntil(lambda: fakes.learned == ["кофемолка"], timeout=_WAIT_MS)
-    assert counted == [1] and fakes.decided == []
+    assert counted == [1]
     with qtbot.waitSignal(learning.settled, timeout=_WAIT_MS):
         fakes.release("кофемолка")
     assert learning.outcome("кофемолка") == ""
@@ -179,3 +175,19 @@ def test_cancel_of_a_category_not_learning_does_nothing(runner):
     learning = CategoryLearning(runner)
     learning.cancel("кофемолка")
     assert learning.outcome("кофемолка") is None
+
+
+def test_a_used_up_hourly_limit_is_said_in_the_banner(qtbot, runner, result, monkeypatch):
+    monkeypatch.setattr(report_screen, "over_limit", lambda: True)
+    screen = _screen(qtbot, runner)
+    screen.show_result(_missing(result, "ирригатор"), _RUN)
+    assert "лимит" in _status(screen)
+    assert screen.learn_button.isEnabled()  # learning by hand stays
+
+
+def test_a_zero_hourly_limit_says_auto_learning_is_off(qtbot, runner, result, monkeypatch):
+    monkeypatch.setattr(report_screen, "over_limit", lambda: True)
+    monkeypatch.setenv("BUYSMARTER_AUTO_LEARN_PER_HOUR", "0")
+    screen = _screen(qtbot, runner)
+    screen.show_result(_missing(result, "ирригатор"), _RUN)
+    assert "выключено" in _status(screen)

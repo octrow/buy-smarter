@@ -87,18 +87,12 @@ def make_result() -> RecommendResult:
 
 
 class Fakes:
-    """Stand-ins for the decision and the learn; a learn waits on a gate per category."""
+    """A stand-in for the learn; it waits on a gate per category."""
 
     def __init__(self) -> None:
-        self.allowed = True
         self.outcome = True
-        self.decided: list[str] = []
         self.learned: list[str] = []
         self.gates: dict[str, asyncio.Event] = {}
-
-    async def decide(self, category, **_kw):
-        self.decided.append(category)
-        return self.allowed
 
     async def learn(self, category):
         self.learned.append(category)
@@ -114,7 +108,6 @@ class Fakes:
 @pytest.fixture
 def fakes(monkeypatch):
     f = Fakes()
-    monkeypatch.setattr(gui_learning, "should_auto_learn", f.decide)
     monkeypatch.setattr(gui_learning, "auto_learn", f.learn)
     return f
 

@@ -31,7 +31,6 @@ from buysmarter.cli.report import (
     unavailable_sources_note,
     used_first,
 )
-from buysmarter.config import get_settings
 from buysmarter.i18n import USED_SECTION, checked_brands, clean_title, kzt, used_con
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.generate import (
@@ -56,7 +55,13 @@ from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
-from buysmarter.services.auto_learn import NeedsLearning, auto_learn, count_start, over_limit
+from buysmarter.services.auto_learn import (
+    NeedsLearning,
+    auto_learn,
+    count_start,
+    limit_note,
+    over_limit,
+)
 from buysmarter.services.collect import ALL_SOURCES, select_sources
 from buysmarter.services.doctor import (
     INSTALL_BROWSER,
@@ -400,7 +405,8 @@ def recommend(
         path = save_report(result, query, top, save_path)
         console.print(f"[green]Report saved to {escape(str(path))}[/green]")
     if result.knowledge_missing and not no_llm and over_limit():
-        console.print(f"[yellow]{_limit_note(result.constraints.product_type)}[/yellow]")
+        manual = f"buysmarter learn-category {result.constraints.product_type!r}"
+        console.print(f"[yellow]{escape(limit_note())} Изучить вручную: {escape(manual)}[/yellow]")
 
 
 _LEARN_PROMPT = (
@@ -411,12 +417,6 @@ _LEARN_PROMPT = (
 
 def _on_terminal() -> bool:
     return sys.stdin.isatty()
-
-
-def _limit_note(category: str) -> str:
-    per_hour = get_settings().auto_learn_per_hour
-    state = "выключено" if per_hour <= 0 else f"на паузе: лимит {per_hour} в час исчерпан"
-    return f"Автоизучение {state}. Изучить вручную: buysmarter learn-category {category!r}"
 
 
 async def _learn_before_search(category: str, *, force: bool) -> None:
