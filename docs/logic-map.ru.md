@@ -183,9 +183,10 @@ Kaspi и OLX получают город как свой id города (`marke
 Потом включаются возможности (см. «Возможности»), и хук `clarify` возможности может спросить (шаг 2a). Шаг идёт до шага 5, так что вопрос не запускает браузер.
 Без LLM: только точный slug и синонимы.
 Никогда не блокирует. Нет знаний → `knowledge_missing`, ось бренда слабая.
+Сначала обучение (#26): с `learn_first` после хука `clarify` и до шага 5 категория, которую можно учить сейчас (условие из «Обучение категории»), поднимает `NeedsLearning` (`check_learn_first`); вход учит её и зовёт снова без флага. Похожий или родительский профиль с книгами — не новая категория, ожидания нет. MCP, API и воркер флаг не передают.
 Сам запуск пишет знания в четырёх случаях: синонимы моделей OLX из шага 21 (владельцу книги моделей), лечение, перенос старого slug и возможности от классификатора. Целиком категорию он не учит, только пишет в лог подсказку про `learn-category`.
 Остальное пишут входы после отчёта: отметки обучения (`services/auto_learn`, `mark_*`), выученные книги (`learn_category`) и переключатели пользователя (`knowledge/store.set_user_choice`). Когда категория учится сама: см. «Обучение категории».
-Модули: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`
+Модули: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`, `services/auto_learn`
 
 ### 7. Доп. поиски (возможности)
 

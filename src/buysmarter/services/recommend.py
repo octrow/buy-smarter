@@ -56,6 +56,7 @@ from buysmarter.ranking.models import (
     ScoredCandidate,
 )
 from buysmarter.ranking.selection import SUSPECTED_COUNTERFEIT, without_barred
+from buysmarter.services.auto_learn import NeedsLearning, check_learn_first
 from buysmarter.services.collect import (
     ProductRow,
     aclose,
@@ -208,6 +209,9 @@ def _measured[**P](
             return result
         except NeedsClarification:
             outcome = "clarify"
+            raise
+        except NeedsLearning:
+            outcome = "learn"
             raise
         except NothingToSearch:
             outcome = "nothing_to_search"
@@ -396,6 +400,7 @@ async def recommend(
     answer: str | None = None,
     clarify_round: int = 0,
     no_clarify: bool = False,
+    learn_first: bool = False,
 ) -> RecommendResult:
     """Run the full multi-source recommend pipeline.
 
@@ -410,6 +415,8 @@ async def recommend(
     Before any search the request may need a clarification (``NeedsClarification``):
     the caller asks the user and calls again with ``answer`` and ``clarify_round + 1``;
     ``no_clarify`` searches the first option instead (``services.understanding``).
+    With ``learn_first`` (the GUI, the CLI) a new category raises ``NeedsLearning`` before any
+    marketplace: the caller learns it and calls again without the flag (ADR-0006).
     """
     total_start = time.perf_counter()
     skipped_llm_steps = list(NO_LLM_STEPS) if use_llm and _no_llm_route() else []
@@ -422,6 +429,13 @@ async def recommend(
     profile = await _resolve_knowledge(constraints, use_llm)
     capabilities = activate(REGISTRY, profile, constraints, query=query, use_llm=use_llm)
     ask_capability(capabilities.question(), constraints, ask.round, ask.no_clarify)
+    if learn_first:
+        await check_learn_first(
+            constraints.product_type,
+            intent=constraints.intent,
+            use_llm=use_llm,
+            knowledge_missing=profile.brand_book is None and profile.model_book is None,
+        )
     # capabilities add or remove marketplaces (a used query brings OLX) before they are opened
     requested = pick_sources(REGISTRY, profile, constraints, sources or ["kaspi"])
     # off the loop: picking Ozon's browser may launch one to probe it

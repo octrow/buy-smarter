@@ -185,9 +185,10 @@ A product type seen first (nothing stored under it, with LLM) is classified by J
 Then capabilities are switched on (see Capabilities), and a capability's `clarify` hook may ask (step 2a). This step runs before step 5, so a question never starts a browser.
 No LLM: exact slug and synonyms only.
 Fails: never blocks. Missing knowledge sets `knowledge_missing` and weakens the brand axis.
+Learn first (#26): with `learn_first`, after the `clarify` hook and before step 5, a category that may learn now (the condition in Learning a category) raises `NeedsLearning` (`check_learn_first`); the caller learns it and calls again without the flag. A related or parent profile with books is not new, so nothing is waited for. MCP, the API and the worker never pass the flag.
 The run itself writes knowledge in four cases: aliases learned in step 21 (to the owner of the model book), healing, moving an old slug, and the classifier's capabilities. It never learns a whole category; it logs a hint to run `learn-category`.
 Entry points write the rest, after the report: the learning marks (`services/auto_learn` `mark_*`), the learned books (`learn_category`) and the user's switches (`knowledge/store.set_user_choice`). When a category is learned on its own: see Learning a category.
-Module: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`
+Module: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `knowledge/models_book`, `knowledge/ingredients`, `capabilities/classify`, `capabilities/flow`, `services/auto_learn`
 
 ### 7. Extra searches (capabilities)
 
