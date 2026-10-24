@@ -252,3 +252,14 @@ def test_a_new_query_shows_the_used_section_after_the_ranking(qtbot, result):
     titles = _group_titles(_shown(qtbot, result))
 
     assert titles.index("На OLX (частники)") > 0
+
+
+def test_configure_link_at_the_top_scrolls_to_the_category_switches(qtbot, result, monkeypatch):
+    screen = _shown(qtbot, result)
+    seen = []
+    monkeypatch.setattr(screen, "ensureWidgetVisible", lambda widget, *a: seen.append(widget))
+
+    screen.configure_link.click()
+
+    assert screen.configure_link.text() == "Настроить"
+    assert seen == [screen.toggles]

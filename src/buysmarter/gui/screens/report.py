@@ -30,6 +30,7 @@ from buysmarter.cli.report import (
     used_first,
 )
 from buysmarter.gui.bridge import CoreRunner
+from buysmarter.gui.capability_toggles import TITLE as TOGGLES_TITLE
 from buysmarter.gui.capability_toggles import CapabilityToggles
 from buysmarter.gui.labels import (
     USED_SECTION,
@@ -288,6 +289,7 @@ class ReportScreen(QScrollArea):
         self.learn_button: QPushButton | None = None
         self.rejected: QGroupBox | None = None
         self.toggles: CapabilityToggles | None = None
+        self.configure_link: QPushButton | None = None
         self._category = None
         self._ticker.stop()
         self._rerun_offered = False
@@ -307,8 +309,19 @@ class ReportScreen(QScrollArea):
         heading.addWidget(_label(constraints, role="muted"))
         for note in request_notes(result):
             heading.addWidget(_label(note, state="warning"))
-        if assessed := assessed_note(result):
-            heading.addWidget(_label(assessed, role="muted"))
+        # The switches close the page; this link at the top leads there.
+        self.configure_link = QPushButton("Настроить")
+        set_state(self.configure_link, "flat", "true")
+        self.configure_link.setAccessibleName(f"Настроить: {TOGGLES_TITLE}")
+        self.configure_link.clicked.connect(self._show_switches)
+        assessed = QHBoxLayout()
+        assessed.setSpacing(SPACE["md"])
+        if how := assessed_note(result):
+            assessed.addWidget(_label(how, role="muted"), 1)
+        assessed.addWidget(self.configure_link, 0, Qt.AlignmentFlag.AlignTop)
+        if not how:
+            assessed.addStretch(1)
+        heading.addLayout(assessed)
         layout.addLayout(heading)
         if result.knowledge_missing:
             layout.addWidget(self._knowledge_banner(result))
@@ -345,6 +358,10 @@ class ReportScreen(QScrollArea):
         titles = [_label(clean_title(s.candidate.title), role="muted") for s in result.hidden]
         self.hidden = _group("Скрытые подозрительные", _label(note, role="muted"), *titles)
         return self.hidden
+
+    def _show_switches(self) -> None:
+        if self.toggles is not None:
+            self.ensureWidgetVisible(self.toggles)
 
     def _toggles_section(self, result: RecommendResult) -> CapabilityToggles:
         toggles = CapabilityToggles(
