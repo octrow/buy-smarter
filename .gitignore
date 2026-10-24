@@ -30,3 +30,6 @@ reports/
 
 # Local GUI review screenshots
 docs/review/
+
+# Session handoff notes (local only)
+.claude/handoff-*.md
