@@ -15,6 +15,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   MCP, the HTTP API and the worker still learn after the report.
 
 ### Fixed
+- The CLI report says what could not be checked, as the desktop app: a marketplace whose search failed
+  (also in the saved report and MCP, new `failed_sources` in the result), why there is no review summary or that
+  the AI was off, and an unchecked composition (CLI ↔ GUI parity #18–20).
 - The CLI report reads in Russian, as the saved report and the desktop app: headings, axis names and
   explanations, pros and cons, marketplace names, the hard-filter count (CLI ↔ GUI parity #14).
 - In the desktop app a city or budget named in the query beats the saved ones again: the city and budget

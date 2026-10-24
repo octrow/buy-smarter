@@ -27,6 +27,7 @@ from buysmarter.cli.report import (
     ingredients_unchecked_note,
     rejected_line,
     request_notes,
+    summary_note,
     used_first,
 )
 from buysmarter.gui.bridge import CoreRunner
@@ -166,11 +167,8 @@ def could_not_verify(result: RecommendResult, run: SearchRun) -> list[str]:
             "AI не настроен: запрос разобран по ключевым словам, без сводки отзывов и разбора "
             "состава. Ключ можно добавить в «Состояние и ключи»"
         )
-    elif not run.use_llm:
-        lines.append("AI выключен: запрос разобран по ключевым словам, сводки отзывов нет")
-    elif result.review_summary is None:
-        why = result.review_summary_note
-        lines.append(f"Сводка отзывов недоступна: {why}" if why else "Сводка отзывов недоступна")
+    elif note := summary_note(result, use_llm=run.use_llm):
+        lines.append(note.removesuffix("."))
     if note := ingredients_unchecked_note(result):
         lines.append(note.removesuffix("."))
     return lines

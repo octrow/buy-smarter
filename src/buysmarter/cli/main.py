@@ -145,7 +145,7 @@ def recommend(
     )
 
     def show(result: RecommendResult) -> None:
-        render(result, top)
+        render(result, top, use_llm=use_llm, summary=not no_review_summary)
         if save_path or not no_save:
             path = save_report(result, query, top, save_path)
             console.print(f"[green]Report saved to {escape(str(path))}[/green]")

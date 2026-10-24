@@ -8,10 +8,13 @@ from rich.table import Table
 from buysmarter.cli.report import (
     assessed_note,
     budget_text,
+    failed_source_notes,
     hidden_note,
+    ingredients_unchecked_note,
     rejected_line,
     request_notes,
     skipped_llm_note,
+    summary_note,
     unavailable_sources_note,
     used_first,
 )
@@ -205,7 +208,10 @@ def _render_hidden(result: RecommendResult) -> None:
             console.print(f"[dim]  {escape(clean_title(scored.candidate.title))}[/dim]")
 
 
-def render(result: RecommendResult, top: int) -> None:
+def render(
+    result: RecommendResult, top: int, *, use_llm: bool = True, summary: bool = True
+) -> None:
+    """The report in the terminal; ``use_llm``/``summary`` say why a review summary is missing."""
     if result.restricted_note:
         console.print(f"[bold yellow]⚠ {escape(result.restricted_note)}[/bold yellow]")
     _render_constraints(result.constraints, result.city_defaulted)
@@ -214,6 +220,9 @@ def render(result: RecommendResult, top: int) -> None:
         assessed_note(result),
         skipped_llm_note(result),
         unavailable_sources_note(result),
+        *failed_source_notes(result),
+        summary_note(result, use_llm=use_llm, asked=summary),
+        ingredients_unchecked_note(result),
     )
     for note in notes:
         if note:

@@ -114,6 +114,8 @@ class RecommendResult(BaseModel):
     skipped_llm_steps: list[str] = Field(default_factory=list)
     # Selected marketplaces left out for lack of a browser (only Ozon needs one).
     unavailable_sources: list[str] = Field(default_factory=list)
+    # Marketplaces whose search failed: none of their goods are in the result.
+    failed_sources: list[str] = Field(default_factory=list)
     # Composition category with a ranked candidate whose состав was not checked.
     ingredients_unchecked: bool = False
     # Restricted goods (alcohol, vapes...): the warning shown before the results.
@@ -277,6 +279,7 @@ class _Pool:
     notes: dict[tuple[str, str], CrossSourceNote]
     used: list[Candidate]
     persist_rows: list[ProductRow]
+    failed: list[str]  # the marketplaces whose search failed (``gather_sources`` gives None)
 
 
 @dataclass(frozen=True)
@@ -363,7 +366,8 @@ async def _collect(run: _Run, active: dict[str, ProductSource]) -> _Pool:
         )
     deduped, notes = dedupe_cross_source(new_candidates, model_book)
     deduped = attach_reference_prices(deduped, book, model_book)
-    return _Pool(deduped, notes, used, persist_rows)
+    failed = [name for name, goods in collected.items() if goods is None]
+    return _Pool(deduped, notes, used, persist_rows, failed)
 
 
 async def _rank(
@@ -485,6 +489,7 @@ async def recommend(
         knowledge_missing=profile.brand_book is None and profile.model_book is None,
         skipped_llm_steps=skipped_llm_steps,
         unavailable_sources=[name for name in requested if name not in active],
+        failed_sources=pool.failed,
         ingredients_unchecked=capabilities.flags(recommendation).get(INGREDIENTS_UNCHECKED, False),
         restricted_note=restricted_note(constraints.restricted),
         assumed=assumed,

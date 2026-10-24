@@ -513,3 +513,54 @@ def test_the_console_reads_in_russian_as_the_markdown_and_the_app() -> None:
     for english in ("Parsed request", "Best pick", "Axis", "Alternatives", "Top candidates"):
         assert english not in out, english
     assert "strong price" not in out and "rejected by hard filters" not in out
+
+
+def _unverified() -> RecommendResult:
+    result = _result()
+    for scored in result.recommendation.ranked[1:]:
+        scored.candidate.ingredients_checked = True
+    return result.model_copy(
+        update={
+            "failed_sources": ["ozon"],
+            "ingredients_unchecked": True,
+            "review_summary_note": "мало отзывов",
+        }
+    )
+
+
+def test_the_console_says_what_could_not_be_checked_as_the_app() -> None:
+    from buysmarter.cli import console as terminal
+
+    with terminal.console.capture() as capture:
+        terminal.render(_unverified(), top=3, use_llm=True)
+
+    out = " ".join(capture.get().split())  # rich wraps long lines
+    assert "Ozon: ошибка — его предложений нет в отчёте" in out
+    assert "Сводка отзывов недоступна: мало отзывов" in out
+    assert "Состав не проверен у 1 из 5" in out
+
+
+def test_the_console_says_the_ai_was_off() -> None:
+    from buysmarter.cli import console as terminal
+
+    with terminal.console.capture() as capture:
+        terminal.render(_result(), top=3, use_llm=False)
+
+    out = " ".join(capture.get().split())
+    assert "AI выключен: запрос разобран по ключевым словам, сводки отзывов нет" in out
+    assert "Сводка отзывов недоступна" not in out
+
+
+def test_no_summary_line_when_the_summary_was_not_asked_for() -> None:
+    from buysmarter.cli import console as terminal
+
+    with terminal.console.capture() as capture:
+        terminal.render(_result(), top=3, use_llm=True, summary=False)
+
+    assert "Сводка отзывов" not in capture.get()
+
+
+def test_a_failed_marketplace_is_named_in_the_markdown() -> None:
+    md = render_markdown(_unverified(), top=3)
+
+    assert "Ozon: ошибка — его предложений нет в отчёте" in md

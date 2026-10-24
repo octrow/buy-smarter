@@ -136,6 +136,30 @@ def unavailable_sources_note(result: RecommendResult) -> str | None:
     return f"Пропущено ({names}): нет браузера. Что установить, подскажет `buysmarter doctor`."
 
 
+def failed_source_notes(result: RecommendResult) -> list[str]:
+    """A line per marketplace whose search failed, as the app's «Не удалось проверить»."""
+    return [
+        f"{source_label(name)}: ошибка — его предложений нет в отчёте (подробности в логе)."
+        for name in result.failed_sources
+    ]
+
+
+def summary_note(result: RecommendResult, *, use_llm: bool, asked: bool = True) -> str | None:
+    """Why the report has no review summary, or None when it has one or was not ``asked`` for.
+
+    A keyless run says so in ``skipped_llm_note``; the AI turned off (``--no-llm``, the app's
+    checkbox) and a summary that did not come out (``review_summary_note``) are said here.
+    """
+    if result.skipped_llm_steps:
+        return None
+    if not use_llm:
+        return "AI выключен: запрос разобран по ключевым словам, сводки отзывов нет."
+    if result.review_summary is not None or not asked:
+        return None
+    why = result.review_summary_note
+    return f"Сводка отзывов недоступна: {why}." if why else "Сводка отзывов недоступна."
+
+
 def assessed_note(result: RecommendResult) -> str | None:
     """ "Как оценивали: состав — обучение." for every render, or None when nothing took part."""
     return assessed_line(assessed_entries(result.capabilities))
@@ -190,6 +214,7 @@ def _constraints_md(result: RecommendResult) -> list[str]:
         assessed_note(result),
         skipped_llm_note(result),
         unavailable_sources_note(result),
+        *failed_source_notes(result),
         ingredients_unchecked_note(result),
     )
     for note in notes:

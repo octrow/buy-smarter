@@ -1947,3 +1947,20 @@ def test_a_used_pro_is_not_matched_to_the_plain_model() -> None:
     listings = match_used_listings([plain], [used_pro, used_pro_max, used_plain], None)
 
     assert [listing.title for listing in listings] == ["iphone 13 Shark Store"]
+
+
+async def test_a_marketplace_that_failed_is_named_in_the_result(
+    stub_source: StubKaspiSource, monkeypatch
+) -> None:
+    from buysmarter.services import recommend as recommend_module
+
+    real = recommend_module.gather_sources
+
+    async def ozon_down(*args, **kwargs):
+        return {**await real(*args, **kwargs), "ozon": None}  # what _safe gives a dead source
+
+    monkeypatch.setattr(recommend_module, "gather_sources", ozon_down)
+    result = await recommend(
+        "ирригатор портативный до 40000 тг", use_llm=False, source=stub_source, persist=False
+    )
+    assert result.failed_sources == ["ozon"]
