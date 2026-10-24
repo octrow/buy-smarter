@@ -99,6 +99,7 @@ def _grab_screens(window: object, settle: Callable[[], None], out: Path) -> None
         window.grab().save(str(out / name))
         print(name)
     _grab_clarification(window, settle, out)
+    _grab_learning(window, settle, out)
 
 
 def _grab_clarification(window: object, settle: Callable[[], None], out: Path) -> None:
@@ -120,6 +121,24 @@ def _grab_clarification(window: object, settle: Callable[[], None], out: Path) -
     window.search.clarify.hide()
     window.search.recent_box.show()
     print("clarify.png")
+
+
+def _grab_learning(window: object, settle: Callable[[], None], out: Path) -> None:
+    """The search screen waiting for a new category's learning (#26): timer and both buttons."""
+    from buysmarter.gui.screens.search import _LEARNING
+
+    search = window.search
+    search.query.setText("кофемолка")
+    search._learning_for = "кофемолка"  # the state _wait_for_learning sets, without a real learn
+    search._set_running(True)
+    search._stage_text = _LEARNING.format(category="кофемолка")
+    search._show_stage()
+    window._show_screen(search)
+    settle()
+    window.grab().save(str(out / "learning.png"))
+    search._learning_for = None
+    search._set_running(False)
+    print("learning.png")
 
 
 def _pump(app: object, runner: object, seconds: float) -> None:

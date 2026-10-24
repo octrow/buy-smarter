@@ -70,7 +70,7 @@ STAGE_LABELS = {
 }
 _STARTING = "Запускаю поиск"
 _CANCELLING = "Отменяю"
-_LEARNING = "Изучаю категорию «{category}» (AI с поиском в интернете, 1–3 мин, платно)"
+_LEARNING = "Изучаю категорию «{category}» с AI (1–3 мин, платно)"
 _USE_LLM_HINT = "Нужен claude CLI (экран «Состояние и ключи»); с ним поиск идёт дольше."
 _START_TEXT = "Найти"
 _RUNNING_TEXT = "Ищу…"
@@ -212,7 +212,7 @@ class SearchScreen(QWidget):
         self.status = {name: QLabel() for name in ALL_SOURCES}
         self.busy = QProgressBar(minimum=0, maximum=0, textVisible=False)  # 0..0: indeterminate
         self.busy.hide()
-        self.stage = QLabel()
+        self.stage = QLabel(wordWrap=True)  # a long category name wraps, the timer stays seen
         set_state(self.stage, "state", "running")
         self.message = QLabel(wordWrap=True)
         set_state(self.message, "role", "muted")

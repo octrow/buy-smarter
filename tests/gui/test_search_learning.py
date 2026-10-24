@@ -46,7 +46,7 @@ def waiting(qtbot, runner, result, fakes, counted, calls) -> SearchScreen:
 def test_the_search_waits_for_the_learning_then_runs_with_it(qtbot, waiting, fakes, counted, calls):
     screen = waiting
 
-    assert "Изучаю категорию «кофемолка»" in screen.stage.text()
+    assert "Изучаю категорию «кофемолка» с AI (1–3 мин, платно)" in screen.stage.text()
     assert not screen.skip_learning_button.isHidden()
     assert screen.cancel_button.isEnabled() and not screen.start_button.isEnabled()
     assert screen.is_running()
@@ -101,3 +101,17 @@ def test_the_window_shares_one_learning_between_search_and_report(qtbot, runner,
     qtbot.addWidget(window)
 
     assert window.search.learning is window.learning is window.report.learning
+
+
+def test_closing_while_the_search_waits_for_learning_asks(qtbot, runner, monkeypatch):
+    monkeypatch.setattr(gui_app.prefs, "get_all", _no_prefs)
+    asked = []
+    no = gui_app.QMessageBox.StandardButton.No
+    monkeypatch.setattr(gui_app.QMessageBox, "question", lambda *a, **kw: asked.append(a) or no)
+    window = gui_app.MainWindow(runner)
+    qtbot.addWidget(window)
+    window.show()
+    monkeypatch.setattr(window.search, "is_running", lambda: True)  # waiting: no search job yet
+
+    assert window.close() is False
+    assert len(asked) == 1
