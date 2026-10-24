@@ -17,7 +17,7 @@ How a category was judged before capabilities; still read and written for older 
 _Avoid_: category kind, mode
 
 **Learning a category**:
-Building category knowledge for a category that has none, from web research or the user's notes. The user starts it (`learn-category`, `learn`, the report's button), or it starts itself after the first query for a category with no books anywhere (auto-learning: desktop app and MCP by default, the API only when switched on); the search never waits for it.
+Building category knowledge for a category that has none, from web research or the user's notes. The user starts it (`learn-category`, `learn`, the report's button), or it starts itself on the first query for a category with no books anywhere (auto-learning). The desktop app and the CLI learn before that query's search and then search with the books (the user may search without waiting); MCP learns after the report, the API only when switched on.
 _Avoid_: training, category creation
 
 **Category profile**:

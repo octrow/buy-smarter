@@ -4,6 +4,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Changed
+- A new category is learned before its first search in the desktop app and the CLI (ADR-0006, finding #26): the
+  first result already has its brands, models and ingredients. The desktop app shows "Изучаю категорию «…» с AI
+  (1–3 мин, платно)" with a timer; "Искать без изучения" searches now while the learning goes on, "Отмена" stops
+  both. The CLI asks before the search on a terminal (default yes) instead of after the report, and `--learn`
+  learns before the search; the "repeat the search?" question is gone. A failed learn searches without the
+  knowledge and says so. A used-up hourly limit (or `BUYSMARTER_AUTO_LEARN_PER_HOUR=0`) is said in the report.
+  MCP, the HTTP API and the worker still learn after the report.
+
+### Fixed
+- A cancelled learn no longer blocks auto-learning of its category for 15 minutes.
+
 ## [0.8.0] - 2026-10-24
 
 ### Added

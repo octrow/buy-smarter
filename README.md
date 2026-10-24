@@ -53,11 +53,13 @@ The report goes on with a review summary, alternatives (best value, best budget)
   category gets them via `learn-category`, so "me 705" on OLX resolves to "Xiaomi Water Flosser 2". Without it,
   every brand ranks as unknown: run `learn-category "смартфон"` once before phone queries. Knowledge goes to
   the local store.
-- **Auto-learning.** A query for a category with no knowledge anywhere starts learning it in the background
-  (opus with web search, 1-3 minutes) in the desktop app, MCP (with `parse_with_llm`) and the CLI (it asks;
-  `--learn` skips the question). The search never waits; repeat it once the category is learned. At most 10
-  starts per hour (`BUYSMARTER_AUTO_LEARN_PER_HOUR`); `0` turns auto-learning off. The API never learns on its
-  own unless `BUYSMARTER_AUTO_LEARN=true`.
+- **Auto-learning.** A query for a category with no knowledge anywhere learns it first (opus with web search,
+  1-3 minutes, paid), then searches with it. The desktop app shows the learning with a timer: "Искать без
+  изучения" searches now while it goes on, "Отмена" stops both. The CLI asks before the search on a terminal
+  (default yes); `--learn` learns without asking, also off a terminal. A failed learn searches without the
+  knowledge. MCP (with `parse_with_llm`) learns in the background after the report: repeat the query once it is
+  done. At most 10 starts per hour (`BUYSMARTER_AUTO_LEARN_PER_HOUR`); `0` turns auto-learning off, and the
+  report says so. The API never learns on its own unless `BUYSMARTER_AUTO_LEARN=true`.
 - **How the category is judged.** Every report says which capabilities took part and who decided ("Как
   оценивали: состав — обучение"); the desktop app lets you switch a category capability on or off for your
   query's category, or reset it to automatic. "Рынок б/у" (OLX) and "Официальные магазины" (brand sites) are
