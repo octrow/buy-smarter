@@ -1,5 +1,7 @@
 """Search screen: a new category is learned before its search (#26, ADR-0006)."""
 
+import pytest
+
 from buysmarter.gui import app as gui_app
 from buysmarter.gui.learning import CategoryLearning
 from buysmarter.gui.screens.search import SearchScreen
@@ -22,8 +24,15 @@ def _new_category(result, calls):
     return recommend
 
 
-def _waiting(qtbot, runner, result, fakes):
-    calls: list[bool] = []
+@pytest.fixture
+def calls() -> list[bool]:
+    """``learn_first`` of each search the screen ran."""
+    return []
+
+
+@pytest.fixture
+def waiting(qtbot, runner, result, fakes, counted, calls) -> SearchScreen:
+    """A search of a new category, stopped and waiting for its learning."""
     screen = SearchScreen(
         runner, recommend=_new_category(result, calls), learning=CategoryLearning(runner)
     )
@@ -31,11 +40,11 @@ def _waiting(qtbot, runner, result, fakes):
     screen.query.setText(CATEGORY)
     screen.start()
     qtbot.waitUntil(lambda: fakes.learned == [CATEGORY], timeout=WAIT_MS)
-    return screen, calls
+    return screen
 
 
-def test_the_search_waits_for_the_learning_then_runs_with_it(qtbot, runner, result, fakes, counted):
-    screen, calls = _waiting(qtbot, runner, result, fakes)
+def test_the_search_waits_for_the_learning_then_runs_with_it(qtbot, waiting, fakes, counted, calls):
+    screen = waiting
 
     assert "Изучаю категорию «кофемолка»" in screen.stage.text()
     assert not screen.skip_learning_button.isHidden()
@@ -48,10 +57,8 @@ def test_the_search_waits_for_the_learning_then_runs_with_it(qtbot, runner, resu
     assert screen.skip_learning_button.isHidden()
 
 
-def test_search_without_learning_runs_now_and_the_learning_goes_on(
-    qtbot, runner, result, fakes, counted
-):
-    screen, calls = _waiting(qtbot, runner, result, fakes)
+def test_search_without_learning_runs_now_and_the_learning_goes_on(qtbot, waiting, fakes, calls):
+    screen = waiting
 
     with qtbot.waitSignal(screen.report_ready, timeout=WAIT_MS):
         screen.skip_learning_button.click()
@@ -63,8 +70,8 @@ def test_search_without_learning_runs_now_and_the_learning_goes_on(
     assert calls == [True, False]  # the learning's end does not search again
 
 
-def test_cancel_stops_the_learning_and_the_search(qtbot, runner, result, fakes, counted):
-    screen, calls = _waiting(qtbot, runner, result, fakes)
+def test_cancel_stops_the_learning_and_the_search(qtbot, waiting, fakes, calls):
+    screen = waiting
 
     screen.cancel()
 
@@ -77,9 +84,9 @@ def test_cancel_stops_the_learning_and_the_search(qtbot, runner, result, fakes, 
     assert not screen.is_running()
 
 
-def test_a_failed_learning_searches_without_it_and_says_so(qtbot, runner, result, fakes, counted):
+def test_a_failed_learning_searches_without_it_and_says_so(qtbot, waiting, fakes, calls):
     fakes.outcome = False
-    screen, calls = _waiting(qtbot, runner, result, fakes)
+    screen = waiting
 
     with qtbot.waitSignal(screen.report_ready, timeout=WAIT_MS):
         fakes.release(CATEGORY)
