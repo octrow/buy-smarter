@@ -6,6 +6,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from buysmarter.cli.report import (
+    USED_HEADERS,
     assessed_note,
     budget_text,
     failed_source_notes,
@@ -16,6 +17,7 @@ from buysmarter.cli.report import (
     skipped_llm_note,
     summary_note,
     unavailable_sources_note,
+    used_cells,
     used_first,
 )
 from buysmarter.i18n import (
@@ -29,7 +31,6 @@ from buysmarter.i18n import (
     kzt,
     pro_con,
     source_label,
-    used_con,
 )
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
@@ -38,6 +39,7 @@ from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
 
 console = Console()
+_MONEY_COLUMNS = {"Цена", "Дешевле нового на"}
 
 
 def _render_constraints(c: QueryConstraints, city_defaulted: bool = False) -> None:
@@ -182,21 +184,14 @@ def render_used(used: list[UsedListing], ranked: list[ScoredCandidate]) -> None:
         return
     brands = checked_brands(s.candidate for s in ranked)
     table = Table(title=USED_SECTION, show_header=True, header_style="bold")
-    table.add_column("Объявление")
-    table.add_column("Цена", justify="right")
-    table.add_column("Дешевле нового на", justify="right")
-    table.add_column("Город")
-    table.add_column("Минус")
-    for listing in used:
-        title = f"{listing.title} → {listing.canonical}" if listing.canonical else listing.title
-        saving_cell = "—" if listing.standalone else f"-{kzt(listing.saving)}"
-        table.add_row(
-            _product_cell(title, listing.url),
-            f"{kzt(listing.price)}",
-            saving_cell,
-            escape(listing.city or "-"),
-            escape(used_con(listing, brands)),
+    for header in USED_HEADERS:
+        money = header in _MONEY_COLUMNS
+        table.add_column(
+            header, justify="right" if money else "left", no_wrap=money, overflow="fold"
         )
+    for listing in used:
+        title, *rest = used_cells(listing, brands)
+        table.add_row(_product_cell(title, listing.url), *map(escape, rest))
     console.print(table)
 
 

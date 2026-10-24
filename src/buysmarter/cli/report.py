@@ -336,6 +336,19 @@ def _top_md(result: RecommendResult, top: int) -> list[str]:
     return lines
 
 
+USED_HEADERS = ["Объявление", "Цена", "Дешевле нового на", "Сравнили с", "Город", "Минус"]
+
+
+def used_cells(listing: UsedListing, brands: set[str]) -> list[str]:
+    """An OLX ad as the app and the console show it, one cell per ``USED_HEADERS`` column."""
+    title = f"{listing.title} → {listing.canonical}" if listing.canonical else listing.title
+    standalone = listing.standalone or not listing.matched_title
+    saving = "—" if listing.standalone else kzt(listing.saving)
+    compared = "—" if standalone else clean_title(listing.matched_title or "")
+    con = used_con(listing, brands)
+    return [title, kzt(listing.price), saving, compared, listing.city or "—", con]
+
+
 def _used_row(listing: UsedListing, brands: set[str]) -> str:
     title = listing.title
     if listing.canonical:

@@ -564,3 +564,16 @@ def test_a_failed_marketplace_is_named_in_the_markdown() -> None:
     md = render_markdown(_unverified(), top=3)
 
     assert "Ozon: ошибка — его предложений нет в отчёте" in md
+
+
+def test_the_console_olx_table_says_what_each_ad_was_compared_with_as_the_app() -> None:
+    from buysmarter.cli import console as terminal
+
+    result = _result()
+    with terminal.console.capture() as capture:
+        terminal.render_used(result.used_listings, result.recommendation.ranked)
+
+    out = " ".join(capture.get().split())
+    assert "Сравнили с" in out
+    assert out.count("MEO705") == 2  # the ad's model name, then the product it was compared with
+    assert "18 000 ₸" in out and "-18" not in out  # "Дешевле нового на" already says less

@@ -15,6 +15,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   MCP, the HTTP API and the worker still learn after the report.
 
 ### Fixed
+- The CLI's OLX table has the app's columns: what each ad was compared with, and the saving without a minus
+  under "Дешевле нового на" (CLI ↔ GUI parity #22).
 - The CLI report says what could not be checked, as the desktop app: a marketplace whose search failed
   (also in the saved report and MCP, new `failed_sources` in the result), why there is no review summary or that
   the AI was off, and an unchecked composition (CLI ↔ GUI parity #18–20).

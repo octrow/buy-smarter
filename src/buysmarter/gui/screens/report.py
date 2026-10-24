@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter.cli.report import (
+    USED_HEADERS,
     assessed_note,
     budget_text,
     hidden_note,
@@ -28,6 +29,7 @@ from buysmarter.cli.report import (
     rejected_line,
     request_notes,
     summary_note,
+    used_cells,
     used_first,
 )
 from buysmarter.gui.bridge import CoreRunner
@@ -42,7 +44,6 @@ from buysmarter.gui.labels import (
     explain,
     pro_con,
     source_label,
-    used_con,
 )
 from buysmarter.gui.learning import CategoryLearning, Learn
 from buysmarter.gui.prefs_fields import kzt
@@ -62,7 +63,6 @@ from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import is_barred
 from buysmarter.services.auto_learn import limit_note, over_limit
-from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import RecommendResult
 
 ALL_MARKETPLACES = "Все маркетплейсы"
@@ -185,15 +185,6 @@ def text_table(
     if stretch is not None:
         stretch_column(table, stretch)
     return table
-
-
-def _used_row(listing: UsedListing, brands: set[str]) -> list[str]:
-    title = f"{listing.title} → {listing.canonical}" if listing.canonical else listing.title
-    standalone = listing.standalone or not listing.matched_title
-    saving = "—" if listing.standalone else kzt(listing.saving)
-    compared = "—" if standalone else clean_title(listing.matched_title or "")
-    con = used_con(listing, brands)
-    return [title, kzt(listing.price), saving, compared, listing.city or "—", con]
 
 
 def _summary_lines(summary: ReviewSummary) -> list[tuple[str, str]]:
@@ -512,8 +503,7 @@ class ReportScreen(QScrollArea):
     def _used_section(self, result: RecommendResult) -> QGroupBox:
         used = result.used_listings
         brands = checked_brands(s.candidate for s in result.recommendation.ranked)
-        headers = ["Объявление", "Цена", "Дешевле нового на", "Сравнили с", "Город", "Минус"]
-        table = text_table(headers, [_used_row(u, brands) for u in used], stretch=0)
+        table = text_table(USED_HEADERS, [used_cells(u, brands) for u in used], stretch=0)
         table.cellDoubleClicked.connect(lambda row, _col: open_offer(used[row].url))
         self.used = table
         return _group(USED_SECTION, table, _label(_USED_HINT, role="caption"))
