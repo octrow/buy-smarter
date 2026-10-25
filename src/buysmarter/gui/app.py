@@ -30,6 +30,7 @@ from buysmarter import local_store
 from buysmarter.cli.report import DEFAULT_TOP, save_report
 from buysmarter.gui.bridge import USER_ERROR, CoreRunner
 from buysmarter.gui.learning import CategoryLearning
+from buysmarter.gui.screens.categories import CategoriesScreen
 from buysmarter.gui.screens.history import HistoryScreen
 from buysmarter.gui.screens.preferences import PreferencesScreen
 from buysmarter.gui.screens.report import ReportScreen
@@ -103,6 +104,7 @@ class MainWindow(QMainWindow):
         self.learning = CategoryLearning(runner)  # shared: the search learns, the report shows it
         self.search = SearchScreen(runner, learning=self.learning)
         self.report = ReportScreen(runner, learning=self.learning)
+        self.categories = CategoriesScreen(runner, self.learning)
         self.preferences = PreferencesScreen(runner)
         self.history = HistoryScreen(runner)
         self.saved = SavedScreen()
@@ -121,7 +123,8 @@ class MainWindow(QMainWindow):
                 # The report caps its own page, inside its scroll area; the others are capped here.
                 heading = None if screen is self.search else title
                 page = screen if screen is self.report else _centered(screen, heading)
-                if screen is self.search:  # a long question must not squeeze the form
+                # A long question must not squeeze the form, nor a long list the summary.
+                if screen in (self.search, self.categories):
                     page = _scrolled(page)
                 index = self.stack.addWidget(page)
                 self.sidebar.addItem(_nav_item(title, icon_name, index))
@@ -154,6 +157,7 @@ class MainWindow(QMainWindow):
             (
                 "Сервис",
                 (
+                    ("Категории", "mdi6.shape-outline", self.categories),
                     ("Настройки поиска", "mdi6.tune-variant", self.preferences),
                     ("Состояние и ключи", "mdi6.key-outline", self.settings),
                 ),

@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Unreleased]
 
 ### Added
+- The desktop app's «Категории» screen (Сервис, first): the learned categories with their books, parent
+  and last update; the picked one's brand tiers, counts, substances and «Как оцениваем эту категорию»
+  switches; learning a new or learned category with or without web search, or from a notes file, as
+  `learn-category` and `learn` (CLI ↔ GUI parity #11). A learn by hand is not counted in the hourly limit.
+- The CLI's knowledge summary after `learn`, `learn-category` and `category show` is in Russian, as the screen.
 - `buysmarter category list|show|set|reset`: the learned categories with their books, parent and last
   update, a category's knowledge summary, and the «Как оцениваем эту категорию» switches the app shows
   on a report (CLI ↔ GUI parity #11 for the CLI, #13).
@@ -27,6 +32,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   MCP, the HTTP API and the worker still learn after the report.
 
 ### Fixed
+- A table cell that just fits its column no longer wraps with its second line cut off: the row height is
+  measured at the padded width the text is painted in.
 - The desktop app's search screen scrolls when a long question does not fit the window instead of squeezing
   the form and the option buttons.
 - The CLI searches the saved marketplaces when `--sources` is not given (else all three) and excludes the saved

@@ -65,7 +65,7 @@ def test_show_prints_the_summary_and_switches_without_learning(monkeypatch) -> N
 
     assert result.exit_code == 0, result.output
     out = " ".join(result.stdout.split())
-    assert "Roborock" in out and "Models: 1" in out
+    assert "Roborock" in out and "моделей: 1" in out
     assert "Как оцениваем эту категорию" in out
     assert "Состав" in out
 

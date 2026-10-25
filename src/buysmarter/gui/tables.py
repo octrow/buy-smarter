@@ -4,8 +4,35 @@ The height comes from ``sizeHint`` and the column widths from header resize mode
 recomputes both after a theme, font, sort or filter change instead of keeping stale sizes.
 """
 
-from PySide6.QtCore import QAbstractItemModel, QSize, Qt
-from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QTableView, QTableWidget
+from PySide6.QtCore import QAbstractItemModel, QModelIndex, QPersistentModelIndex, QSize, Qt
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QHeaderView,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
+    QTableView,
+    QTableWidget,
+)
+
+from buysmarter.gui.theme import SPACE
+
+# The QSS item padding (theme: ``QTableView::item``, ``SPACE["md"]`` left and right).
+_ITEM_PADDING_X = 2 * SPACE["md"]
+
+
+class _PaddedWrap(QStyledItemDelegate):
+    """Measure a wrapped cell at the width its text is painted in.
+
+    Qt measures the row height at the full column width, but the QSS padding paints the text
+    narrower: a cell that just fits wraps on screen and its second line is cut off.
+    """
+
+    def sizeHint(  # noqa: N802 - Qt's name
+        self, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex
+    ) -> QSize:
+        narrowed = QStyleOptionViewItem(option)
+        narrowed.rect.setWidth(max(0, option.rect.width() - _ITEM_PADDING_X))
+        return super().sizeHint(narrowed, index)
 
 
 def _fit_hint(view: QTableView, base: QSize) -> QSize:
@@ -22,6 +49,7 @@ def _configure(view: QTableView) -> None:
     view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
     view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
     view.setWordWrap(True)
+    view.setItemDelegate(_PaddedWrap(view))
     rows = view.verticalHeader()
     rows.setVisible(False)
     rows.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)

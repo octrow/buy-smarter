@@ -53,8 +53,8 @@ def test_learn_category_generates_saves_and_summarizes(monkeypatch) -> None:
     assert "Saved knowledge" in result.output
     assert "web search" in result.output  # web grounding on by default
     assert "Roborock" in result.output
-    assert "Models: 1" in result.output
-    assert "spec_driven" in result.output
+    assert "моделей: 1" in result.output
+    assert "Оценка по характеристикам" in result.output
 
     # Persisted and reloadable from the store.
     import asyncio
@@ -106,7 +106,7 @@ def test_learn_category_composition_driven_saves_ingredient_book(monkeypatch) ->
 
     result = runner.invoke(main.app, ["learn-category", "крем от акне"])
     assert result.exit_code == 0, result.output
-    assert "composition_driven" in result.output
+    assert "Оценка по составу" in " ".join(result.output.split())
     assert "адапален" in result.output
 
     category_type, stored = asyncio.run(resolve_composition("крем от акне", use_llm=False))

@@ -515,3 +515,30 @@ def knowledge_rows(
     return KnowledgeRows(
         tiers, category_type, len(model.entries), len(brand.tiers), len(brand.aliases), substances
     )
+
+
+TIERS_TITLE = "Тиры брендов"
+TIER_HEADERS = ("Тир", "Брендов", "Бренды")
+SUBSTANCES_TITLE = "Активные вещества"
+SUBSTANCE_HEADERS = ("Вещество", "Концентрации", "Аналоги")
+_KIND = {"composition_driven": "Оценка по составу", "spec_driven": "Оценка по характеристикам"}
+
+
+def knowledge_line(rows: KnowledgeRows) -> str:
+    """How the category is judged and how much it knows, under the tiers."""
+    kind = _KIND.get(rows.category_type, rows.category_type)
+    return (
+        f"{kind} · моделей: {rows.models} · брендов: {rows.brands} · "
+        f"других написаний брендов: {rows.aliases}"
+    )
+
+
+def tier_cells(rows: KnowledgeRows) -> list[list[str]]:
+    return [[tier, str(len(brands)), ", ".join(brands) or "—"] for tier, brands in rows.tiers]
+
+
+def substance_cells(rows: KnowledgeRows) -> list[list[str]]:
+    return [
+        [name, ", ".join(concentrations) or "—", ", ".join(equivalents) or "—"]
+        for name, concentrations, equivalents in rows.substances
+    ]

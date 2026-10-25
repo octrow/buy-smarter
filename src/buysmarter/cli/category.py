@@ -17,17 +17,18 @@ from buysmarter.capabilities import REGISTRY
 from buysmarter.capabilities.provenance import (
     CHANGED_NOTE,
     TOGGLES_TITLE,
+    CapabilityState,
     capability_states,
     toggle_text,
 )
 from buysmarter.cli.console import console, render_knowledge
+from buysmarter.cli.report import KnowledgeRows, knowledge_rows
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.knowledge.profile import (
     COMPOSITION_DRIVEN,
     SPEC_DRIVEN,
     CategoryProfile,
-    ResolvedProfile,
     profile_from_record,
 )
 from buysmarter.knowledge.store import (
@@ -99,36 +100,46 @@ def list_() -> None:
     console.print(table)
 
 
-@category_app.command("show")
-def show(name: Annotated[str, typer.Argument(help='Category, e.g. "робот-пылесос".')]) -> None:
-    """Show a category's knowledge and switches, without learning."""
-    raw = asyncio.run(load_knowledge(name))
+class CategoryDetail(NamedTuple):
+    row: CategoryRow
+    knowledge: KnowledgeRows
+    states: list[CapabilityState]  # the category-level switches
+
+
+async def category_detail(name: str) -> CategoryDetail | None:
+    """A stored category as a search would see it, no LLM; ``None`` when nothing is stored."""
+    raw = await load_knowledge(name)
     if raw is None:
-        console.print(NOT_LEARNED.format(name=escape(name)))
-        raise typer.Exit(code=1)
-    profile = asyncio.run(resolve_profile(name, use_llm=False))
-    row = category_row(profile.slug, raw)
-    console.print(" · ".join(filter(None, (row.books, row.parent, row.updated))))
-    _print_knowledge(profile)
-    _print_switches(profile)
-
-
-def _print_knowledge(profile: ResolvedProfile) -> None:
+        return None
+    profile = await resolve_profile(name, use_llm=False)
     ingredient = profile.ingredient_book
-    render_knowledge(
-        profile.slug,
+    knowledge = knowledge_rows(
         profile.brand_book or BrandBook(),
         profile.model_book or ModelBook(),
         COMPOSITION_DRIVEN if ingredient is not None else SPEC_DRIVEN,
         ingredient,
     )
+    states = capability_states(REGISTRY, profile, QueryConstraints())
+    return CategoryDetail(
+        category_row(profile.slug, raw),
+        knowledge,
+        [state for state in states if state.level == "category"],
+    )
 
 
-def _print_switches(profile: ResolvedProfile) -> None:
+@category_app.command("show")
+def show(name: Annotated[str, typer.Argument(help='Category, e.g. "робот-пылесос".')]) -> None:
+    """Show a category's knowledge and switches, without learning."""
+    detail = asyncio.run(category_detail(name))
+    if detail is None:
+        console.print(NOT_LEARNED.format(name=escape(name)))
+        raise typer.Exit(code=1)
+    row = detail.row
+    console.print(" · ".join(filter(None, (row.books, row.parent, row.updated))))
+    render_knowledge(row.name, detail.knowledge)
     console.print(f"\n[bold]{TOGGLES_TITLE}[/bold]")
-    for state in capability_states(REGISTRY, profile, QueryConstraints()):
-        if state.level == "category":
-            console.print(f"  {escape(toggle_text(state))}  [dim]{state.name}[/dim]")
+    for state in detail.states:
+        console.print(f"  {escape(toggle_text(state))}  [dim]{state.name}[/dim]")
 
 
 _NameArg = Annotated[str, typer.Argument(help="Category.")]

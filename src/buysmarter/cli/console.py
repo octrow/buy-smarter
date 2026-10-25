@@ -6,7 +6,12 @@ from rich.panel import Panel
 from rich.table import Table
 
 from buysmarter.cli.report import (
+    SUBSTANCE_HEADERS,
+    SUBSTANCES_TITLE,
+    TIER_HEADERS,
+    TIERS_TITLE,
     USED_HEADERS,
+    KnowledgeRows,
     assessed_note,
     budget_text,
     failed_source_notes,
@@ -14,11 +19,13 @@ from buysmarter.cli.report import (
     found_line,
     hidden_note,
     ingredients_unchecked_note,
-    knowledge_rows,
+    knowledge_line,
     rejected_line,
     request_notes,
     skipped_llm_note,
+    substance_cells,
     summary_note,
+    tier_cells,
     unavailable_sources_note,
     used_cells,
     used_first,
@@ -35,9 +42,6 @@ from buysmarter.i18n import (
     pro_con,
     source_label,
 )
-from buysmarter.knowledge.brands import BrandBook
-from buysmarter.knowledge.ingredients import IngredientBook
-from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
@@ -266,34 +270,16 @@ def render_no_substance(exc: NoSubstanceMatch) -> None:
     console.print(table)
 
 
-def render_knowledge(
-    category: str,
-    brand: BrandBook,
-    model: ModelBook,
-    category_type: str = "spec_driven",
-    ingredient: IngredientBook | None = None,
-) -> None:
-    """Print a tiers-and-models summary table for a category's knowledge."""
-    rows = knowledge_rows(brand, model, category_type, ingredient)
-    table = Table(title=f"Brand tiers — {category}", show_header=True, header_style="bold")
-    table.add_column("Tier")
-    table.add_column("N", justify="right")
-    table.add_column("Brands")
-    for tier, brands in rows.tiers:
-        table.add_row(tier, str(len(brands)), escape(", ".join(brands)) or "-")
-    console.print(table)
-    console.print(
-        f"[bold]Type:[/bold] {rows.category_type}   "
-        f"[bold]Models:[/bold] {rows.models}   "
-        f"[bold]Brands:[/bold] {rows.brands}   "
-        f"[bold]Aliases:[/bold] {rows.aliases}"
-    )
+def render_knowledge(category: str, rows: KnowledgeRows) -> None:
+    """A category's knowledge summary: brand tiers, the counts, the active substances."""
+    tiers = Table(*TIER_HEADERS, title=f"{TIERS_TITLE} — {escape(category)}", header_style="bold")
+    for cells in tier_cells(rows):
+        tiers.add_row(*map(escape, cells))
+    console.print(tiers)
+    console.print(knowledge_line(rows))
     if not rows.substances:
         return
-    table = Table(title="Active substances", show_header=True, header_style="bold")
-    table.add_column("Substance")
-    table.add_column("Concentrations")
-    table.add_column("Equivalents")
-    for name, concentrations, equivalents in rows.substances:
-        table.add_row(name, ", ".join(concentrations) or "-", ", ".join(equivalents) or "-")
-    console.print(table)
+    substances = Table(*SUBSTANCE_HEADERS, title=SUBSTANCES_TITLE, header_style="bold")
+    for cells in substance_cells(rows):
+        substances.add_row(*map(escape, cells))
+    console.print(substances)

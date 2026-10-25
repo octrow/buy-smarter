@@ -60,21 +60,22 @@ class CategoryLearning(QObject):
 
     def start(self, category: str) -> None:
         """The manual path: learn the category with the injected ``learn``."""
-        self._begin(category, self._learn(category))
+        self.run(category, self._learn(category))
 
     def learn_now(self, category: str) -> None:
         """Learn the category with ``auto_learn``: its condition already held."""
         if self._runner is None or category in self._jobs:
             return
         count_start()  # here, where it is decided: the runner does not count
-        self._begin(category, auto_learn(category))
+        self.run(category, auto_learn(category))
 
     def cancel(self, category: str) -> None:
         """Stop the category's learn; ``settled`` fires with ``LEARN_CANCELLED``."""
         if (job := self._jobs.get(category)) is not None:
             job.cancel()
 
-    def _begin(self, category: str, work: Coroutine[Any, Any, Any]) -> None:
+    def run(self, category: str, work: Coroutine[Any, Any, Any]) -> None:
+        """Learn the category with ``work`` (the «Категории» screen's own learns: web, notes)."""
         if self._runner is None or category in self._jobs:
             work.close()
             return

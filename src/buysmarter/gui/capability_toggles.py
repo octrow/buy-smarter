@@ -46,8 +46,11 @@ class CapabilityToggles(QGroupBox):
         category: str,
         found: str | None,
         states: list[CapabilityState],
+        *,
+        rerun: bool = True,
     ) -> None:
         super().__init__(TITLE)
+        self._rerun = rerun  # the «Категории» screen has no search to repeat
         self._runner = runner
         self._category = category
         self._found = found
@@ -123,7 +126,7 @@ class CapabilityToggles(QGroupBox):
         self._render(name)
         self.note.setText(CHANGED_NOTE)
         self.note.show()
-        self.rerun_button.show()
+        self.rerun_button.setVisible(self._rerun)
 
     def _not_stored(self, name: str) -> None:
         self._render(name)  # back to what is stored
