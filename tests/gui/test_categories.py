@@ -1,10 +1,12 @@
 """«Категории»: the learned categories, their summary, learning and switches (parity #11)."""
 
+import asyncio
 from pathlib import Path
 
 from buysmarter.capabilities.provenance import CHANGED_NOTE
+from buysmarter.cli.category import NOTES_TOO_LONG
 from buysmarter.gui.bridge import USER_ERROR
-from buysmarter.gui.learning import CategoryLearning
+from buysmarter.gui.learning import LEARN_CANCELLED, CategoryLearning
 from buysmarter.gui.screens import categories as screen_module
 from buysmarter.gui.screens.categories import (
     EMPTY,
@@ -15,6 +17,7 @@ from buysmarter.gui.screens.categories import (
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.knowledge.store import save_knowledge
+from buysmarter.llm.adapter import LlmError
 
 _WAIT_MS = 3000
 
@@ -143,11 +146,7 @@ def test_no_file_picked_or_no_name_learns_nothing(qtbot, runner, monkeypatch) ->
 
 
 def test_a_running_learn_can_be_cancelled(qtbot, runner, monkeypatch) -> None:
-    from buysmarter.gui.learning import LEARN_CANCELLED
-
     async def _forever(category, *, web_search=True):
-        import asyncio
-
         await asyncio.Event().wait()
 
     monkeypatch.setattr(screen_module, "learn_category", _forever)
@@ -175,9 +174,6 @@ def test_a_store_that_cannot_be_read_is_said(qtbot, runner, monkeypatch) -> None
 
 
 def test_notes_cut_off_by_the_llm_say_to_split_them_as_the_cli(qtbot, runner, monkeypatch):
-    from buysmarter.cli.category import NOTES_TOO_LONG
-    from buysmarter.llm.adapter import LlmError
-
     async def _cut_off(path, category):
         raise LlmError("claude CLI response invalid after retry")
 
