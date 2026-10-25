@@ -155,6 +155,14 @@ def test_the_users_choice_outranks_the_automatic_value_and_reset_keeps_it() -> N
     assert reset.on and composition_book({COMPOSITION: reset}) == _ingredients()
 
 
+def test_a_switched_on_composition_with_no_substances_has_no_book() -> None:
+    # A spec-driven category's learning stores an empty book; switching it on by hand
+    # must not make the category composition-driven («Состав — включено вами, но нет данных»).
+    empty = {"ingredient_book": IngredientBook().model_dump(mode="json")}
+
+    assert composition_book({COMPOSITION: CapabilitySetting(params=empty, user=True)}) is None
+
+
 def test_an_old_user_setting_reads_as_the_users_choice_over_learning() -> None:
     setting = CapabilitySetting.model_validate({"enabled": False, "params": {}, "set_by": "user"})
 

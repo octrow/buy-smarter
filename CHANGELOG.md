@@ -33,6 +33,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   MCP, the HTTP API and the worker still learn after the report.
 
 ### Fixed
+- Switching «Состав» on by hand for a spec-driven category no longer makes it composition-driven with an
+  empty substance book: it says «включено вами, но нет данных», in the report, on «Категории» and in
+  `category show` alike.
 - «Из заметок…» on «Категории» says to split notes the LLM answer was cut off on, as `learn` does (now in
   Russian in both).
 - A table cell that just fits its column no longer wraps with its second line cut off: the row height is

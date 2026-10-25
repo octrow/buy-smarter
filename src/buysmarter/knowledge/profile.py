@@ -152,12 +152,14 @@ def _switched_on(setting: CapabilitySetting | None) -> TypeGuard[CapabilitySetti
 def composition_book(capabilities: dict[str, CapabilitySetting]) -> IngredientBook | None:
     """The ingredient book of an enabled composition capability.
 
-    No book stored reads as off, as an old composition record without one always did.
+    No book stored reads as off, as an old composition record without one always did; so does
+    a book with no substances (a spec-driven category's learning stores one).
     """
     setting = capabilities.get(COMPOSITION)
-    if _switched_on(setting) and (raw := setting.params.get(INGREDIENT_KEY)):
-        return IngredientBook.model_validate(raw)
-    return None
+    if not (_switched_on(setting) and (raw := setting.params.get(INGREDIENT_KEY))):
+        return None
+    book = IngredientBook.model_validate(raw)
+    return book if book.substances else None
 
 
 def stored_capabilities(raw: dict[str, Any]) -> dict[str, CapabilitySetting] | None:
