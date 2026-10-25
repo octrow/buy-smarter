@@ -5,6 +5,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Unreleased]
 
 ### Added
+- The desktop app's search form has the CLI's options: "Сводка отзывов" (`--no-review-summary`) and "Только
+  известные бренды" (`--trusted-only`), in a new "Как искать" row with the AI checkbox, now "AI: разбор запроса"
+  (CLI ↔ GUI parity #2–3).
 - `buysmarter prefs`: show, `set` and `clear` the saved search settings (city, budget, marketplaces, excluded
   brands) with the same checks and messages as the app's «Настройки поиска» (CLI ↔ GUI parity #9).
 

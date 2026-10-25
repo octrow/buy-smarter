@@ -167,7 +167,7 @@ def could_not_verify(result: RecommendResult, run: SearchRun) -> list[str]:
             "AI не настроен: запрос разобран по ключевым словам, без сводки отзывов и разбора "
             "состава. Ключ можно добавить в «Состояние и ключи»"
         )
-    elif note := summary_note(result, use_llm=run.use_llm):
+    elif note := summary_note(result, use_llm=run.use_llm, asked=run.review_summary):
         lines.append(note.removesuffix("."))
     if note := ingredients_unchecked_note(result):
         lines.append(note.removesuffix("."))

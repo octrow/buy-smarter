@@ -52,6 +52,8 @@ def test_search_runs_with_progress_and_hands_the_result_to_the_report(qtbot, run
                 "city": None,
                 "budget": None,
                 "use_llm": True,
+                "trusted_only": False,
+                "with_review_summary": True,
                 "sources": ["kaspi", "ozon"],
                 "learn_first": True,
             },
@@ -385,3 +387,32 @@ def test_repeat_fills_the_query_and_starts_the_search(qtbot, runner, result):
         screen.repeat_buttons()[0].click()
     assert screen.query.text() == "смартфон до 200000"
     assert calls[0][0] == "смартфон до 200000"
+
+
+def test_trusted_only_and_the_review_summary_go_to_the_search_as_the_cli_flags(
+    qtbot, runner, result
+):
+    calls = []
+    screen = SearchScreen(runner, recommend=_stub_recommend(result, calls))
+    qtbot.addWidget(screen)
+    assert not screen.trusted_only.isChecked() and screen.review_summary.isChecked()
+    screen.query.setText("ирригатор")
+    screen.trusted_only.setChecked(True)
+    screen.review_summary.setChecked(False)
+
+    with qtbot.waitSignal(screen.report_ready, timeout=WAIT_MS) as blocker:
+        screen.start()
+
+    assert calls[0][1]["trusted_only"] is True
+    assert calls[0][1]["with_review_summary"] is False
+    assert blocker.args[1].review_summary is False  # the report does not call it missing
+
+
+def test_the_review_summary_needs_the_ai(qtbot, runner):
+    screen = SearchScreen(runner)
+    qtbot.addWidget(screen)
+
+    screen.use_llm.setChecked(False)
+    assert not screen.review_summary.isEnabled()
+    screen.use_llm.setChecked(True)
+    assert screen.review_summary.isEnabled()

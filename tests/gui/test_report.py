@@ -263,3 +263,9 @@ def test_configure_link_at_the_top_scrolls_to_the_category_switches(qtbot, resul
 
     assert screen.configure_link.text() == "Настроить"
     assert seen == [screen.toggles]
+
+
+def test_a_summary_turned_off_on_the_form_is_not_reported_as_missing(qtbot, result):
+    # as the CLI's --no-review-summary: the user asked for none
+    run = SearchRun("ирригатор", True, _ALL_RAN.source_states, review_summary=False)
+    assert "Сводка отзывов недоступна" not in _texts(_shown(qtbot, result, run))

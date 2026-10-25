@@ -2,13 +2,14 @@
 
 import logging
 from collections.abc import Awaitable, Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from pydantic import ValidationError
 from PySide6.QtCore import QElapsedTimer, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QIcon, QShowEvent
 from PySide6.QtWidgets import (
+    QCheckBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -69,6 +70,8 @@ STATE_LABELS = {
 _STARTING = "Запускаю поиск"
 _CANCELLING = "Отменяю"
 _LEARNING = "Изучаю категорию «{category}» с AI (1–3 мин, платно)"
+_REVIEW_SUMMARY_HINT = "AI сводит отзывы о лучшем выборе; без сводки поиск быстрее."
+_TRUSTED_ONLY_HINT = "Отсеять бренды, о которых нет данных."
 _USE_LLM_HINT = "Нужен claude CLI (экран «Состояние и ключи»); с ним поиск идёт дольше."
 _START_TEXT = "Найти"
 _RUNNING_TEXT = "Ищу…"
@@ -124,6 +127,7 @@ class SearchRun:
     query: str
     use_llm: bool
     source_states: Mapping[str, str]
+    review_summary: bool = True  # off on the form: the report does not call it missing
 
 
 def _used_line(listing: UsedListing) -> str:
@@ -200,8 +204,13 @@ class SearchScreen(QWidget):
         self.city = QLineEdit(placeholderText=_CITY_HINT)
         self.budget = budget_box()
         self.budget.setSpecialValueText(_BUDGET_HINT)
-        self.use_llm = checked_box("AI: разбор запроса и отзывы")
+        self.use_llm = checked_box("AI: разбор запроса")
         self.use_llm.setToolTip(_USE_LLM_HINT)
+        self.review_summary = checked_box("Сводка отзывов")
+        self.review_summary.setToolTip(_REVIEW_SUMMARY_HINT)
+        self.use_llm.toggled.connect(self.review_summary.setEnabled)
+        self.trusted_only = QCheckBox("Только известные бренды")
+        self.trusted_only.setToolTip(_TRUSTED_ONLY_HINT)
         self.sources = source_boxes()
         self.status = {name: QLabel() for name in ALL_SOURCES}
         self.busy = QProgressBar(minimum=0, maximum=0, textVisible=False)  # 0..0: indeterminate
@@ -264,12 +273,13 @@ class SearchScreen(QWidget):
         where.addLayout(_captioned("Бюджет", self.budget), 1)
         body.addLayout(where)
         body.addLayout(self._sources_row())
+        body.addLayout(self._options_row())
         body.addLayout(self._run_row())
         return card
 
     def _sources_row(self) -> QHBoxLayout:
         row = QHBoxLayout()
-        row.setSpacing(SPACE["xl"])
+        row.setSpacing(SPACE["lg"])  # as the options row below: the boxes line up
         row.addWidget(_caption("Где искать"))
         for name in ALL_SOURCES:
             cell = QHBoxLayout()
@@ -278,7 +288,16 @@ class SearchScreen(QWidget):
             cell.addWidget(self.status[name])
             row.addLayout(cell)
         row.addStretch(1)
-        row.addWidget(self.use_llm)
+        return row
+
+    def _options_row(self) -> QHBoxLayout:
+        """How to search, the CLI's --no-llm, --no-review-summary and --trusted-only."""
+        row = QHBoxLayout()
+        row.setSpacing(SPACE["lg"])  # all three fit at the window's minimum width
+        row.addWidget(_caption("Как искать"))
+        for box in (self.use_llm, self.review_summary, self.trusted_only):
+            row.addWidget(box)
+        row.addStretch(1)
         return row
 
     def _run_row(self) -> QHBoxLayout:
@@ -437,7 +456,9 @@ class SearchScreen(QWidget):
         self.recent_box.setVisible(bool(self._recent))
         self._asked = None
         self._set_running(True)
-        self._run = SearchRun(query, self.use_llm.isChecked(), self._states)
+        use_llm = self.use_llm.isChecked()
+        summary = self.review_summary.isChecked()
+        self._run = SearchRun(query, use_llm, self._states, summary)
         self._last_rounds = (answer, clarify_round)
         rounds: dict[str, Any] = {"answer": answer} if answer is not None else {}
         if clarify_round:
@@ -446,7 +467,9 @@ class SearchScreen(QWidget):
             query,
             city=self.city.text().strip() or None,
             budget=self.budget.value() or None,
-            use_llm=self._run.use_llm,
+            use_llm=use_llm,
+            trusted_only=self.trusted_only.isChecked(),
+            with_review_summary=summary,
             sources=selected,
             excluded_brands=self._excluded_brands,
             learn_first=learn_first,
@@ -568,7 +591,7 @@ class SearchScreen(QWidget):
         if isinstance(result, NoRecommendation):
             self.message.setText(result.message)
             return
-        run = SearchRun(self._run.query, self._run.use_llm, dict(self._states))
+        run = replace(self._run, source_states=dict(self._states))
         self._show_counts(result)
         self.report_button.show()
         self.report_ready.emit(result, run)
@@ -611,5 +634,7 @@ class SearchScreen(QWidget):
         self.cancel_button.setEnabled(running)
         self.skip_learning_button.setVisible(self._learning_for is not None)
         self.use_llm.setEnabled(not running)
+        self.review_summary.setEnabled(not running and self.use_llm.isChecked())
+        self.trusted_only.setEnabled(not running)
         for name, box in self.sources.items():
             box.setEnabled(not running and name not in self._unavailable)
