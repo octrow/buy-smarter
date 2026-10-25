@@ -166,7 +166,13 @@ cp .env.example .env                     # необязательные API-кл
 # LLM-парсинг запроса через библиотеку claude-cli (API-ключ не нужен)
 buysmarter recommend "нужен ирригатор, портативный, IPX7, до 40000 тг, Алматы"
 
-# Все три площадки (по умолчанию) или выборочно; больше кандидатов; без md-отчёта
+# Сохранённые настройки поиска, как «Настройки поиска» в приложении: город, бюджет, площадки, бренды
+buysmarter prefs
+buysmarter prefs set marketplaces kaspi,olx
+buysmarter prefs set excluded_brands "Noname, Generic"
+buysmarter prefs clear budget
+
+# Сохранённые площадки (иначе все три) или выборочно; больше кандидатов; без md-отчёта
 buysmarter recommend "ирригатор до 40000 тг" --sources kaspi,olx --top 10 --no-save
 
 # Только проверенные бренды; без LLM (простой парсер, фичи не фильтруются)

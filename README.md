@@ -165,7 +165,13 @@ With none of them a run goes keyless (naive parser, no review summary) and the r
 # LLM request parsing via the claude-cli library (no API key needed)
 buysmarter recommend "need a water flosser, portable, IPX7, under 40000 tg, Almaty"
 
-# All three sources (default) or a subset; more candidates; no markdown report
+# Saved search settings, the app's «Настройки поиска»: city, budget, marketplaces, excluded brands
+buysmarter prefs
+buysmarter prefs set marketplaces kaspi,olx
+buysmarter prefs set excluded_brands "Noname, Generic"
+buysmarter prefs clear budget
+
+# The saved marketplaces (else all three) or a subset; more candidates; no markdown report
 buysmarter recommend "ирригатор до 40000 тг" --sources kaspi,olx --top 10 --no-save
 
 # Trusted brands only; no LLM (naive parser, features are not filtered)

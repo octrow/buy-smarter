@@ -19,6 +19,7 @@ from buysmarter.cli.clarify import EXIT_CLARIFY, print_clarification
 from buysmarter.cli.clarify import ask as ask_clarification
 from buysmarter.cli.console import console, render, render_no_substance, render_used
 from buysmarter.cli.learning import learn_before_search, search_and_follow_up
+from buysmarter.cli.prefs import prefs_app
 from buysmarter.cli.progress import stages
 from buysmarter.cli.report import (
     DEFAULT_TOP,
@@ -498,6 +499,7 @@ def ozon_setup() -> None:
 
 llm_app = typer.Typer(help="The LLM key: stored in the OS keyring, never shown.")
 app.add_typer(llm_app, name="llm")
+app.add_typer(prefs_app, name="prefs")
 
 
 def _provider(name: str) -> str:

@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Added
+- `buysmarter prefs`: show, `set` and `clear` the saved search settings (city, budget, marketplaces, excluded
+  brands) with the same checks and messages as the app's «Настройки поиска» (CLI ↔ GUI parity #9).
+
 ### Changed
 - A new category is learned before its first search in the desktop app and the CLI (ADR-0006, finding #26): the
   first result already has its brands, models and ingredients. The desktop app shows "Изучаю категорию «…» с AI

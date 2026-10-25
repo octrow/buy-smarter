@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from buysmarter.cli.prefs import LABELS, NO_SOURCE, SAVED, STORE_DOWN
 from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.prefs_fields import (
     BUDGET,
@@ -66,10 +67,10 @@ class PreferencesScreen(QWidget):
             marketplaces.addWidget(box)
         marketplaces.addStretch(1)
         form = QFormLayout()
-        form.addRow("Город по умолчанию", self.city)
-        form.addRow("Бюджет", self.budget)
-        form.addRow("Маркетплейсы", marketplaces)
-        form.addRow("Исключить бренды", self.excluded)
+        form.addRow(LABELS[CITY], self.city)
+        form.addRow(LABELS[BUDGET], self.budget)
+        form.addRow(LABELS[MARKETPLACES], marketplaces)
+        form.addRow(LABELS[EXCLUDED_BRANDS], self.excluded)
         layout = QVBoxLayout(self)
         # Under the screen heading (app._centered): no top gap of its own.
         layout.setContentsMargins(SPACE["xxl"], SPACE["lg"], SPACE["xxl"], SPACE["xl"])
@@ -111,7 +112,7 @@ class PreferencesScreen(QWidget):
             return
         values = self.values()
         if not values[MARKETPLACES]:
-            self.message.setText("Выберите хотя бы один маркетплейс.")
+            self.message.setText(NO_SOURCE)
             return
         self.save_button.setEnabled(False)
         self.message.clear()
@@ -122,10 +123,10 @@ class PreferencesScreen(QWidget):
     def _on_saved(self, values: dict[str, Any]) -> None:
         self._job = None
         self.save_button.setEnabled(True)
-        self.message.setText("Сохранено. Новые значения применятся к следующему поиску.")
+        self.message.setText(SAVED)
         self.saved.emit(values)
 
     def _on_failed(self, _message: str) -> None:
         self._job = None
         self.save_button.setEnabled(True)
-        self.message.setText("Не удалось сохранить: хранилище недоступно. Подробности в логе.")
+        self.message.setText(STORE_DOWN)

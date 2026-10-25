@@ -93,9 +93,9 @@ They differ in defaults.
 | HTTP API + worker | `api_sources`, default kaspi + olx (no Ozon) | **off** (`use_llm=False`) | job queue in Redis; the same request within 15 minutes returns the same job; 10 new jobs per 600 s per client, else 429 with `Retry-After`; `X-API-Key` required when `BUYSMARTER_API_KEYS` is set; job timeout 300 s; auto-learning needs `use_llm=true` in the request and `BUYSMARTER_AUTO_LEARN=true`; a clarification is `no_match` with `reason="needs_clarification"` and `clarification`, the client posts again with `answer` and `clarify_round` + 1; `constraints` is the public `ParsedRequest` (`category` kept, deprecated) |
 | direct call | kaspi only | on | used by tests |
 
-Other MCP tools (`search_products`, `compare`, `get_preferences`, `set_preference`) do not call `recommend()`.
+Other MCP tools (`search_products`, `compare`, `get_preferences`, `set_preference`) do not call `recommend()`. The saved search settings (city, budget, marketplaces, excluded brands) are edited on the app's «Настройки поиска» screen and with `buysmarter prefs` (show, `set`, `clear`; the same keys, checks and messages, `cli/prefs`), and read through `memory/prefs`.
 
-Module: `cli/main`, `cli/console`, `cli/progress`, `cli/clarify`, `cli/learning`, `cli/report`, `gui/screens/search`, `gui/screens/clarify`, `gui/screens/report`, `gui/learning`, `gui/capability_toggles`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`, `services/auto_learn`
+Module: `cli/main`, `cli/console`, `cli/progress`, `cli/prefs`, `cli/clarify`, `cli/learning`, `cli/report`, `gui/screens/search`, `gui/screens/clarify`, `gui/screens/report`, `gui/learning`, `gui/capability_toggles`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`, `services/auto_learn`
 
 ## Steps
 
