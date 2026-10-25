@@ -40,6 +40,12 @@ from buysmarter.knowledge.store import (
 from buysmarter.ranking.models import QueryConstraints
 
 NOTHING_LEARNED = "Изученных категорий нет: buysmarter learn-category КАТЕГОРИЯ."
+# A long notes file can outgrow one answer: the JSON comes back cut off mid-way (``learn``,
+# «Из заметок…»).
+NOTES_TOO_LONG = (
+    "Ответ AI оборвался, чаще всего потому, что заметки слишком длинные для одного ответа. "
+    "Ничего не сохранено: разбейте заметки на файлы примерно по 15 моделей и изучите каждый."
+)
 NOT_LEARNED = "Категория «{name}» ещё не изучена: buysmarter learn-category {name}"
 # Who wrote the record, in words; a model name ("opus", "sonnet") is shown as is.
 _WRITERS = {

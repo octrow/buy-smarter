@@ -172,3 +172,19 @@ def test_a_store_that_cannot_be_read_is_said(qtbot, runner, monkeypatch) -> None
     screen = _screen(qtbot, runner)
 
     qtbot.waitUntil(lambda: screen.status.text() == USER_ERROR, timeout=_WAIT_MS)
+
+
+def test_notes_cut_off_by_the_llm_say_to_split_them_as_the_cli(qtbot, runner, monkeypatch):
+    from buysmarter.cli.category import NOTES_TOO_LONG
+    from buysmarter.llm.adapter import LlmError
+
+    async def _cut_off(path, category):
+        raise LlmError("claude CLI response invalid after retry")
+
+    monkeypatch.setattr(screen_module, "learn_from_notes", _cut_off)
+    screen = _screen(qtbot, runner, picked="/tmp/notes.md")
+    screen.name.setText("кофемашина")
+
+    screen.notes_button.click()
+
+    qtbot.waitUntil(lambda: screen.status.text() == NOTES_TOO_LONG, timeout=_WAIT_MS)

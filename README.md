@@ -63,7 +63,9 @@ The report goes on with a review summary, alternatives (best value, best budget)
   report says so. The API never learns on its own unless `BUYSMARTER_AUTO_LEARN=true`.
 - **How the category is judged.** Every report says which capabilities took part and who decided ("Как
   оценивали: состав — обучение"); the desktop app lets you switch a category capability on or off for your
-  query's category, or reset it to automatic. "Рынок б/у" (OLX) and "Официальные магазины" (brand sites) are
+  query's category, or reset it to automatic, on the report and on the «Категории» screen (`buysmarter
+  category set/reset` in the CLI). That screen also lists the learned categories with their summary and
+  learns or relearns one, with or without web search or from your notes, as `learn-category` and `learn`. "Рынок б/у" (OLX) and "Официальные магазины" (brand sites) are
   such switches too: on by default, off for a category when learning or you say so.
 - **Used goods.** A query like "б/у ноутбук" ("только б/у") adds OLX by itself, even if you did not tick it, and
   puts the OLX section first in the CLI, the desktop app and the markdown report (CLI, MCP, API).
@@ -181,6 +183,12 @@ buysmarter recommend "ирригатор" --city Алматы --budget 40000 --t
 buysmarter learn-category "робот-пылесос"
 buysmarter learn-category "смартфон"      # brand tiers + model aliases for phones
 buysmarter learn ~/notes/robot-vacuum.md --category "робот пылесос"
+
+# Learned categories, the app's «Категории»: list, summary, how a category is judged
+buysmarter category list
+buysmarter category show "робот-пылесос"
+buysmarter category set "робот-пылесос" used_market off   # composition, benchmark, official_stores
+buysmarter category reset "робот-пылесос" used_market
 
 # Smartphones: Kimovil index in the specs axis, "120 Гц" / "5000 мАч" as required features
 buysmarter recommend "смартфон до 250000 тг, 120 Гц, 5000 мАч" --city Алматы

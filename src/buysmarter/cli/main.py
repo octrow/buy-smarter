@@ -14,7 +14,7 @@ from rich.markup import escape
 from rich.table import Table
 
 from buysmarter import local_store
-from buysmarter.cli.category import category_app
+from buysmarter.cli.category import NOTES_TOO_LONG, category_app
 from buysmarter.cli.clarify import CLARIFY_PROMPT as CLARIFY_PROMPT  # re-export
 from buysmarter.cli.clarify import EXIT_CLARIFY, print_clarification
 from buysmarter.cli.clarify import ask as ask_clarification
@@ -307,14 +307,6 @@ def learn_category(
     render_knowledge(category, knowledge_rows(brand, model, category_type, ingredient))
 
 
-# A long notes file can outgrow one answer: the JSON comes back cut off mid-way.
-_LEARN_LLM_HINT = (
-    "The LLM answer was cut off or malformed, most often because the notes are too long for one "
-    "answer. Nothing was saved: split the notes into smaller files (about 15 models each) and run "
-    "`learn` on each."
-)
-
-
 @app.command("learn")
 def learn(
     file: str = typer.Argument(..., help="Markdown research notes file."),
@@ -328,7 +320,7 @@ def learn(
     except Exception as exc:  # noqa: BLE001 - surface a clean CLI error
         console.print(f"[red]Learning from file failed: {escape(str(exc))}[/red]")
         if isinstance(exc, LlmError):
-            console.print(_LEARN_LLM_HINT)
+            console.print(NOTES_TOO_LONG)
         raise typer.Exit(code=1) from exc
     console.print(
         f"[green]Merged notes from {escape(file)} into knowledge "

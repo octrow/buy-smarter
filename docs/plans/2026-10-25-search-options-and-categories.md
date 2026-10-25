@@ -80,7 +80,7 @@
 | 7 | ✅ `buysmarter category list/show/set/reset` (пп. 11 для CLI, 13; В6) | `cli/category.py`, `gui/capability_toggles.py` (тексты — общие константы) | `tests/cli/test_category.py`: список с книгами и родителем; `show` без обучения; `set`/`reset` пишут `set_user_choice` и говорят «Изменения сработают при следующем поиске»; неизвестная capability или уровня «request» — отказ со списком допустимых |
 | 8 | ✅ Экран «Категории» (п. 11; В7–В9) | `gui/screens/categories.py`, `gui/app.py`, `gui/capability_toggles.py` | `tests/gui/test_categories.py` (pytest-qt): список; выбор показывает итог и переключатели без «Повторить поиск»; «Изучить» зовёт `learn_category_knowledge(web=…)` и обновляет итог; сбой — причина без внутренностей; «Из заметок…» с фейковым выбором файла |
 | 9 | ✅ Скриншоты экрана «Категории» и формы поиска с флажками, светлая и тёмная тема; чек-лист `~/dev/docs/GUI/qt-desktop-guide.md` (по нему добавлены «Отмена» во время изучения и сообщение о сбое хранилища; тексты — константы модуля, как на других экранах; `--self-test` ok; снимки — `docs/screenshots/desktop/*-categories.png`, `*-search.png`) | `scripts/screenshots.py`, `gui/screens/categories.py` | `tests/gui/test_categories.py`: отмена, сбой хранилища |
-| 10 | Документы | карта EN + RU (входы CLI и GUI, шаг 3 — настройки); README EN + RU (команды `prefs`, `category`, экран); CHANGELOG; сверка (пп. ✅); `CONTEXT.md`, если появятся термины | `tests/test_logic_map.py` |
+| 10 | ✅ Документы | карта EN + RU (входы CLI и GUI, шаг 3 — настройки); README EN + RU (команды `prefs`, `category`, экран); CHANGELOG; сверка (пп. ✅); `CONTEXT.md`, если появятся термины | `tests/test_logic_map.py` |
 | 11 | Живой прогон | — | — |
 
 ## Порядок работы

@@ -8,6 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from buysmarter.cli import main
+from buysmarter.cli.category import NOTES_TOO_LONG
 from buysmarter.knowledge import generate as generate_module
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.generate import CategoryKnowledge
@@ -199,5 +200,5 @@ def test_learn_file_fails_and_saves_nothing_on_truncated_json(monkeypatch, tmp_p
 
     assert result.exit_code == 1
     assert "Learning from file failed" in result.output
-    assert "split the notes" in result.output
+    assert NOTES_TOO_LONG in " ".join(result.output.split())
     assert asyncio.run(get_stored_books("смартфон")) == (None, None)

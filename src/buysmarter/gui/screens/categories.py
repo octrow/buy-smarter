@@ -6,6 +6,7 @@ The list and the summary are the CLI's data (``cli/category.category_rows`` and
 way round; a learn by hand is not counted in the hourly limit, as ``learn-category`` (В8).
 """
 
+import logging
 from collections.abc import Callable
 from pathlib import Path
 
@@ -25,7 +26,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from buysmarter.cli.category import HEADERS, CategoryDetail, CategoryRow, category_detail
+from buysmarter.cli.category import (
+    HEADERS,
+    NOTES_TOO_LONG,
+    CategoryDetail,
+    CategoryRow,
+    category_detail,
+)
 from buysmarter.cli.category import category_rows as stored_rows
 from buysmarter.cli.report import (
     SUBSTANCE_HEADERS,
@@ -37,10 +44,13 @@ from buysmarter.cli.report import (
 )
 from buysmarter.gui.bridge import CoreRunner
 from buysmarter.gui.capability_toggles import CapabilityToggles
-from buysmarter.gui.learning import CategoryLearning
+from buysmarter.gui.learning import LEARN_FAILED, CategoryLearning
 from buysmarter.gui.tables import FitTableWidget, stretch_column
 from buysmarter.gui.theme import SPACE, card_body, set_state
 from buysmarter.knowledge.generate import learn_category, learn_from_notes
+from buysmarter.llm.adapter import LlmError
+
+logger = logging.getLogger(__name__)
 
 LEARN_TEXT = "Изучить"
 RELEARN_TEXT = "Переучить"
@@ -70,6 +80,16 @@ def _table(headers: tuple[str, ...], rows: list[list[str]], stretch: int) -> Fit
             table.setItem(r, c, QTableWidgetItem(text))
     stretch_column(table, stretch)
     return table
+
+
+async def _from_notes(path: Path, name: str) -> bool:
+    """``learn_from_notes``; ``False`` when the LLM answer was cut off, as ``learn`` says."""
+    try:
+        await learn_from_notes(path, name)
+    except LlmError as exc:
+        logger.warning("Learning %s from %s cut off: %r", name, path, exc)
+        return False
+    return True
 
 
 class CategoriesScreen(QWidget):
@@ -230,7 +250,7 @@ class CategoriesScreen(QWidget):
 
     def _learn_notes(self) -> None:
         if (name := self._named()) and (path := self._pick_file(self)):
-            self.learning.run(name, learn_from_notes(Path(path), name))
+            self.learning.run(name, _from_notes(Path(path), name))
 
     def _named(self) -> str:
         name = self.name.text().strip()
@@ -251,7 +271,8 @@ class CategoriesScreen(QWidget):
             self.reload()
             self._load(category)
         elif outcome is not None:
-            self.status.setText(outcome)
+            # Only a notes learn cut off by the LLM ends as LEARN_FAILED (``_from_notes``).
+            self.status.setText(NOTES_TOO_LONG if outcome == LEARN_FAILED else outcome)
         self._render_buttons()
 
     def _render_buttons(self) -> None:

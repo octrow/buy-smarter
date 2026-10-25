@@ -33,6 +33,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   MCP, the HTTP API and the worker still learn after the report.
 
 ### Fixed
+- «Из заметок…» on «Категории» says to split notes the LLM answer was cut off on, as `learn` does (now in
+  Russian in both).
 - A table cell that just fits its column no longer wraps with its second line cut off: the row height is
   measured at the padded width the text is painted in.
 - The desktop app's search screen scrolls when a long question does not fit the window instead of squeezing
