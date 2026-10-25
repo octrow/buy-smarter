@@ -586,3 +586,40 @@ def test_the_console_says_how_much_was_found_as_the_app() -> None:
         terminal.render(_result(), top=3)
 
     assert "Найдено предложений: 5, б/у на OLX: 1." in capture.get()
+
+
+def test_knowledge_rows_give_the_tiers_and_substances_in_the_console_order() -> None:
+    from buysmarter.cli.report import knowledge_rows
+    from buysmarter.knowledge.brands import BrandBook
+    from buysmarter.knowledge.ingredients import ActiveSubstance, EquivalentProduct, IngredientBook
+    from buysmarter.knowledge.models_book import ModelBook, ModelEntry
+
+    brand = BrandBook(
+        tiers={"Xiaomi": "C", "Roborock": "A", "Dreame": "A"}, aliases={"сяоми": "Xiaomi"}
+    )
+    model = ModelBook(entries=[ModelEntry(canonical="Roborock S8", brand="Roborock", codes=["S8"])])
+    ingredient = IngredientBook(
+        substances=[
+            ActiveSubstance(
+                canonical="адапален",
+                typical_concentrations=["0.1%"],
+                equivalents=[EquivalentProduct(name="Клензит", concentration="0.1%")],
+            ),
+            ActiveSubstance(canonical="азелаиновая кислота"),
+        ]
+    )
+
+    rows = knowledge_rows(brand, model, "composition_driven", ingredient)
+
+    assert rows.tiers == [("A", ["Roborock", "Dreame"]), ("B", []), ("C", ["Xiaomi"])]
+    assert (rows.category_type, rows.models, rows.brands, rows.aliases) == (
+        "composition_driven",
+        1,
+        3,
+        1,
+    )
+    assert rows.substances == [
+        ("адапален", ["0.1%"], ["Клензит"]),
+        ("азелаиновая кислота", [], []),
+    ]
+    assert knowledge_rows(brand, model).substances == []

@@ -135,7 +135,7 @@ def test_learn_file_merges_user_notes_over_stored(monkeypatch, tmp_path) -> None
             IngredientBook(),
         )
 
-    monkeypatch.setattr(main, "extract_category_knowledge", _fake_extract)
+    monkeypatch.setattr(generate_module, "extract_category_knowledge", _fake_extract)
 
     notes = tmp_path / "notes.md"
     notes.write_text("# my research\nXiaomi is actually solid", encoding="utf-8")
@@ -170,7 +170,7 @@ def test_learn_file_merges_with_the_own_record_not_a_parent(monkeypatch, tmp_pat
             BrandBook(tiers={"Galderma": "A"}), ModelBook(), "spec_driven", IngredientBook()
         )
 
-    monkeypatch.setattr(main, "extract_category_knowledge", _fake_extract)
+    monkeypatch.setattr(generate_module, "extract_category_knowledge", _fake_extract)
     notes = tmp_path / "notes.md"
     notes.write_text("Galderma", encoding="utf-8")
 
@@ -191,7 +191,7 @@ def test_learn_file_fails_and_saves_nothing_on_truncated_json(monkeypatch, tmp_p
     async def _truncated(category: str, notes: str):
         raise LlmError("claude CLI response invalid after retry: Expecting ',' delimiter")
 
-    monkeypatch.setattr(main, "extract_category_knowledge", _truncated)
+    monkeypatch.setattr(generate_module, "extract_category_knowledge", _truncated)
     notes = tmp_path / "notes.md"
     notes.write_text("- Samsung Galaxy S24", encoding="utf-8")
 

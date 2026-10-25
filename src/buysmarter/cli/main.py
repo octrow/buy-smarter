@@ -23,27 +23,16 @@ from buysmarter.cli.prefs import prefs_app
 from buysmarter.cli.progress import stages
 from buysmarter.cli.report import (
     DEFAULT_TOP,
+    knowledge_rows,
     no_new_pick_text,
     save_report,
 )
 from buysmarter.i18n import kzt
 from buysmarter.knowledge.brands import BrandBook
-from buysmarter.knowledge.generate import (
-    EXTRACT_KNOWLEDGE_MODEL,
-    GENERATE_KNOWLEDGE_MODEL,
-    extract_category_knowledge,
-    learned_benchmark,
-)
+from buysmarter.knowledge.generate import GENERATE_KNOWLEDGE_MODEL, learn_from_notes
 from buysmarter.knowledge.generate import learn_category as learn_category_knowledge
-from buysmarter.knowledge.ingredients import IngredientBook, merge_ingredient_books
+from buysmarter.knowledge.ingredients import IngredientBook
 from buysmarter.knowledge.models_book import ModelBook
-from buysmarter.knowledge.profile import COMPOSITION_DRIVEN, CategoryProfile
-from buysmarter.knowledge.store import (
-    load_profile,
-    merge_brand_books,
-    merge_model_books,
-    save_knowledge,
-)
 from buysmarter.llm import keys
 from buysmarter.llm.adapter import LlmError
 from buysmarter.logsetup import new_run_id, setup_logging
@@ -297,37 +286,28 @@ def _render_knowledge_summary(
     ingredient: IngredientBook | None = None,
 ) -> None:
     """Print a tiers-and-models summary table for a category's knowledge."""
-    tiers: dict[str, list[str]] = {"A": [], "B": [], "C": []}
-    for name, tier in brand.tiers.items():
-        tiers.setdefault(tier, []).append(name)
+    rows = knowledge_rows(brand, model, category_type, ingredient)
     table = Table(title=f"Brand tiers — {category}", show_header=True, header_style="bold")
     table.add_column("Tier")
     table.add_column("N", justify="right")
     table.add_column("Brands")
-    for tier in ("A", "B", "C"):
-        brands = tiers.get(tier, [])
+    for tier, brands in rows.tiers:
         table.add_row(tier, str(len(brands)), escape(", ".join(brands)) or "-")
     console.print(table)
     console.print(
-        f"[bold]Type:[/bold] {category_type}   "
-        f"[bold]Models:[/bold] {len(model.entries)}   "
-        f"[bold]Brands:[/bold] {len(brand.tiers)}   "
-        f"[bold]Aliases:[/bold] {len(brand.aliases)}"
+        f"[bold]Type:[/bold] {rows.category_type}   "
+        f"[bold]Models:[/bold] {rows.models}   "
+        f"[bold]Brands:[/bold] {rows.brands}   "
+        f"[bold]Aliases:[/bold] {rows.aliases}"
     )
-    _render_ingredient_summary(ingredient)
-
-
-def _render_ingredient_summary(ingredient: IngredientBook | None) -> None:
-    """Print the active-substance table for composition-driven categories."""
-    if ingredient is None or not ingredient.substances:
+    if not rows.substances:
         return
     table = Table(title="Active substances", show_header=True, header_style="bold")
     table.add_column("Substance")
     table.add_column("Concentrations")
     table.add_column("Equivalents")
-    for sub in ingredient.substances:
-        equivalents = ", ".join(e.name for e in sub.equivalents) or "-"
-        table.add_row(sub.canonical, ", ".join(sub.typical_concentrations) or "-", equivalents)
+    for name, concentrations, equivalents in rows.substances:
+        table.add_row(name, ", ".join(concentrations) or "-", ", ".join(equivalents) or "-")
     console.print(table)
 
 
@@ -371,7 +351,9 @@ def learn(
 ) -> None:
     """Extract books from your own notes and MERGE them into the stored knowledge."""
     try:
-        brand, model, category_type, ingredient = asyncio.run(_run_learn_file(Path(file), category))
+        brand, model, category_type, ingredient = asyncio.run(
+            learn_from_notes(Path(file), category)
+        )
     except Exception as exc:  # noqa: BLE001 - surface a clean CLI error
         console.print(f"[red]Learning from file failed: {escape(str(exc))}[/red]")
         if isinstance(exc, LlmError):
@@ -382,41 +364,6 @@ def learn(
         f"for {escape(repr(category))}.[/green]"
     )
     _render_knowledge_summary(category, brand, model, category_type, ingredient)
-
-
-async def _run_learn_file(
-    file: Path, category: str
-) -> tuple[BrandBook, ModelBook, str, IngredientBook]:
-    notes = file.read_text(encoding="utf-8")
-    new_brand, new_model, new_type, new_ingredient, provider = await extract_category_knowledge(
-        category, notes
-    )
-    # The category's own record only: a parent's or a related category's knowledge
-    # must not be copied into this one (phase 1, decision 6).
-    stored = await load_profile(category) or CategoryProfile(slug=category)
-    stored_brand, stored_model = stored.brand_book, stored.model_book
-    stored_ingredient = stored.ingredient_book
-    # User's file wins on conflicts → it is the overlay on top of the stored base.
-    merged_brand = merge_brand_books(stored_brand or BrandBook(), new_brand)
-    merged_model = merge_model_books(stored_model or ModelBook(), new_model)
-    merged_ingredient = merge_ingredient_books(
-        stored_ingredient or IngredientBook(), new_ingredient
-    )
-    # An extraction that found no substances neither downgrades a stored composition
-    # category nor writes a type, which would stop the record inheriting its parent's.
-    composition = new_type == COMPOSITION_DRIVEN or stored_ingredient is not None
-    await save_knowledge(
-        category,
-        merged_brand,
-        merged_model,
-        EXTRACT_KNOWLEDGE_MODEL,
-        category_type=COMPOSITION_DRIVEN if composition else None,
-        ingredient_book=merged_ingredient if composition else None,
-        # notes that name no provider say nothing about benchmark: it stays as stored
-        capabilities=learned_benchmark(provider) if provider else None,
-    )
-    shown_type = COMPOSITION_DRIVEN if composition else new_type
-    return merged_brand, merged_model, shown_type, merged_ingredient
 
 
 def _render_refresh(result: CategoryRefresh) -> None:

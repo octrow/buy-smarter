@@ -12,6 +12,7 @@ import re
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
+from typing import NamedTuple
 
 from buysmarter.capabilities.provenance import assessed_entries, assessed_line
 from buysmarter.capabilities.used_only import USED
@@ -28,6 +29,9 @@ from buysmarter.i18n import (
     source_label,
     used_con,
 )
+from buysmarter.knowledge.brands import BrandBook
+from buysmarter.knowledge.ingredients import IngredientBook
+from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.ranking.models import Candidate, QueryConstraints
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.matching import UsedListing
@@ -478,3 +482,36 @@ def save_report(result: RecommendResult, query: str, top: int, path: str | None)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(render_markdown(result, top), encoding="utf-8")
     return target
+
+
+_SHOWN_TIERS = ("A", "B", "C")
+
+
+class KnowledgeRows(NamedTuple):
+    """A category's knowledge summary: the console after ``learn`` and the «Категории» screen."""
+
+    tiers: list[tuple[str, list[str]]]
+    category_type: str
+    models: int
+    brands: int
+    aliases: int
+    substances: list[tuple[str, list[str], list[str]]]  # name, concentrations, equivalents
+
+
+def knowledge_rows(
+    brand: BrandBook,
+    model: ModelBook,
+    category_type: str = "spec_driven",
+    ingredient: IngredientBook | None = None,
+) -> KnowledgeRows:
+    """Brand tiers A–C, the counts, and the active substances of a composition category."""
+    tiers = [
+        (tier, [name for name, of in brand.tiers.items() if of == tier]) for tier in _SHOWN_TIERS
+    ]
+    substances = [
+        (sub.canonical, list(sub.typical_concentrations), [e.name for e in sub.equivalents])
+        for sub in (ingredient.substances if ingredient else [])
+    ]
+    return KnowledgeRows(
+        tiers, category_type, len(model.entries), len(brand.tiers), len(brand.aliases), substances
+    )

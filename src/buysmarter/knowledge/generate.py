@@ -14,6 +14,7 @@ Two entry points, both routed through the mandatory LLM cache (``llm.adapter``):
 
 import asyncio
 import re
+from pathlib import Path
 from typing import Any, NamedTuple
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -27,8 +28,18 @@ from buysmarter.capabilities.benchmark_providers import (
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import IngredientBook, merge_ingredient_books
 from buysmarter.knowledge.models_book import ModelBook
-from buysmarter.knowledge.profile import COMPOSITION_DRIVEN, SPEC_DRIVEN, CapabilitySetting
-from buysmarter.knowledge.store import merge_brand_books, merge_model_books, save_knowledge
+from buysmarter.knowledge.profile import (
+    COMPOSITION_DRIVEN,
+    SPEC_DRIVEN,
+    CapabilitySetting,
+    CategoryProfile,
+)
+from buysmarter.knowledge.store import (
+    load_profile,
+    merge_brand_books,
+    merge_model_books,
+    save_knowledge,
+)
 from buysmarter.llm.adapter import generate
 from buysmarter.services.official_stores import verify_store_floors
 
@@ -327,3 +338,42 @@ async def extract_category_knowledge(category: str, notes: str) -> CategoryKnowl
         if part.category_type == COMPOSITION_DRIVEN:
             knowledge = knowledge._replace(category_type=COMPOSITION_DRIVEN)
     return knowledge
+
+
+async def learn_from_notes(
+    file: Path, category: str
+) -> tuple[BrandBook, ModelBook, str, IngredientBook]:
+    """Extract knowledge from research notes and merge it over the category's own record.
+
+    CLI ``learn`` and the app's «Из заметок…»; returns the merged books and the shown type.
+    """
+    notes = file.read_text(encoding="utf-8")
+    new_brand, new_model, new_type, new_ingredient, provider = await extract_category_knowledge(
+        category, notes
+    )
+    # The category's own record only: a parent's or a related category's knowledge
+    # must not be copied into this one (phase 1, decision 6).
+    stored = await load_profile(category) or CategoryProfile(slug=category)
+    stored_brand, stored_model = stored.brand_book, stored.model_book
+    stored_ingredient = stored.ingredient_book
+    # User's file wins on conflicts → it is the overlay on top of the stored base.
+    merged_brand = merge_brand_books(stored_brand or BrandBook(), new_brand)
+    merged_model = merge_model_books(stored_model or ModelBook(), new_model)
+    merged_ingredient = merge_ingredient_books(
+        stored_ingredient or IngredientBook(), new_ingredient
+    )
+    # An extraction that found no substances neither downgrades a stored composition
+    # category nor writes a type, which would stop the record inheriting its parent's.
+    composition = new_type == COMPOSITION_DRIVEN or stored_ingredient is not None
+    await save_knowledge(
+        category,
+        merged_brand,
+        merged_model,
+        EXTRACT_KNOWLEDGE_MODEL,
+        category_type=COMPOSITION_DRIVEN if composition else None,
+        ingredient_book=merged_ingredient if composition else None,
+        # notes that name no provider say nothing about benchmark: it stays as stored
+        capabilities=learned_benchmark(provider) if provider else None,
+    )
+    shown_type = COMPOSITION_DRIVEN if composition else new_type
+    return merged_brand, merged_model, shown_type, merged_ingredient

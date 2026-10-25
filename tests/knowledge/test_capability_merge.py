@@ -136,11 +136,11 @@ async def test_learning_from_notes_keeps_the_users_choice(monkeypatch, tmp_path:
     async def _extract(category: str, notes: str):
         return CategoryKnowledge(BrandBook(), ModelBook(), "composition_driven", _BOOK)
 
-    monkeypatch.setattr(main, "extract_category_knowledge", _extract)
+    monkeypatch.setattr(generate_module, "extract_category_knowledge", _extract)
     notes = tmp_path / "notes.md"
     notes.write_text("адапален", encoding="utf-8")
 
-    await main._run_learn_file(notes, "крем-от-акне")
+    await generate_module.learn_from_notes(notes, "крем-от-акне")
 
     assert await _user_choice("крем-от-акне") is False
 
@@ -154,15 +154,15 @@ async def test_notes_naming_a_provider_switch_benchmark_on_and_silent_notes_leav
             BrandBook(), ModelBook(), "spec_driven", IngredientBook(), provider
         )
 
-    monkeypatch.setattr(main, "extract_category_knowledge", _extract)
+    monkeypatch.setattr(generate_module, "extract_category_knowledge", _extract)
     notes = tmp_path / "notes.md"
 
     notes.write_text("Samsung, Xiaomi", encoding="utf-8")
-    await main._run_learn_file(notes, "смартфон")
+    await generate_module.learn_from_notes(notes, "смартфон")
     assert BENCHMARK not in ((await load_knowledge("смартфон")) or {}).get("capabilities", {})
 
     notes.write_text("kimovil", encoding="utf-8")
-    await main._run_learn_file(notes, "смартфон")
+    await generate_module.learn_from_notes(notes, "смартфон")
     stored = (await load_knowledge("смартфон"))["capabilities"][BENCHMARK]
     assert stored["enabled"] is True
     assert stored["params"] == {PROVIDER_KEY: "kimovil"}
