@@ -5,6 +5,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Unreleased]
 
 ### Added
+- "Искать без уточнений" on the desktop app's question card: the first option, no more questions, as Enter
+  in the CLI (CLI ↔ GUI parity #4).
 - The desktop app's search form has the CLI's options: "Сводка отзывов" (`--no-review-summary`) and "Только
   известные бренды" (`--trusted-only`), in a new "Как искать" row with the AI checkbox, now "AI: разбор запроса"
   (CLI ↔ GUI parity #2–3).
@@ -22,6 +24,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   MCP, the HTTP API and the worker still learn after the report.
 
 ### Fixed
+- The desktop app's search screen scrolls when a long question does not fit the window instead of squeezing
+  the form and the option buttons.
 - The CLI searches the saved marketplaces when `--sources` is not given (else all three) and excludes the saved
   brands, as the desktop app (CLI ↔ GUI parity #8).
 - The CLI shows the search's progress on a terminal, as the desktop app: the running stage in Russian, then

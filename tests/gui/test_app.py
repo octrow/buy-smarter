@@ -255,3 +255,24 @@ def test_ctrl_c_in_the_terminal_quits_the_app(qapp):
     finally:
         undo()
     assert signal.getsignal(signal.SIGINT) is before
+
+
+def test_a_long_question_scrolls_instead_of_squeezing_at_the_minimum_window_size(qtbot, runner):
+    from buysmarter.services.understanding import Clarification
+
+    window = gui_app.MainWindow(runner)
+    qtbot.addWidget(window)
+    window.resize(*gui_app._MIN_SIZE)
+    window.show()
+    window.search.recent_box.hide()  # as the screen does when it asks back
+    window.search.clarify.ask(
+        Clarification(
+            kind="open", question="Что именно ищем?", options=[f"вариант {i}" for i in range(6)]
+        )
+    )
+    qtbot.waitUntil(lambda: window.search.clarify.isVisible(), timeout=WAIT_MS)
+    QApplication.processEvents()
+
+    for button in window.search.clarify.option_buttons:
+        assert button.height() >= button.minimumSizeHint().height()
+    assert window.search.query.height() >= window.search.query.minimumSizeHint().height()

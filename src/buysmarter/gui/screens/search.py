@@ -194,8 +194,8 @@ class SearchScreen(QWidget):
         self._list_reports = list_reports
         self._query_action: QAction | None = None
         self._asked: Clarification | None = None
-        # The answer and round the last search ran with, for ``rerun``.
-        self._last_rounds: tuple[str | None, int] = (None, 0)
+        # The answer, round and no_clarify the last search ran with, for ``rerun``.
+        self._last_rounds: tuple[str | None, int, bool] = (None, 0, False)
         self._build()
 
     def _build(self) -> None:
@@ -234,6 +234,7 @@ class SearchScreen(QWidget):
         self.report_button.hide()
         self.clarify = ClarificationBox()
         self.clarify.answered.connect(self._answer)
+        self.clarify.skipped.connect(self._skip_questions)
 
         self.query.setObjectName("bigQuery")
         bind_icon(self, self._set_query_icon, "mdi6.magnify")
@@ -434,8 +435,21 @@ class SearchScreen(QWidget):
         self.query.setText(f"{self.query.text().strip()} {reply}")
         self._launch(clarify_round=asked.round + 1)
 
+    def _skip_questions(self) -> None:
+        """«Искать без уточнений», Enter in the CLI: the same search, the first option, no more
+        questions (for the rerun after learning too)."""
+        asked = self._asked
+        if asked is None or self._job is not None:
+            return
+        self._launch(self._last_rounds[0], asked.round + 1, no_clarify=True)
+
     def _launch(
-        self, answer: str | None = None, clarify_round: int = 0, *, learn_first: bool = True
+        self,
+        answer: str | None = None,
+        clarify_round: int = 0,
+        no_clarify: bool = False,
+        *,
+        learn_first: bool = True,
     ) -> None:
         if self.is_running():
             return
@@ -459,10 +473,12 @@ class SearchScreen(QWidget):
         use_llm = self.use_llm.isChecked()
         summary = self.review_summary.isChecked()
         self._run = SearchRun(query, use_llm, self._states, summary)
-        self._last_rounds = (answer, clarify_round)
+        self._last_rounds = (answer, clarify_round, no_clarify)
         rounds: dict[str, Any] = {"answer": answer} if answer is not None else {}
         if clarify_round:
             rounds["clarify_round"] = clarify_round
+        if no_clarify:
+            rounds["no_clarify"] = True
         coro = self._search(
             query,
             city=self.city.text().strip() or None,

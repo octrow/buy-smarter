@@ -9,12 +9,15 @@ from buysmarter.services.understanding import Clarification
 _OWN_PLACEHOLDER = "или свой ответ"
 _ANSWER_TEXT = "Ответить"
 _OWN_NAME = "Свой ответ"
+SKIP_TEXT = "Искать без уточнений"
+_SKIP_HINT = "Искать первый вариант и больше не спрашивать (Enter на вопросе в CLI)."
 
 
 class ClarificationBox(QFrame):
-    """Emits ``answered(str)``: an option's text or the user's own words."""
+    """Emits ``answered(str)``: an option or the user's own words; ``skipped``: ask nothing more."""
 
     answered = Signal(str)
+    skipped = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -28,6 +31,9 @@ class ClarificationBox(QFrame):
         self.own.returnPressed.connect(self._send_own)
         send = QPushButton(_ANSWER_TEXT)
         send.clicked.connect(self._send_own)
+        self.skip_button = QPushButton(SKIP_TEXT)
+        self.skip_button.setToolTip(_SKIP_HINT)
+        self.skip_button.clicked.connect(self.skipped.emit)
         # One option per line: the LLM's options can be long, a row would widen the window.
         self._options = QVBoxLayout()
         self._options.setSpacing(SPACE["xs"])
@@ -36,6 +42,7 @@ class ClarificationBox(QFrame):
         own_row.setSpacing(SPACE["sm"])
         own_row.addWidget(self.own, 1)
         own_row.addWidget(send)
+        own_row.addWidget(self.skip_button)
         body = QVBoxLayout(self)
         body.setContentsMargins(SPACE["xl"], SPACE["lg"], SPACE["xl"], SPACE["lg"])
         body.setSpacing(SPACE["md"])

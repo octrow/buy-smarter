@@ -176,3 +176,31 @@ def test_a_rerun_after_learning_keeps_the_answer_and_the_round(qtbot, runner, re
 
     _query, kwargs = calls[2]
     assert (kwargs["answer"], kwargs["clarify_round"]) == ("духи", 1)
+
+
+def test_search_without_questions_repeats_the_search_with_no_clarify_as_enter_in_the_cli(
+    qtbot, runner, result
+) -> None:
+    calls: list = []
+    screen = _asked(qtbot, runner, result, calls)
+
+    with qtbot.waitSignal(screen.report_ready, timeout=WAIT_MS):
+        screen.clarify.skip_button.click()
+
+    query, kwargs = calls[1]
+    assert query == "подарок маме"
+    assert kwargs["no_clarify"] is True and kwargs["clarify_round"] == 1
+    assert "answer" not in kwargs
+    assert not screen.clarify.isVisibleTo(screen)
+
+
+def test_a_repeat_after_learning_keeps_asking_nothing(qtbot, runner, result) -> None:
+    calls: list = []
+    screen = _asked(qtbot, runner, result, calls)
+    with qtbot.waitSignal(screen.report_ready, timeout=WAIT_MS):
+        screen.clarify.skip_button.click()
+
+    with qtbot.waitSignal(screen.report_ready, timeout=WAIT_MS):
+        screen.rerun()
+
+    assert calls[2][1]["no_clarify"] is True

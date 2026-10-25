@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMainWindow,
     QMessageBox,
+    QScrollArea,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -120,6 +121,8 @@ class MainWindow(QMainWindow):
                 # The report caps its own page, inside its scroll area; the others are capped here.
                 heading = None if screen is self.search else title
                 page = screen if screen is self.report else _centered(screen, heading)
+                if screen is self.search:  # a long question must not squeeze the form
+                    page = _scrolled(page)
                 index = self.stack.addWidget(page)
                 self.sidebar.addItem(_nav_item(title, icon_name, index))
         self.sidebar.currentItemChanged.connect(self._open_nav_item)
@@ -291,6 +294,13 @@ def _brand_row() -> QHBoxLayout:
 def _named[W: QWidget](widget: W, name: str) -> W:
     widget.setObjectName(name)
     return widget
+
+
+def _scrolled(page: QWidget) -> QScrollArea:
+    """``page`` scrolls when it does not fit instead of squeezing its rows (the minimum height)."""
+    area = QScrollArea(widgetResizable=True)
+    area.setWidget(page)
+    return area
 
 
 def _centered(screen: QWidget, heading: str | None) -> QWidget:
