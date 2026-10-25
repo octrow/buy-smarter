@@ -57,6 +57,16 @@ def as_sources(value: Any) -> list[str]:
     return [name for name in names if name in ALL_SOURCES]
 
 
+async def search_defaults() -> tuple[list[str], list[str]]:
+    """The saved marketplaces and excluded brands a search starts from (``[]``: none saved).
+
+    The app's form and the CLI apply them; the core does not, so MCP and the HTTP API never
+    inherit one user's settings.
+    """
+    stored = await get_all()
+    return as_sources(stored.get(MARKETPLACES)), as_list(stored.get(EXCLUDED_BRANDS))
+
+
 async def get_all() -> dict[str, Any]:
     """All preferences, or ``{}`` when the store is unavailable."""
     try:

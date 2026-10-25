@@ -15,6 +15,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   MCP, the HTTP API and the worker still learn after the report.
 
 ### Fixed
+- The CLI searches the saved marketplaces when `--sources` is not given (else all three) and excludes the saved
+  brands, as the desktop app (CLI ↔ GUI parity #8).
 - The CLI shows the search's progress on a terminal, as the desktop app: the running stage in Russian, then
   "Найдено предложений: N, б/у на OLX: M." above the report (CLI ↔ GUI parity #21).
 - The CLI's OLX table has the app's columns: what each ad was compared with, and the saving without a minus

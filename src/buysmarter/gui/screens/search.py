@@ -44,7 +44,12 @@ from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services.auto_learn import NeedsLearning
 from buysmarter.services.collect import ALL_SOURCES
 from buysmarter.services.matching import UsedListing
-from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, RecommendResult
+from buysmarter.services.recommend import (
+    NoNewPick,
+    NoSubstanceMatch,
+    RecommendResult,
+    with_excluded,
+)
 from buysmarter.services.recommend import parse_request as run_parse_request
 from buysmarter.services.recommend import recommend as run_recommend
 from buysmarter.services.understanding import Clarification, NeedsClarification, NothingToSearch
@@ -459,8 +464,7 @@ class SearchScreen(QWidget):
         try:
             if excluded_brands:
                 parsed = await self._parse(query, kwargs["use_llm"])
-                merged = list(dict.fromkeys([*parsed.excluded_brands, *excluded_brands]))
-                kwargs["parsed"] = parsed.model_copy(update={"excluded_brands": merged})
+                kwargs["parsed"] = with_excluded(parsed, excluded_brands)
             return await self._recommend(query, **kwargs)
         except NeedsClarification as exc:  # not a ValueError: a question, not "nothing found"
             return AskUser(exc.clarification)

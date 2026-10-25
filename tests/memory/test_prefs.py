@@ -135,3 +135,12 @@ def test_as_budget_reads_a_number_or_its_text_and_zero_is_no_limit(stored, budge
 )
 def test_as_sources_keeps_the_known_marketplaces_once(stored, sources) -> None:
     assert prefs.as_sources(stored) == sources
+
+
+async def test_search_defaults_are_the_saved_marketplaces_and_excluded_brands(monkeypatch) -> None:
+    async def get_all() -> dict[str, object]:
+        return {"marketplaces": "olx, avito", "excluded_brands": ["Noname"], "city": "Астана"}
+
+    monkeypatch.setattr(prefs, "get_all", get_all)
+
+    assert await prefs.search_defaults() == (["olx"], ["Noname"])

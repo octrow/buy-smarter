@@ -166,6 +166,14 @@ async def _preference(key: str) -> Any | None:
         return None
 
 
+def with_excluded(parsed: QueryConstraints, brands: list[str]) -> QueryConstraints:
+    """The parse with the saved excluded brands added after the query's own."""
+    if not brands:
+        return parsed
+    merged = list(dict.fromkeys([*parsed.excluded_brands, *brands]))
+    return parsed.model_copy(update={"excluded_brands": merged})
+
+
 async def _city_preference() -> str | None:
     value = await _preference(CITY)
     return value if isinstance(value, str) and value else None

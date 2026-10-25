@@ -46,6 +46,7 @@ from buysmarter.knowledge.store import (
 from buysmarter.llm import keys
 from buysmarter.llm.adapter import LlmError
 from buysmarter.logsetup import new_run_id, setup_logging
+from buysmarter.memory.prefs import search_defaults
 from buysmarter.services.auto_learn import (
     NeedsLearning,
     limit_note,
@@ -69,6 +70,7 @@ from buysmarter.services.recommend import (
     RecommendResult,
     stored_budget,
     understand_request,
+    with_excluded,
 )
 from buysmarter.services.recommend import parse_request as run_parse_request
 from buysmarter.services.recommend import recommend as run_recommend
@@ -100,10 +102,11 @@ def recommend(
     trusted_only: bool = typer.Option(
         False, "--trusted-only", help="Reject products from unknown/untrusted brands."
     ),
-    sources: str = typer.Option(
-        ",".join(ALL_SOURCES),
+    sources: str | None = typer.Option(
+        None,
         "--sources",
-        help="Comma-separated marketplaces to query, e.g. 'kaspi,ozon,olx' or 'kaspi'.",
+        help="Comma-separated marketplaces to query, e.g. 'kaspi,ozon,olx' or 'kaspi'. "
+        "Default: the saved ones (`buysmarter prefs`), else all.",
     ),
     top: int = typer.Option(
         _DEFAULT_TOP, "--top", min=1, help="How many ranked candidates to show in the table."
@@ -131,7 +134,7 @@ def recommend(
     An ambiguous request is asked about first; off a terminal the question is printed and
     the exit code is 3.
     """
-    selected = _parse_sources(sources)
+    selected = _parse_sources(sources) if sources else None
     use_llm = not no_llm
     search = functools.partial(
         recommend_pipeline,
@@ -237,7 +240,9 @@ async def recommend_pipeline(
     a "no" learns it in ``background`` while the search runs. ``settled`` gets the arguments of
     the search that ran, so a repeat asks nothing again.
     """
-    parsed = await run_parse_request(query, use_llm)
+    saved_sources, excluded = await search_defaults()
+    sources = sources or saved_sources or list(ALL_SOURCES)
+    parsed = with_excluded(await run_parse_request(query, use_llm), excluded)
     answer, clarify_round, budget_asked = None, 0, False
     learn_first = learn or _on_terminal()
     while True:
@@ -280,7 +285,7 @@ async def recommend_pipeline(
                 answer = reply
             else:
                 query, answer = f"{query} {reply}", None
-                parsed = await run_parse_request(query, use_llm)
+                parsed = with_excluded(await run_parse_request(query, use_llm), excluded)
 
 
 def _render_knowledge_summary(
