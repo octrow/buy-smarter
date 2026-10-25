@@ -123,11 +123,15 @@ class CategoriesScreen(QWidget):
         self.learn_button.clicked.connect(self._learn)
         self.notes_button = QPushButton(NOTES_TEXT)
         self.notes_button.clicked.connect(self._learn_notes)
+        self.cancel_button = QPushButton("Отмена")
+        self.cancel_button.clicked.connect(lambda: self.learning.cancel(self.name.text().strip()))
+        self.cancel_button.hide()
         row = QHBoxLayout()
         row.setSpacing(SPACE["md"])
         row.addWidget(self.name, 1)
         row.addWidget(self.learn_button)
         row.addWidget(self.notes_button)
+        row.addWidget(self.cancel_button)
         return row
 
     def _build_list(self) -> QGroupBox:
@@ -152,7 +156,9 @@ class CategoriesScreen(QWidget):
 
     def reload(self) -> None:
         """Read the stored categories again (on show and after a learn)."""
-        self._runner.submit(stored_rows()).finished.connect(self._fill)
+        job = self._runner.submit(stored_rows())
+        job.finished.connect(self._fill)
+        job.failed.connect(self.status.setText)  # USER_ERROR: the details are in the log
 
     def _fill(self, rows: list[CategoryRow]) -> None:
         self._names = {row.name for row in rows}
@@ -178,6 +184,7 @@ class CategoriesScreen(QWidget):
     def _load(self, name: str) -> None:
         self._shown = name
         job = self._runner.submit(category_detail(name))
+        job.failed.connect(self.status.setText)
         job.finished.connect(lambda detail: self._show(name, detail))
 
     def _show(self, name: str, detail: CategoryDetail | None) -> None:
@@ -253,3 +260,4 @@ class CategoriesScreen(QWidget):
         busy = self.learning.running(name)
         self.learn_button.setEnabled(not busy)
         self.notes_button.setEnabled(not busy)
+        self.cancel_button.setVisible(busy)

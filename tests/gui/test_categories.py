@@ -140,3 +140,35 @@ def test_no_file_picked_or_no_name_learns_nothing(qtbot, runner, monkeypatch) ->
     qtbot.wait(100)
     assert calls == []
     assert screen.status.text() == screen_module.NO_NAME
+
+
+def test_a_running_learn_can_be_cancelled(qtbot, runner, monkeypatch) -> None:
+    from buysmarter.gui.learning import LEARN_CANCELLED
+
+    async def _forever(category, *, web_search=True):
+        import asyncio
+
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(screen_module, "learn_category", _forever)
+    screen = _screen(qtbot, runner)
+    screen.name.setText("кофемашина")
+    assert screen.cancel_button.isHidden()
+
+    screen.learn_button.click()
+    qtbot.waitUntil(lambda: not screen.cancel_button.isHidden(), timeout=_WAIT_MS)
+    screen.cancel_button.click()
+
+    qtbot.waitUntil(lambda: screen.status.text() == LEARN_CANCELLED, timeout=_WAIT_MS)
+    assert screen.cancel_button.isHidden()
+    assert screen.learn_button.isEnabled()
+
+
+def test_a_store_that_cannot_be_read_is_said(qtbot, runner, monkeypatch) -> None:
+    async def _down():
+        raise OSError("disk detail")
+
+    monkeypatch.setattr(screen_module, "stored_rows", _down)
+    screen = _screen(qtbot, runner)
+
+    qtbot.waitUntil(lambda: screen.status.text() == USER_ERROR, timeout=_WAIT_MS)

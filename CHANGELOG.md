@@ -8,7 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - The desktop app's «Категории» screen (Сервис, first): the learned categories with their books, parent
   and last update; the picked one's brand tiers, counts, substances and «Как оцениваем эту категорию»
   switches; learning a new or learned category with or without web search, or from a notes file, as
-  `learn-category` and `learn` (CLI ↔ GUI parity #11). A learn by hand is not counted in the hourly limit.
+  `learn-category` and `learn` (CLI ↔ GUI parity #11), and «Отмена» while it runs. A learn by hand is not
+  counted in the hourly limit. Who updated a record is said in words («вы», «автообучение»), in `category list` too.
 - The CLI's knowledge summary after `learn`, `learn-category` and `category show` is in Russian, as the screen.
 - `buysmarter category list|show|set|reset`: the learned categories with their books, parent and last
   update, a category's knowledge summary, and the «Как оцениваем эту категорию» switches the app shows

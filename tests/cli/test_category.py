@@ -43,7 +43,7 @@ def test_list_names_each_stored_category_with_its_books_and_parent() -> None:
     assert "робот-пылесос" in out and "моющий-робот" in out
     assert "бренды 2, модели 1" in out
     assert "из робот-пылесос" in out
-    assert "user, 20" in out  # who, then the date
+    assert "вы, 20" in out  # who, then the date
 
 
 def test_list_says_so_when_nothing_is_learned() -> None:

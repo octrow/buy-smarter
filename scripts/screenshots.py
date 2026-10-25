@@ -3,7 +3,8 @@
     uv run python scripts/screenshots.py OUT_DIR   ->  OUT_DIR/light/*.png, OUT_DIR/dark/*.png
 
 Runs offscreen on the self-test's temp store, with a copy of the saved reports so «Прошлые
-поиски» has content; the user's own files are never written. CI uploads the result.
+поиски» has content and two sample categories for «Категории»; the user's own files are never
+written. CI uploads the result.
 buysmarter is imported inside the functions: the store and Settings read the environment at import.
 """
 
@@ -59,6 +60,7 @@ def _grab_all(out: Path) -> None:
     apply_theme(app)
     runner = CoreRunner()
     try:
+        runner.submit(_seed_categories())
         window = MainWindow(runner)
         window.resize(*_SIZE)
         window.show()
@@ -100,6 +102,7 @@ def _grab_screens(window: object, settle: Callable[[], None], out: Path) -> None
         print(name)
     _grab_clarification(window, settle, out)
     _grab_learning(window, settle, out)
+    _grab_category(window, settle, out)
 
 
 def _grab_clarification(window: object, settle: Callable[[], None], out: Path) -> None:
@@ -139,6 +142,45 @@ def _grab_learning(window: object, settle: Callable[[], None], out: Path) -> Non
     search._learning_for = None
     search._set_running(False)
     print("learning.png")
+
+
+async def _seed_categories() -> None:
+    """A spec-driven category and a composition one, for the «Категории» screen."""
+    from buysmarter.knowledge.brands import BrandBook
+    from buysmarter.knowledge.ingredients import ActiveSubstance, EquivalentProduct, IngredientBook
+    from buysmarter.knowledge.models_book import ModelBook, ModelEntry
+    from buysmarter.knowledge.store import save_knowledge, set_user_choice
+
+    tiers = {"Roborock": "A", "Dreame": "A", "Ecovacs": "B", "Xiaomi": "B", "Polaris": "C"}
+    models = [ModelEntry(canonical="Roborock S8", brand="Roborock", codes=["S8"])]
+    await save_knowledge("робот-пылесос", BrandBook(tiers=tiers), ModelBook(entries=models), "opus")
+    await set_user_choice("робот-пылесос", "used_market", False)
+    adapalene = ActiveSubstance(
+        canonical="адапален",
+        typical_concentrations=["0.1%", "0.3%"],
+        equivalents=[EquivalentProduct(name="Клензит", concentration="0.1%")],
+    )
+    await save_knowledge(
+        "крем-от-акне",
+        BrandBook(tiers={"La Roche-Posay": "A", "Bioderma": "B"}),
+        ModelBook(),
+        "sonnet",
+        category_type="composition_driven",
+        ingredient_book=IngredientBook(substances=[adapalene]),
+    )
+
+
+def _grab_category(window: object, settle: Callable[[], None], out: Path) -> None:
+    """«Категории» with a category picked, scrolled to its summary and switches."""
+    window._show_screen(window.categories)
+    settle()
+    window.categories.table.selectRow(1)  # робот-пылесос: a switch set by the user
+    settle()
+    page = window.stack.currentWidget()  # the screen's scroll area: its lower half
+    page.verticalScrollBar().setValue(page.verticalScrollBar().maximum())
+    settle()
+    window.grab().save(str(out / "category.png"))
+    print("category.png")
 
 
 def _pump(app: object, runner: object, seconds: float) -> None:

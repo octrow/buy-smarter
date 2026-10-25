@@ -41,6 +41,14 @@ from buysmarter.ranking.models import QueryConstraints
 
 NOTHING_LEARNED = "Изученных категорий нет: buysmarter learn-category КАТЕГОРИЯ."
 NOT_LEARNED = "Категория «{name}» ещё не изучена: buysmarter learn-category {name}"
+# Who wrote the record, in words; a model name ("opus", "sonnet") is shown as is.
+_WRITERS = {
+    "user": "вы",
+    "auto-learn": "автообучение",
+    "jev": "Jev",
+    "knowledge-heal": "исправление записи",
+    "knowledge-rename": "переименование",
+}
 HEADERS = ("Категория", "Книги", "Родитель", "Обновлено")
 
 CategoryCapability = StrEnum(  # type: ignore[misc]
@@ -74,7 +82,8 @@ def _books(profile: CategoryProfile) -> str:
 
 def category_row(slug: str, raw: dict[str, Any]) -> CategoryRow:
     profile = profile_from_record(slug, raw)
-    stamp = (raw.get("updated_by"), str(raw.get("updated_at") or "")[:10])  # the date only
+    writer = str(raw.get("updated_by") or "")
+    stamp = (_WRITERS.get(writer, writer), str(raw.get("updated_at") or "")[:10])  # date only
     updated = ", ".join(filter(None, stamp))
     return CategoryRow(
         slug, _books(profile), f"из {profile.parent}" if profile.parent else "", updated
