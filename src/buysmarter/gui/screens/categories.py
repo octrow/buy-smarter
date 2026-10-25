@@ -101,30 +101,34 @@ class CategoriesScreen(QWidget):
         learning.settled.connect(self._on_learning)
 
     def _build_learn_card(self) -> QGroupBox:
+        self.web = QCheckBox(WEB_TEXT)
+        self.web.setChecked(True)
+        self.status = QLabel(LEARN_HINT, wordWrap=True)
+        set_state(self.status, "role", "caption")
+        card = QGroupBox("Изучить категорию")
+        inside = card_body(QVBoxLayout(card))
+        inside.setSpacing(SPACE["md"])
+        inside.addLayout(self._build_learn_row())
+        inside.addWidget(self.web)
+        inside.addWidget(self.status)
+        return card
+
+    def _build_learn_row(self) -> QHBoxLayout:
+        """The category field and its two ways to learn."""
         self.name = QLineEdit(placeholderText="например: робот-пылесос")
         self.name.setAccessibleName("Категория")
         self.name.textChanged.connect(self._render_buttons)
-        self.web = QCheckBox(WEB_TEXT)
-        self.web.setChecked(True)
         self.learn_button = QPushButton(LEARN_TEXT)
         set_state(self.learn_button, "primary", "true")
         self.learn_button.clicked.connect(self._learn)
         self.notes_button = QPushButton(NOTES_TEXT)
         self.notes_button.clicked.connect(self._learn_notes)
-        self.status = QLabel(LEARN_HINT, wordWrap=True)
-        set_state(self.status, "role", "caption")
         row = QHBoxLayout()
         row.setSpacing(SPACE["md"])
         row.addWidget(self.name, 1)
         row.addWidget(self.learn_button)
         row.addWidget(self.notes_button)
-        card = QGroupBox("Изучить категорию")
-        inside = card_body(QVBoxLayout(card))
-        inside.setSpacing(SPACE["md"])
-        inside.addLayout(row)
-        inside.addWidget(self.web)
-        inside.addWidget(self.status)
-        return card
+        return row
 
     def _build_list(self) -> QGroupBox:
         self.table = FitTableWidget(0, len(HEADERS))
@@ -179,10 +183,7 @@ class CategoriesScreen(QWidget):
     def _show(self, name: str, detail: CategoryDetail | None) -> None:
         if name != self._shown:
             return  # another category was picked meanwhile
-        while (item := self._detail.takeAt(0)) is not None:
-            if (widget := item.widget()) is not None:
-                widget.deleteLater()
-        self.toggles = self.tiers = None
+        self._clear_detail()
         if detail is None:
             return
         self._detail.addWidget(self._knowledge_card(detail))
@@ -190,6 +191,12 @@ class CategoriesScreen(QWidget):
             self._runner, detail.row.name, None, detail.states, rerun=False
         )
         self._detail.addWidget(self.toggles)
+
+    def _clear_detail(self) -> None:
+        while (item := self._detail.takeAt(0)) is not None:
+            if (widget := item.widget()) is not None:
+                widget.deleteLater()
+        self.toggles = self.tiers = None
 
     def _knowledge_card(self, detail: CategoryDetail) -> QGroupBox:
         row, rows = detail.row, detail.knowledge
