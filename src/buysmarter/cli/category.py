@@ -27,6 +27,7 @@ from buysmarter.knowledge.profile import (
     COMPOSITION_DRIVEN,
     SPEC_DRIVEN,
     CategoryProfile,
+    ResolvedProfile,
     profile_from_record,
 )
 from buysmarter.knowledge.store import (
@@ -108,6 +109,11 @@ def show(name: Annotated[str, typer.Argument(help='Category, e.g. "робот-п
     profile = asyncio.run(resolve_profile(name, use_llm=False))
     row = category_row(profile.slug, raw)
     console.print(" · ".join(filter(None, (row.books, row.parent, row.updated))))
+    _print_knowledge(profile)
+    _print_switches(profile)
+
+
+def _print_knowledge(profile: ResolvedProfile) -> None:
     ingredient = profile.ingredient_book
     render_knowledge(
         profile.slug,
@@ -116,6 +122,9 @@ def show(name: Annotated[str, typer.Argument(help='Category, e.g. "робот-п
         COMPOSITION_DRIVEN if ingredient is not None else SPEC_DRIVEN,
         ingredient,
     )
+
+
+def _print_switches(profile: ResolvedProfile) -> None:
     console.print(f"\n[bold]{TOGGLES_TITLE}[/bold]")
     for state in capability_states(REGISTRY, profile, QueryConstraints()):
         if state.level == "category":

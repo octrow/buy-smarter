@@ -2,6 +2,7 @@
 
 import asyncio
 
+import pytest
 from typer.testing import CliRunner
 
 from buysmarter.capabilities.provenance import CHANGED_NOTE
@@ -92,10 +93,10 @@ def test_set_and_reset_write_the_users_choice_and_say_when_it_applies() -> None:
     assert _user("робот-пылесос", COMPOSITION) is None
 
 
-def test_a_request_level_or_unknown_capability_is_refused_with_the_allowed_ones() -> None:
-    for name in ("audience", "turbo"):
-        result = _category("set", "робот-пылесос", name, "on")
+@pytest.mark.parametrize("name", ["audience", "turbo"])
+def test_a_request_level_or_unknown_capability_is_refused_with_the_allowed_ones(name: str) -> None:
+    result = _category("set", "робот-пылесос", name, "on")
 
-        assert result.exit_code == 2
-        out = " ".join(result.output.split())
-        assert "composition" in out and "used_market" in out
+    assert result.exit_code == 2
+    out = " ".join(result.output.split())
+    assert "composition" in out and "used_market" in out
