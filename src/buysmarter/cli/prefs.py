@@ -95,21 +95,29 @@ def _shown(key: str, value: Any) -> str:
 def _parsed(key: str, raw: str) -> Any:
     """The value the app's form would store for ``raw``; ``BadParameter`` says why not."""
     if key == BUDGET:
-        digits = "".join(raw.split())
-        if not digits.isdigit():
-            raise typer.BadParameter("бюджет — число в тенге, например 40000")
-        return as_budget(digits)
+        return _budget(raw)
     if key == MARKETPLACES:
-        names = [name.lower() for name in as_list(raw)]
-        if unknown := [name for name in names if name not in ALL_SOURCES]:
-            known = ", ".join(ALL_SOURCES)
-            raise typer.BadParameter(f"неизвестный маркетплейс {', '.join(unknown)}; есть {known}")
-        if not names:
-            raise typer.BadParameter(NO_SOURCE)
-        return as_sources(names)
+        return _marketplaces(raw)
     if key == EXCLUDED_BRANDS:
         return as_list(raw)
     return raw.strip()
+
+
+def _budget(raw: str) -> int:
+    digits = "".join(raw.split())
+    if not digits.isdigit():
+        raise typer.BadParameter("бюджет — число в тенге, например 40000")
+    return as_budget(digits)
+
+
+def _marketplaces(raw: str) -> list[str]:
+    names = [name.lower() for name in as_list(raw)]
+    if unknown := [name for name in names if name not in ALL_SOURCES]:
+        known = ", ".join(ALL_SOURCES)
+        raise typer.BadParameter(f"неизвестный маркетплейс {', '.join(unknown)}; есть {known}")
+    if not names:
+        raise typer.BadParameter(NO_SOURCE)
+    return as_sources(names)
 
 
 def _save(key: str, value: Any) -> None:
