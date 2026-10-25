@@ -457,7 +457,7 @@ async def resolve_composition(
     return (COMPOSITION_DRIVEN if ingredient_book is not None else SPEC_DRIVEN), ingredient_book
 
 
-async def _stored_records() -> dict[str, dict[str, Any]]:
+async def stored_records() -> dict[str, dict[str, Any]]:
     """Every stored record by slug (``{}`` when the store is off)."""
     try:
         async with async_session() as session:
@@ -616,7 +616,7 @@ async def _match_category(
 
 async def _other_records(slug: str) -> dict[str, dict[str, Any]]:
     """Every other stored profile with books: what a lookup may pick (decision 1)."""
-    return {s: raw for s, raw in (await _stored_records()).items() if s != slug and has_books(raw)}
+    return {s: raw for s, raw in (await stored_records()).items() if s != slug and has_books(raw)}
 
 
 async def _by_synonym(slug: str) -> CategoryProfile | None:

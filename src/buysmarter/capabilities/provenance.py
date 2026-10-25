@@ -23,6 +23,9 @@ _BY_USER_OFF = "выключено вами"
 _NOT_ON = "не включено"
 _OFF = "выключено"
 _NO_DATA = ", но нет данных"
+# The category's switches, in the app's report and «Категории» and in ``buysmarter category``.
+TOGGLES_TITLE = "Как оцениваем эту категорию"
+CHANGED_NOTE = "Изменения сработают при следующем поиске."
 
 
 class CapabilityState(BaseModel):

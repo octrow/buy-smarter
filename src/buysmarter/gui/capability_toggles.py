@@ -19,15 +19,19 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from buysmarter.capabilities.provenance import CapabilityState, toggle_text
+from buysmarter.capabilities.provenance import (
+    CHANGED_NOTE,
+    TOGGLES_TITLE,
+    CapabilityState,
+    toggle_text,
+)
 from buysmarter.gui.bridge import USER_ERROR, CoreRunner
 from buysmarter.gui.theme import SPACE, card_body, set_state
 from buysmarter.knowledge.store import set_user_choice
 
-TITLE = "Как оцениваем эту категорию"
+TITLE = TOGGLES_TITLE
 RESET_TEXT = "Сбросить к автоматическому"
 RERUN_TEXT = "Повторить поиск"
-CHANGED_NOTE = "Изменения сработают при следующем поиске."
 NO_RUNNER_HINT = "Недоступно: нет связи с ядром."
 
 

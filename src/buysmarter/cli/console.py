@@ -14,6 +14,7 @@ from buysmarter.cli.report import (
     found_line,
     hidden_note,
     ingredients_unchecked_note,
+    knowledge_rows,
     rejected_line,
     request_notes,
     skipped_llm_note,
@@ -34,6 +35,9 @@ from buysmarter.i18n import (
     pro_con,
     source_label,
 )
+from buysmarter.knowledge.brands import BrandBook
+from buysmarter.knowledge.ingredients import IngredientBook
+from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
@@ -259,4 +263,37 @@ def render_no_substance(exc: NoSubstanceMatch) -> None:
     for cand in exc.alternatives:
         rating = f"{cand.rating:.1f}" if cand.rating is not None else "-"
         table.add_row(_product_cell(cand.title, cand.url), f"{kzt(cand.price)}", rating)
+    console.print(table)
+
+
+def render_knowledge(
+    category: str,
+    brand: BrandBook,
+    model: ModelBook,
+    category_type: str = "spec_driven",
+    ingredient: IngredientBook | None = None,
+) -> None:
+    """Print a tiers-and-models summary table for a category's knowledge."""
+    rows = knowledge_rows(brand, model, category_type, ingredient)
+    table = Table(title=f"Brand tiers — {category}", show_header=True, header_style="bold")
+    table.add_column("Tier")
+    table.add_column("N", justify="right")
+    table.add_column("Brands")
+    for tier, brands in rows.tiers:
+        table.add_row(tier, str(len(brands)), escape(", ".join(brands)) or "-")
+    console.print(table)
+    console.print(
+        f"[bold]Type:[/bold] {rows.category_type}   "
+        f"[bold]Models:[/bold] {rows.models}   "
+        f"[bold]Brands:[/bold] {rows.brands}   "
+        f"[bold]Aliases:[/bold] {rows.aliases}"
+    )
+    if not rows.substances:
+        return
+    table = Table(title="Active substances", show_header=True, header_style="bold")
+    table.add_column("Substance")
+    table.add_column("Concentrations")
+    table.add_column("Equivalents")
+    for name, concentrations, equivalents in rows.substances:
+        table.add_row(name, ", ".join(concentrations) or "-", ", ".join(equivalents) or "-")
     console.print(table)

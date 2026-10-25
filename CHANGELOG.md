@@ -5,6 +5,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Unreleased]
 
 ### Added
+- `buysmarter category list|show|set|reset`: the learned categories with their books, parent and last
+  update, a category's knowledge summary, and the «Как оцениваем эту категорию» switches the app shows
+  on a report (CLI ↔ GUI parity #11 for the CLI, #13).
 - "Искать без уточнений" on the desktop app's question card: the first option, no more questions, as Enter
   in the CLI (CLI ↔ GUI parity #4).
 - The desktop app's search form has the CLI's options: "Сводка отзывов" (`--no-review-summary`) and "Только
