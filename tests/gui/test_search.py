@@ -440,3 +440,22 @@ def test_the_review_summary_needs_the_ai(qtbot, runner):
     assert not screen.review_summary.isEnabled()
     screen.use_llm.setChecked(True)
     assert screen.review_summary.isEnabled()
+
+
+def test_a_marketplace_error_is_said_as_in_the_cli(qtbot, runner):
+    import httpx
+
+    from buysmarter.cli.report import marketplace_error_text
+
+    request = httpx.Request("GET", "https://kaspi.kz/search")
+    error = httpx.HTTPStatusError("boom", request=request, response=httpx.Response(503))
+
+    async def down(query, **kwargs):
+        raise error
+
+    screen = SearchScreen(runner, recommend=down)
+    qtbot.addWidget(screen)
+    screen.query.setText("ирригатор")
+    screen.start()
+    qtbot.waitUntil(screen.start_button.isEnabled, timeout=WAIT_MS)
+    assert screen.message.text() == marketplace_error_text(error)

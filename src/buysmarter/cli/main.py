@@ -9,7 +9,6 @@ from typing import Any
 
 import httpx
 import typer
-from market_sources.ozon.browser import ozon_state_path
 from rich.markup import escape
 from rich.table import Table
 
@@ -31,7 +30,9 @@ from buysmarter.cli.progress import stages
 from buysmarter.cli.report import (
     DEFAULT_TOP,
     knowledge_rows,
+    marketplace_error_text,
     no_new_pick_message,
+    no_recommendation_text,
     save_report,
 )
 from buysmarter.i18n import kzt
@@ -48,9 +49,10 @@ from buysmarter.services.auto_learn import (
 )
 from buysmarter.services.collect import ALL_SOURCES, select_sources
 from buysmarter.services.doctor import (
-    INSTALL_BROWSER,
+    OZON_SAVED,
     doctor_checks,
     llm_check,
+    ozon_setup_message,
     pass_ozon_check,
 )
 from buysmarter.services.ozon_browser import setup_browser
@@ -174,10 +176,11 @@ def recommend(
         render_used(exc.used_listings, [])
         raise typer.Exit(code=0 if exc.used_listings else 1) from exc
     except ValueError as exc:
-        console.print(f"[yellow]No recommendation: {escape(str(exc))}[/yellow]")
+        console.print(f"[yellow]{escape(no_recommendation_text(exc))}[/yellow]")
         raise typer.Exit(code=1) from exc
     except httpx.HTTPError as exc:
-        console.print(f"[red]Marketplace request failed: {escape(repr(exc))}[/red]")
+        logger.warning("Marketplace request failed", exc_info=exc)  # the details go to the log
+        console.print(f"[red]{escape(marketplace_error_text(exc))}[/red]")
         raise typer.Exit(code=2) from exc
 
 
@@ -399,14 +402,14 @@ def history(
 @app.command("ozon-setup")
 def ozon_setup() -> None:
     """Open a visible browser, pass Ozon's anti-bot check once, and save the session."""
-    if setup_browser() is None:
-        console.print(f"[red]Нет браузера для Ozon: {escape(INSTALL_BROWSER)}[/red]")
+    if setup_browser() is not None:
+        console.print("Откроется окно браузера. Дождитесь результатов поиска Ozon…")
+    outcome = asyncio.run(pass_ozon_check())
+    text = escape(ozon_setup_message(outcome))
+    if outcome != OZON_SAVED:
+        console.print(f"[red]{text}[/red]")
         raise typer.Exit(code=1)
-    console.print("Откроется окно браузера. Дождитесь результатов поиска Ozon…")
-    if not asyncio.run(pass_ozon_check()):
-        console.print("[red]Не удалось получить сессию Ozon за отведённое время.[/red]")
-        raise typer.Exit(code=1)
-    console.print(f"[green]Сессия Ozon сохранена: {escape(str(ozon_state_path()))}[/green]")
+    console.print(f"[green]{text}[/green]")
 
 
 llm_app = typer.Typer(help="The LLM key: stored in the OS keyring, never shown.")

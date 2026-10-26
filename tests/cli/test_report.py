@@ -678,3 +678,16 @@ def test_the_top_table_shows_each_offers_axes_as_the_apps_columns() -> None:
         terminal.render(_result(), top=3)
     out = " ".join(capture.get().split())
     assert "Ц 20.0" in out and "Оси: Ц — Цена." in out
+
+
+def test_a_marketplace_error_names_the_marketplace_and_the_status_without_internals() -> None:
+    import httpx
+
+    from buysmarter.cli.report import marketplace_error_text
+
+    request = httpx.Request("GET", "https://kaspi.kz/yml/product-view/pl/results")
+    status = httpx.HTTPStatusError("boom", request=request, response=httpx.Response(503))
+    down = httpx.ConnectError("[Errno 111] secret detail", request=request)
+
+    assert marketplace_error_text(status) == "Kaspi не ответил: ошибка HTTP 503. Попробуйте позже."
+    assert marketplace_error_text(down) == "Kaspi не отвечает: нет связи. Попробуйте позже."

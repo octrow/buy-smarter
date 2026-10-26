@@ -10,7 +10,14 @@ from buysmarter.gui import app as gui_app
 from buysmarter.gui.screens.settings import SettingsScreen
 from buysmarter.llm import keys
 from buysmarter.services import doctor
-from buysmarter.services.doctor import OZON_BROWSER, Check
+from buysmarter.services.doctor import (
+    OZON_BROWSER,
+    OZON_NO_BROWSER,
+    OZON_SAVED,
+    OZON_TIMEOUT,
+    Check,
+    ozon_setup_message,
+)
 from tests.gui.conftest import WAIT_MS
 
 _NO_BROWSER = [
@@ -60,19 +67,19 @@ def test_ozon_check_reports_the_saved_session_and_rechecks(qtbot, runner):
         return _NO_BROWSER
 
     async def passed():
-        return True
+        return OZON_SAVED
 
     screen = SettingsScreen(runner, checks=checks, ozon_check=passed)
     qtbot.addWidget(screen)
     screen.pass_ozon()
     qtbot.waitUntil(lambda: runs == [True], timeout=WAIT_MS)
-    assert screen.ozon_message.text() == "Сессия Ozon сохранена."
+    assert screen.ozon_message.text() == ozon_setup_message(OZON_SAVED)  # with the session path
     assert screen.ozon_button.isEnabled()
 
 
 def test_ozon_check_timeout_says_so(qtbot, runner):
     async def timed_out():
-        return False
+        return OZON_TIMEOUT
 
     screen = SettingsScreen(runner, checks=lambda: [], ozon_check=timed_out)
     qtbot.addWidget(screen)
@@ -176,3 +183,14 @@ def test_a_recheck_asked_during_a_check_runs_after_it(qtbot, runner):
     screen.recheck()  # e.g. a key saved while the start-up checks run
     release.set()
     qtbot.waitUntil(lambda: len(runs) == 2, timeout=WAIT_MS)
+
+
+def test_ozon_check_without_a_browser_says_so_as_the_cli(qtbot, runner):
+    async def no_browser():
+        return OZON_NO_BROWSER
+
+    screen = SettingsScreen(runner, checks=lambda: [], ozon_check=no_browser)
+    qtbot.addWidget(screen)
+    screen.pass_ozon()
+    qtbot.waitUntil(screen.ozon_button.isEnabled, timeout=WAIT_MS)
+    assert screen.ozon_message.text() == ozon_setup_message(OZON_NO_BROWSER)

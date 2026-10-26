@@ -44,6 +44,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   MCP, the HTTP API and the worker still learn after the report.
 
 ### Fixed
+- A failed marketplace request is said in the app as in the CLI («Kaspi не ответил: ошибка HTTP 503. Попробуйте
+  позже.») instead of «Что-то пошло не так»; the CLI no longer prints the exception's internals, and says «Не
+  нашлось подходящих предложений» in Russian, as the app (CLI ↔ GUI parity #26).
+- The app's Ozon check without a browser says «Нет браузера для Ozon…» instead of a timeout, and a saved session
+  names its file, in the words of `ozon-setup` (CLI ↔ GUI parity #27).
 - «На OLX тоже ничего» is no longer said when OLX was not searched.
 - Switching «Состав» on by hand for a spec-driven category no longer makes it composition-driven with an
   empty substance book: it says «включено вами, но нет данных», in the report, on «Категории» and in

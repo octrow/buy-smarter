@@ -25,16 +25,36 @@ INSTALL_BROWSER = (
 )
 
 
-async def pass_ozon_check() -> bool:
-    """Open a visible browser to pass Ozon's anti-bot check once; True when the session is saved."""
+# How the Ozon check ended (``pass_ozon_check``), said in the same words by ``ozon-setup`` and the
+# app's «Пройти проверку Ozon» (``ozon_setup_message``).
+OZON_SAVED = "saved"
+OZON_NO_BROWSER = "no_browser"
+OZON_TIMEOUT = "timeout"
+
+
+async def pass_ozon_check() -> str:
+    """Open a visible browser to pass Ozon's anti-bot check once; one of the ``OZON_*`` outcomes."""
     browser = setup_browser()
     if browser is None:
-        return False
+        return OZON_NO_BROWSER
     settings = get_settings()
     session = OzonBrowser(
         base_url=settings.ozon_base_url, state_path=ozon_state_path(), channel=channel(browser)
     )
-    return await session.bootstrap(session.composer_url(search_path(_OZON_SETUP_PROBE_QUERY)))
+    url = session.composer_url(search_path(_OZON_SETUP_PROBE_QUERY))
+    return OZON_SAVED if await session.bootstrap(url) else OZON_TIMEOUT
+
+
+def ozon_setup_message(outcome: str) -> str:
+    """The Ozon check's outcome for the user: the session file, or what to do."""
+    if outcome == OZON_SAVED:
+        return f"Сессия Ozon сохранена: {ozon_state_path()}"
+    if outcome == OZON_NO_BROWSER:
+        return (
+            "Нет браузера для Ozon: установите Google Chrome (https://www.google.com/chrome/) "
+            "и проверьте снова."
+        )
+    return "Не удалось получить сессию Ozon за отведённое время."
 
 
 class Check(NamedTuple):

@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, replace
 from typing import Any
 
+import httpx
 from pydantic import ValidationError
 from PySide6.QtCore import QElapsedTimer, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QAction, QDesktopServices, QIcon, QShowEvent
@@ -26,7 +27,9 @@ from buysmarter.cli.report import (
     USED_HEADERS,
     found_counts,
     found_line,
+    marketplace_error_text,
     no_new_pick_message,
+    no_recommendation_text,
     no_substance_cells,
     saved_reports,
     used_cells,
@@ -152,6 +155,20 @@ class NoRecommendation:
     headers: tuple[str, ...] = ()
     rows: tuple[tuple[str, ...], ...] = ()
     urls: tuple[str | None, ...] = ()
+
+
+def _no_substance(exc: NoSubstanceMatch) -> NoRecommendation:
+    """The CLI's table of the nearest products without the substance."""
+    rows = tuple(tuple(no_substance_cells(c)) for c in exc.alternatives)
+    urls = tuple(c.url for c in exc.alternatives)
+    return NoRecommendation(exc.message(), tuple(NO_SUBSTANCE_HEADERS), rows, urls)
+
+
+def _no_new_pick(exc: NoNewPick) -> NoRecommendation:
+    """The CLI's OLX table of the ads within the budget."""
+    rows = tuple(tuple(used_cells(u, set())) for u in exc.used_listings)
+    urls = tuple(u.url for u in exc.used_listings)
+    return NoRecommendation(no_new_pick_message(exc), tuple(USED_HEADERS), rows, urls)
 
 
 @dataclass(frozen=True)
@@ -530,20 +547,17 @@ class SearchScreen(QWidget):
         except NothingToSearch as exc:
             return NoRecommendation(str(exc))
         except NoSubstanceMatch as exc:
-            near = exc.alternatives
-            rows = tuple(tuple(no_substance_cells(c)) for c in near)
-            urls = tuple(c.url for c in near)
-            return NoRecommendation(exc.message(), tuple(NO_SUBSTANCE_HEADERS), rows, urls)
+            return _no_substance(exc)
         except NoNewPick as exc:
-            ads = exc.used_listings
-            rows = tuple(tuple(used_cells(u, set())) for u in ads)
-            urls = tuple(u.url for u in ads)
-            return NoRecommendation(no_new_pick_message(exc), tuple(USED_HEADERS), rows, urls)
+            return _no_new_pick(exc)
         except ValidationError:
             raise  # a bug, not "nothing to recommend": the generic message, details in the log
         except ValueError as exc:  # the core's "nothing to recommend" (the CLI prints it too)
             logger.info("No recommendation for %r", query, exc_info=exc)
-            return NoRecommendation(f"Не нашлось подходящих предложений: {exc}")
+            return NoRecommendation(no_recommendation_text(exc))
+        except httpx.HTTPError as exc:  # the CLI's exit 2: which marketplace failed and why
+            logger.warning("Marketplace request failed for %r", query, exc_info=exc)
+            return NoRecommendation(marketplace_error_text(exc))
 
     def is_running(self) -> bool:
         return self._job is not None or self._learning_for is not None

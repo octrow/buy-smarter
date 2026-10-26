@@ -32,7 +32,7 @@ CHECK_LABELS = {
     "Ozon session": "Сессия Ozon",
 }
 
-type OzonCheck = Callable[[], Coroutine[Any, Any, bool]]
+type OzonCheck = Callable[[], Coroutine[Any, Any, str]]
 
 
 async def _save_key(provider: str, key: str) -> str:
@@ -248,13 +248,10 @@ class SettingsScreen(QWidget):
         self._ozon_job.finished.connect(self._ozon_done)
         self._ozon_job.failed.connect(self._ozon_failed)
 
-    def _ozon_done(self, saved: bool) -> None:
+    def _ozon_done(self, outcome: str) -> None:
         self._ozon_job = None
         self.ozon_button.setEnabled(True)
-        if saved:
-            self.ozon_message.setText("Сессия Ozon сохранена.")
-        else:
-            self.ozon_message.setText("Не удалось получить сессию Ozon за отведённое время.")
+        self.ozon_message.setText(doctor.ozon_setup_message(outcome))  # the CLI's words
         self.recheck()
 
     def _ozon_failed(self, message: str) -> None:

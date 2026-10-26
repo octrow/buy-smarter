@@ -79,14 +79,14 @@ async def test_ozon_setup_opens_chrome_when_installed(monkeypatch):
     _installed(monkeypatch, CHROME, CHROMIUM)
     _RecordingOzonBrowser.made = []
     monkeypatch.setattr(doctor, "OzonBrowser", _RecordingOzonBrowser)
-    assert await doctor.pass_ozon_check() is True
+    assert await doctor.pass_ozon_check() == doctor.OZON_SAVED
     assert [kw["channel"] for kw in _RecordingOzonBrowser.made] == ["chrome"]
 
 
 async def test_ozon_setup_without_a_browser_fails_without_launching(monkeypatch):
     _RecordingOzonBrowser.made = []
     monkeypatch.setattr(doctor, "OzonBrowser", _RecordingOzonBrowser)
-    assert await doctor.pass_ozon_check() is False
+    assert await doctor.pass_ozon_check() == doctor.OZON_NO_BROWSER
     assert _RecordingOzonBrowser.made == []
 
 
@@ -119,3 +119,10 @@ def test_a_server_database_url_app_hint_names_the_settings_file(monkeypatch):
     monkeypatch.setattr(doctor, "schema_is_current", lambda url: _done(False))
     check = doctor._storage_check("postgresql+asyncpg://u:p@127.0.0.1:5434/x")
     assert ".env" in check.app_hint and "DATABASE_URL" in check.app_hint
+
+
+def test_ozon_setup_says_the_same_words_in_the_cli_and_the_app() -> None:
+    assert doctor.ozon_setup_message(doctor.OZON_NO_BROWSER).startswith("Нет браузера для Ozon")
+    assert doctor.ozon_setup_message(doctor.OZON_TIMEOUT).startswith("Не удалось получить сессию")
+    saved = doctor.ozon_setup_message(doctor.OZON_SAVED)
+    assert saved.startswith("Сессия Ozon сохранена: ") and str(ozon_state_path()) in saved

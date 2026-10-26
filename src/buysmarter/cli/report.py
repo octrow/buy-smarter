@@ -14,6 +14,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import NamedTuple
 
+import httpx
+
 from buysmarter.capabilities.provenance import assessed_entries, assessed_line
 from buysmarter.capabilities.used_only import USED
 from buysmarter.i18n import (
@@ -36,6 +38,7 @@ from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
+from buysmarter.services.collect import ALL_SOURCES
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, RecommendResult
 from buysmarter.services.understanding import Clarification
@@ -87,6 +90,23 @@ def no_new_pick_text(reasons: dict[str, int], has_used: bool, *, olx: bool = Tru
     if has_used:
         return f"{head} На OLX нашлось:"
     return f"{head} На OLX тоже ничего." if olx else head
+
+
+def marketplace_error_text(exc: httpx.HTTPError) -> str:
+    """A marketplace request that failed, for the user: which one and why, no internals."""
+    try:
+        host = exc.request.url.host
+    except RuntimeError:  # an error raised without a request
+        host = ""
+    name = next((source_label(s) for s in ALL_SOURCES if s in host), host or "Маркетплейс")
+    if isinstance(exc, httpx.HTTPStatusError):
+        return f"{name} не ответил: ошибка HTTP {exc.response.status_code}. Попробуйте позже."
+    return f"{name} не отвечает: нет связи. Попробуйте позже."
+
+
+def no_recommendation_text(exc: ValueError) -> str:
+    """The core's other "nothing to recommend" (a ``ValueError``), in the CLI and the app."""
+    return f"Не нашлось подходящих предложений: {exc}"
 
 
 def no_new_pick_message(exc: NoNewPick) -> str:
