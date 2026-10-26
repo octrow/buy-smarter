@@ -193,8 +193,9 @@ buysmarter category reset "робот-пылесос" used_market
 # Smartphones: Kimovil index in the specs axis, "120 Гц" / "5000 мАч" as required features
 buysmarter recommend "смартфон до 250000 тг, 120 Гц, 5000 мАч" --city Алматы
 
-# Price history: re-scan tracked categories, then look up one product
+# Price history: re-scan tracked categories, list the recent products, then look up one
 buysmarter refresh
+buysmarter history
 buysmarter history "F300"
 
 # Past searches, the app's «Прошлые поиски»: list, read one, search it again

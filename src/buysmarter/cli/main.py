@@ -10,7 +10,6 @@ from typing import Any
 import httpx
 import typer
 from rich.markup import escape
-from rich.table import Table
 
 from buysmarter import local_store
 from buysmarter.cli.category import NOTES_TOO_LONG, category_app
@@ -24,6 +23,7 @@ from buysmarter.cli.console import (
     render_no_substance,
     render_used,
 )
+from buysmarter.cli.history import history, refresh
 from buysmarter.cli.learning import learn_before_search, search_and_follow_up
 from buysmarter.cli.prefs import prefs_app
 from buysmarter.cli.progress import stages
@@ -36,7 +36,6 @@ from buysmarter.cli.report import (
     save_report,
 )
 from buysmarter.cli.reports import reports_app
-from buysmarter.i18n import kzt
 from buysmarter.knowledge.generate import GENERATE_KNOWLEDGE_MODEL, learn_from_notes
 from buysmarter.knowledge.generate import learn_category as learn_category_knowledge
 from buysmarter.llm import keys
@@ -57,9 +56,6 @@ from buysmarter.services.doctor import (
     pass_ozon_check,
 )
 from buysmarter.services.ozon_browser import setup_browser
-from buysmarter.services.price_tracking import CategoryRefresh, ProductHistory
-from buysmarter.services.price_tracking import product_history as run_product_history
-from buysmarter.services.price_tracking import refresh_tracked as run_refresh_tracked
 from buysmarter.services.recommend import (
     Clarify,
     NoNewPick,
@@ -335,71 +331,6 @@ def learn(
     render_knowledge(category, knowledge_rows(brand, model, category_type, ingredient))
 
 
-def _render_refresh(result: CategoryRefresh) -> None:
-    """One compact line per category + a small table of the biggest drops."""
-    console.print(
-        f"[bold]{escape(result.category)}[/bold]: {result.product_count} products, "
-        f"{result.changed} price change(s)"
-    )
-    if not result.drops:
-        return
-    table = Table(show_header=True, header_style="bold")
-    table.add_column("Product")
-    table.add_column("Was", justify="right")
-    table.add_column("Now", justify="right")
-    table.add_column("Drop", justify="right")
-    for change in result.drops:
-        table.add_row(
-            escape(change.title[:50]),
-            f"{kzt(change.old_price)}",
-            f"{kzt(change.new_price)}",
-            f"[green]{kzt(change.delta)}[/green]",
-        )
-    console.print(table)
-
-
-@app.command()
-def refresh() -> None:
-    """Re-scan every tracked category and record fresh price snapshots."""
-    results = asyncio.run(run_refresh_tracked())
-    if not results:
-        console.print(
-            "[yellow]No tracked categories yet — run `recommend` first "
-            "(or the local store is unavailable).[/yellow]"
-        )
-        return
-    for result in results:
-        _render_refresh(result)
-
-
-def _render_history(entry: ProductHistory) -> None:
-    """Snapshot table (date, min price, offers) for one matched product."""
-    title = f"{escape(entry.title)}  [dim]\\[{escape(entry.source)}][/dim]"
-    table = Table(title=title, show_header=True, header_style="bold")
-    table.add_column("Date")
-    table.add_column("Min price", justify="right")
-    table.add_column("Offers", justify="right")
-    for snap in entry.snapshots:
-        table.add_row(snap.captured_at, f"{kzt(snap.min_price)}", str(snap.offer_count))
-    console.print(table)
-
-
-@app.command()
-def history(
-    query: str = typer.Argument(..., help="Product name or URL substring to look up."),
-) -> None:
-    """Show the recorded price-snapshot history for a matching product."""
-    entries = asyncio.run(run_product_history(query))
-    if not entries:
-        console.print(
-            f"[yellow]No history for {escape(repr(query))} "
-            "(no match, or the local store is unavailable).[/yellow]"
-        )
-        return
-    for entry in entries:
-        _render_history(entry)
-
-
 @app.command("ozon-setup")
 def ozon_setup() -> None:
     """Open a visible browser, pass Ozon's anti-bot check once, and save the session."""
@@ -415,6 +346,8 @@ def ozon_setup() -> None:
 
 llm_app = typer.Typer(help="The LLM key: stored in the OS keyring, never shown.")
 app.add_typer(llm_app, name="llm")
+app.command()(refresh)
+app.command()(history)
 app.add_typer(prefs_app, name="prefs")
 app.add_typer(category_app, name="category")
 app.add_typer(reports_app, name="reports")

@@ -151,4 +151,4 @@ def test_refresh_summary_lists_the_biggest_drops():
     text = refresh_summary(
         [CategoryRefresh(category="кроссовки", product_count=12, changed=1, drops=[drop])]
     )
-    assert text.splitlines()[1] == "   ▼ Кроссовки IFORA: 4\xa0000 ₸ → 3\xa0700 ₸"
+    assert text.splitlines()[1] == "   ▼ Кроссовки IFORA: 4\xa0000 ₸ → 3\xa0700 ₸, дешевле на 300 ₸"

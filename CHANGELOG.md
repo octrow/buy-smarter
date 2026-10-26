@@ -5,6 +5,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Unreleased]
 
 ### Added
+- `buysmarter history` without a query lists the recently tracked products with their last change, as the
+  app's «История цен»; a product's history has the trend line too, and `history` and `refresh` speak Russian
+  in the app's words. The app's refresh summary says how much cheaper each drop is (CLI ↔ GUI parity #30, #31).
 - `buysmarter reports` (list), `reports show N` and `reports repeat N`: the app's «Прошлые поиски» and
   «Повторить» in the CLI. A saved report keeps the whole query as its first line, so «Повторить» and the list
   no longer show it lower-cased and without punctuation (CLI ↔ GUI parity #28, #29).

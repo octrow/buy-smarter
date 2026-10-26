@@ -16,9 +16,19 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from buysmarter.cli.history import (
+    NO_HISTORY,
+    NOTHING_TRACKED,
+    RECENT_HEADERS,
+    RECENT_TITLE,
+    SNAPSHOT_HEADERS,
+    history_title,
+    recent_cells,
+    refresh_summary,
+    snapshot_rows,
+)
 from buysmarter.gui.bridge import CoreRunner, Job
-from buysmarter.gui.labels import clean_title, source_label
-from buysmarter.gui.prefs_fields import kzt, store_warning
+from buysmarter.gui.prefs_fields import store_warning
 from buysmarter.gui.progress import Progress
 from buysmarter.gui.screens.report import text_table
 from buysmarter.gui.theme import SPACE, card_body, set_state
@@ -28,28 +38,6 @@ from buysmarter.services.price_tracking import refresh_tracked as run_refresh_tr
 
 type FindHistory = Callable[[str], Coroutine[Any, Any, list[ProductHistory]]]
 type Refresh = Callable[[], Coroutine[Any, Any, list[CategoryRefresh]]]
-
-
-def refresh_summary(results: list[CategoryRefresh]) -> str:
-    """One line per category, then its biggest price drops."""
-    if not results:
-        return "Отслеживаемых категорий пока нет — сначала выполните поиск."
-    lines = []
-    for r in results:
-        lines.append(f"{r.category}: товаров {r.product_count}, цена изменилась у {r.changed}")
-        lines += [
-            f"   ▼ {clean_title(c.title)}: {kzt(c.old_price)} → {kzt(c.new_price)}" for c in r.drops
-        ]
-    return "\n".join(lines)
-
-
-def price_change(entry: ProductHistory) -> str:
-    """The latest move vs the snapshot before it: "▼ 3%", "▲ 5%", or "—"."""
-    if len(entry.snapshots) < 2 or not entry.snapshots[1].min_price:
-        return "—"
-    new, old = entry.snapshots[0].min_price, entry.snapshots[1].min_price
-    pct = round(100 * (new - old) / old)
-    return "—" if pct == 0 else f"{'▲' if pct > 0 else '▼'} {abs(pct)}%"
 
 
 class Sparkline(QWidget):
@@ -81,16 +69,12 @@ class Sparkline(QWidget):
 
 
 def _history_group(entry: ProductHistory) -> QGroupBox:
-    rows = [
-        [s.captured_at.replace("T", " "), kzt(s.min_price), str(s.offer_count)]
-        for s in entry.snapshots
-    ]
-    box = QGroupBox(f"{clean_title(entry.title)}  [{source_label(entry.source)}]")
+    box = QGroupBox(history_title(entry))
     layout = card_body(QVBoxLayout(box))
     prices = [s.min_price for s in reversed(entry.snapshots)]
     if len(prices) > 1:
         layout.addWidget(Sparkline(prices))
-    layout.addWidget(text_table(["Дата", "Мин. цена", "Предложений"], rows))
+    layout.addWidget(text_table(list(SNAPSHOT_HEADERS), snapshot_rows(entry)))
     return box
 
 
@@ -176,11 +160,7 @@ class HistoryScreen(QWidget):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
         if not entries:
-            text = (
-                f"Нет истории для «{term}» (нет совпадений или хранилище недоступно)."
-                if term
-                else "Пока ничего не отслеживается — история появится после первого поиска."
-            )
+            text = NO_HISTORY.format(term=term) if term else NOTHING_TRACKED
             layout.addWidget(QLabel(text, wordWrap=True))
         elif term:
             for entry in entries:
@@ -194,19 +174,11 @@ class HistoryScreen(QWidget):
             self.look_up()
 
     def _recent_group(self, entries: list[ProductHistory]) -> QGroupBox:
-        rows = [
-            [
-                clean_title(e.title),
-                source_label(e.source),
-                kzt(e.snapshots[0].min_price) if e.snapshots else "—",
-                price_change(e),
-            ]
-            for e in entries
-        ]
-        table = text_table(["Товар", "Маркетплейс", "Цена", "Изменение"], rows, stretch=0)
+        rows = [recent_cells(e) for e in entries]
+        table = text_table(list(RECENT_HEADERS), rows, stretch=0)
         table.cellDoubleClicked.connect(lambda row, _col: self._open(entries[row].title))
         self.recent = table
-        box = QGroupBox("Недавние товары")
+        box = QGroupBox(RECENT_TITLE)
         column = card_body(QVBoxLayout(box))
         column.addWidget(table)
         hint = QLabel("Двойной клик — история цены товара.")
