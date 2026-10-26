@@ -419,3 +419,80 @@ async def test_a_real_spec_driven_record_with_aliases_is_not_healed(monkeypatch)
     raw = await _raw("крем-для-рук")
     assert raw["heal_checked"] is True and "parent" not in raw
     assert raw["brand_book"] == own.model_dump(mode="json")
+
+
+# --- A closer composition profile per query (finding #25) -------------------------
+
+
+async def _creams() -> None:
+    """A general "крем" learned with its own book, and the closer acne profile."""
+    await save_knowledge(
+        "крем",
+        BrandBook(tiers={"Nivea": "B"}),
+        ModelBook(),
+        "opus",
+        category_type="composition_driven",
+        ingredient_book=IngredientBook(substances=[ActiveSubstance(canonical="пантенол")]),
+    )
+    await save_knowledge(
+        "средства-от-акне",
+        BrandBook(tiers={"Galderma": "A"}),
+        ModelBook(),
+        "opus",
+        category_type="composition_driven",
+        ingredient_book=IngredientBook(substances=[ActiveSubstance(canonical="адапален")]),
+    )
+
+
+def _substances(resolved) -> list[str]:
+    return [s.canonical for s in resolved.ingredient_book.substances]
+
+
+def _jev_must_not_run(*args, **kwargs):
+    raise AssertionError("Jev ran for a query its own record covers")
+
+
+async def test_a_closer_composition_profile_beats_the_general_own_record(monkeypatch) -> None:
+    await _creams()
+    await store_mod.set_user_choice("крем", "used_market", False)
+    before = await store_mod.load_knowledge("крем")
+    monkeypatch.setattr(store_mod, "system_one", _jev_choice("средства-от-акне", 0.98))
+
+    resolved = await store_mod.resolve_profile("крем", search_phrase="крем от акне")
+
+    assert _substances(resolved) == ["адапален"]
+    assert resolved.brand_book.tiers == {"Galderma": "A"}
+    assert resolved.brand_book_owner == resolved.model_book_owner == "средства-от-акне"
+    assert resolved.found == "средства-от-акне"
+    assert resolved.capabilities["used_market"].user is False  # the own record's switch
+    assert await store_mod.load_knowledge("крем") == before  # nothing written
+
+
+async def test_no_closer_profile_keeps_the_own_record(monkeypatch) -> None:
+    await _creams()
+    monkeypatch.setattr(store_mod, "system_one", _jev_choice("средства-от-акне", 0.2))
+
+    resolved = await store_mod.resolve_profile("крем", search_phrase="крем для рук")
+
+    assert _substances(resolved) == ["пантенол"]
+    assert resolved.found == "крем"
+
+
+async def test_no_closer_lookup_without_more_words_an_llm_or_composition(monkeypatch) -> None:
+    await _creams()
+    await save_knowledge(
+        "смартфон",
+        BrandBook(tiers={"Apple": "A"}),
+        ModelBook(),
+        "opus",
+        category_type="spec_driven",
+    )
+    monkeypatch.setattr(store_mod, "system_one", _jev_must_not_run)
+    monkeypatch.setattr(store_mod, "generate", _jev_must_not_run)
+
+    same = await store_mod.resolve_profile("крем", search_phrase="крем")
+    offline = await store_mod.resolve_profile("крем", use_llm=False, search_phrase="крем от акне")
+    phone = await store_mod.resolve_profile("смартфон", search_phrase="смартфон iPhone 13")
+
+    assert _substances(same) == _substances(offline) == ["пантенол"]
+    assert phone.found == "смартфон"

@@ -46,6 +46,7 @@ from buysmarter.knowledge.profile import (
     CategoryProfile,
     ResolvedProfile,
     combine_all,
+    composition_book,
     composition_keys,
     has_books,
     merge_capabilities,
@@ -232,8 +233,10 @@ async def resolve_and_ask(
     ``category`` is the product type; ``search_phrase`` (when it differs) may name an old
     record keyed by the whole phrase ("мужские-кроссовки-42"), see ``_old_slug``. No
     substring matching (``"чай"`` must not find ``"чайник"``). The found profile's
-    parent fills the fields it lacks (one step). Books nothing stored provides fall back
-    to the static seed, owned by the query's slug.
+    parent fills the fields it lacks (one step). A learned record judged by composition gives
+    way to a closer composition profile the phrase names ("крем от акне": "средства-от-акне"
+    over "крем", finding #25); only its user switches stay on top. Books nothing stored
+    provides fall back to the static seed, owned by the query's slug.
 
     May write: an old copy left by the pre-profile alias save is healed once (the record,
     and the aliases moved to its source; see ``_heal``); an old slug is moved or listed
@@ -255,6 +258,11 @@ async def resolve_and_ask(
     old = _slug(search_phrase) if search_phrase and slug else slug
     if old != slug:
         own = await _old_slug(own, slug, old, search_phrase or "")
+    if own is not None and use_llm and _narrowable(own, slug, search_phrase or ""):
+        closer = await _closer_profile(own.slug, slug, search_phrase or "")
+        if closer is not None:
+            logger.info("knowledge narrowed: %s -> %s", own.slug, closer)
+            bookless, own = _user_choices(own), await load_profile(closer)
     answers: Answers | None = None
     if own is None and use_llm:
         matched, answers = await _match_related(slug, search_phrase or "", questions or {})
@@ -612,6 +620,35 @@ async def _match_category(
         return matched, answers
     logger.info("category-match Jev unsure for %r; no related category", category)
     return None, answers
+
+
+def _narrowable(own: CategoryProfile, slug: str, phrase: str) -> bool:
+    """A learned record judged by composition, searched with words beyond its category (#25)."""
+    learned = own.brand_book is not None or own.model_book is not None
+    return learned and own.ingredient_book is not None and bool(phrase) and _slug(phrase) != slug
+
+
+async def _closer_profile(own: str, slug: str, phrase: str) -> str | None:
+    """A Jev/LLM pick among the other composition profiles, judged with the search phrase."""
+    records = [
+        name
+        for name, raw in (await _other_records(own)).items()
+        if composition_book(stored_capabilities(raw) or {}) is not None
+    ]
+    if not records:
+        return None
+    matched, _ = await _match_category(slug, records, phrase)
+    return matched
+
+
+def _user_choices(profile: CategoryProfile) -> CategoryProfile:
+    """Only the record's user switches: its automatic values give way to the closer profile."""
+    chosen = {
+        name: CapabilitySetting(enabled=False, set_by=None, user=setting.user)
+        for name, setting in (profile.capabilities or {}).items()
+        if setting.user is not None
+    }
+    return profile.model_copy(update={"capabilities": chosen})
 
 
 async def _other_records(slug: str) -> dict[str, dict[str, Any]]:

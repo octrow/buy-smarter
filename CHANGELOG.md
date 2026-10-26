@@ -50,6 +50,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   MCP, the HTTP API and the worker still learn after the report.
 
 ### Fixed
+- «крем от акне» judges the composition by the acne actives again after «крем» got its own learned record: a
+  closer composition profile the search phrase names wins over a general own record (finding #25).
 - While the search screen waits for an answer to its question, the picked marketplaces stay «в очереди»
   instead of «пропущен»: nothing was searched yet.
 - The OLX table in the app's report no longer squeezes the ads into a narrow strip when the compared model's

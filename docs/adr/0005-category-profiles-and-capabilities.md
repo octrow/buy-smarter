@@ -22,3 +22,7 @@ Profiles are stored in the existing `category_knowledge.schema_json`, so no sche
 ## Consequences
 
 Work goes in four phases (`docs/plans/2026-10-22-capabilities-phase1.md` and later plans): phase 1 builds profiles and the capability contract and moves today's behaviour onto them without changing results; phase 2 (request understanding, including budget parsing and moving old long category keys into synonyms) follows; then phases 3 (Jev classifier, auto-learning, GUI toggles, benchmark only with a provider) and 4 (compatibility, dimensions, excluded substances, original only as a counterfeit capability with a strictness parameter, used only as a warning with the OLX section first, a `sources` hook, and moving used market and official stores onto capabilities) run in parallel. Phase 2 goes first because phases 3 and 4 both read the parse fields it adds. Compare mode, unit price, ranking used listings, safety certification, origin and delivery deadlines are out of v1.
+
+## Amendment 2026-10-27 (finding #25)
+
+The exact key no longer always ends the lookup: a learned record judged by composition gives way to a closer composition profile Jev picks from the search phrase ("крем от акне": "средства-от-акне" over a learned "крем"). Only the record's user choices stay on top; nothing is written. Plan: `docs/plans/2026-10-26-closer-composition-profile.md`.

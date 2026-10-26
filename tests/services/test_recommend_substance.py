@@ -12,12 +12,16 @@ import pytest
 from market_sources.base import RawProduct
 
 from buysmarter.capabilities import composition
+from buysmarter.knowledge import store as store_mod
+from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import (
     ActiveSubstance,
     EquivalentProduct,
     IngredientBook,
 )
+from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.knowledge.profile import COMPOSITION, CapabilitySetting, ResolvedProfile
+from buysmarter.knowledge.store import save_knowledge
 from buysmarter.llm.ingredients import DetectedIngredients
 from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services import recommend as svc
@@ -289,3 +293,58 @@ async def test_no_llm_composition_run_flags_unchecked_ingredients(monkeypatch) -
     by_id = {s.candidate.source_product_id: s for s in result.recommendation.ranked}
     assert by_id["kl"].candidate.ingredients_checked  # the title names an equivalent
     assert not by_id["bio"].candidate.ingredients_checked
+
+
+async def test_a_general_cream_record_judges_an_acne_query_by_the_acne_actives(monkeypatch) -> None:
+    """Finding #25: "крем" learned with its own book must not hide "средства-от-акне"."""
+    for slug, active in (("крем", "пантенол"), ("средства-от-акне", "салициловая кислота")):
+        await save_knowledge(
+            slug,
+            BrandBook(tiers={"Nivea": "B"}),
+            ModelBook(),
+            "opus",
+            category_type="composition_driven",
+            ingredient_book=IngredientBook(substances=[ActiveSubstance(canonical=active)]),
+        )
+
+    async def _jev(state, questions):
+        return {"match": {"type": "choice", "choice": "средства-от-акне", "confidence": 0.98}}
+
+    async def _extract_by_book(category, book, items):
+        return [
+            DetectedIngredients(
+                index=i,
+                substances=[s.canonical for s in book.substances if s.canonical in f"{t} {c}"],
+            )
+            for i, (t, c) in enumerate(items)
+        ]
+
+    monkeypatch.setattr(store_mod, "system_one", _jev)
+    monkeypatch.setattr(composition, "extract_ingredients", _extract_by_book)
+    monkeypatch.setattr(svc, "_no_llm_route", lambda: False)
+    stub = _StubKaspi(
+        main=[_rp("pan", "Nivea крем увлажняющий", 5000), _rp("sal", "Nivea крем матирующий")],
+        by_query={},
+        specs_by_id={
+            "pan": {"Состав": "вода, пантенол"},
+            "sal": {"Состав": "вода, салициловая кислота 2%"},
+        },
+    )
+
+    result = await recommend(
+        "крем от акне",
+        use_llm=True,
+        source=stub,
+        sources=["kaspi"],
+        parsed=QueryConstraints(search_phrase="крем от акне", product_type="крем"),
+        persist=False,
+        with_review_summary=False,
+    )
+
+    scores = {
+        s.candidate.source_product_id: next(a for a in s.axes if a.name == "ingredient")
+        for s in result.recommendation.ranked
+    }
+    assert scores["sal"].explanation == "вещество есть, концентрация неизвестна"
+    assert scores["pan"].score == 0
+    assert result.recommendation.best.candidate.source_product_id == "sal"
