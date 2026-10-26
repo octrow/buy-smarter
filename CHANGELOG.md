@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-27
+
 ### Added
 - `buysmarter history` without a query lists the recently tracked products with their last change, as the
   app's «История цен»; a product's history has the trend line too, and `history` and `refresh` speak Russian
