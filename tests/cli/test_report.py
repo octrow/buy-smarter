@@ -654,3 +654,27 @@ def test_the_markdown_olx_table_says_what_each_ad_was_compared_with_as_the_app()
     assert "| Объявление | Цена | Дешевле нового на | Сравнили с | Город | Минус |" in md
     assert "Xiaomi Water Flosser 2 MEO705" in md
     assert "-18" not in md  # "Дешевле нового на" already says less
+
+
+def test_the_top_table_shows_each_offers_axes_as_the_apps_columns() -> None:
+    from buysmarter.cli import console as terminal
+    from buysmarter.cli.report import axes_cell, axes_legend
+
+    scored = _result().recommendation.ranked[0]
+    scored = scored.model_copy(
+        update={
+            "axes": [
+                AxisScore(name="brand", score=3.84, max_score=25.0, explanation=""),
+                AxisScore(name="price", score=25.0, max_score=25.0, explanation=""),
+            ]
+        }
+    )
+
+    assert axes_cell(scored) == "Б 3.8 · Ц 25.0"  # the app's "3.8/25" cells, without the max
+    assert axes_legend([scored]) == "Оси: Б — Бренд, Ц — Цена."
+    md = render_markdown(_result(), top=3)
+    assert "| Ц 20.0 |" in md and "Оси: Ц — Цена." in md
+    with terminal.console.capture() as capture:
+        terminal.render(_result(), top=3)
+    out = " ".join(capture.get().split())
+    assert "Ц 20.0" in out and "Оси: Ц — Цена." in out

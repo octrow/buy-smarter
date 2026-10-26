@@ -35,6 +35,16 @@ AXIS_LABELS = {
     "availability": "Наличие",
     "ingredient": "Состав",
 }
+# One letter per axis for the console's and the report's "Оси" cell (the app has a column each).
+AXIS_SHORT = {
+    "brand": "Б",
+    "price": "Ц",
+    "reviews": "О",
+    "specs": "Х",
+    "popularity": "П",
+    "availability": "Н",
+    "ingredient": "С",
+}
 BEST_ROLE = "Лучший выбор"
 ROLE_LABELS = {"best_value": "Выгоднее", "best_budget": "Дешевле", "best_premium": "Премиум"}
 

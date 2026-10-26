@@ -17,6 +17,7 @@ from typing import NamedTuple
 from buysmarter.capabilities.provenance import assessed_entries, assessed_line
 from buysmarter.capabilities.used_only import USED
 from buysmarter.i18n import (
+    AXIS_SHORT,
     BEST_ROLE,
     ROLE_LABELS,
     USED_SECTION,
@@ -32,7 +33,7 @@ from buysmarter.i18n import (
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import IngredientBook
 from buysmarter.knowledge.models_book import ModelBook
-from buysmarter.ranking.models import Candidate, QueryConstraints
+from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoNewPick, NoSubstanceMatch, RecommendResult
@@ -346,6 +347,18 @@ def _tier_cell(c: Candidate) -> str:
     return c.brand_tier or "-"
 
 
+def axes_cell(scored: ScoredCandidate) -> str:
+    """An offer's axis scores in one cell: the app's per-axis columns, one letter each."""
+    return " · ".join(f"{AXIS_SHORT.get(a.name, a.name)} {a.score:.1f}" for a in scored.axes)
+
+
+def axes_legend(ranked: list[ScoredCandidate]) -> str:
+    """What each letter of ``axes_cell`` stands for, for the axes these offers have."""
+    names = dict.fromkeys(a.name for scored in ranked for a in scored.axes)
+    pairs = ", ".join(f"{AXIS_SHORT.get(n, n)} — {axis_label(n)}" for n in names)
+    return f"Оси: {pairs}."
+
+
 def _top_md(result: RecommendResult, top: int) -> list[str]:
     ranked = distinct_variants(result.recommendation.ranked, top)
     if not ranked:
@@ -354,8 +367,8 @@ def _top_md(result: RecommendResult, top: int) -> list[str]:
         "",
         f"## Лучшие предложения (топ {len(ranked)})",
         "",
-        "| # | Маркетплейс | Товар | Цена | Баллы | Бренд |",
-        "| ---: | --- | --- | ---: | ---: | --- |",
+        "| # | Маркетплейс | Товар | Цена | Баллы | Оси | Бренд |",
+        "| ---: | --- | --- | ---: | ---: | --- | --- |",
     ]
     for i, scored in enumerate(ranked, start=1):
         c = scored.candidate
@@ -367,9 +380,9 @@ def _top_md(result: RecommendResult, top: int) -> list[str]:
         lines.append(
             f"| {i} | {source_label(c.source)} | {_md_link(title_text, c.url)} | "
             f"{_fmt_price(c.price)} | "
-            f"{scored.total_score:.0f} | {_tier_cell(c)} |"
+            f"{scored.total_score:.0f} | {axes_cell(scored)} | {_tier_cell(c)} |"
         )
-    return lines
+    return [*lines, "", f"_{axes_legend(ranked)}_"]
 
 
 USED_HEADERS = ["Объявление", "Цена", "Дешевле нового на", "Сравнили с", "Город", "Минус"]

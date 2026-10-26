@@ -268,9 +268,10 @@ def _scored_candidate(pid: str, mimic_brand: str | None = None, dup_price_gap=No
     )
 
 
-def test_render_top_marks_barred_candidate_with_warning() -> None:
+def test_render_top_marks_barred_candidate_with_warning(monkeypatch) -> None:
     clean = _scored_candidate("1")
     mimic = _scored_candidate("2", mimic_brand="JBL")
+    monkeypatch.setattr(main.console, "width", 120)  # the tier cell unwrapped, past "Оси"
 
     with main.console.capture() as capture:
         terminal._render_top([clean, mimic], top=8)

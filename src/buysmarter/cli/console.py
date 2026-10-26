@@ -12,6 +12,8 @@ from buysmarter.cli.report import (
     TIERS_TITLE,
     USED_HEADERS,
     KnowledgeRows,
+    axes_cell,
+    axes_legend,
     budget_text,
     found_counts,
     found_line,
@@ -164,6 +166,7 @@ def _render_top(scored: list[ScoredCandidate], top: int) -> None:
     table.add_column("Товар")
     table.add_column("Цена", justify="right")
     table.add_column("Баллы", justify="right")
+    table.add_column("Оси")
     table.add_column("Бренд")
     for i, s in enumerate(ranked, start=1):
         c = s.candidate
@@ -178,9 +181,11 @@ def _render_top(scored: list[ScoredCandidate], top: int) -> None:
             _product_cell(title_text, c.url),
             f"{kzt(c.price)}",
             f"{s.total_score:.0f}",
+            axes_cell(s),
             _tier_cell(c),
         )
     console.print(table)
+    console.print(f"[dim]{axes_legend(ranked)}[/dim]")
 
 
 def render_used(used: list[UsedListing], ranked: list[ScoredCandidate]) -> None:
