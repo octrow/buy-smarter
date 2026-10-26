@@ -177,7 +177,40 @@ def test_a_missing_review_summary_says_why(qtbot, result):
 
 def test_the_review_summary_is_shown(qtbot, result):
     result = result.model_copy(update={"review_summary": _summary()})
-    assert "+ тихий" in _texts(_shown(qtbot, result))
+    assert "✓ тихий" in _texts(_shown(qtbot, result))
+
+
+def test_red_flags_and_complaints_have_their_own_lines_as_in_the_cli(qtbot, result):
+    from buysmarter.cli.report import SUMMARY_TITLE
+    from buysmarter.llm.review_summary import ReviewSummary
+
+    summary = ReviewSummary(
+        red_flags=["много подделок"],
+        pros=["тихий"],
+        cons=["шумный"],
+        common_complaints=["течёт"],
+        verdict_line="Брать",
+    )
+    texts = _texts(_shown(qtbot, result.model_copy(update={"review_summary": summary})))
+
+    for line in (SUMMARY_TITLE, "⚠ много подделок", "✓ тихий", "✗ шумный", "«течёт»", "Брать"):
+        assert line in texts.splitlines()
+
+
+def test_the_alternatives_show_the_brand_tier_or_the_counterfeit_signal_as_the_cli(qtbot, result):
+    rec = result.recommendation
+    first, second, *rest = rec.ranked
+    tiered = first.model_copy(
+        update={"candidate": first.candidate.model_copy(update={"brand_tier": "A"})}
+    )
+    mimic = second.model_copy(
+        update={"candidate": second.candidate.model_copy(update={"mimic_brand": "JBL"})}
+    )
+    rec = rec.model_copy(update={"ranked": [tiered, mimic, *rest], "best": tiered})
+    proxy = _shown(qtbot, result.model_copy(update={"recommendation": rec})).alternatives_proxy
+
+    assert proxy.headerData(5, Qt.Orientation.Horizontal) == "Бренд"
+    assert _column(proxy, 5)[:2] == ["A", "подделка под JBL?"]
 
 
 def test_axis_columns_start_hidden_and_toggle_on(qtbot, result):

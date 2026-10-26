@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter.cli.report import (
+    SUMMARY_TITLE,
     USED_HEADERS,
     assessed_note,
     brands_missing_note,
@@ -29,6 +30,7 @@ from buysmarter.cli.report import (
     ingredients_unchecked_note,
     rejected_line,
     request_notes,
+    summary_lines,
     summary_note,
     used_cells,
     used_first,
@@ -60,7 +62,6 @@ from buysmarter.gui.screens.search import SearchRun
 from buysmarter.gui.tables import FitTableView, FitTableWidget, stretch_column
 from buysmarter.gui.theme import CONTENT_MAX_WIDTH, SPACE, card_body, set_state
 from buysmarter.knowledge.generate import learn_category
-from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import is_barred
 from buysmarter.services.auto_learn import limit_note, over_limit
@@ -188,11 +189,8 @@ def text_table(
     return table
 
 
-def _summary_lines(summary: ReviewSummary) -> list[tuple[str, str]]:
-    lines = [("", summary.verdict_line)] if summary.verdict_line else []
-    lines += [("ok", "+ " + p) for p in summary.pros]
-    lines += [("error", "− " + c) for c in [*summary.cons, *summary.red_flags]]
-    return lines
+# The label state of each summary line kind (``cli.report.summary_lines``).
+_SUMMARY_STATE = {"flag": "warning", "pro": "ok", "con": "error", "complaint": "", "verdict": ""}
 
 
 def _axes_table(best: ScoredCandidate) -> QTableWidget:
@@ -310,9 +308,9 @@ class ReportScreen(QScrollArea):
             layout.addWidget(self._knowledge_banner(result))
         self._add_used(layout, result, first=True)
         layout.addWidget(self._best_section(result.recommendation.best))
-        if result.review_summary is not None and (said := _summary_lines(result.review_summary)):
-            widgets = [_label(text, state=state) for state, text in said]
-            layout.addWidget(_group("Что пишут в отзывах", *widgets))
+        if result.review_summary is not None and (said := summary_lines(result.review_summary)):
+            widgets = [_label(text, state=_SUMMARY_STATE[kind]) for kind, text in said]
+            layout.addWidget(_group(SUMMARY_TITLE, *widgets))
         layout.addWidget(self._alternatives_section(result))
         if result.recommendation.rejected_count:
             self.rejected = _group("Отсеяно", _label(rejected_line(result), role="muted"))

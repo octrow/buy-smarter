@@ -8,6 +8,7 @@ from rich.table import Table
 from buysmarter.cli.report import (
     SUBSTANCE_HEADERS,
     SUBSTANCES_TITLE,
+    SUMMARY_TITLE,
     TIER_HEADERS,
     TIERS_TITLE,
     USED_HEADERS,
@@ -22,6 +23,8 @@ from buysmarter.cli.report import (
     rejected_line,
     report_notes,
     substance_cells,
+    summary_lines,
+    tier_cell,
     tier_cells,
     used_cells,
     used_first,
@@ -39,7 +42,7 @@ from buysmarter.i18n import (
     source_label,
 )
 from buysmarter.llm.review_summary import ReviewSummary
-from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
+from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
@@ -104,19 +107,23 @@ def _render_best(best: ScoredCandidate) -> None:
         console.print("[red]- " + escape("  - ".join(map(pro_con, best.cons))) + "[/red]")
 
 
+_SUMMARY_STYLE = {
+    "flag": "[bold red]{}[/bold red]",
+    "pro": "[green]{}[/green]",
+    "con": "[red]{}[/red]",
+    "complaint": "[yellow]{}[/yellow]",
+    "verdict": "\n[bold]{}[/bold]",
+}
+
+
 def _render_review_summary(summary: ReviewSummary | None) -> None:
     """Render the AI review summary panel for the best pick (docs/INIT_DATA.md)."""
     if summary is None:
         return
-    lines = [f"[bold red]⚠ {escape(f)}[/bold red]" for f in summary.red_flags]
-    lines += [f"[green]✓[/green] {escape(p)}" for p in summary.pros]
-    lines += [f"[red]✗[/red] {escape(c)}" for c in summary.cons]
-    lines += [f"[yellow]«{escape(c)}»[/yellow]" for c in summary.common_complaints]
-    if summary.verdict_line:
-        lines.append(f"\n[bold]{escape(summary.verdict_line)}[/bold]")
+    lines = [_SUMMARY_STYLE[kind].format(escape(text)) for kind, text in summary_lines(summary)]
     if not lines:
         return
-    console.print(Panel("\n".join(lines), title="Отзывы кратко", expand=False))
+    console.print(Panel("\n".join(lines), title=SUMMARY_TITLE, expand=False))
 
 
 def _product_cell(title: str, url: str | None) -> str:
@@ -147,14 +154,6 @@ def _render_alternatives(alts: dict[str, ScoredCandidate]) -> None:
     console.print(table)
 
 
-def _tier_cell(c: Candidate) -> str:
-    """Tier column: a mimic candidate flags the counterfeit signal instead of
-    the (usually empty) tier — "-" alone would hide the more useful fact."""
-    if c.mimic_brand is not None:
-        return f"подделка под {escape(c.mimic_brand)}?"
-    return escape(c.brand_tier or "-")
-
-
 def _render_top(scored: list[ScoredCandidate], top: int) -> None:
     ranked = distinct_variants(scored, top)
     if not ranked:
@@ -182,7 +181,7 @@ def _render_top(scored: list[ScoredCandidate], top: int) -> None:
             f"{kzt(c.price)}",
             f"{s.total_score:.0f}",
             axes_cell(s),
-            _tier_cell(c),
+            escape(tier_cell(c)),
         )
     console.print(table)
     console.print(f"[dim]{axes_legend(ranked)}[/dim]")

@@ -10,6 +10,7 @@ from PySide6.QtCore import (
     Qt,
 )
 
+from buysmarter.cli.report import tier_cell
 from buysmarter.gui.labels import BEST_ROLE, ROLE_LABELS, axis_label, clean_title, source_label
 from buysmarter.gui.prefs_fields import kzt
 from buysmarter.ranking.models import Recommendation, ScoredCandidate
@@ -17,7 +18,7 @@ from buysmarter.ranking.selection import distinct_variants, is_barred
 
 SORT_ROLE = Qt.ItemDataRole.UserRole
 URL_ROLE = Qt.ItemDataRole.UserRole + 1
-_FIXED_COLUMNS = ("Роль", "Маркетплейс", "Товар", "Цена", "Баллы")
+_FIXED_COLUMNS = ("Роль", "Маркетплейс", "Товар", "Цена", "Баллы", "Бренд")
 SOURCE_COLUMN = _FIXED_COLUMNS.index("Маркетплейс")
 PRODUCT_COLUMN = _FIXED_COLUMNS.index("Товар")
 SCORE_COLUMN = _FIXED_COLUMNS.index("Баллы")
@@ -83,6 +84,9 @@ class AlternativesModel(QAbstractTableModel):
                 return kzt(cand.price), cand.price
             case 4:
                 return f"{scored.total_score:.0f}", scored.total_score
+            case 5:
+                tier = tier_cell(cand)
+                return tier, tier
         name = self._axes[column - len(_FIXED_COLUMNS)]
         axis = next((a for a in scored.axes if a.name == name), None)
         if axis is None:

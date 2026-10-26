@@ -33,6 +33,7 @@ from buysmarter.i18n import (
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import IngredientBook
 from buysmarter.knowledge.models_book import ModelBook
+from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.matching import UsedListing
@@ -299,18 +300,37 @@ def _best_md(result: RecommendResult) -> list[str]:
     return lines
 
 
+SUMMARY_TITLE = "Отзывы кратко"
+_SUMMARY_MARKS = {
+    "flag": "⚠ {}",
+    "pro": "✓ {}",
+    "con": "✗ {}",
+    "complaint": "«{}»",
+    "verdict": "{}",
+}
+
+
+def summary_lines(summary: ReviewSummary) -> list[tuple[str, str]]:
+    """The review summary as ``(kind, text)`` lines, in order: red flags, pros, cons, frequent
+    complaints, the verdict; the console, the markdown and the app colour them by ``kind``."""
+    groups = (
+        ("flag", summary.red_flags),
+        ("pro", summary.pros),
+        ("con", summary.cons),
+        ("complaint", summary.common_complaints),
+        ("verdict", [summary.verdict_line] if summary.verdict_line else []),
+    )
+    return [(kind, _SUMMARY_MARKS[kind].format(text)) for kind, texts in groups for text in texts]
+
+
 def _review_summary_md(result: RecommendResult) -> list[str]:
-    summary = result.review_summary
-    if summary is None:
+    said = summary_lines(result.review_summary) if result.review_summary else []
+    if not said:
         return []
-    lines = ["", "## Отзывы кратко", ""]
-    lines += [f"- ⚠ {f}" for f in summary.red_flags]
-    lines += [f"- ✓ {p}" for p in summary.pros]
-    lines += [f"- ✗ {c}" for c in summary.cons]
-    lines += [f"- «{c}»" for c in summary.common_complaints]
-    if summary.verdict_line:
-        lines += ["", f"**{summary.verdict_line}**"]
-    return lines if len(lines) > 3 else []
+    lines = ["", f"## {SUMMARY_TITLE}", ""]
+    lines += [f"- {text}" for kind, text in said if kind != "verdict"]
+    lines += [f"\n**{text}**" for kind, text in said if kind == "verdict"]
+    return lines
 
 
 def _alternatives_md(result: RecommendResult) -> list[str]:
@@ -339,12 +359,12 @@ def _alternatives_md(result: RecommendResult) -> list[str]:
     return lines
 
 
-def _tier_cell(c: Candidate) -> str:
+def tier_cell(c: Candidate) -> str:
     """Tier column: a mimic candidate flags the counterfeit signal instead of
-    the (usually empty) tier — "-" alone would hide the more useful fact."""
+    the (usually empty) tier — "—" alone would hide the more useful fact."""
     if c.mimic_brand is not None:
         return f"подделка под {c.mimic_brand}?"
-    return c.brand_tier or "-"
+    return c.brand_tier or "—"
 
 
 def axes_cell(scored: ScoredCandidate) -> str:
@@ -380,7 +400,7 @@ def _top_md(result: RecommendResult, top: int) -> list[str]:
         lines.append(
             f"| {i} | {source_label(c.source)} | {_md_link(title_text, c.url)} | "
             f"{_fmt_price(c.price)} | "
-            f"{scored.total_score:.0f} | {axes_cell(scored)} | {_tier_cell(c)} |"
+            f"{scored.total_score:.0f} | {axes_cell(scored)} | {tier_cell(c)} |"
         )
     return [*lines, "", f"_{axes_legend(ranked)}_"]
 
