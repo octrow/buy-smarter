@@ -595,14 +595,15 @@ class SearchScreen(QWidget):
             label.setText(STATE_LABELS[state])
             set_state(label, "state", state)
 
-    def _settle(self, interrupted: str = "skipped") -> None:
+    def _settle(self, interrupted: str = "skipped", waiting: str = "skipped") -> None:
         """Back to idle; a marketplace still running ends as ``interrupted``.
 
-        A selected marketplace the pipeline never reached did not run (skipped).
+        A selected marketplace the pipeline never reached did not run (``waiting``: skipped,
+        or still waiting while a question is open).
         """
         self._job = None
         self._set_running(False)
-        final = {"waiting": "skipped", "running": interrupted}
+        final = {"waiting": waiting, "running": interrupted}
         self._states = {n: final.get(s, s) for n, s in self._states.items()}
         self._show_states()
 
@@ -635,12 +636,13 @@ class SearchScreen(QWidget):
             self._job = None  # no marketplace ran yet: they keep waiting, not «пропущен»
             self._wait_for_learning(result.category)
             return
-        self._settle()
         if isinstance(result, AskUser):
+            self._settle(waiting="waiting")  # nothing searched yet: the answer starts it
             self._asked = result.clarification
             self.recent_box.hide()  # the question takes its place: the screen does not scroll
             self.clarify.ask(result.clarification)
             return
+        self._settle()
         if isinstance(result, NoRecommendation):
             self.message.setText(result.message)
             self._show_outcome(result)

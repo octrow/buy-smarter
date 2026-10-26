@@ -1,7 +1,7 @@
 """The search screen asks back: option buttons, own text, the next round (phase 2, step 9)."""
 
 from buysmarter.gui.screens.report import ReportScreen
-from buysmarter.gui.screens.search import SearchRun, SearchScreen
+from buysmarter.gui.screens.search import STATE_LABELS, SearchRun, SearchScreen
 from buysmarter.services.understanding import Clarification, NeedsClarification, NothingToSearch
 from tests.gui.conftest import WAIT_MS
 
@@ -41,6 +41,14 @@ def test_a_question_shows_its_options_and_warning(qtbot, runner, result) -> None
     assert "Алкоголь" in screen.clarify.warning.text()
     assert screen.start_button.isEnabled()
     assert not screen.recent_box.isVisibleTo(screen)
+
+
+def test_a_question_leaves_the_picked_marketplaces_waiting_not_skipped(qtbot, runner, result):
+    screen = _asked(qtbot, runner, result, [])
+
+    picked = [name for name, box in screen.sources.items() if box.isChecked()]
+    assert picked
+    assert {screen.status[name].text() for name in picked} == {STATE_LABELS["waiting"]}
 
 
 def test_a_second_question_replaces_the_first_options(qtbot, runner, result) -> None:
