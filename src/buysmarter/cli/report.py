@@ -554,6 +554,52 @@ def default_report_path(query: str) -> Path:
     return _REPORTS_DIR / f"{stamp}-{_slug(query)}.md"
 
 
+# The query, whole, as the report's first line: the file name keeps only its lower-case slug.
+_QUERY_LINE = re.compile(r"^<!-- query: (.*) -->$")
+# ``default_report_path``: YYYYMMDD-HHMMSS-<query-slug>.md
+_NAME = re.compile(r"^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}-(.*)$")
+
+
+def _query_line(query: str) -> str:
+    return f"<!-- query: {query.replace('-->', '->')} -->\n"
+
+
+def _split(path: Path) -> tuple[str | None, str]:
+    """``(saved query or None, the report)`` of a report file."""
+    text = path.read_text(encoding="utf-8")
+    first, _, rest = text.partition("\n")
+    match = _QUERY_LINE.match(first)
+    return (match.group(1), rest) if match else (None, text)
+
+
+def report_text(path: Path) -> str:
+    """The report to read: the file without its query line."""
+    return _split(path)[1]
+
+
+def report_parts(path: Path) -> tuple[str, str]:
+    """``("21.10.2026 20:38", "Смартфон до 200 000, Алматы!")``: when, and the query searched.
+
+    A report saved before the query line gives its query from the file name: lower-case and
+    without punctuation.
+    """
+    m = _NAME.match(path.stem)
+    if m is None:
+        return "", path.stem
+    year, month, day, hour, minute, slug = m.groups()
+    try:
+        saved = _split(path)[0]
+    except OSError:
+        saved = None
+    return f"{day}.{month}.{year} {hour}:{minute}", saved or slug.replace("-", " ")
+
+
+def report_label(path: Path) -> str:
+    """``21.10.2026 20:38 — Смартфон до 200 000, Алматы!``: the list entry of a saved report."""
+    when, query = report_parts(path)
+    return f"{when} — {query}" if when else query
+
+
 def saved_reports() -> list[Path]:
     """Every report ``save_report`` wrote to the default folder, newest first."""
     if not _REPORTS_DIR.is_dir():
@@ -574,7 +620,7 @@ def save_report(
     target = Path(path) if path else default_report_path(query)
     target.parent.mkdir(parents=True, exist_ok=True)
     markdown = render_markdown(result, top, use_llm=use_llm, summary=summary)
-    target.write_text(markdown, encoding="utf-8")
+    target.write_text(_query_line(query) + markdown, encoding="utf-8")
     return target
 
 

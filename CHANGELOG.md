@@ -5,6 +5,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Unreleased]
 
 ### Added
+- `buysmarter reports` (list), `reports show N` and `reports repeat N`: the app's «Прошлые поиски» and
+  «Повторить» in the CLI. A saved report keeps the whole query as its first line, so «Повторить» and the list
+  no longer show it lower-cased and without punctuation (CLI ↔ GUI parity #28, #29).
 - When nothing new can be recommended, the app shows the CLI's table under the message: the nearest products
   without the required substance, or the OLX ads within the budget; a double click opens the offer (CLI ↔ GUI
   parity #24, #25).

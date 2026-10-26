@@ -2,7 +2,8 @@
 
 from pathlib import Path
 
-from buysmarter.gui.screens.saved import SavedScreen, report_label
+from buysmarter.cli.report import report_label
+from buysmarter.gui.screens.saved import SavedScreen
 
 
 def test_report_label_reads_the_date_and_query_from_the_file_name():
@@ -26,6 +27,18 @@ def test_the_newest_report_opens_and_another_can_be_picked(qtbot, tmp_path):
     assert screen.view.toPlainText().strip() == "Гитара"
     screen.reload()  # the open report stays selected
     assert screen.reports.currentRow() == 1
+
+
+def test_a_report_shows_its_whole_query_in_the_list_but_not_in_the_text(qtbot, tmp_path):
+    saved = tmp_path / "20261021-203820-смартфон-до-200-000-алматы.md"
+    saved.write_text("<!-- query: Смартфон до 200 000, Алматы! -->\n# Смартфон\n", encoding="utf-8")
+    screen = SavedScreen(list_reports=lambda: [saved])
+    qtbot.addWidget(screen)
+
+    screen.reload()
+
+    assert screen.reports.item(0).text() == "21.10.2026 20:38 — Смартфон до 200 000, Алматы!"
+    assert screen.view.toPlainText().strip() == "Смартфон"
 
 
 def test_no_reports_says_how_they_appear(qtbot):

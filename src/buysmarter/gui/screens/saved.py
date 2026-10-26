@@ -1,7 +1,6 @@
 """Past searches: the markdown reports the CLI and the app save, newest first."""
 
 import logging
-import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -32,36 +31,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from buysmarter.cli.report import saved_reports
+from buysmarter.cli.report import report_label, report_text, saved_reports
 from buysmarter.gui.theme import SPACE, TYPE, current_palette, set_state
 
 logger = logging.getLogger(__name__)
 
 _PATH_ROLE = Qt.ItemDataRole.UserRole
 _LIST_WIDTH = 300
-# ``default_report_path``: YYYYMMDD-HHMMSS-<query-slug>.md
-_NAME = re.compile(r"^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}-(.*)$")
 _EMPTY = "Пока нет сохранённых поисков — отчёт сохраняется после каждого поиска."
 
 type ListReports = Callable[[], list[Path]]
-
-
-def report_parts(path: Path) -> tuple[str, str]:
-    """``("21.10.2026 20:38", "смартфон до 200000 алматы")`` from a report's file name.
-
-    The query is the file's slug, so it comes back lower-case and without punctuation.
-    """
-    m = _NAME.match(path.stem)
-    if m is None:
-        return "", path.stem
-    year, month, day, hour, minute, slug = m.groups()
-    return f"{day}.{month}.{year} {hour}:{minute}", slug.replace("-", " ")
-
-
-def report_label(path: Path) -> str:
-    """``21.10.2026 20:38 — смартфон до 200000 алматы`` from a report's file name."""
-    when, query = report_parts(path)
-    return f"{when} — {query}" if when else query
 
 
 def _report_item(path: Path) -> QListWidgetItem:
@@ -194,7 +173,7 @@ class SavedScreen(QWidget):
             return
         path: Path = item.data(_PATH_ROLE)
         try:
-            self.view.setMarkdown(path.read_text(encoding="utf-8"))
+            self.view.setMarkdown(report_text(path))
             style_report(self.view.document(), current_palette())
         except OSError as exc:
             logger.warning("Saved report %s not read: %r", path, exc)

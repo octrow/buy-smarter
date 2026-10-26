@@ -31,6 +31,7 @@ from buysmarter.cli.report import (
     no_new_pick_message,
     no_recommendation_text,
     no_substance_cells,
+    report_parts,
     saved_reports,
     used_cells,
 )
@@ -51,7 +52,7 @@ from buysmarter.gui.prefs_fields import (
 )
 from buysmarter.gui.progress import Progress
 from buysmarter.gui.screens.clarify import ClarificationBox
-from buysmarter.gui.screens.saved import ListReports, report_parts
+from buysmarter.gui.screens.saved import ListReports
 from buysmarter.gui.tables import FitTableWidget, stretch_column
 from buysmarter.gui.theme import SPACE, bind_icon, set_state
 from buysmarter.i18n import stage_label

@@ -35,6 +35,7 @@ from buysmarter.cli.report import (
     no_recommendation_text,
     save_report,
 )
+from buysmarter.cli.reports import reports_app
 from buysmarter.i18n import kzt
 from buysmarter.knowledge.generate import GENERATE_KNOWLEDGE_MODEL, learn_from_notes
 from buysmarter.knowledge.generate import learn_category as learn_category_knowledge
@@ -416,6 +417,7 @@ llm_app = typer.Typer(help="The LLM key: stored in the OS keyring, never shown."
 app.add_typer(llm_app, name="llm")
 app.add_typer(prefs_app, name="prefs")
 app.add_typer(category_app, name="category")
+app.add_typer(reports_app, name="reports")
 
 
 def _provider(name: str) -> str:

@@ -196,6 +196,11 @@ buysmarter recommend "смартфон до 250000 тг, 120 Гц, 5000 мАч" 
 # Price history: re-scan tracked categories, then look up one product
 buysmarter refresh
 buysmarter history "F300"
+
+# Past searches, the app's «Прошлые поиски»: list, read one, search it again
+buysmarter reports
+buysmarter reports show 1
+buysmarter reports repeat 1
 ```
 
 Output: the best pick with a score out of 100, confidence, a per-axis breakdown (brand, price with a 30-day
