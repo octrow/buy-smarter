@@ -46,7 +46,7 @@
 | 5 | ✅ Ozon без браузера в обоих входах; ошибка сети в GUI | 10, 26, 27 | `tests/cli/test_main.py`, `tests/gui/test_settings.py`, `tests/gui/test_search.py` |
 | 6 | ✅ Запрос в отчёте; `reports`, `reports show`, `reports repeat`; «Повторить» на экране из отчёта | 28, 29 | `tests/cli/test_reports.py`, `tests/gui/test_saved.py`, `tests/cli/test_report.py` |
 | 7 | ✅ `history` без запроса, `refresh` и `history` по-русски, «Снижение» на экране | 30, 31 | `tests/cli/`, `tests/gui/test_history.py` (+скриншот) |
-| 8 | Пп. 5–7 «принято» в сверке; скриншоты обеих тем; документы (карта EN + RU, README EN + RU, CHANGELOG) | 5–7 | `tests/test_logic_map.py` |
+| 8 | ✅ Пп. 5–7 «принято» в сверке; скриншоты обеих тем; документы (карта EN + RU, README EN + RU, CHANGELOG) | 5–7 | `tests/test_logic_map.py` |
 | 9 | Живой прогон: kaspi+olx, по одному запросу на каждый шаг, записать сюда | — | — |
 
 ## Порядок работы

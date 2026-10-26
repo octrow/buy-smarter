@@ -95,7 +95,7 @@ Composition даёт ровно прежнюю таблицу (ингредие�
 
 Другие инструменты MCP (`search_products`, `compare`, `get_preferences`, `set_preference`) `recommend()` не вызывают. Сохранённые настройки поиска (город, бюджет, маркетплейсы, исключённые бренды) меняются на экране «Настройки поиска» и командой `buysmarter prefs` (показать, `set`, `clear`; те же ключи, проверки и сообщения, `cli/prefs`), читаются через `memory/prefs`. Изученные категории показывает и их переключатели «Как оцениваем эту категорию» задаёт и сбрасывает команда `buysmarter category` (`list`, `show`, `set`, `reset`; `cli/category`), без обучения: `show` берёт профиль без LLM, `set`/`reset` пишут `set_user_choice` в собственную запись категории. Экран приложения «Категории» показывает те же данные (`category_rows`, `category_detail`) и учит вручную через общий `CategoryLearning` (`learn_category` с поиском в интернете или без, `learn_from_notes`), не в счёт лимита в час; заметки, на которых ответ LLM оборвался, — совет разбить их, как у `learn` (`NOTES_TOO_LONG`).
 
-Модули: `cli/main`, `cli/console`, `cli/progress`, `cli/prefs`, `cli/category`, `cli/reports`, `cli/clarify`, `cli/learning`, `cli/report`, `gui/screens/search`, `gui/screens/clarify`, `gui/screens/report`, `gui/screens/categories`, `gui/learning`, `gui/capability_toggles`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`, `services/auto_learn`
+Модули: `cli/main`, `cli/console`, `cli/progress`, `cli/prefs`, `cli/category`, `cli/reports`, `cli/history`, `cli/clarify`, `cli/learning`, `cli/report`, `gui/screens/search`, `gui/screens/clarify`, `gui/screens/report`, `gui/screens/categories`, `gui/learning`, `gui/capability_toggles`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`, `services/auto_learn`
 
 ## Шаги
 
