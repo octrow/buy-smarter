@@ -31,7 +31,7 @@ from buysmarter.cli.progress import stages
 from buysmarter.cli.report import (
     DEFAULT_TOP,
     knowledge_rows,
-    no_new_pick_text,
+    no_new_pick_message,
     save_report,
 )
 from buysmarter.i18n import kzt
@@ -169,7 +169,7 @@ def recommend(
         render_no_substance(exc)
         raise typer.Exit(code=1) from exc
     except NoNewPick as exc:
-        text = no_new_pick_text(exc.rejected_reasons, bool(exc.used_listings))
+        text = no_new_pick_message(exc)
         console.print(f"[yellow]{escape(text)}[/yellow]")
         render_used(exc.used_listings, [])
         raise typer.Exit(code=0 if exc.used_listings else 1) from exc

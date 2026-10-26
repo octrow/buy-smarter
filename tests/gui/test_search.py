@@ -3,6 +3,7 @@
 import asyncio
 import threading
 
+from buysmarter.cli.report import NO_SUBSTANCE_HEADERS, USED_HEADERS
 from buysmarter.gui.bridge import USER_ERROR
 from buysmarter.gui.screens.search import STATE_LABELS, SearchScreen
 from buysmarter.i18n import STAGE_LABELS, stage_label
@@ -189,7 +190,12 @@ def test_no_substance_match_shows_the_core_message(qtbot, runner):
     screen.query.setText("адапален")
     screen.start()
     qtbot.waitUntil(screen.start_button.isEnabled, timeout=WAIT_MS)
-    assert screen.message.text() == f"{exc.message()}\n• Effaclar Duo — 9\xa0000 ₸ [kaspi]"
+    assert screen.message.text() == exc.message()
+    table = screen.outcome_table
+    assert not table.isHidden()
+    headers = [table.horizontalHeaderItem(c).text() for c in range(table.columnCount())]
+    assert headers == NO_SUBSTANCE_HEADERS  # the CLI's table: product, price, rating
+    assert [table.item(0, c).text() for c in range(3)] == ["Effaclar Duo", "9\xa0000 ₸", "—"]
 
 
 def test_nothing_new_in_budget_lists_the_olx_ads_instead(qtbot, runner):
@@ -206,11 +212,29 @@ def test_nothing_new_in_budget_lists_the_olx_ads_instead(qtbot, runner):
     screen.query.setText("iphone 13 б/у до 250000")
     screen.start()
     qtbot.waitUntil(screen.start_button.isEnabled, timeout=WAIT_MS)
-    assert screen.message.text().splitlines() == [
-        "Новых предложений нет: дороже бюджета ×2. На OLX нашлось:",
-        "• iPhone 13 128GB — 180\xa0000 ₸, на 193\xa0000 ₸ дешевле нового",
-        "• iPhone 13 mini — 150\xa0000 ₸ (Алматы)",
-    ]
+    assert screen.message.text() == "Новых предложений нет: дороже бюджета ×2. На OLX нашлось:"
+    table = screen.outcome_table
+    headers = [table.horizontalHeaderItem(c).text() for c in range(table.columnCount())]
+    assert headers == USED_HEADERS  # the report's and the CLI's OLX table
+    assert table.rowCount() == 2 and table.item(0, 1).text() == "180\xa0000 ₸"
+
+
+def test_a_new_search_hides_the_last_outcome_table(qtbot, runner, result):
+    outcomes = [NoNewPick({"price exceeds budget": 1}, [UsedListing(title="ad", price=1000)])]
+
+    async def first_none_then_found(query, **kwargs):
+        if outcomes:
+            raise outcomes.pop()
+        return result
+
+    screen = SearchScreen(runner, recommend=first_none_then_found)
+    qtbot.addWidget(screen)
+    screen.query.setText("ирригатор")
+    screen.start()
+    qtbot.waitUntil(lambda: not screen.outcome_table.isHidden(), timeout=WAIT_MS)
+    with qtbot.waitSignal(screen.report_ready, timeout=WAIT_MS):
+        screen.start()
+    assert screen.outcome_table.isHidden()
 
 
 def test_form_values_and_saved_excluded_brands_reach_the_core(qtbot, runner, result):

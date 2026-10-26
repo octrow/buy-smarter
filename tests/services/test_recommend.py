@@ -1767,6 +1767,26 @@ async def test_nothing_new_in_budget_still_shows_the_olx_ads_within_it() -> None
     assert isinstance(no_pick, ValueError)
 
 
+async def test_nothing_new_without_olx_in_the_search_does_not_speak_of_olx() -> None:
+    from buysmarter.cli.report import no_new_pick_message
+
+    kaspi = FakeSource(
+        "kaspi", [_rp("kaspi", "k1", "Waterpik WP-100 ирригатор портативный", 60000)]
+    )
+
+    with pytest.raises(NoNewPick) as caught:
+        await recommend(
+            "ирригатор портативный, до 40000 тг",
+            use_llm=False,
+            sources=["kaspi"],
+            source=kaspi,
+            persist=False,
+        )
+
+    assert caught.value.olx_searched is False
+    assert no_new_pick_message(caught.value) == "Новых предложений нет: дороже бюджета ×1."
+
+
 def _ads(*prices: int) -> list[Candidate]:
     return [
         Candidate(source="olx", source_product_id=str(i), title=f"iPhone 13 128GB #{i}", price=p)

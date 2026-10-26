@@ -6,8 +6,8 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from pydantic import ValidationError
-from PySide6.QtCore import QElapsedTimer, Qt, QTimer, Signal
-from PySide6.QtGui import QAction, QIcon, QShowEvent
+from PySide6.QtCore import QElapsedTimer, Qt, QTimer, QUrl, Signal
+from PySide6.QtGui import QAction, QDesktopServices, QIcon, QShowEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -16,11 +16,21 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QProgressBar,
     QPushButton,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
-from buysmarter.cli.report import found_counts, found_line, no_new_pick_text, saved_reports
+from buysmarter.cli.report import (
+    NO_SUBSTANCE_HEADERS,
+    USED_HEADERS,
+    found_counts,
+    found_line,
+    no_new_pick_message,
+    no_substance_cells,
+    saved_reports,
+    used_cells,
+)
 from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.learning import CategoryLearning
 from buysmarter.gui.prefs_fields import (
@@ -39,12 +49,12 @@ from buysmarter.gui.prefs_fields import (
 from buysmarter.gui.progress import Progress
 from buysmarter.gui.screens.clarify import ClarificationBox
 from buysmarter.gui.screens.saved import ListReports, report_parts
+from buysmarter.gui.tables import FitTableWidget, stretch_column
 from buysmarter.gui.theme import SPACE, bind_icon, set_state
 from buysmarter.i18n import stage_label
 from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services.auto_learn import NeedsLearning
 from buysmarter.services.collect import ALL_SOURCES
-from buysmarter.services.matching import UsedListing
 from buysmarter.services.recommend import (
     NoNewPick,
     NoSubstanceMatch,
@@ -130,19 +140,18 @@ class SearchRun:
     review_summary: bool = True  # off on the form: the report does not call it missing
 
 
-def _used_line(listing: UsedListing) -> str:
-    """One OLX ad for the no-pick message: price, and the saving against a new one when known."""
-    line = f"• {listing.title} — {kzt(listing.price)}"
-    if not listing.standalone and listing.saving > 0:
-        line += f", на {kzt(listing.saving)} дешевле нового"
-    return f"{line} ({listing.city})" if listing.city else line
-
-
 @dataclass(frozen=True)
 class NoRecommendation:
-    """The core found nothing it may recommend; ``message`` is safe to show as is."""
+    """The core found nothing it may recommend; ``message`` is safe to show as is.
+
+    ``headers`` and ``rows`` are the CLI's table under that message (the nearest products
+    without the substance, the OLX ads), ``urls`` the offer each row opens.
+    """
 
     message: str
+    headers: tuple[str, ...] = ()
+    rows: tuple[tuple[str, ...], ...] = ()
+    urls: tuple[str | None, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -232,6 +241,13 @@ class SearchScreen(QWidget):
         self.report_button = QPushButton("Открыть отчёт")
         self.report_button.clicked.connect(self.open_report.emit)
         self.report_button.hide()
+        self._outcome_urls: tuple[str | None, ...] = ()
+        self.outcome_table = FitTableWidget(0, 0)  # the CLI's table under a no-pick message
+        self.outcome_table.setToolTip(
+            "Двойной клик по строке — открыть предложение на маркетплейсе."
+        )
+        self.outcome_table.cellDoubleClicked.connect(self._open_outcome_row)
+        self.outcome_table.hide()
         self.clarify = ClarificationBox()
         self.clarify.answered.connect(self._answer)
         self.clarify.skipped.connect(self._skip_questions)
@@ -248,6 +264,7 @@ class SearchScreen(QWidget):
         layout.addWidget(_muted(QLabel(_HERO_HINT)))
         layout.addWidget(self._form_card())
         layout.addWidget(self.clarify)
+        layout.addWidget(self.outcome_table)
         layout.addSpacing(SPACE["sm"])
         layout.addWidget(self.recent_box)
         layout.addStretch(1)
@@ -466,6 +483,7 @@ class SearchScreen(QWidget):
         self._show_states()
         self.message.clear()
         self.report_button.hide()
+        self.outcome_table.hide()
         self.clarify.hide()
         self.recent_box.setVisible(bool(self._recent))
         self._asked = None
@@ -512,12 +530,15 @@ class SearchScreen(QWidget):
         except NothingToSearch as exc:
             return NoRecommendation(str(exc))
         except NoSubstanceMatch as exc:
-            nearest = [f"• {c.title} — {kzt(c.price)} [{c.source}]" for c in exc.alternatives]
-            return NoRecommendation("\n".join([exc.message(), *nearest]))
+            near = exc.alternatives
+            rows = tuple(tuple(no_substance_cells(c)) for c in near)
+            urls = tuple(c.url for c in near)
+            return NoRecommendation(exc.message(), tuple(NO_SUBSTANCE_HEADERS), rows, urls)
         except NoNewPick as exc:
-            text = no_new_pick_text(exc.rejected_reasons, bool(exc.used_listings))
-            ads = [_used_line(u) for u in exc.used_listings]
-            return NoRecommendation("\n".join([text, *ads]))
+            ads = exc.used_listings
+            rows = tuple(tuple(used_cells(u, set())) for u in ads)
+            urls = tuple(u.url for u in ads)
+            return NoRecommendation(no_new_pick_message(exc), tuple(USED_HEADERS), rows, urls)
         except ValidationError:
             raise  # a bug, not "nothing to recommend": the generic message, details in the log
         except ValueError as exc:  # the core's "nothing to recommend" (the CLI prints it too)
@@ -606,11 +627,28 @@ class SearchScreen(QWidget):
             return
         if isinstance(result, NoRecommendation):
             self.message.setText(result.message)
+            self._show_outcome(result)
             return
         run = replace(self._run, source_states=dict(self._states))
         self._show_counts(result)
         self.report_button.show()
         self.report_ready.emit(result, run)
+
+    def _show_outcome(self, result: NoRecommendation) -> None:
+        table, self._outcome_urls = self.outcome_table, result.urls
+        table.setColumnCount(len(result.headers))
+        table.setHorizontalHeaderLabels(result.headers)
+        table.setRowCount(len(result.rows))
+        for r, cells in enumerate(result.rows):
+            for c, text in enumerate(cells):
+                table.setItem(r, c, QTableWidgetItem(text))
+        if result.headers:
+            stretch_column(table, 0)
+        table.setVisible(bool(result.rows))
+
+    def _open_outcome_row(self, row: int, _column: int) -> None:
+        if row < len(self._outcome_urls) and (url := self._outcome_urls[row]):
+            QDesktopServices.openUrl(QUrl(url))
 
     def _show_counts(self, result: RecommendResult) -> None:
         """What each marketplace brought, next to its status and as one summary line."""

@@ -40,7 +40,7 @@
 | 1 | ✅ Отчёт: общая строка «нет данных о брендах» в консоли и `.md`; `.md` догоняет экран | 12, 23 | `tests/cli/test_report.py`: строка в консоли и `.md` при `knowledge_missing`; каждый пункт п. 23 в `.md` |
 | 2 | ✅ Оси в CLI | 16 | Колонка «Оси» с теми же числами, что экран |
 | 3 | ✅ Тир и «подделка?» в GUI; флаги и жалобы в сводке | 15, 17 | `tests/gui/test_report.py` (+скриншот) |
-| 4 | Нет вещества / нет новой покупки в GUI; «На OLX тоже ничего» только при OLX | 24, 25 | `tests/gui/test_search.py`, `tests/cli/test_report.py` (+скриншот) |
+| 4 | ✅ Нет вещества / нет новой покупки в GUI; «На OLX тоже ничего» только при OLX | 24, 25 | `tests/gui/test_search.py`, `tests/cli/test_report.py` (+скриншот) |
 | 5 | Ozon без браузера в обоих входах; ошибка сети в GUI | 10, 26, 27 | `tests/cli/test_main.py`, `tests/gui/test_settings.py`, `tests/gui/test_search.py` |
 | 6 | Запрос в отчёте; `reports`, `reports show`, `reports repeat`; «Повторить» на экране из отчёта | 28, 29 | `tests/cli/test_reports.py`, `tests/gui/test_saved.py`, `tests/cli/test_report.py` |
 | 7 | `history` без запроса, `refresh` и `history` по-русски, «Снижение» на экране | 30, 31 | `tests/cli/`, `tests/gui/test_history.py` (+скриншот) |

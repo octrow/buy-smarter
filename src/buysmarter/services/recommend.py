@@ -209,9 +209,16 @@ class NoNewPick(ValueError):
     ``ValueError``, so a caller that does not know it still reports "nothing to recommend".
     """
 
-    def __init__(self, rejected_reasons: dict[str, int], used_listings: list[UsedListing]) -> None:
+    def __init__(
+        self,
+        rejected_reasons: dict[str, int],
+        used_listings: list[UsedListing],
+        *,
+        olx_searched: bool = True,
+    ) -> None:
         self.rejected_reasons = rejected_reasons
         self.used_listings = used_listings
+        self.olx_searched = olx_searched  # "На OLX тоже ничего" only when OLX was asked
         super().__init__("no candidates passed hard filters")
 
 
@@ -475,7 +482,8 @@ async def recommend(
         recommendation, hidden = _hide_suspects(run, recommendation)
     except NoCandidatesPassed as exc:
         # rank() is the only raiser, so the pool and the OLX ads are already collected
-        raise NoNewPick(exc.rejected_reasons, await _used_listings(run, pool, None)) from exc
+        used = await _used_listings(run, pool, None)
+        raise NoNewPick(exc.rejected_reasons, used, olx_searched="olx" in active) from exc
     finally:
         for src in active.values():
             await aclose(src)

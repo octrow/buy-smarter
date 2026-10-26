@@ -5,6 +5,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Unreleased]
 
 ### Added
+- When nothing new can be recommended, the app shows the CLI's table under the message: the nearest products
+  without the required substance, or the OLX ads within the budget; a double click opens the offer (CLI ↔ GUI
+  parity #24, #25).
 - The app's alternatives table has a «Бренд» column with the tier or «подделка под X?», and its review
   summary («Отзывы кратко», as in the CLI) lists red flags and frequent complaints on their own lines, in the
   CLI's order (CLI ↔ GUI parity #15, #17).
@@ -41,6 +44,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   MCP, the HTTP API and the worker still learn after the report.
 
 ### Fixed
+- «На OLX тоже ничего» is no longer said when OLX was not searched.
 - Switching «Состав» on by hand for a spec-driven category no longer makes it composition-driven with an
   empty substance book: it says «включено вами, но нет данных», in the report, on «Категории» and in
   `category show` alike.

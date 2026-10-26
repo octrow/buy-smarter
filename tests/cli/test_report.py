@@ -323,7 +323,7 @@ def test_no_substance_markdown_lists_alternatives_with_rating() -> None:
     assert "ретинол" in md
     assert "| Товар | Цена | Рейтинг |" in md
     assert "| 4.5 |" in md
-    assert "| Крем Б |" in md and md.rstrip().endswith("| - |")
+    assert "| Крем Б |" in md and md.rstrip().endswith("| — |")  # no rating, as on screen
 
 
 def test_no_substance_markdown_without_alternatives_has_no_table() -> None:

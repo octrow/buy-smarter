@@ -304,7 +304,7 @@ over budget → excluded brand → unknown brand when trusted-only → not avail
 Required features are checked only when the candidate has specs. Ozon cards past the top 4, official-store candidates and apparel variant cards skip the check (they get an "unverified" con). Benchmark (step 15) fills specs for phones, which turns the check on.
 "Proven absent" is decided per candidate: checked, the substance not detected, and a composition text present. Unchecked or no composition text is a data gap, not a rejection.
 Ingredient axis: substance present 25 (0.7 of it with an unknown or other concentration); unchecked 0.3 × 25 = 7.5 for every candidate, with the con "состав не проверен: <substance>?"; checked and absent 0.
-Nothing passes → `NoNewPick` (a `ValueError`: "no candidates passed hard filters") with the rejection reasons and the OLX ads (step 21). CLI: exit 0 with ads, else 1. Worker: `no_match` with `rejected_reasons` and `used_listings`. The same path runs when `original_only` hid every candidate (step 19).
+Nothing passes → `NoNewPick` (a `ValueError`: "no candidates passed hard filters") with the rejection reasons, the OLX ads (step 21) and whether OLX was searched ("На OLX тоже ничего" only then, `cli/report.no_new_pick_message`). CLI: exit 0 with ads, else 1; the app shows the same OLX table under the message, as for `NoSubstanceMatch` the nearest products. Worker: `no_match` with `rejected_reasons` and `used_listings`. The same path runs when `original_only` hid every candidate (step 19).
 
 **Market context**: price reference and review maximums are computed from the passed pool, so price is judged relative to the pool.
 

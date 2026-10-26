@@ -6,6 +6,8 @@ from rich.panel import Panel
 from rich.table import Table
 
 from buysmarter.cli.report import (
+    NO_SUBSTANCE_HEADERS,
+    NO_SUBSTANCE_TITLE,
     SUBSTANCE_HEADERS,
     SUBSTANCES_TITLE,
     SUMMARY_TITLE,
@@ -20,6 +22,7 @@ from buysmarter.cli.report import (
     found_line,
     hidden_note,
     knowledge_line,
+    no_substance_cells,
     rejected_line,
     report_notes,
     substance_cells,
@@ -244,17 +247,12 @@ def render_no_substance(exc: NoSubstanceMatch) -> None:
     console.print(f"[yellow]{escape(exc.message())}[/yellow]")
     if not exc.alternatives:
         return
-    table = Table(
-        title="Ближайшие альтернативы (без требуемого вещества)",
-        show_header=True,
-        header_style="bold",
-    )
-    table.add_column("Товар")
-    table.add_column("Цена", justify="right")
-    table.add_column("Рейтинг", justify="right")
+    table = Table(*NO_SUBSTANCE_HEADERS, title=NO_SUBSTANCE_TITLE, header_style="bold")
+    for column in table.columns[1:]:  # price, rating
+        column.justify = "right"
     for cand in exc.alternatives:
-        rating = f"{cand.rating:.1f}" if cand.rating is not None else "-"
-        table.add_row(_product_cell(cand.title, cand.url), f"{kzt(cand.price)}", rating)
+        title, price, rating = no_substance_cells(cand)
+        table.add_row(_product_cell(title, cand.url), price, rating)
     console.print(table)
 
 

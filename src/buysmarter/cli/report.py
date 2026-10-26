@@ -81,10 +81,27 @@ def rejected_line(result: RecommendResult) -> str:
     return line
 
 
-def no_new_pick_text(reasons: dict[str, int], has_used: bool) -> str:
+def no_new_pick_text(reasons: dict[str, int], has_used: bool, *, olx: bool = True) -> str:
     """What to say when no new product passed: why, and whether OLX has something."""
     head = f"Новых предложений нет: {format_rejected_reasons(reasons)}."
-    return f"{head} На OLX нашлось:" if has_used else f"{head} На OLX тоже ничего."
+    if has_used:
+        return f"{head} На OLX нашлось:"
+    return f"{head} На OLX тоже ничего." if olx else head
+
+
+def no_new_pick_message(exc: NoNewPick) -> str:
+    """``no_new_pick_text`` for the core's ``NoNewPick``: OLX is named only if it was searched."""
+    return no_new_pick_text(exc.rejected_reasons, bool(exc.used_listings), olx=exc.olx_searched)
+
+
+NO_SUBSTANCE_TITLE = "Ближайшие альтернативы (без требуемого вещества)"
+NO_SUBSTANCE_HEADERS = ["Товар", "Цена", "Рейтинг"]
+
+
+def no_substance_cells(cand: Candidate) -> list[str]:
+    """A product without the required substance, as the CLI's and the app's table show it."""
+    rating = f"{cand.rating:.1f}" if cand.rating is not None else "—"
+    return [clean_title(cand.title), kzt(cand.price), rating]
 
 
 _fmt_price = kzt  # the GUI's "35 000 ₸" (no-break space), never "35,000"
@@ -491,19 +508,16 @@ def render_no_substance_markdown(exc: NoSubstanceMatch) -> str:
         exc.message(),
     ]
     if exc.alternatives:
-        lines += ["", "| Товар | Цена | Рейтинг |", "| --- | ---: | ---: |"]
+        lines += ["", "| " + " | ".join(NO_SUBSTANCE_HEADERS) + " |", "| --- | ---: | ---: |"]
         for cand in exc.alternatives:
-            rating = f"{cand.rating:.1f}" if cand.rating is not None else "-"
-            lines.append(
-                f"| {_md_link(clean_title(cand.title), cand.url)} | {_fmt_price(cand.price)} "
-                f"| {rating} |"
-            )
+            title, *rest = no_substance_cells(cand)
+            lines.append("| " + " | ".join([_md_link(title, cand.url), *rest]) + " |")
     return "\n".join(lines) + "\n"
 
 
 def render_no_new_pick_markdown(exc: NoNewPick) -> str:
     """Markdown for "no new product passed": the reasons and the OLX ads within the budget."""
-    text = no_new_pick_text(exc.rejected_reasons, bool(exc.used_listings))
+    text = no_new_pick_message(exc)
     lines = [REPORT_TITLE, "", text, *_used_table(exc.used_listings, set())]
     return "\n".join(lines) + "\n"
 
