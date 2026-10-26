@@ -209,5 +209,7 @@ async def _execute(
     except Exception:
         logger.exception("job %s: pipeline failed", job.id)
         return JobStatus.FAILED, None, "internal", None
-    outcome = RecommendOutcome.from_result(result, render_markdown(result, req.top))
+    outcome = RecommendOutcome.from_result(
+        result, render_markdown(result, req.top, use_llm=req.use_llm)
+    )
     return JobStatus.DONE, outcome.model_dump(mode="json"), None, result

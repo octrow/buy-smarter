@@ -181,7 +181,9 @@ async def recommend(
         return render_no_new_pick_markdown(exc)
     except ValueError as exc:
         return f"No recommendation: {exc}"
-    return render_markdown(result, max(top, 1)) + await _start_learning(result, parse_with_llm)
+    return render_markdown(result, max(top, 1), use_llm=parse_with_llm) + await _start_learning(
+        result, parse_with_llm
+    )
 
 
 def _clarification_markdown(clarification: Clarification) -> str:

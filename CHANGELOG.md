@@ -5,6 +5,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Unreleased]
 
 ### Added
+- The CLI and the saved report explain a category with no brand knowledge in the app's banner words, and the
+  saved report says why it has no review summary and what each OLX ad was compared with, as the app's report
+  screen (CLI ↔ GUI parity #12, #23).
 - The desktop app's «Категории» screen (Сервис, first): the learned categories with their books, parent
   and last update; the picked one's brand tiers, counts, substances and «Как оцениваем эту категорию»
   switches; learning a new or learned category with or without web search, or from a notes file, as

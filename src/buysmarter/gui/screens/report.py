@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 from buysmarter.cli.report import (
     USED_HEADERS,
     assessed_note,
+    brands_missing_note,
     budget_text,
     hidden_note,
     ingredients_unchecked_note,
@@ -368,13 +369,7 @@ class ReportScreen(QScrollArea):
         banner.setObjectName("banner")
         column = QVBoxLayout(banner)
         column.setContentsMargins(SPACE["lg"], SPACE["md"], SPACE["lg"], SPACE["md"])
-        column.addWidget(
-            _label(
-                f"Для категории «{category}» нет данных о брендах, поэтому все бренды оценены "
-                "как неизвестные и ось «Бренд» никого не выделяет. Это исправит изучение "
-                "категории (AI с поиском в интернете, 1–3 минуты); после него повторите поиск."
-            )
-        )
+        column.addWidget(_label(brands_missing_note(result) or ""))  # the console's line too
         self.learn_button = QPushButton("Изучить категорию")
         set_state(self.learn_button, "primary", "true")
         self.learn_status = _label("")

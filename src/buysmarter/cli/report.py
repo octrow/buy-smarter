@@ -178,6 +178,33 @@ def summary_note(result: RecommendResult, *, use_llm: bool, asked: bool = True) 
     return f"Сводка отзывов недоступна: {why}." if why else "Сводка отзывов недоступна."
 
 
+def brands_missing_note(result: RecommendResult) -> str | None:
+    """Why every brand ranks as unknown: the category has no brand knowledge (the app's banner)."""
+    if not result.knowledge_missing:
+        return None
+    category = result.constraints.product_type or result.constraints.search_phrase
+    return (
+        f"Для категории «{category}» нет данных о брендах, поэтому все бренды оценены как "
+        "неизвестные и ось «Бренд» никого не выделяет. Это исправит изучение категории (AI с "
+        "поиском в интернете, 1–3 минуты); после него повторите поиск."
+    )
+
+
+def report_notes(result: RecommendResult, *, use_llm: bool, summary: bool) -> list[str]:
+    """The notes under the request, in the console, the markdown report and the app alike."""
+    notes = (
+        *request_notes(result),
+        assessed_note(result),
+        skipped_llm_note(result),
+        unavailable_sources_note(result),
+        *failed_source_notes(result),
+        summary_note(result, use_llm=use_llm, asked=summary),
+        ingredients_unchecked_note(result),
+        brands_missing_note(result),
+    )
+    return [note for note in notes if note]
+
+
 def assessed_note(result: RecommendResult) -> str | None:
     """ "Как оценивали: состав — обучение." for every render, or None when nothing took part."""
     return assessed_line(assessed_entries(result.capabilities))
@@ -213,7 +240,7 @@ def budget_text(c: QueryConstraints) -> str:
     return _fmt_price(c.budget_max)
 
 
-def _constraints_md(result: RecommendResult) -> list[str]:
+def _constraints_md(result: RecommendResult, *, use_llm: bool, summary: bool) -> list[str]:
     c = result.constraints
     city_note = " (по умолчанию)" if result.city_defaulted else ""
     lines = [
@@ -227,17 +254,8 @@ def _constraints_md(result: RecommendResult) -> list[str]:
         lines.append(f"- **Нужно:** {', '.join(c.required_features)}")
     if c.excluded_brands:
         lines.append(f"- **Без брендов:** {', '.join(c.excluded_brands)}")
-    notes = (
-        *request_notes(result),
-        assessed_note(result),
-        skipped_llm_note(result),
-        unavailable_sources_note(result),
-        *failed_source_notes(result),
-        ingredients_unchecked_note(result),
-    )
-    for note in notes:
-        if note:
-            lines += ["", f"_{note}_"]
+    for note in report_notes(result, use_llm=use_llm, summary=summary):
+        lines += ["", f"_{note}_"]
     return lines
 
 
@@ -368,14 +386,8 @@ def used_cells(listing: UsedListing, brands: set[str]) -> list[str]:
 
 
 def _used_row(listing: UsedListing, brands: set[str]) -> str:
-    title = listing.title
-    if listing.canonical:
-        title = f"{title} → {listing.canonical}"
-    saving_cell = "—" if listing.standalone else f"-{_fmt_price(listing.saving)}"
-    return (
-        f"| {_md_link(title, listing.url)} | {_fmt_price(listing.price)} | "
-        f"{saving_cell} | {listing.city or '-'} | {used_con(listing, brands)} |"
-    )
+    title, *rest = used_cells(listing, brands)
+    return "| " + " | ".join([_md_link(title, listing.url), *rest]) + " |"
 
 
 def _used_md(result: RecommendResult) -> list[str]:
@@ -390,19 +402,25 @@ def _used_table(used: list[UsedListing], brands: set[str]) -> list[str]:
         "",
         f"## {USED_SECTION}",
         "",
-        "| Объявление | Цена | Дешевле нового на | Город | Минус |",
-        "| --- | ---: | ---: | --- | --- |",
+        "| " + " | ".join(USED_HEADERS) + " |",
+        "| --- | ---: | ---: | --- | --- | --- |",
     ]
     lines += [_used_row(listing, brands) for listing in used]
     return lines
 
 
-def render_markdown(result: RecommendResult, top: int = 8) -> str:
-    """Render the whole recommendation as a markdown report string."""
+def render_markdown(
+    result: RecommendResult, top: int = 8, *, use_llm: bool = True, summary: bool = True
+) -> str:
+    """Render the whole recommendation as a markdown report string.
+
+    ``use_llm`` and ``summary`` are the run's AI and «Сводка отзывов» choices, so the file says
+    why a summary is missing as the screen does (``summary_note``).
+    """
     parts = [REPORT_TITLE, ""]
     if result.restricted_note:
         parts += [f"> ⚠ {result.restricted_note}", ""]
-    parts += _constraints_md(result)
+    parts += _constraints_md(result, use_llm=use_llm, summary=summary)
     if used_first(result):
         parts += _used_md(result)
     parts += _best_md(result)
@@ -476,11 +494,20 @@ def saved_reports() -> list[Path]:
     return sorted(_REPORTS_DIR.glob("*.md"), key=lambda p: p.name, reverse=True)
 
 
-def save_report(result: RecommendResult, query: str, top: int, path: str | None) -> Path:
+def save_report(
+    result: RecommendResult,
+    query: str,
+    top: int,
+    path: str | None,
+    *,
+    use_llm: bool = True,
+    summary: bool = True,
+) -> Path:
     """Write the markdown report; return the path written. Creates parent dirs."""
     target = Path(path) if path else default_report_path(query)
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(render_markdown(result, top), encoding="utf-8")
+    markdown = render_markdown(result, top, use_llm=use_llm, summary=summary)
+    target.write_text(markdown, encoding="utf-8")
     return target
 
 

@@ -348,8 +348,9 @@ def test_ozon_skipped_for_lack_of_a_browser_is_noted_with_what_to_do() -> None:
     result = _result().model_copy(update={"unavailable_sources": ["ozon"]})
     md = render_markdown(result, top=8)
     section = md.split("## Запрос\n", 1)[1].split("\n## ", 1)[0]
-    assert section.rstrip().endswith(
+    assert (
         "_Пропущено (Ozon): нет браузера. Что установить, подскажет `buysmarter doctor`._"
+        in section
     )
 
 
@@ -623,3 +624,33 @@ def test_knowledge_rows_give_the_tiers_and_substances_in_the_console_order() -> 
         ("азелаиновая кислота", [], []),
     ]
     assert knowledge_rows(brand, model).substances == []
+
+
+def test_no_brand_knowledge_is_explained_in_the_markdown_and_the_console_as_the_app() -> None:
+    from buysmarter.cli import console as terminal
+    from buysmarter.cli.report import brands_missing_note
+
+    result = _result().model_copy(update={"knowledge_missing": True})
+    note = brands_missing_note(result)
+
+    assert note is not None and "«ирригатор»" in note and "нет данных о брендах" in note
+    assert note in " ".join(render_markdown(result, top=3).split())
+    with terminal.console.capture() as capture:
+        terminal.render(result, top=3)
+    assert note in " ".join(capture.get().split())
+    assert brands_missing_note(_result()) is None
+
+
+def test_the_markdown_says_why_there_is_no_review_summary_as_the_app() -> None:
+    md = render_markdown(_result(), top=3, use_llm=False)
+
+    assert "AI выключен" in md
+    assert "Сводка отзывов недоступна" not in render_markdown(_result(), top=3, summary=False)
+
+
+def test_the_markdown_olx_table_says_what_each_ad_was_compared_with_as_the_app() -> None:
+    md = render_markdown(_result(), top=3)
+
+    assert "| Объявление | Цена | Дешевле нового на | Сравнили с | Город | Минус |" in md
+    assert "Xiaomi Water Flosser 2 MEO705" in md
+    assert "-18" not in md  # "Дешевле нового на" already says less

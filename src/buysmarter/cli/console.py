@@ -12,21 +12,15 @@ from buysmarter.cli.report import (
     TIERS_TITLE,
     USED_HEADERS,
     KnowledgeRows,
-    assessed_note,
     budget_text,
-    failed_source_notes,
     found_counts,
     found_line,
     hidden_note,
-    ingredients_unchecked_note,
     knowledge_line,
     rejected_line,
-    request_notes,
-    skipped_llm_note,
+    report_notes,
     substance_cells,
-    summary_note,
     tier_cells,
-    unavailable_sources_note,
     used_cells,
     used_first,
 )
@@ -221,18 +215,8 @@ def render(
         console.print(f"[bold yellow]⚠ {escape(result.restricted_note)}[/bold yellow]")
     console.print(found_line(found_counts(result)))
     _render_constraints(result.constraints, result.city_defaulted)
-    notes = (
-        *request_notes(result),
-        assessed_note(result),
-        skipped_llm_note(result),
-        unavailable_sources_note(result),
-        *failed_source_notes(result),
-        summary_note(result, use_llm=use_llm, asked=summary),
-        ingredients_unchecked_note(result),
-    )
-    for note in notes:
-        if note:
-            console.print(f"[yellow]{escape(note)}[/yellow]")
+    for note in report_notes(result, use_llm=use_llm, summary=summary):
+        console.print(f"[yellow]{escape(note)}[/yellow]")
     used = (result.used_listings, result.recommendation.ranked)
     if used_first(result):
         render_used(*used)

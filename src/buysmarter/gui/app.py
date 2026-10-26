@@ -184,13 +184,20 @@ class MainWindow(QMainWindow):
 
     def _show_report(self, result: RecommendResult, run: SearchRun) -> None:
         self.report.show_result(result, run)
-        self._save_report(result, run.query)
+        self._save_report(result, run)
         self._show_screen(self.report)
 
-    def _save_report(self, result: RecommendResult, query: str) -> None:
+    def _save_report(self, result: RecommendResult, run: SearchRun) -> None:
         """The same markdown report the CLI's ``search`` saves, in the same folder."""
         try:
-            path = save_report(result, query, DEFAULT_TOP, None)
+            path = save_report(
+                result,
+                run.query,
+                DEFAULT_TOP,
+                None,
+                use_llm=run.use_llm,
+                summary=run.review_summary,
+            )
         except OSError as exc:  # a full disk must not lose the report on screen
             logger.warning("Report not saved: %r", exc)
             return
