@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter.cli.report import (
+    COMPARED_HEADER,
     NO_SUBSTANCE_HEADERS,
     USED_HEADERS,
     found_counts,
@@ -657,8 +658,9 @@ class SearchScreen(QWidget):
         for r, cells in enumerate(result.rows):
             for c, text in enumerate(cells):
                 table.setItem(r, c, QTableWidgetItem(text))
-        if result.headers:
-            stretch_column(table, 0)
+        for column, header in enumerate(result.headers):
+            if column == 0 or header == COMPARED_HEADER:  # text columns share the width, wrap
+                stretch_column(table, column)
         table.setVisible(bool(result.rows))
 
     def _open_outcome_row(self, row: int, _column: int) -> None:

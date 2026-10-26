@@ -442,7 +442,8 @@ def _top_md(result: RecommendResult, top: int) -> list[str]:
     return [*lines, "", f"_{axes_legend(ranked)}_"]
 
 
-USED_HEADERS = ["Объявление", "Цена", "Дешевле нового на", "Сравнили с", "Город", "Минус"]
+COMPARED_HEADER = "Сравнили с"
+USED_HEADERS = ["Объявление", "Цена", "Дешевле нового на", COMPARED_HEADER, "Город", "Минус"]
 
 
 def used_cells(listing: UsedListing, brands: set[str]) -> list[str]:

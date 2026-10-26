@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter.cli.report import (
+    COMPARED_HEADER,
     SUMMARY_TITLE,
     USED_HEADERS,
     assessed_note,
@@ -497,6 +498,8 @@ class ReportScreen(QScrollArea):
         used = result.used_listings
         brands = checked_brands(s.candidate for s in result.recommendation.ranked)
         table = text_table(USED_HEADERS, [used_cells(u, brands) for u in used], stretch=0)
+        # A long model name must not squeeze the ads: both text columns share the width and wrap.
+        stretch_column(table, USED_HEADERS.index(COMPARED_HEADER))
         table.cellDoubleClicked.connect(lambda row, _col: open_offer(used[row].url))
         self.used = table
         return _group(USED_SECTION, table, _label(_USED_HINT, role="caption"))

@@ -50,6 +50,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   MCP, the HTTP API and the worker still learn after the report.
 
 ### Fixed
+- The OLX table in the app's report no longer squeezes the ads into a narrow strip when the compared model's
+  name is long: the ad and «Сравнили с» share the width and wrap.
 - A failed marketplace request is said in the app as in the CLI («Kaspi не ответил: ошибка HTTP 503. Попробуйте
   позже.») instead of «Что-то пошло не так»; the CLI no longer prints the exception's internals, and says «Не
   нашлось подходящих предложений» in Russian, as the app (CLI ↔ GUI parity #26).
