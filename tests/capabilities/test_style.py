@@ -8,6 +8,7 @@ from buysmarter.capabilities import REGISTRY
 from buysmarter.capabilities.base import CapabilityContext
 from buysmarter.capabilities.flow import activate
 from buysmarter.capabilities.style import NO_PHOTO, STYLE
+from buysmarter.i18n import AXIS_SHORT, axis_label
 from buysmarter.knowledge.profile import CapabilitySetting, ResolvedProfile
 from buysmarter.ranking.models import Candidate, QueryConstraints
 from buysmarter.style import profile
@@ -169,3 +170,8 @@ async def test_a_search_reads_the_profile_searches_the_brands_and_scores_style(m
     titles = [s.candidate.title for s in result.recommendation.ranked]
     assert "Кроссовки Salomon XT-6" in titles
     assert all(a.name != STYLE for s in result.recommendation.ranked for a in s.axes)  # brands only
+
+
+def test_the_report_names_the_axis_in_russian_with_its_own_letter() -> None:
+    assert axis_label(STYLE) == "Стиль"
+    assert AXIS_SHORT[STYLE] not in {v for k, v in AXIS_SHORT.items() if k != STYLE}
