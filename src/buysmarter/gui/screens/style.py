@@ -305,20 +305,26 @@ class StyleScreen(QWidget):
         self.strength.blockSignals(True)  # showing the stored value is not a change
         self.strength.setValue(current.strength)
         self.strength.blockSignals(False)
+        self._fill_phrases(current)
+        self._fill_photos(current.photos)
+        self.loaded = True
+
+    def _fill_phrases(self, current: profile.Profile) -> None:
         self.phrases.clear()
         for title, phrases in ((LIKES, current.likes), (NEVERS, current.nevers)):
             for phrase in phrases:
                 item = QListWidgetItem(f"{title}: {phrase_line(phrase)}")
                 item.setData(_KEY, phrase.text)
                 self.phrases.addItem(item)
+
+    def _fill_photos(self, photos: list[profile.Photo]) -> None:
         self.photos.clear()
-        for photo in current.photos:
+        for photo in photos:
             item = QListWidgetItem(_thumbnail(photo.path), NEVERS if photo.disliked else "")
             item.setData(_KEY, photo.name)
             item.setToolTip(photo.label)
             self.photos.addItem(item)
-        self.photo_summary.setText(f"{PHOTOS}: {photo_count(current.photos)}. {_PRIVATE}")
-        self.loaded = True
+        self.photo_summary.setText(f"{PHOTOS}: {photo_count(photos)}. {_PRIVATE}")
 
     def _save_brands(self) -> None:
         self.brands.setModified(False)
