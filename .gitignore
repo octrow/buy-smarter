@@ -33,3 +33,6 @@ docs/review/
 
 # Session handoff notes (local only)
 .claude/handoff-*.md
+
+# Deep-research originals (text kept as .md)
+docs/research/*.docx
