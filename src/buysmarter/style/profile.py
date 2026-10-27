@@ -27,7 +27,11 @@ from buysmarter.memory.prefs import as_list
 
 STYLE = "style"  # the preference key
 LIKE, DISLIKE = "like", "dislike"  # photo vector kinds
-_BRANDS, _LIKES, _NEVERS = "brands", "like", "never"
+TEXT = "text"  # phrase vectors, keyed by the English description
+# What a card is compared with (``Candidate.style_match`` keys).
+LIKE_PHOTO, LIKE_TEXT, NEVER_PHOTO, NEVER_TEXT = LIKE, "like_text", DISLIKE, "never_text"
+STRENGTH_DEFAULT, STRENGTH_MAX = 20, 50  # the «Стиль» axis weight before normalizing (plan В5)
+_BRANDS, _LIKES, _NEVERS, _STRENGTH = "brands", "like", "never", "strength"
 _MAX_SIDE = 1024
 PHOTO_SUFFIXES = frozenset({".jpg", ".jpeg", ".png", ".webp"})  # what a folder adds
 TRANSLATE_MODEL = "free-stack"  # a short mechanical rewrite: the cheap combo
@@ -62,10 +66,26 @@ class Profile:
     likes: list[Phrase] = field(default_factory=list)
     nevers: list[Phrase] = field(default_factory=list)
     photos: list[Photo] = field(default_factory=list)
+    strength: int = STRENGTH_DEFAULT  # 0: the module is off
 
     @property
     def empty(self) -> bool:
         return not (self.brands or self.likes or self.nevers or self.photos)
+
+    @property
+    def samples(self) -> bool:
+        """Something to compare a card's photo with (photos or phrases), not just brands."""
+        return bool(self.likes or self.nevers or self.photos)
+
+
+# ponytail: one process-wide copy of the local user's profile, read by the capability's
+# synchronous hooks; per-request profiles if the server ever gets per-user style.
+_current = Profile()
+
+
+def current() -> Profile:
+    """The profile as last loaded (``load``); empty before the first load."""
+    return _current
 
 
 @dataclass(frozen=True)
@@ -81,19 +101,35 @@ def samples_dir() -> Path:
 
 
 async def load() -> Profile:
+    """Read the profile and keep it as ``current()``."""
+    global _current
     stored = await _stored()
     async with async_session() as session:
         rows = await repo.list_style_vectors(session, (LIKE, DISLIKE))
-    return Profile(
+    _current = Profile(
         brands=as_list(stored.get(_BRANDS)),
         likes=_phrases(stored.get(_LIKES)),
         nevers=_phrases(stored.get(_NEVERS)),
         photos=[Photo(key, label or key, kind == DISLIKE) for kind, key, label in rows],
+        strength=as_strength(stored.get(_STRENGTH, STRENGTH_DEFAULT)),
     )
+    return _current
+
+
+def as_strength(value: Any) -> int:
+    """A stored strength, clamped to 0..``STRENGTH_MAX``; the default when unreadable."""
+    try:
+        return min(max(int(value), 0), STRENGTH_MAX)
+    except (TypeError, ValueError):
+        return STRENGTH_DEFAULT
 
 
 async def set_brands(brands: list[str]) -> None:
     await _save({**await _stored(), _BRANDS: brands})
+
+
+async def set_strength(strength: int) -> None:
+    await _save({**await _stored(), _STRENGTH: as_strength(strength)})
 
 
 async def add_phrase(text: str, never: bool) -> Phrase:

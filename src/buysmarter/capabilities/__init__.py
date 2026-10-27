@@ -13,6 +13,7 @@ from buysmarter.capabilities.fit import Fit
 from buysmarter.capabilities.official_stores import OfficialStores
 from buysmarter.capabilities.original_only import OriginalOnly
 from buysmarter.capabilities.size import Size
+from buysmarter.capabilities.style import Style
 from buysmarter.capabilities.used_market import UsedMarket
 from buysmarter.capabilities.used_only import UsedOnly
 
@@ -30,5 +31,6 @@ REGISTRY: dict[str, Capability] = {
         OfficialStores(),
         Benchmark(),
         Composition(),
+        Style(),
     )
 }

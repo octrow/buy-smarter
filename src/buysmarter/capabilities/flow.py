@@ -144,6 +144,13 @@ def _scoring(cap: Capability, ctx: CapabilityContext) -> Callable[[list[Candidat
     return build
 
 
+async def prime(registry: dict[str, Capability]) -> None:
+    """Every capability's ``prime`` hook, before anything is switched on."""
+    for cap in registry.values():
+        if overrides(cap, "prime"):
+            await cap.prime()
+
+
 def read_query(
     registry: dict[str, Capability], constraints: QueryConstraints, *, query: str, use_llm: bool
 ) -> QueryConstraints:

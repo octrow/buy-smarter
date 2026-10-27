@@ -177,7 +177,8 @@ buysmarter prefs clear budget
 # Clothing taste («Стиль» in the app; needs the `style` extra for photos)
 buysmarter style
 buysmarter style add ~/style/like                # photos or folders; --no for what you never want
-buysmarter style brands "Salomon, New Balance"
+buysmarter style brands "Salomon, New Balance"   # searched on Kaspi for clothing
+buysmarter style strength 30                     # the «Стиль» axis weight; 0 = off, 20 by default
 buysmarter style never "белая глянцевая пластиковая подошва"   # translated by the LLM once
 buysmarter style remove 3f2a9c1d0e4b5a67.jpg
 

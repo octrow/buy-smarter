@@ -171,3 +171,13 @@ def test_the_model_button_downloads_and_the_status_says_so(qtbot, runner, monkey
 
     qtbot.waitUntil(lambda: screen.model_status.text() == style_cli.MODEL_READY, timeout=WAIT_MS)
     assert not screen.download_button.isVisibleTo(screen)
+
+
+def test_strength_is_saved_as_the_cli_stores_it(qtbot, runner):
+    screen = _screen(qtbot, runner)
+    assert screen.strength.value() == profile.STRENGTH_DEFAULT
+    assert screen.strength.maximum() == profile.STRENGTH_MAX
+
+    screen.strength.setValue(0)
+
+    qtbot.waitUntil(lambda: _profile().strength == 0, timeout=WAIT_MS)

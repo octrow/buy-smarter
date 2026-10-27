@@ -17,7 +17,7 @@ def combine(base: dict[str, float], capabilities: Iterable[Capability]) -> dict[
     weights = dict(base)
     for capability in capabilities:
         if (axis_name := capability.axis_name) is not None:
-            weights[axis_name] = weights.get(axis_name, 0.0) + capability.axis_weight
+            weights[axis_name] = weights.get(axis_name, 0.0) + capability.current_axis_weight()
         for axis, shift in capability.weight_shifts.items():
             weights[axis] = weights.get(axis, 0.0) + shift
     clamped = {axis: max(weight, 0.0) for axis, weight in weights.items()}

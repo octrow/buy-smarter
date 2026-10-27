@@ -30,7 +30,13 @@ from buysmarter.capabilities.classify import ensure_profile
 from buysmarter.capabilities.composition import INGREDIENTS_UNCHECKED
 from buysmarter.capabilities.composition import NoSubstanceMatch as NoSubstanceMatch  # re-export
 from buysmarter.capabilities.exclude import strip_exclusions
-from buysmarter.capabilities.flow import ActiveCapabilities, activate, pick_sources, read_query
+from buysmarter.capabilities.flow import (
+    ActiveCapabilities,
+    activate,
+    pick_sources,
+    prime,
+    read_query,
+)
 from buysmarter.capabilities.provenance import CapabilityState, capability_states
 from buysmarter.config import get_settings
 from buysmarter.db.base import async_session
@@ -460,6 +466,7 @@ async def recommend(
         query, understood, city, budget, trusted_only, use_llm
     )
     profile = await _resolve_knowledge(constraints, use_llm)
+    await prime(REGISTRY)
     capabilities = activate(REGISTRY, profile, constraints, query=query, use_llm=use_llm)
     ask_capability(capabilities.question(), constraints, ask.round, ask.no_clarify)
     if learn_first:

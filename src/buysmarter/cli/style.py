@@ -26,6 +26,7 @@ BRANDS = "Бренды"
 LIKES = "Нравится"
 NEVERS = "Нет"
 PHOTOS = "Фото"
+STRENGTH = "Сила стиля"
 SAVED = "Сохранено. Профиль стиля применится к следующему поиску одежды."
 NO_EXTRA = (
     "Подбор по фото выключен: в этой установке нет модуля стиля. "
@@ -50,6 +51,12 @@ style_app = typer.Typer(
 )
 console = Console()
 logger = logging.getLogger(__name__)
+
+
+def strength_line(strength: int) -> str:
+    if strength <= 0:
+        return "0 — выключено"
+    return f"{strength} (по умолчанию {profile.STRENGTH_DEFAULT}; 0 — выключено)"
 
 
 def photo_count(photos: list[profile.Photo]) -> str:
@@ -84,6 +91,7 @@ def show(ctx: typer.Context) -> None:
     table.add_row(BRANDS, escape(", ".join(current.brands) or "—"))
     table.add_row(LIKES, escape("\n".join(map(phrase_line, current.likes)) or "—"))
     table.add_row(NEVERS, escape("\n".join(map(phrase_line, current.nevers)) or "—"))
+    table.add_row(STRENGTH, strength_line(current.strength))
     table.add_row(MODEL, escape(model_line()))
     table.add_row(PHOTOS, f"{photo_count(current.photos)} [dim]({profile.samples_dir()})[/dim]")
     console.print(table)
@@ -100,6 +108,20 @@ def brands(
 ) -> None:
     """Set the brands searched for clothing (in this order)."""
     _run(profile.set_brands(as_list(names)))
+    _say(SAVED, "green")
+
+
+@style_app.command()
+def strength(
+    value: Annotated[
+        int,
+        typer.Argument(
+            min=0, max=profile.STRENGTH_MAX, help="0 switches style off; 20 is the default."
+        ),
+    ],
+) -> None:
+    """Set how much style weighs in a clothing search (the «Стиль» axis, before normalizing)."""
+    _run(profile.set_strength(value))
     _say(SAVED, "green")
 
 

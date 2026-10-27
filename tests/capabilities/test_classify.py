@@ -131,7 +131,7 @@ async def test_without_an_llm_jev_is_never_called(monkeypatch) -> None:
 
 
 def test_only_category_capabilities_with_a_question_are_asked() -> None:
-    assert set(capability_questions()) == {"cap_composition", "bench_kimovil"}
+    assert set(capability_questions()) == {"cap_composition", "cap_style", "bench_kimovil"}
 
 
 @pytest.mark.parametrize(("noul", "on"), [(0.58, False), (0.53, False), (0.76, True)])

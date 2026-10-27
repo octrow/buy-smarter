@@ -48,8 +48,8 @@ OLX в рейтинг не попадает, только в раздел б/у.
 ## Возможности
 
 Основной поток один для всех категорий. Различаются возможности (CONTEXT.md):
-необязательные хуки, которые ядро вызывает в фиксированных точках в порядке реестра (audience, size, fit, dims, exclude, original_only, used_only, used_market, official_stores, benchmark, composition).
-Хук, которого у возможности нет, не вызывается.
+необязательные хуки, которые ядро вызывает в фиксированных точках в порядке реестра (audience, size, fit, dims, exclude, original_only, used_only, used_market, official_stores, benchmark, composition, style).
+Хук, которого у возможности нет, не вызывается. До включения возможностей `prime` даёт возможности прочитать то, что нужно её синхронным хукам (style: профиль пользователя, `flow.prime`).
 `ranking/` не импортирует возможности: поток отдаёт `rank()` готовые веса, предикаты и функции (`RankHooks`).
 
 | Возможность | Уровень | Кто включает | Хуки (шаги) |
@@ -64,6 +64,7 @@ OLX в рейтинг не попадает, только в раздел б/у.
 | used_market | категорийная | включена, пока профиль не скажет «выключить»: нет записи = включена (`set_by: fallback`); выключают обучение или переключатель пользователя | `sources` (5: убирает OLX из площадок, когда выключена; запрос про б/у его оставляет). Сбор, фильтр и оба раздела б/у остаются в ядре |
 | official_stores | категорийная | включена, пока профиль не скажет «выключить» (нет записи = включена, `set_by: fallback`) | `candidates` (10: `official_candidates` с общим `reject_listing`, поэтому каждый запросный отказ доходит до предложений магазинов) |
 | benchmark | категорийная | профиль, только с провайдером из `BENCHMARK_PROVIDERS` (его параметр, иначе провайдер, чьё правило берёт тип товара); без записи в профиле — правило провайдеров (`set_by: fallback`) | `enrich` (15: характеристики Kimovil и `benchmark_index`) |
+| style | категорийная | профиль (Jev спрашивает про одежду, обувь и аксессуары; переключатель пользователя), и только при профиле стиля с силой выше 0 (`style/profile`); без него — «включено, но нет данных» | `prime` (6: читает профиль), `searches` (7: до 6 брендов), `enrich` (16a: фото карточек против образцов), `prepare` + `axis` (17: «Стиль», вес — сила пользователя, по умолчанию 20; 0, если в профиле только бренды) |
 | composition | категорийная | профиль: возможность composition с книгой ингредиентов (старые записи: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, может остановить поиск), `prepare` + `axis` + `notes` (17), `section` («Результат») |
 
 Веса: базовые плюс ось и сдвиги каждой включённой возможности, обрезка до нуля, нормировка к 100 (`capabilities/weights`).
@@ -74,9 +75,10 @@ Composition даёт ровно прежнюю таблицу (ингредие�
 - «мужские кроссовки 42 размер» → audience и size; пол — проверка объявлений везде, размер — непроверенный минус.
 - «смартфон iPhone 13» → benchmark по правилу провайдеров (Kimovil); «чехол на iPhone 15», «держатель телефона» → нет.
 - «чехол на iPhone 15» → fit: устройство входит в поисковую фразу; «шины 205/55 R16» → dims (спрашивает размер, если его нет в запросе); «шампунь без сульфатов» → exclude; «пылесос Dyson только оригинал» → original_only (подозрительные скрыты); «б/у ноутбук» → used_only (добавлен OLX, его раздел первым).
+- «мужские кроссовки» со включённым style и профилем стиля → поиски Kaspi «кроссовки <бренд>», ось «Стиль» по фото и фразам-образцам.
 - Категория без профиля → категорийных возможностей нет, все бренды «неизвестные».
 
-Модули: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/official_stores`, `capabilities/benchmark`, `capabilities/composition`
+Модули: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/official_stores`, `capabilities/benchmark`, `capabilities/composition`, `capabilities/style`
 
 ## Входы
 
@@ -93,7 +95,7 @@ Composition даёт ровно прежнюю таблицу (ингредие�
 
 Каждый сохранённый отчёт начинается с запроса (`<!-- query: … -->`, читателю не виден, `cli/report.report_parts`): его читают «Прошлые поиски» и «Повторить» в приложении и `buysmarter reports` (список, `show N`, `repeat N` — `recommend` с этим запросом, `cli/reports`); у отчёта, сохранённого раньше, запрос — из имени файла.
 
-Другие инструменты MCP (`search_products`, `compare`, `get_preferences`, `set_preference`) `recommend()` не вызывают. Сохранённые настройки поиска (город, бюджет, маркетплейсы, исключённые бренды) меняются на экране «Настройки поиска» и командой `buysmarter prefs` (показать, `set`, `clear`; те же ключи, проверки и сообщения, `cli/prefs`), читаются через `memory/prefs`. Изученные категории показывает и их переключатели «Как оцениваем эту категорию» задаёт и сбрасывает команда `buysmarter category` (`list`, `show`, `set`, `reset`; `cli/category`), без обучения: `show` берёт профиль без LLM, `set`/`reset` пишут `set_user_choice` в собственную запись категории. Экран приложения «Категории» показывает те же данные (`category_rows`, `category_detail`) и учит вручную через общий `CategoryLearning` (`learn_category` с поиском в интернете или без, `learn_from_notes`), не в счёт лимита в час; заметки, на которых ответ LLM оборвался, — совет разбить их, как у `learn` (`NOTES_TOO_LONG`). Профиль стиля одежды (бренды, фразы «нравится»/«нет», фото-образцы) правится на экране «Стиль» и командой `buysmarter style` (показ, `add` фото или папок, `--no` — дизлайки, `remove`, `brands`, `like-text`, `never`, `download` модели; `cli/style`, `style/profile`): бренды и фразы — в настройке `style`, фразу не на английском один вызов LLM переписывает в 2–3 английских описания (без LLM — отказ с советом), фото копируются без EXIF в папку данных (`$BUYSMARTER_STYLE_DIR` переопределяет), их векторы — в `style_vectors`; на ранжирование это пока не влияет.
+Другие инструменты MCP (`search_products`, `compare`, `get_preferences`, `set_preference`) `recommend()` не вызывают. Сохранённые настройки поиска (город, бюджет, маркетплейсы, исключённые бренды) меняются на экране «Настройки поиска» и командой `buysmarter prefs` (показать, `set`, `clear`; те же ключи, проверки и сообщения, `cli/prefs`), читаются через `memory/prefs`. Изученные категории показывает и их переключатели «Как оцениваем эту категорию» задаёт и сбрасывает команда `buysmarter category` (`list`, `show`, `set`, `reset`; `cli/category`), без обучения: `show` берёт профиль без LLM, `set`/`reset` пишут `set_user_choice` в собственную запись категории. Экран приложения «Категории» показывает те же данные (`category_rows`, `category_detail`) и учит вручную через общий `CategoryLearning` (`learn_category` с поиском в интернете или без, `learn_from_notes`), не в счёт лимита в час; заметки, на которых ответ LLM оборвался, — совет разбить их, как у `learn` (`NOTES_TOO_LONG`). Профиль стиля одежды (бренды, фразы «нравится»/«нет», фото-образцы) правится на экране «Стиль» и командой `buysmarter style` (показ, `add` фото или папок, `--no` — дизлайки, `remove`, `brands`, `like-text`, `never`, `download` модели; `cli/style`, `style/profile`): бренды и фразы — в настройке `style`, фразу не на английском один вызов LLM переписывает в 2–3 английских описания (без LLM — отказ с советом), фото копируются без EXIF в папку данных (`$BUYSMARTER_STYLE_DIR` переопределяет), их векторы — в `style_vectors`; `style strength N` и «Сила стиля» на экране задают вес оси (0 выключает модуль). Поиск читает профиль через возможность style.
 
 Модули: `cli/main`, `cli/console`, `cli/progress`, `cli/prefs`, `cli/category`, `cli/style`, `cli/reports`, `cli/history`, `cli/clarify`, `cli/learning`, `cli/report`, `gui/screens/search`, `gui/screens/clarify`, `gui/screens/report`, `gui/screens/categories`, `gui/screens/style`, `style/profile`, `gui/learning`, `gui/capability_toggles`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`, `services/auto_learn`
 
@@ -195,8 +197,9 @@ Kaspi и OLX получают город как свой id города (`marke
 
 Решает: дополнительные поиски Kaspi, которые просят включённые возможности.
 Composition: обязательные вещества берутся из поисковой фразы и свойств без фраз «без X» и сводятся к каноническим именам по книге ингредиентов; для каждого — поиск по имени и по названиям аналогов (не больше 5).
+Style: по одному поиску «<тип товара> <бренд>» на каждый из первых 6 брендов профиля; найденное должно называть бренд.
 Никто не просит → нет.
-Модули: `capabilities/composition`, `services/collect`
+Модули: `capabilities/composition`, `capabilities/style`, `services/collect`
 
 ### 8. Сбор
 
@@ -294,6 +297,14 @@ Composition: обязательные вещества берутся из по�
 Потом проверка: если нужное вещество отсекает всех, запуск останавливается с `NoSubstanceMatch` и 3 ближайшими альтернативами. Товар без нужного вещества никогда не станет лучшим выбором. Отсечь можно только проверенного кандидата, поэтому сбой извлечения запуск не останавливает.
 Без LLM: только проверка по названию; остальные не проверены, и отчёт об этом говорит («Результат»).
 Модули: `capabilities/composition`, `llm/ingredients`, `ranking/filters`
+
+### 16a. Фото стиля (enrich возможности style)
+
+Решает: насколько главное фото каждой карточки близко к образцам пользователя: ближайшее понравившееся фото, фраза «нравится», фото-дизлайк и фраза «нет» (`Candidate.style_match`, косинус и имя образца).
+Только при фото или фразах в профиле, установленном extra `style` и скачанной модели; иначе ничего (только бренды — оси нет; нет модели — у оси нет данных, каждая карточка получает половину).
+Фото карточек скачиваются по 8 и кодируются один раз (векторы по URL в `style_vectors`); описания фраз тоже кодируются один раз (`text`). Весь шаг обрывается через 30 с; до кого не дошли — без сравнения.
+Фото не скачалось — карточка не сравнивается.
+Модули: `capabilities/style`, `style/match`, `style/cache`, `style/encoder`
 
 ### 17. Ранжирование
 

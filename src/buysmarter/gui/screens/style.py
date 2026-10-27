@@ -15,6 +15,7 @@ from PySide6.QtGui import QIcon, QImageReader, QPixmap, QShowEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFileDialog,
+    QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -23,6 +24,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -40,6 +42,7 @@ from buysmarter.cli.style import (
     PHOTOS,
     PHRASE_HINT,
     SAVED,
+    STRENGTH,
     UNTRANSLATED,
     added_line,
     model_line,
@@ -54,6 +57,9 @@ from buysmarter.style import profile, weights
 logger = logging.getLogger(__name__)
 
 _PRIVATE = "Фото остаются на этом компьютере."
+_STRENGTH_HINT = (
+    f"вес оси «Стиль» в поиске одежды: {profile.STRENGTH_DEFAULT} — по умолчанию, 0 — выключено"
+)
 ADDING = "Добавляю фото… В первый раз скачивается модель стиля (~200 МБ)."
 _THUMB_PX = 96
 _PHOTOS_MIN_PX = 240  # about two rows of thumbnails
@@ -105,6 +111,11 @@ async def _photos(paths: list[Path], disliked: bool) -> str:
 async def _remove(keys: list[str]) -> str:
     found = [await profile.remove(key) for key in keys]
     return SAVED if all(found) else NOT_FOUND
+
+
+async def _strength(value: int) -> str:
+    await profile.set_strength(value)
+    return SAVED
 
 
 async def _brands(text: str) -> str:
@@ -177,9 +188,9 @@ class StyleScreen(QWidget):
         layout.setContentsMargins(SPACE["xxl"], SPACE["lg"], SPACE["xxl"], SPACE["xl"])
         layout.setSpacing(SPACE["lg"])
         layout.addWidget(self.message)
+        layout.addWidget(self._build_settings())
         layout.addWidget(self._build_photos(), 1)
         layout.addWidget(self._build_phrases())
-        layout.addWidget(self._build_brands())
 
     def _build_photos(self) -> QGroupBox:
         self.photos = _photo_grid()
@@ -232,15 +243,25 @@ class StyleScreen(QWidget):
         inside.addWidget(self.remove_phrase_button, 0, Qt.AlignmentFlag.AlignLeft)
         return card
 
-    def _build_brands(self) -> QGroupBox:
+    def _build_settings(self) -> QGroupBox:
         self.brands = QLineEdit(placeholderText="через запятую, например: Salomon, New Balance")
         self.brands.setAccessibleName("Бренды")
         self.brands.returnPressed.connect(self._save_brands)
         self.save_brands = QPushButton("Сохранить")
         self.save_brands.clicked.connect(self._save_brands)
-        card, inside = _card("Бренды")
-        inside.addLayout(_row(self.brands, self.save_brands))
-        inside.addWidget(_caption("По ним ищутся вещи на Kaspi, в этом порядке (до шести)."))
+        self.strength = QSpinBox(minimum=0, maximum=profile.STRENGTH_MAX)
+        self.strength.setValue(profile.STRENGTH_DEFAULT)
+        self.strength.setAccessibleName(STRENGTH)
+        self.strength.valueChanged.connect(self._save_strength)
+        form = QFormLayout()
+        form.setHorizontalSpacing(SPACE["lg"])
+        form.setVerticalSpacing(SPACE["sm"])
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        form.addRow("Бренды", _row(self.brands, self.save_brands))
+        form.addRow("", _caption("По ним ищутся вещи на Kaspi, в этом порядке (до шести)."))
+        form.addRow(STRENGTH, _row(self.strength, _caption(_STRENGTH_HINT)))
+        card, inside = _card("Настройка")
+        inside.addLayout(form)
         return card
 
     def showEvent(self, event: QShowEvent) -> None:  # noqa: N802 - Qt's name
@@ -258,6 +279,9 @@ class StyleScreen(QWidget):
     def _fill(self, current: profile.Profile) -> None:
         if not self.brands.isModified():  # keep what the user is typing
             self.brands.setText(", ".join(current.brands))
+        self.strength.blockSignals(True)  # showing the stored value is not a change
+        self.strength.setValue(current.strength)
+        self.strength.blockSignals(False)
         self.phrases.clear()
         for title, phrases in ((LIKES, current.likes), (NEVERS, current.nevers)):
             for phrase in phrases:
@@ -276,6 +300,9 @@ class StyleScreen(QWidget):
     def _save_brands(self) -> None:
         self.brands.setModified(False)
         self._run(_brands(self.brands.text()))
+
+    def _save_strength(self, value: int) -> None:
+        self._run(_strength(value))
 
     def _add_phrase(self, never: bool) -> None:
         if text := self.phrase.text().strip():

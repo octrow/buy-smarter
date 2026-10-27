@@ -42,5 +42,5 @@ async def _encode_new(urls: list[str], fetch: Fetch, encode: Encode) -> dict[str
     got = [(u, b) for u, b in zip(urls, blobs, strict=True) if b]
     if not got:
         return {}
-    encoded = encode([b for _, b in got])
+    encoded = await asyncio.to_thread(encode, [b for _, b in got])  # CPU: off the loop
     return {u: encoded[i].astype(np.float32) for i, (u, _) in enumerate(got)}

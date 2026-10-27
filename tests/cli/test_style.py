@@ -204,3 +204,19 @@ def test_download_fetches_the_model_once(monkeypatch, tmp_path) -> None:
     assert result.exit_code == 0
     assert calls == [1]
     assert style_cli.MODEL_READY in result.stdout
+
+
+def test_strength_is_stored_and_shown() -> None:
+    result = _style("strength", "35")
+
+    assert result.exit_code == 0
+    assert _profile().strength == 35
+    shown = _style().stdout
+    assert style_cli.STRENGTH in shown and style_cli.strength_line(35) in shown
+
+
+def test_a_strength_out_of_range_is_refused() -> None:
+    result = _style("strength", "80")
+
+    assert result.exit_code != 0
+    assert _profile().strength == profile.STRENGTH_DEFAULT

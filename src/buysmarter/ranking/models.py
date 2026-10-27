@@ -86,6 +86,9 @@ class Candidate(BaseModel):
     availability: bool = True
     url: str | None = None
     image_url: str | None = None  # the card's main photo (the style axis looks at it)
+    # The style capability: per compared kind ("like", "like_text", "dislike", "never_text"),
+    # the cosine to the nearest sample of that kind and its name. Empty == no photo, not judged.
+    style_match: dict[str, tuple[float, str]] = Field(default_factory=dict)
     price_history: PriceHistory | None = None
     # Reviews gained per week vs a snapshot >= 7 days old (ranking.velocity); None without DB.
     review_velocity: float | None = None

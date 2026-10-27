@@ -76,6 +76,13 @@ class Capability:
     drops_barred: ClassVar[bool] = False
     default_on: ClassVar[bool] = False
 
+    async def prime(self) -> None:
+        """Read what ``setting`` and the other synchronous hooks need (the user's style)."""
+
+    def current_axis_weight(self) -> float:
+        """The axis weight for this search; ``axis_weight`` unless the user tunes it."""
+        return self.axis_weight
+
     def label(self, params: dict[str, Any]) -> str:
         """The name shown to the user; a capability may add what its parameters say."""
         return self.title

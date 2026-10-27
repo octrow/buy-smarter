@@ -49,8 +49,8 @@ OLX never enters the ranking; it only feeds the used-market section.
 ## Capabilities
 
 The core flow is the same for every category. What differs are capabilities (CONTEXT.md):
-optional hooks the core calls at fixed points, in registry order (audience, size, fit, dims, exclude, original_only, used_only, used_market, official_stores, benchmark, composition).
-A hook a capability does not implement is not called.
+optional hooks the core calls at fixed points, in registry order (audience, size, fit, dims, exclude, original_only, used_only, used_market, official_stores, benchmark, composition, style).
+A hook a capability does not implement is not called. Before anything is switched on, `prime` lets a capability read what its synchronous hooks need (style: the user's profile, `flow.prime`).
 `ranking/` never imports capabilities: the flow hands `rank()` plain weights, predicates and functions (`RankHooks`).
 
 | Capability | Level | Switched on by | Hooks it uses (steps) |
@@ -65,6 +65,7 @@ A hook a capability does not implement is not called.
 | used_market | category | on unless the profile says off: no entry means on (`set_by: fallback`); learning or the user's switch turns it off | `sources` (5: takes OLX out of the marketplaces when off; a used query keeps it). Collecting, filtering and both used sections stay in the core |
 | official_stores | category | on unless the profile says off (no entry means on, `set_by: fallback`) | `candidates` (10: `official_candidates` with the shared `reject_listing`, so every request rejection reaches the store offers) |
 | benchmark | category | the profile, only with a provider from `BENCHMARK_PROVIDERS` (its parameter, else the provider whose rule takes the product type); without a profile setting, the providers' rule (`set_by: fallback`) | `enrich` (15: Kimovil specs and `benchmark_index`) |
+| style | category | the profile (Jev asks for clothing, footwear and accessories; the user's switch), and only with a style profile of strength above 0 (`style/profile`); without one: "включено, но нет данных" | `prime` (6: reads the profile), `searches` (7: up to 6 brands), `enrich` (16a: card photos against the samples), `prepare` + `axis` (17: «Стиль», weight = the user's strength, default 20, 0 with brands only) |
 | composition | category | the profile: the composition capability with an ingredient book (old records: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, may stop the run), `prepare` + `axis` + `notes` (17), `section` (Output) |
 
 Weights: base weights plus each capability's axis and shifts, clamped at zero, normalized to 100 (`capabilities/weights`).
@@ -75,9 +76,10 @@ Examples:
 - "мужские кроссовки 42 размер" → audience and size; gender is a listing check everywhere, size an unverified con.
 - "смартфон iPhone 13" → benchmark by the providers' rule (Kimovil); "чехол на iPhone 15", "держатель телефона" → none.
 - "чехол на iPhone 15" → fit: the device joins the search phrase; "шины 205/55 R16" → dims (asks the size when the query has none); "шампунь без сульфатов" → exclude; "пылесос Dyson только оригинал" → original_only (suspected fakes hidden); "б/у ноутбук" → used_only (OLX added, its section first).
+- "мужские кроссовки" with style on and a style profile → Kaspi searches "кроссовки <brand>", the «Стиль» axis by the sample photos and phrases.
 - A category with no profile at all → no category capability, every brand scores as unknown.
 
-Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/official_stores`, `capabilities/benchmark`, `capabilities/composition`
+Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/official_stores`, `capabilities/benchmark`, `capabilities/composition`, `capabilities/style`
 
 ## Entry points
 
@@ -95,7 +97,7 @@ They differ in defaults.
 
 Every saved report starts with its query (`<!-- query: … -->`, hidden from the reader, `cli/report.report_parts`): the app's «Прошлые поиски» and «Повторить» and `buysmarter reports` (list, `show N`, `repeat N` — `recommend` with that query, `cli/reports`) read it; a report saved before it gives the query from its file name.
 
-Other MCP tools (`search_products`, `compare`, `get_preferences`, `set_preference`) do not call `recommend()`. The saved search settings (city, budget, marketplaces, excluded brands) are edited on the app's «Настройки поиска» screen and with `buysmarter prefs` (show, `set`, `clear`; the same keys, checks and messages, `cli/prefs`), and read through `memory/prefs`. The learned categories are listed and shown, and their «Как оцениваем эту категорию» switches set and reset, with `buysmarter category` (`list`, `show`, `set`, `reset`; `cli/category`), without learning: `show` resolves the profile with no LLM, `set`/`reset` write `set_user_choice` to the category's own record. The app's «Категории» screen shows the same data (`category_rows`, `category_detail`) and learns by hand through the shared `CategoryLearning` (`learn_category` with or without web search, `learn_from_notes`), not counted in the hourly limit; notes cut off by the LLM say to split them, as `learn` (`NOTES_TOO_LONG`). The clothing-style profile (brands, phrases «нравится»/«нет», sample photos) is edited on the app's «Стиль» screen and with `buysmarter style` (show, `add` photos or folders with `--no` for dislikes, `remove`, `brands`, `like-text`, `never`, `download` the model; `cli/style`, `style/profile`): brands and phrases go to the `style` preference, a non-English phrase is rewritten into 2-3 English descriptions by one LLM call (no LLM: refused with advice), photos are copied without EXIF into the data folder (`$BUYSMARTER_STYLE_DIR` overrides) and their vectors kept in `style_vectors`; nothing ranks by it yet.
+Other MCP tools (`search_products`, `compare`, `get_preferences`, `set_preference`) do not call `recommend()`. The saved search settings (city, budget, marketplaces, excluded brands) are edited on the app's «Настройки поиска» screen and with `buysmarter prefs` (show, `set`, `clear`; the same keys, checks and messages, `cli/prefs`), and read through `memory/prefs`. The learned categories are listed and shown, and their «Как оцениваем эту категорию» switches set and reset, with `buysmarter category` (`list`, `show`, `set`, `reset`; `cli/category`), without learning: `show` resolves the profile with no LLM, `set`/`reset` write `set_user_choice` to the category's own record. The app's «Категории» screen shows the same data (`category_rows`, `category_detail`) and learns by hand through the shared `CategoryLearning` (`learn_category` with or without web search, `learn_from_notes`), not counted in the hourly limit; notes cut off by the LLM say to split them, as `learn` (`NOTES_TOO_LONG`). The clothing-style profile (brands, phrases «нравится»/«нет», sample photos) is edited on the app's «Стиль» screen and with `buysmarter style` (show, `add` photos or folders with `--no` for dislikes, `remove`, `brands`, `like-text`, `never`, `download` the model; `cli/style`, `style/profile`): brands and phrases go to the `style` preference, a non-English phrase is rewritten into 2-3 English descriptions by one LLM call (no LLM: refused with advice), photos are copied without EXIF into the data folder (`$BUYSMARTER_STYLE_DIR` overrides) and their vectors kept in `style_vectors`; `style strength N` and the screen's «Сила стиля» set the axis weight (0 switches the module off). The search reads it through the style capability.
 
 Module: `cli/main`, `cli/console`, `cli/progress`, `cli/prefs`, `cli/category`, `cli/style`, `cli/reports`, `cli/history`, `cli/clarify`, `cli/learning`, `cli/report`, `gui/screens/search`, `gui/screens/clarify`, `gui/screens/report`, `gui/screens/categories`, `gui/screens/style`, `style/profile`, `gui/learning`, `gui/capability_toggles`, `mcp_server/server`, `api/recommend`, `worker`, `jobs`, `services/auto_learn`
 
@@ -197,8 +199,9 @@ Module: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `
 
 Decides: extra Kaspi searches the active capabilities ask for.
 Composition: the required active substances come from the search phrase and required features without their "без X" phrases, mapped to canonical names by the ingredient book; each substance gets searches by its name and its equivalent product names (at most 5).
+Style: one search "<product type> <brand>" for each of the profile's first 6 brands; a hit must name the brand.
 No capability asks → none.
-Module: `capabilities/composition`, `services/collect`
+Module: `capabilities/composition`, `capabilities/style`, `services/collect`
 
 ### 8. Collect
 
@@ -296,6 +299,14 @@ Then, with LLM, one batch request over the pool reads the title and composition 
 Then the substance guard: if a required substance rejects every candidate, the run stops with `NoSubstanceMatch` and the 3 nearest alternatives. A product without the asked substance is never shown as the best pick. Only checked candidates can be rejected, so a failed extraction never stops the run.
 No LLM: only the title check; the rest stay unchecked and the report says so (Output).
 Module: `capabilities/composition`, `llm/ingredients`, `ranking/filters`
+
+### 16a. Style photos (style capability enrich)
+
+Decides: how close each card's main photo is to the user's samples: the nearest liked photo, «нравится» phrase, disliked photo and «нет» phrase (`Candidate.style_match`, cosine and the sample's name).
+Only with sample photos or phrases, the `style` extra and the model downloaded; else nothing (brands only: no axis; no model: no axis data, every card gets half).
+Card photos are fetched 8 at a time and encoded once (vectors kept by URL in `style_vectors`); phrase descriptions are encoded once too (`text`). The whole step stops after 30 s; cards not reached keep no match.
+A photo that cannot be fetched: that card is not compared.
+Module: `capabilities/style`, `style/match`, `style/cache`, `style/encoder`
 
 ### 17. Rank
 

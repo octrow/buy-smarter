@@ -179,7 +179,8 @@ buysmarter prefs clear budget
 # Вкус в одежде (экран «Стиль»; для фото нужен extra `style`)
 buysmarter style
 buysmarter style add ~/style/like                # фото или папки; --no — то, что не нравится
-buysmarter style brands "Salomon, New Balance"
+buysmarter style brands "Salomon, New Balance"   # ищутся на Kaspi для одежды
+buysmarter style strength 30                     # вес оси «Стиль»; 0 — выкл., по умолчанию 20
 buysmarter style never "белая глянцевая пластиковая подошва"   # LLM переводит один раз
 buysmarter style remove 3f2a9c1d0e4b5a67.jpg
 
