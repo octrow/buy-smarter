@@ -127,6 +127,7 @@ def test_without_the_extra_photos_cannot_be_added_and_the_screen_says_why(
     screen = _screen(qtbot, runner)
 
     assert not screen.add_button.isEnabled() and not screen.add_no_button.isEnabled()
+    assert not screen.add_no_folder_button.isEnabled()
     assert screen.no_extra.text() == style_cli.NO_EXTRA
     assert screen.no_extra.isVisibleTo(screen)
 
@@ -150,6 +151,20 @@ def test_a_folder_is_added_from_the_folder_button(qtbot, runner, tmp_path, photo
     screen.add_folder_button.click()
 
     qtbot.waitUntil(lambda: screen.photos.count() == 1, timeout=WAIT_MS)
+
+
+def test_a_folder_goes_into_never_as_style_add_no(qtbot, runner, tmp_path, photo, encoder):
+    looks = tmp_path / "dislike"
+    looks.mkdir()
+    photo("a.jpg").rename(looks / "a.jpg")
+    photo("b.webp", "white").rename(looks / "b.webp")
+    screen = _screen(qtbot, runner)
+    screen._pick_folder = lambda _parent: str(looks)
+
+    screen.add_no_folder_button.click()
+
+    qtbot.waitUntil(lambda: screen.photos.count() == 2, timeout=WAIT_MS)
+    assert all(p.disliked for p in _profile().photos)
 
 
 def test_the_model_button_downloads_and_the_status_says_so(qtbot, runner, monkeypatch, tmp_path):

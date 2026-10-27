@@ -210,20 +210,25 @@ class StyleScreen(QWidget):
         inside.addWidget(self.photos, 1)
         return card
 
-    def _build_photo_buttons(self) -> QHBoxLayout:
+    def _build_photo_buttons(self) -> QVBoxLayout:
         self.add_button = QPushButton("Добавить фото…")
         set_state(self.add_button, "primary", "true")
         self.add_folder_button = QPushButton("Добавить папку…")
-        self.add_no_button = QPushButton(f"Добавить в «{NEVERS.lower()}»…")
+        self.add_no_button = QPushButton(f"Фото в «{NEVERS.lower()}»…")
+        self.add_no_folder_button = QPushButton(f"Папку в «{NEVERS.lower()}»…")
         self.remove_photo_button = QPushButton("Удалить")
         self.add_button.clicked.connect(lambda: self._add_photos(disliked=False))
-        self.add_folder_button.clicked.connect(self._add_folder)
+        self.add_folder_button.clicked.connect(lambda: self._add_folder(disliked=False))
         self.add_no_button.clicked.connect(lambda: self._add_photos(disliked=True))
+        self.add_no_folder_button.clicked.connect(lambda: self._add_folder(disliked=True))
         self.remove_photo_button.clicked.connect(self._remove_photos)
-        buttons = _row(
-            self.add_button, self.add_folder_button, self.add_no_button, self.remove_photo_button
-        )
-        buttons.addStretch(1)
+        liked = _row(self.add_button, self.add_folder_button, self.remove_photo_button)
+        never = _row(self.add_no_button, self.add_no_folder_button)
+        buttons = QVBoxLayout()
+        buttons.setSpacing(SPACE["sm"])
+        for row in (liked, never):
+            row.addStretch(1)
+            buttons.addLayout(row)
         return buttons
 
     def _build_progress_row(self) -> QHBoxLayout:
@@ -345,9 +350,9 @@ class StyleScreen(QWidget):
         if paths := self._pick_photos(self):
             self._start_adding([Path(p) for p in paths], disliked)
 
-    def _add_folder(self) -> None:
+    def _add_folder(self, disliked: bool) -> None:
         if folder := self._pick_folder(self):
-            self._start_adding([Path(folder)], disliked=False)
+            self._start_adding([Path(folder)], disliked)
 
     def _start_adding(self, paths: list[Path], disliked: bool) -> None:
         self._say(ADDING)
@@ -435,6 +440,7 @@ class StyleScreen(QWidget):
             self.add_button,
             self.add_folder_button,
             self.add_no_button,
+            self.add_no_folder_button,
             self.download_button,
         ):
             button.setEnabled(enabled)
