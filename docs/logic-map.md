@@ -210,7 +210,7 @@ All sources run in parallel; one source failing returns nothing for it and the r
 - extra searches (step 7) first, then brand searches from the brand book (tier A first);
 - targeted hits are kept apart from the main search and are not cut by its card limit;
 - specs for every card except apparel variant cards (no spec page); seller offers for 8 cards, 4 targeted + 4 main, a pool short of its half leaves the rest to the other;
-- no budget cap at search time (the Kaspi adapter has none).
+- no budget cap at search time, by choice (#5): Kaspi's price filter turns a low budget into a stream of accessories ("iPhone 13" under 50 000 → cases and chargers); without it the user sees the real models marked over budget, and OLX.
 
 **Ozon**
 - one search with the budget as a server-side price cap;
@@ -424,5 +424,4 @@ Short list; details and fixes are in the plan (number in brackets).
 - Capabilities are switched on by stored profiles, the Jev classifier on the first sight of a product type (`ensure_profile`) and fallback rules. `recommend()` never learns a category itself; entry points may start learning after the report (Learning a category). Findings #1 and #2 are fixed.
 - MCP and the HTTP API run without LLM by default (#4).
 - Without an LLM there is no intent detection: only an unreadable query and capabilities ask, so MCP and the API (no LLM by default) search "подарок для мамы" as it is (phase 2).
-- Kaspi search has no budget cap (#5).
 - `refresh` collects without category knowledge (#6).
