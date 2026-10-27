@@ -925,7 +925,7 @@ def _counterfeit_pass(fakes: set[str], calls: list[str]):
 
 
 async def _pass_over(
-    monkeypatch, scores: list[float], fakes: set[str], few: set[str] = frozenset()
+    monkeypatch, scores: list[float], fakes: set[str], few: frozenset[str] = frozenset()
 ):
     calls: list[str] = []
     monkeypatch.setattr(review_mod, "summarize_reviews", _counterfeit_pass(fakes, calls))
@@ -978,7 +978,7 @@ async def test_extra_summaries_stop_after_three(monkeypatch) -> None:
 
 async def test_a_new_best_with_few_reviews_says_why(monkeypatch) -> None:
     out, summary, note, calls = await _pass_over(
-        monkeypatch, [90, 85, 80, 75], {"k1", "k2", "k3"}, few={"k4"}
+        monkeypatch, [90, 85, 80, 75], {"k1", "k2", "k3"}, few=frozenset({"k4"})
     )
 
     assert out.best.candidate.source_product_id == "k4"
