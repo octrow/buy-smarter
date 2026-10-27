@@ -18,6 +18,7 @@ from buysmarter.ranking.selection import distinct_variants, is_barred
 
 SORT_ROLE = Qt.ItemDataRole.UserRole
 URL_ROLE = Qt.ItemDataRole.UserRole + 1
+CANDIDATE_ROLE = Qt.ItemDataRole.UserRole + 2  # the row's Candidate (the report's 👍/👎)
 _FIXED_COLUMNS = ("Роль", "Маркетплейс", "Товар", "Цена", "Баллы", "Бренд")
 SOURCE_COLUMN = _FIXED_COLUMNS.index("Маркетплейс")
 PRODUCT_COLUMN = _FIXED_COLUMNS.index("Товар")
@@ -59,6 +60,8 @@ class AlternativesModel(QAbstractTableModel):
         scored = self._rows[index.row()]
         if role == URL_ROLE:
             return scored.candidate.url
+        if role == CANDIDATE_ROLE:
+            return scored.candidate
         if role == Qt.ItemDataRole.ToolTipRole:
             return self._tooltip(scored, index.column())
         display, raw = self._cell(scored, index.column())

@@ -1,5 +1,7 @@
 """Report screen: the explainable result of one search, in the CLI report's terms."""
 
+from collections.abc import Callable
+
 from PySide6.QtCore import Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
@@ -36,6 +38,7 @@ from buysmarter.cli.report import (
     used_cells,
     used_first,
 )
+from buysmarter.cli.style import votes_work
 from buysmarter.gui.bridge import CoreRunner
 from buysmarter.gui.capability_toggles import TITLE as TOGGLES_TITLE
 from buysmarter.gui.capability_toggles import CapabilityToggles
@@ -53,6 +56,7 @@ from buysmarter.gui.learning import CategoryLearning, Learn
 from buysmarter.gui.prefs_fields import kzt
 from buysmarter.gui.screens.alternatives import (
     AXES_START,
+    CANDIDATE_ROLE,
     PRODUCT_COLUMN,
     SCORE_COLUMN,
     URL_ROLE,
@@ -60,10 +64,11 @@ from buysmarter.gui.screens.alternatives import (
     alternatives_proxy,
 )
 from buysmarter.gui.screens.search import SearchRun
+from buysmarter.gui.style_votes import StyleVotes
 from buysmarter.gui.tables import FitTableView, FitTableWidget, stretch_column
 from buysmarter.gui.theme import CONTENT_MAX_WIDTH, SPACE, card_body, set_state
 from buysmarter.knowledge.generate import learn_category
-from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
+from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import is_barred
 from buysmarter.services.auto_learn import limit_note, over_limit
 from buysmarter.services.recommend import RecommendResult
@@ -77,6 +82,7 @@ _LOW_SHARE = 0.4  # an axis bar under this share of its max reads as a weak spot
 _HIGH_SHARE = 0.8
 _TICK_MS = 1000
 _RERUN_TEXT = "Повторить поиск"
+SELECTED_HINT = "— для выбранной строки"
 _OPEN_HINT = "Двойной клик по строке — открыть предложение на маркетплейсе."
 _USED_HINT = (
     "Если модель объявления не распознана, оно сравнивается с ближайшим новым товаром "
@@ -272,6 +278,10 @@ class ReportScreen(QScrollArea):
         self.rejected: QGroupBox | None = None
         self.toggles: CapabilityToggles | None = None
         self.configure_link: QPushButton | None = None
+        self.like_best: QPushButton | None = None
+        self.dislike_selected: QPushButton | None = None
+        self.style_message: QLabel | None = None
+        self._votes = self._runner is not None and votes_work(result)
         self._category = None
         self._ticker.stop()
         self._rerun_offered = False
@@ -424,6 +434,12 @@ class ReportScreen(QScrollArea):
         self.learn_status.setText(text)
         set_state(self.learn_status, "state", state)
 
+    def _votes_for(self, picked: Callable[[], Candidate | None]) -> StyleVotes | None:
+        """👍/👎 for a card, when style works for this report (``style_votes``)."""
+        if not self._votes or self._runner is None:
+            return None
+        return StyleVotes(self._runner, picked)
+
     def _best_section(self, best: ScoredCandidate) -> QGroupBox:
         cand = best.candidate
         title = clean_title(cand.title)
@@ -451,6 +467,9 @@ class ReportScreen(QScrollArea):
             figures,
         ]
         widgets += [_label(text, state=state) for state, text in best_notes(best)]
+        if votes := self._votes_for(lambda: cand):
+            self.like_best, self.style_message = votes.like, votes.message
+            widgets.append(votes)
         widgets.append(self.best_axes)
         if best.pros:
             widgets.append(_label("+ " + "   + ".join(map(pro_con, best.pros)), state="ok"))
@@ -479,7 +498,20 @@ class ReportScreen(QScrollArea):
         self.show_axes.toggled.connect(self._toggle_axes)
         self._toggle_axes(False)
         filters = _row(QLabel("Маркетплейс"), self.marketplace, self.show_axes, spacing=SPACE["lg"])
-        return _group("Другие варианты", filters, view, _label(_OPEN_HINT, role="caption"))
+        widgets: list[QWidget] = [filters, view, _label(_OPEN_HINT, role="caption")]
+        if votes := self._votes_for(self._selected_candidate):
+            self.dislike_selected = votes.dislike
+            votes.set_enabled(False)
+            votes.message.setText(SELECTED_HINT)
+            view.selectionModel().selectionChanged.connect(
+                lambda: votes.set_enabled(self._selected_candidate() is not None)
+            )
+            widgets.append(votes)
+        return _group("Другие варианты", *widgets)
+
+    def _selected_candidate(self) -> Candidate | None:
+        rows = self.alternatives_view.selectionModel().selectedRows()
+        return rows[0].data(CANDIDATE_ROLE) if rows else None
 
     def _toggle_axes(self, shown: bool) -> None:
         for column in range(AXES_START, self.alternatives.columnCount()):

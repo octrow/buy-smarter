@@ -32,6 +32,7 @@ from buysmarter.cli.report import (
     used_cells,
     used_first,
 )
+from buysmarter.cli.style import VOTE_HINT, votes_work
 from buysmarter.i18n import (
     BEST_ROLE,
     ROLE_LABELS,
@@ -236,6 +237,8 @@ def render(
     _render_hidden(result)
     if result.recommendation.rejected_count:
         console.print(f"[dim]{escape(rejected_line(result))}[/dim]")
+    if votes_work(result):
+        console.print(f"[dim]{escape(VOTE_HINT)}[/dim]")
 
 
 def render_no_substance(exc: NoSubstanceMatch) -> None:

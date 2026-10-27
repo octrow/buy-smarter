@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import httpx
 from platformdirs import user_data_dir
 from pydantic import BaseModel, Field
 
@@ -33,6 +34,7 @@ LIKE_PHOTO, LIKE_TEXT, NEVER_PHOTO, NEVER_TEXT = LIKE, "like_text", DISLIKE, "ne
 STRENGTH_DEFAULT, STRENGTH_MAX = 20, 50  # the «Стиль» axis weight before normalizing (plan В5)
 _BRANDS, _LIKES, _NEVERS, _STRENGTH = "brands", "like", "never", "strength"
 _MAX_SIDE = 1024
+_CARD_TIMEOUT = httpx.Timeout(15.0)
 PHOTO_SUFFIXES = frozenset({".jpg", ".jpeg", ".png", ".webp"})  # what a folder adds
 TRANSLATE_MODEL = "free-stack"  # a short mechanical rewrite: the cheap combo
 
@@ -41,6 +43,14 @@ Encode = Callable[[list[bytes]], Any]
 
 class Untranslated(Exception):
     """A non-English phrase and no LLM to translate it."""
+
+
+class NoCard(Exception):
+    """No saved search found a product at this link."""
+
+
+class NoCardPhoto(Exception):
+    """The product has no main photo, or it could not be downloaded."""
 
 
 @dataclass(frozen=True)
@@ -163,17 +173,63 @@ async def add_photos(paths: list[Path], disliked: bool) -> Added:
     """Copy the photos (and the photos in folders) in and store their vectors; needs the extra."""
     copies, skipped = await asyncio.to_thread(_clean_copies, paths)
     if copies:
-        encode = await photo_encoder()
-        vectors = await asyncio.to_thread(encode, [data for _, data in copies.values()])
-        _write(copies)
-        async with async_session() as session:
-            await repo.add_style_vectors(
-                session,
-                DISLIKE if disliked else LIKE,
-                {name: v.tobytes() for name, v in zip(copies, vectors, strict=True)},
-                labels={name: label for name, (label, _) in copies.items()},
-            )
+        await _keep(copies, disliked)
     return Added([Photo(n, label, disliked) for n, (label, _) in copies.items()], skipped)
+
+
+async def add_linked(url: str, disliked: bool) -> Photo:
+    """The main photo of a product a search found (by its link) as a sample; needs the extra."""
+    image_url, title = await _card(url)
+    return await add_card(image_url, title, disliked)
+
+
+async def add_card(image_url: str, title: str, disliked: bool) -> Photo:
+    """A card's main photo as a sample, named by the product's title (the report's 👍/👎)."""
+    raw = await fetch_card_photo(image_url)
+    if raw is None:
+        raise NoCardPhoto(image_url)
+    try:
+        name, data = await asyncio.to_thread(_clean, raw)
+    except OSError as exc:
+        raise NoCardPhoto(image_url) from exc
+    await _keep({name: (title, data)}, disliked)
+    return Photo(name, title, disliked)
+
+
+async def fetch_card_photo(url: str) -> bytes | None:
+    """A card's photo, ``None`` when it cannot be had."""
+    try:
+        async with httpx.AsyncClient(timeout=_CARD_TIMEOUT, follow_redirects=True) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+    except httpx.HTTPError:
+        return None
+    return response.content
+
+
+async def _card(url: str) -> tuple[str, str]:
+    """``(main photo, title)`` of the saved product at this link (its query tail ignored)."""
+    async with async_session() as session:
+        product = await repo.find_product_by_url(session, url.split("?")[0].split("#")[0])
+    if product is None:
+        raise NoCard(url)
+    if not product.image_url:
+        raise NoCardPhoto(url)
+    return product.image_url, product.title
+
+
+async def _keep(copies: dict[str, tuple[str, bytes]], disliked: bool) -> None:
+    """Encode the clean copies, write them to the samples folder, store their vectors."""
+    encode = await photo_encoder()
+    vectors = await asyncio.to_thread(encode, [data for _, data in copies.values()])
+    _write(copies)
+    async with async_session() as session:
+        await repo.add_style_vectors(
+            session,
+            DISLIKE if disliked else LIKE,
+            {name: v.tobytes() for name, v in zip(copies, vectors, strict=True)},
+            labels={name: label for name, (label, _) in copies.items()},
+        )
 
 
 async def photo_encoder() -> Encode:
@@ -232,15 +288,18 @@ def _files(paths: list[Path]) -> Iterator[Path]:
 
 
 def _clean_copy(path: Path) -> tuple[str, bytes]:
+    return _clean(path.read_bytes())
+
+
+def _clean(raw: bytes) -> tuple[str, bytes]:
     """A content-named JPEG of the photo, upright, without EXIF or other metadata."""
     from PIL import Image, ImageOps, UnidentifiedImageError
 
-    raw = path.read_bytes()
     try:
         with Image.open(io.BytesIO(raw)) as img:
             rgb = ImageOps.exif_transpose(img).convert("RGB")
     except UnidentifiedImageError as exc:
-        raise OSError(f"{path.name}: not an image") from exc
+        raise OSError("not an image") from exc
     rgb.thumbnail((_MAX_SIDE, _MAX_SIDE))
     out = io.BytesIO()
     rgb.save(out, "JPEG", quality=90)  # a fresh file: no EXIF unless passed

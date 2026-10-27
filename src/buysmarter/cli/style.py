@@ -8,7 +8,7 @@ import asyncio
 import logging
 from collections.abc import Coroutine
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 from rich.console import Console
@@ -21,6 +21,9 @@ from buysmarter.cli.prefs import STORE_DOWN
 from buysmarter.memory.prefs import as_list
 from buysmarter.style import profile, weights
 from buysmarter.style.profile import Phrase
+
+if TYPE_CHECKING:
+    from buysmarter.services.recommend import RecommendResult
 
 BRANDS = "Бренды"
 LIKES = "Нравится"
@@ -37,6 +40,14 @@ UNTRANSLATED = (
     "Напишите фразу по-английски, например «glossy white plastic sole»."
 )
 NOT_A_PHOTO = "не фото, пропущено"
+CARD_UNKNOWN = (
+    "Этого товара нет в сохранённых поисках: найдите его поиском, потом ставьте 👍/👎 по ссылке."
+)
+NO_CARD_PHOTO = "Не удалось скачать фото товара. Попробуйте позже."
+LIKED = "Добавлено в образцы стиля: «{}»."
+DISLIKED = "Добавлено в «нет»: «{}»."
+# Under a console report where style works: the app shows 👍/👎 buttons instead.
+VOTE_HINT = "👍/👎: buysmarter style like|dislike <ссылка>"
 NOT_FOUND = "В профиле нет такого фото или фразы."
 MODEL_DOWN = "Не удалось скачать модель стиля. Подробности в логе."
 MODEL_READY = "Модель стиля скачана."
@@ -51,6 +62,16 @@ style_app = typer.Typer(
 )
 console = Console()
 logger = logging.getLogger(__name__)
+
+
+def votes_work(result: "RecommendResult") -> bool:
+    """👍/👎 can work for this report: style is on for the category, the extra is installed."""
+    on = any(s.name == "style" and s.on for s in result.capabilities)
+    return on and style.available()
+
+
+def liked_line(sample: profile.Photo) -> str:
+    return (DISLIKED if sample.disliked else LIKED).format(sample.label)
 
 
 def strength_line(strength: int) -> str:
@@ -157,6 +178,30 @@ def add(
 
 
 @style_app.command()
+def like(url: Annotated[str, typer.Argument(help="A product link from a report.")]) -> None:
+    """Add a found product's main photo to the samples (the report's 👍)."""
+    _add_linked(url, disliked=False)
+
+
+@style_app.command()
+def dislike(url: Annotated[str, typer.Argument(help="A product link from a report.")]) -> None:
+    """Add a found product's main photo to «нет» (the report's 👎)."""
+    _add_linked(url, disliked=True)
+
+
+def _add_linked(url: str, disliked: bool) -> None:
+    if not style.available():
+        _say(NO_EXTRA, "red")
+        raise typer.Exit(code=1)
+    try:
+        sample = _run(profile.add_linked(url, disliked=disliked))
+    except (profile.NoCard, profile.NoCardPhoto) as exc:
+        _say(CARD_UNKNOWN if isinstance(exc, profile.NoCard) else NO_CARD_PHOTO, "red")
+        raise typer.Exit(code=1) from None
+    _say(liked_line(sample), "green")
+
+
+@style_app.command()
 def download() -> None:
     """Download the style model now (~200 MB, once) instead of on the first photo."""
     if weights.missing():
@@ -190,7 +235,7 @@ def _add_phrase(text: str, never: bool) -> None:
 def _run[T](work: Coroutine[Any, Any, T]) -> T:
     try:
         return asyncio.run(work)
-    except profile.Untranslated:
+    except (profile.Untranslated, profile.NoCard, profile.NoCardPhoto):
         raise
     except Exception as exc:  # noqa: BLE001 - say it plainly, the details go to the log
         logger.warning("Style profile not saved: %r", exc)

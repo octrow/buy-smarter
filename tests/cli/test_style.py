@@ -1,6 +1,7 @@
 """``buysmarter style``: the clothing-taste profile, as the app's «Стиль» screen (plan В9)."""
 
 import asyncio
+import io
 
 import pytest
 from typer.testing import CliRunner
@@ -220,3 +221,89 @@ def test_a_strength_out_of_range_is_refused() -> None:
 
     assert result.exit_code != 0
     assert _profile().strength == profile.STRENGTH_DEFAULT
+
+
+_CARD_URL = "https://kaspi.kz/shop/p/salomon-xt-6-123/"
+
+
+@pytest.fixture
+def stored_card(monkeypatch):
+    """A product a search saved, and its main photo served without a network."""
+    image = pytest.importorskip("PIL.Image")
+    from market_sources.base import RawProduct
+
+    raw = RawProduct(
+        source="kaspi",
+        product_id="123",
+        title="Кроссовки Salomon XT-6",
+        price=90000,
+        url=_CARD_URL,
+        image_url="https://img.kaspi.kz/123.jpg",
+    )
+
+    async def save():
+        async with async_session() as session:
+            await repo.upsert_product(session, raw)
+
+    asyncio.run(save())
+
+    async def served(url):
+        assert url == raw.image_url
+        out = io.BytesIO()
+        image.new("RGB", (40, 40), "grey").save(out, "JPEG")
+        return out.getvalue()
+
+    monkeypatch.setattr(profile, "fetch_card_photo", served)
+    return raw
+
+
+@pytest.mark.parametrize(("command", "disliked"), [("like", False), ("dislike", True)])
+def test_a_found_product_becomes_a_sample_by_its_link(stored_card, encoder, command, disliked):
+    result = _style(command, _CARD_URL + "?c=750000000")  # the link as copied, with its tail
+
+    assert result.exit_code == 0
+    (sample,) = _profile().photos
+    assert (sample.label, sample.disliked) == ("Кроссовки Salomon XT-6", disliked)
+    assert sample.path.is_file()
+
+
+def test_a_link_no_search_saved_is_refused_with_advice(encoder) -> None:
+    result = _style("like", "https://kaspi.kz/shop/p/unknown-1/")
+
+    assert result.exit_code == 1
+    assert style_cli.CARD_UNKNOWN in result.stdout
+    assert _profile().photos == []
+
+
+def test_a_card_photo_that_cannot_be_fetched_says_so(stored_card, encoder, monkeypatch) -> None:
+    async def down(url):
+        return None
+
+    monkeypatch.setattr(profile, "fetch_card_photo", down)
+
+    result = _style("like", _CARD_URL)
+
+    assert result.exit_code == 1
+    assert style_cli.NO_CARD_PHOTO in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("on", "extra", "shown"), [(True, True, True), (False, True, False), (True, False, False)]
+)
+def test_the_console_report_says_how_to_vote_when_style_works(
+    capsys, monkeypatch, on, extra, shown
+):
+    from tests.cli.test_report import _result
+
+    from buysmarter.capabilities.provenance import CapabilityState
+    from buysmarter.cli import console
+
+    monkeypatch.setattr(style, "available", lambda: extra)
+    state = CapabilityState(
+        name="style", label="Стиль", level="category", on=on, active=on, auto=on
+    )
+    result = _result().model_copy(update={"capabilities": [state]})
+
+    console.render(result, 3)
+
+    assert (style_cli.VOTE_HINT in capsys.readouterr().out) == shown

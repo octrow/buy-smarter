@@ -109,6 +109,17 @@ async def add_price_snapshot(
     return snapshot
 
 
+async def find_product_by_url(session: AsyncSession, url: str) -> Product | None:
+    """The stored product at this link, its stored query tail ignored; the latest if several."""
+    stmt = (
+        select(Product)
+        .where(or_(Product.url == url, Product.url.startswith(url + "?", autoescape=True)))
+        .order_by(Product.updated_at.desc())
+        .limit(1)
+    )
+    return (await session.execute(stmt)).scalar_one_or_none()
+
+
 async def get_product(session: AsyncSession, source: str, source_product_id: str) -> Product | None:
     """Look up a stored product by its ``(source, source_product_id)`` identity."""
     stmt = select(Product).where(

@@ -181,6 +181,7 @@ buysmarter style brands "Salomon, New Balance"   # searched on Kaspi for clothin
 buysmarter style strength 30                     # the «Стиль» axis weight; 0 = off, 20 by default
 buysmarter style never "белая глянцевая пластиковая подошва"   # translated by the LLM once
 buysmarter style remove 3f2a9c1d0e4b5a67.jpg
+buysmarter style like https://kaspi.kz/shop/p/...   # a found product's photo as a sample; dislike for «нет»
 
 # The saved marketplaces (else all three) or a subset; more candidates; no markdown report
 buysmarter recommend "ирригатор до 40000 тг" --sources kaspi,olx --top 10 --no-save
