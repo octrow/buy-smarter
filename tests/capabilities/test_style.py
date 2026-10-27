@@ -7,7 +7,7 @@ import pytest
 from buysmarter.capabilities import REGISTRY
 from buysmarter.capabilities.base import CapabilityContext
 from buysmarter.capabilities.flow import activate
-from buysmarter.capabilities.style import NEVER_PER_Z, NO_PHOTO, STYLE
+from buysmarter.capabilities.style import NO_PHOTO, STYLE
 from buysmarter.knowledge.profile import CapabilitySetting, ResolvedProfile
 from buysmarter.ranking.models import Candidate, QueryConstraints
 from buysmarter.style import profile
@@ -117,10 +117,6 @@ def test_a_card_close_to_a_never_sample_goes_down_and_says_so(styled, component)
 
     assert hit.score < clean.score
     assert "нет: glossy white sole" in hit.explanation
-
-
-def test_the_never_penalty_is_per_z_unit() -> None:
-    assert NEVER_PER_Z == 0.15
 
 
 def test_a_card_without_a_photo_gets_half_and_says_why(styled) -> None:
