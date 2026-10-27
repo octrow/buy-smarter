@@ -104,21 +104,9 @@ class Style(Capability):
         if not profile.current().samples:
             return None  # brands only: no axis
         weight = weights.get(STYLE, 0.0)
-        if not candidate.style_match:
-            return AxisScore(
-                name=STYLE, score=round(weight / 2, 2), max_score=weight, explanation=NO_PHOTO
-            )
-        like, liked = _liked(state, candidate.style_match)
-        penalty, never = _never(state, candidate.style_match)
-        ratio = min(max(like - penalty, 0.0), 1.0)
-        parts = [liked if like >= 0.5 else _UNLIKE]
-        if penalty > 0:
-            parts.append(f"похоже на «нет: {never}»")
+        ratio, explanation = _judged(state, candidate.style_match)
         return AxisScore(
-            name=STYLE,
-            score=round(weight * ratio, 2),
-            max_score=weight,
-            explanation="; ".join(parts),
+            name=STYLE, score=round(weight * ratio, 2), max_score=weight, explanation=explanation
         )
 
 
@@ -128,6 +116,18 @@ async def _match(pool: list[Candidate], current: profile.Profile) -> None:
     model = await asyncio.to_thread(match.encoder)
     async with httpx.AsyncClient(follow_redirects=True) as client:
         await match.match_pool(pool, current, model, functools.partial(match.fetch_photo, client))
+
+
+def _judged(state: _PoolState, match: dict[str, tuple[float, str]]) -> tuple[float, str]:
+    """The axis share (0-1) and why: likeness less the «нет» penalty; half without a photo."""
+    if not match:
+        return 0.5, NO_PHOTO
+    like, liked = _liked(state, match)
+    penalty, never = _never(state, match)
+    parts = [liked if like >= 0.5 else _UNLIKE]
+    if penalty > 0:
+        parts.append(f"похоже на «нет: {never}»")
+    return min(max(like - penalty, 0.0), 1.0), "; ".join(parts)
 
 
 def _pool_stats(kind: str, cards: list[Candidate]) -> Any:

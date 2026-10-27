@@ -196,6 +196,16 @@ class StyleScreen(QWidget):
         self.photos = _photo_grid()
         self.no_extra = QLabel(NO_EXTRA, wordWrap=True)
         set_state(self.no_extra, "state", "warning")
+        self.photo_summary = _caption("")
+        card, inside = _card("Образцы")
+        inside.addWidget(self.photo_summary)
+        inside.addWidget(self.no_extra)
+        inside.addLayout(self._build_model_row())
+        inside.addLayout(self._build_photo_buttons())
+        inside.addWidget(self.photos, 1)
+        return card
+
+    def _build_photo_buttons(self) -> QHBoxLayout:
         self.add_button = QPushButton("Добавить фото…")
         set_state(self.add_button, "primary", "true")
         self.add_folder_button = QPushButton("Добавить папку…")
@@ -205,18 +215,11 @@ class StyleScreen(QWidget):
         self.add_folder_button.clicked.connect(self._add_folder)
         self.add_no_button.clicked.connect(lambda: self._add_photos(disliked=True))
         self.remove_photo_button.clicked.connect(self._remove_photos)
-        self.photo_summary = _caption("")
         buttons = _row(
             self.add_button, self.add_folder_button, self.add_no_button, self.remove_photo_button
         )
         buttons.addStretch(1)
-        card, inside = _card("Образцы")
-        inside.addWidget(self.photo_summary)
-        inside.addWidget(self.no_extra)
-        inside.addLayout(self._build_model_row())
-        inside.addLayout(buttons)
-        inside.addWidget(self.photos, 1)
-        return card
+        return buttons
 
     def _build_model_row(self) -> QHBoxLayout:
         self.model_status = _caption("")
