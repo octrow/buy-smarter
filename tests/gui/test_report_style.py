@@ -1,6 +1,7 @@
 """The report's 👍/👎: a card's main photo becomes a style sample, as ``style like/dislike``."""
 
 import asyncio
+import io
 
 import pytest
 
@@ -42,8 +43,6 @@ def served(monkeypatch):
     asked: list[str] = []
 
     async def fetch(url):
-        import io
-
         asked.append(url)
         out = io.BytesIO()
         image.new("RGB", (40, 40), "grey").save(out, "JPEG")
@@ -84,7 +83,7 @@ def test_a_selected_alternative_is_disliked(qtbot, runner, result, served, encod
 
 def test_a_photo_that_cannot_be_fetched_says_so(qtbot, runner, result, encoder, monkeypatch):
     async def down(url):
-        return None
+        raise profile.NoCardPhoto(url)
 
     monkeypatch.setattr(profile, "fetch_card_photo", down)
     screen = _shown(qtbot, runner, _with_photos(result))

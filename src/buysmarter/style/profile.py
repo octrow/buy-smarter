@@ -186,8 +186,6 @@ async def add_linked(url: str, disliked: bool) -> Photo:
 async def add_card(image_url: str, title: str, disliked: bool) -> Photo:
     """A card's main photo as a sample, named by the product's title (the report's 👍/👎)."""
     raw = await fetch_card_photo(image_url)
-    if raw is None:
-        raise NoCardPhoto(image_url)
     try:
         name, data = await asyncio.to_thread(_clean, raw)
     except OSError as exc:
@@ -196,14 +194,14 @@ async def add_card(image_url: str, title: str, disliked: bool) -> Photo:
     return Photo(name, title, disliked)
 
 
-async def fetch_card_photo(url: str) -> bytes | None:
-    """A card's photo, ``None`` when it cannot be had."""
+async def fetch_card_photo(url: str) -> bytes:
+    """A card's photo; ``NoCardPhoto`` when it cannot be had."""
     try:
         async with httpx.AsyncClient(timeout=_CARD_TIMEOUT, follow_redirects=True) as client:
             response = await client.get(url)
             response.raise_for_status()
-    except httpx.HTTPError:
-        return None
+    except httpx.HTTPError as exc:
+        raise NoCardPhoto(f"{url}: {exc}") from exc
     return response.content
 
 

@@ -277,7 +277,7 @@ def test_a_link_no_search_saved_is_refused_with_advice(encoder) -> None:
 
 def test_a_card_photo_that_cannot_be_fetched_says_so(stored_card, encoder, monkeypatch) -> None:
     async def down(url):
-        return None
+        raise profile.NoCardPhoto(url)
 
     monkeypatch.setattr(profile, "fetch_card_photo", down)
 
