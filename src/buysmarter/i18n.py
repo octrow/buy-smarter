@@ -36,7 +36,7 @@ AXIS_LABELS = {
     "ingredient": "Состав",
     "style": "Стиль",
 }
-# A letter or two per axis for the console's and the report's "Оси" cell (the app has a column each).
+# A letter or two per axis for the "Оси" cell of the console and report (the app: a column each).
 AXIS_SHORT = {
     "brand": "Б",
     "price": "Ц",
