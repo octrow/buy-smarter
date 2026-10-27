@@ -74,13 +74,13 @@ async def test_reset_keeps_the_learned_parameters() -> None:
     assert profile is not None and profile.ingredient_book == _BOOK
 
 
-async def test_a_choice_on_a_related_profile_writes_the_querys_record_with_a_parent() -> None:
+async def test_a_choice_writes_only_the_querys_own_record() -> None:
     await save_knowledge("косметика", BrandBook(), ModelBook(), "opus")
 
-    await set_user_choice("крем-от-акне", COMPOSITION, False, parent="косметика")
+    await set_user_choice("крем-от-акне", COMPOSITION, False)
 
     raw = await load_knowledge("крем-от-акне") or {}
-    assert raw["parent"] == "косметика"
+    assert "parent" not in raw
     assert raw["capabilities"][COMPOSITION]["user"] is False
     assert "capabilities" not in (await load_knowledge("косметика") or {})
 

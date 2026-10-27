@@ -117,7 +117,7 @@ def test_reset_returns_to_the_automatic_value(qtbot, runner, result):
 
 
 @pytest.mark.parametrize("found", [_PARENT])
-def test_a_related_profile_becomes_the_parent_and_is_not_touched(qtbot, runner, result, found):
+def test_a_related_profile_is_neither_the_parent_nor_touched(qtbot, runner, result, found):
     parent_record = {"capabilities": {"composition": {"enabled": True, "set_by": "learned"}}}
     job = runner.submit(update_knowledge(found, parent_record, "test"))
     with qtbot.waitSignal(job.finished, timeout=_WAIT_MS):
@@ -129,7 +129,7 @@ def test_a_related_profile_becomes_the_parent_and_is_not_touched(qtbot, runner, 
     _wait_for_note(qtbot, screen)
 
     own = _stored(qtbot, runner, _CATEGORY)
-    assert own["parent"] == found
+    assert "parent" not in own  # as `category set`: other creams must not read its books (В4)
     assert own["capabilities"]["composition"]["user"] is False
     assert _stored(qtbot, runner, found) == before
 

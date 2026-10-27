@@ -181,20 +181,14 @@ async def update_knowledge(
         logger.warning("Knowledge store unavailable (%r); %s not saved", exc, category)
 
 
-async def set_user_choice(
-    category: str, name: str, choice: bool | None, *, parent: str | None = None
-) -> None:
+async def set_user_choice(category: str, name: str, choice: bool | None) -> None:
     """The user's own switch for one capability of ``category`` (``None``: back to automatic).
 
-    Written to the query's own record, created if missing; ``parent`` (the related profile
-    the lookup found) is set on a record that has none, so its books keep coming from there.
+    Written to the query's own record, created if missing, and nothing else: a related profile
+    the lookup found never becomes its parent, or every query of the type would read its books
+    ("крем для рук" the acne books, finding #25 decision 4); the lookup finds it per query.
     """
-    updates: dict[str, Any] = {CAPABILITIES_KEY: {name: {"user": choice}}}
-    if parent and parent != _slug(category):
-        stored = await load_knowledge(category) or {}
-        if not stored.get(PARENT_KEY):
-            updates[PARENT_KEY] = parent
-    await update_knowledge(category, updates, USER_WRITER)
+    await update_knowledge(category, {CAPABILITIES_KEY: {name: {"user": choice}}}, USER_WRITER)
 
 
 async def get_stored_books(category: str) -> tuple[BrandBook | None, ModelBook | None]:

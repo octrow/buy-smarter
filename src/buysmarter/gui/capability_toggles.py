@@ -3,9 +3,9 @@
 One checkbox per category-level capability with the source in its text ("Состав — включено
 обучением"), so the state never rests on colour alone, and a reset button that returns the
 capability to its automatic value. A switch is written to the profile of the request's own
-category (``set_user_choice``; the related profile the lookup found becomes its parent, and is
-never written to), on the core loop. Nothing is searched again by itself: a change only offers
-the rerun (phase 3, decision 13).
+category (``set_user_choice``, as ``category set``; the related profile the lookup found is
+neither written to nor made its parent), on the core loop. Nothing is searched again by
+itself: a change only offers the rerun (phase 3, decision 13).
 """
 
 from PySide6.QtCore import Signal
@@ -44,7 +44,6 @@ class CapabilityToggles(QGroupBox):
         self,
         runner: CoreRunner | None,
         category: str,
-        found: str | None,
         states: list[CapabilityState],
         *,
         rerun: bool = True,
@@ -53,7 +52,6 @@ class CapabilityToggles(QGroupBox):
         self._rerun = rerun  # the «Категории» screen has no search to repeat
         self._runner = runner
         self._category = category
-        self._found = found
         self._states = {s.name: s for s in states if s.level == "category"}
         self.checkboxes: dict[str, QCheckBox] = {}
         self.resets: dict[str, QPushButton] = {}
@@ -112,7 +110,7 @@ class CapabilityToggles(QGroupBox):
             return
         self.checkboxes[name].setEnabled(False)
         self.resets[name].setEnabled(False)
-        job = self._runner.submit(set_user_choice(self._category, name, choice, parent=self._found))
+        job = self._runner.submit(set_user_choice(self._category, name, choice))
         job.finished.connect(lambda _=None: self._stored(name, choice))
         job.failed.connect(lambda _msg: self._not_stored(name))
         job.cancelled.connect(lambda: self._not_stored(name))

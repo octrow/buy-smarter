@@ -496,3 +496,25 @@ async def test_no_closer_lookup_without_more_words_an_llm_or_composition(monkeyp
 
     assert _substances(same) == _substances(offline) == ["пантенол"]
     assert phone.found == "смартфон"
+
+
+async def test_a_switch_on_a_related_profile_binds_no_other_query_to_it(monkeypatch) -> None:
+    await save_knowledge(
+        "средства-от-акне",
+        BrandBook(tiers={"Galderma": "A"}),
+        ModelBook(),
+        "opus",
+        category_type="composition_driven",
+        ingredient_book=IngredientBook(substances=[ActiveSubstance(canonical="адапален")]),
+    )
+    await store_mod.set_user_choice("крем", "used_market", False)  # the report's switch (В4)
+
+    monkeypatch.setattr(store_mod, "system_one", _jev_choice("средства-от-акне", 0.98))
+    acne = await store_mod.resolve_profile("крем", search_phrase="крем от акне")
+    monkeypatch.setattr(store_mod, "system_one", _jev_choice(store_mod._NO_MATCH, 1.0))
+    hands = await store_mod.resolve_profile("крем", search_phrase="крем для рук")
+
+    assert _substances(acne) == ["адапален"]
+    assert acne.capabilities["used_market"].user is False
+    assert hands.ingredient_book is None
+    assert hands.capabilities["used_market"].user is False

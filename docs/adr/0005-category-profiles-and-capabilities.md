@@ -26,3 +26,5 @@ Work goes in four phases (`docs/plans/2026-10-22-capabilities-phase1.md` and lat
 ## Amendment 2026-10-27 (finding #25)
 
 The exact key no longer always ends the lookup: a learned record judged by composition gives way to a closer composition profile Jev picks from the search phrase ("крем от акне": "средства-от-акне" over a learned "крем"). Only the record's user choices stay on top; nothing is written. Plan: `docs/plans/2026-10-26-closer-composition-profile.md`.
+
+A user switch writes only the choice to the query's own record; the related profile found no longer becomes its parent (phase 3, decision 13 dropped), which bound every query of the type to that profile's books. Plan: `docs/plans/2026-10-27-switch-without-parent.md`.

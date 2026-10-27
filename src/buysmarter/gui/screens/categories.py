@@ -214,9 +214,7 @@ class CategoriesScreen(QWidget):
         if detail is None:
             return
         self._detail.addWidget(self._knowledge_card(detail))
-        self.toggles = CapabilityToggles(
-            self._runner, detail.row.name, None, detail.states, rerun=False
-        )
+        self.toggles = CapabilityToggles(self._runner, detail.row.name, detail.states, rerun=False)
         self._detail.addWidget(self.toggles)
 
     def _clear_detail(self) -> None:

@@ -346,9 +346,7 @@ class ReportScreen(QScrollArea):
             self.ensureWidgetVisible(self.toggles)
 
     def _toggles_section(self, result: RecommendResult) -> CapabilityToggles:
-        toggles = CapabilityToggles(
-            self._runner, _category(result), result.profile_found, result.capabilities
-        )
+        toggles = CapabilityToggles(self._runner, _category(result), result.capabilities)
         toggles.rerun_requested.connect(self.rerun_requested)
         self.toggles = toggles
         return toggles
