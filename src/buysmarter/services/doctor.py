@@ -10,14 +10,17 @@ from market_sources.ozon.browser import OzonBrowser, ozon_state_path
 from market_sources.ozon.source import search_path
 from sqlalchemy.engine import make_url
 
+from buysmarter import style
 from buysmarter.config import get_settings
 from buysmarter.db.schema import schema_is_current
 from buysmarter.llm.adapter import current_route, route_label
 from buysmarter.services import ozon_browser
 from buysmarter.services.ozon_browser import CHROME, LABELS, channel, search_browser, setup_browser
+from buysmarter.style import weights
 
 OZON_BROWSER = "Ozon browser"  # the row whose failure turns Ozon off
 STORAGE = "Storage"  # the row whose failure turns history and preferences off
+STYLE = "Clothing style"  # the row whose failure turns the style axis off
 _OZON_SETUP_PROBE_QUERY = "смартфон"
 INSTALL_BROWSER = (
     "install Google Chrome (https://www.google.com/chrome/), "
@@ -122,6 +125,17 @@ def ozon_browser_check() -> Check:
     return Check(OZON_BROWSER, False, f"Ozon off; {INSTALL_BROWSER}", app_hint=app_hint)
 
 
+def style_check() -> Check:
+    """Whether the clothing-taste module is installed and its model downloaded."""
+    if not style.available():
+        hint = f"clothing style off; install the extra: pip install 'buysmarter[{style.EXTRA}]'"
+        app_hint = "Подбор одежды по вкусу выключен: в этой установке нет модуля стиля."
+        return Check(STYLE, False, hint, app_hint=app_hint)
+    if weights.missing():
+        return Check(STYLE, True, "", "model downloads on first use (~200 MB)")
+    return Check(STYLE, True, "", f"model in {weights.weights_dir()}")
+
+
 def doctor_checks() -> list[Check]:
     """One row for every optional piece the pipeline can use."""
     return [
@@ -134,4 +148,5 @@ def doctor_checks() -> list[Check]:
             "Ozon may hit the anti-bot page; run `buysmarter ozon-setup`",
             app_hint="Ozon может показать антибот-страницу: нажмите «Пройти проверку Ozon» ниже.",
         ),
+        style_check(),
     ]

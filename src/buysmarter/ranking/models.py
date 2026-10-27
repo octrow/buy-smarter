@@ -85,6 +85,7 @@ class Candidate(BaseModel):
     specs: dict[str, str] = Field(default_factory=dict)
     availability: bool = True
     url: str | None = None
+    image_url: str | None = None  # the card's main photo (the style axis looks at it)
     price_history: PriceHistory | None = None
     # Reviews gained per week vs a snapshot >= 7 days old (ranking.velocity); None without DB.
     review_velocity: float | None = None

@@ -155,6 +155,7 @@ uv run buysmarter doctor      # скажет, чего не хватает и ч
 # По желанию
 uv sync --extra server && make up        # стек HTTP API: Postgres :5434 + Redis :6380 (см. .env.example)
 uv run playwright install chromium       # источник Ozon
+uv sync --extra style                    # подбор одежды по вкусу (в работе): ONNX-модель на CPU
 uv run buysmarter ozon-setup             # один раз пройти антибот Ozon в видимом браузере
 cp .env.example .env                     # необязательные API-ключи и прокси
 ```

@@ -33,6 +33,8 @@ SERVER_TESTS = ("api/*", "test_jobs.py", "test_worker.py", "test_telemetry.py")
 _HAS_SERVER_EXTRA = all(importlib.util.find_spec(m) for m in ("fastapi", "redis", "taskiq"))
 collect_ignore_glob = [] if _HAS_SERVER_EXTRA else list(SERVER_TESTS)
 # The desktop app tests need the [gui] extra.
+if not all(importlib.util.find_spec(m) for m in ("onnxruntime", "tokenizers", "PIL", "numpy")):
+    collect_ignore_glob.append("style")  # the `style` extra is not installed
 if not importlib.util.find_spec("PySide6"):
     collect_ignore_glob.append("gui")  # the directory itself: its conftest imports PySide6
 

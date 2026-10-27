@@ -18,6 +18,7 @@ from buysmarter.db.models import (
     PriceSnapshot,
     Product,
     Review,
+    StyleVector,
     UserPreference,
 )
 
@@ -324,3 +325,27 @@ async def review_count_history(
         .order_by(PriceSnapshot.captured_at.asc())
     )
     return [(captured_at, count) for captured_at, count in (await session.execute(stmt)).all()]
+
+
+async def get_style_vectors(
+    session: AsyncSession, kind: str, keys: Iterable[str]
+) -> dict[str, bytes]:
+    """The stored vectors of ``kind`` for these keys, ``{key: bytes}`` (absent keys left out)."""
+    wanted = list(keys)
+    if not wanted:
+        return {}
+    stmt = select(StyleVector.key, StyleVector.vector).where(
+        StyleVector.kind == kind, StyleVector.key.in_(wanted)
+    )
+    return {key: vector for key, vector in (await session.execute(stmt)).all()}
+
+
+async def add_style_vectors(session: AsyncSession, kind: str, vectors: Mapping[str, bytes]) -> None:
+    """Store new vectors of ``kind``; a key already stored keeps its vector."""
+    known = await get_style_vectors(session, kind, vectors)
+    session.add_all(
+        StyleVector(kind=kind, key=key, vector=vector)
+        for key, vector in vectors.items()
+        if key not in known
+    )
+    await session.commit()

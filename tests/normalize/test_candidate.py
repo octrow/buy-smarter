@@ -289,3 +289,9 @@ def test_a_replica_pod_brand_is_still_a_mimic():
     )
 
     assert candidate.mimic_brand == "Nike"
+
+
+def test_the_main_photo_reaches_the_candidate():
+    product = _product(image_url="https://cdn.example/p/1.jpg")
+
+    assert to_candidate(product).image_url == "https://cdn.example/p/1.jpg"

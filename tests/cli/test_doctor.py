@@ -126,3 +126,26 @@ def test_ozon_setup_says_the_same_words_in_the_cli_and_the_app() -> None:
     assert doctor.ozon_setup_message(doctor.OZON_TIMEOUT).startswith("Не удалось получить сессию")
     saved = doctor.ozon_setup_message(doctor.OZON_SAVED)
     assert saved.startswith("Сессия Ozon сохранена: ") and str(ozon_state_path()) in saved
+
+
+def test_style_row_names_the_extra_when_it_is_missing(monkeypatch):
+    monkeypatch.setattr(doctor.style, "available", lambda: False)
+    check = doctor.style_check()
+    assert not check.ok
+    assert "buysmarter[style]" in check.hint
+    assert "`" not in check.app_hint and "стил" in check.app_hint
+
+
+def test_style_row_says_the_model_downloads_on_first_use(monkeypatch, tmp_path):
+    monkeypatch.setattr(doctor.style, "available", lambda: True)
+    monkeypatch.setattr(doctor.weights, "weights_dir", lambda: tmp_path)
+    assert doctor.style_check() == Check(
+        doctor.STYLE, True, "", "model downloads on first use (~200 MB)"
+    )
+
+
+def test_style_row_shows_where_the_model_is(monkeypatch, tmp_path):
+    monkeypatch.setattr(doctor.style, "available", lambda: True)
+    monkeypatch.setattr(doctor.weights, "weights_dir", lambda: tmp_path)
+    monkeypatch.setattr(doctor.weights, "missing", lambda: [])
+    assert doctor.style_check().detail == f"model in {tmp_path}"

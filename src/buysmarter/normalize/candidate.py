@@ -186,6 +186,7 @@ def to_candidate(
         specs=specs,
         availability=has_price,
         url=product.url,
+        image_url=product.image_url,
         offer_count=len(offers),
         best_seller=_pick_best_seller(offers),
         mimic_brand=_mimic_brand(book, product.title, raw_brand, brand),

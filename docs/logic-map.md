@@ -413,7 +413,7 @@ Module: `services/price_tracking`
 
 ### Doctor
 
-Checks the environment: LLM route, browser for Ozon, store, sources.
+Checks the environment: LLM route, browser for Ozon, store, sources, the clothing-style module (the `style` extra installed? its model downloaded? — about 200 MB on first use, pinned and checked by SHA-256, `style/weights`).
 Module: `services/doctor`
 
 ## Known gaps

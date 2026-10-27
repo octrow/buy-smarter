@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Added
+
+- Groundwork for clothing taste (the `style` extra: `onnxruntime`, `tokenizers`, `pillow`, `numpy`): the Marqo-FashionSigLIP int8 ONNX model, pinned and SHA-256-checked, downloads once into the user cache; card photos are encoded once and kept in the store (`style_vectors`); `doctor` shows a «Clothing style» row. Nothing ranks by style yet.
+
 ## [0.9.1] - 2026-10-27
 
 ### Fixed

@@ -1,7 +1,7 @@
 """SQLAlchemy 2 typed ORM models for the persistence layer.
 
 Products, seller offers, price-history snapshots, reviews, single-user
-preferences, and LLM-generated category schemas. The LLM response cache
+preferences, LLM-generated category schemas and style vectors. The LLM response cache
 (``LlmCache``) lives in ``buysmarter.llm.models``.
 """
 
@@ -12,6 +12,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -123,4 +124,24 @@ class CategoryKnowledge(Base):
     schema_json: Mapped[dict[str, Any]] = mapped_column(JsonType)
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime, default=utcnow, server_default=func.now(), onupdate=utcnow
+    )
+
+
+class StyleVector(Base):
+    """A clothing-style embedding: a card photo (``card``, keyed by its URL) or a profile item.
+
+    ``vector`` is the model's float32 output as bytes; ``label`` is what the report names
+    ("your photo «…»"). Written by ``buysmarter.style``.
+    """
+
+    __tablename__ = "style_vectors"
+    __table_args__ = (UniqueConstraint("kind", "key", name="uq_style_vectors_kind_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    key: Mapped[str] = mapped_column(String(1024))
+    label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    vector: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utcnow, server_default=func.now()
     )
