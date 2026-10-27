@@ -39,6 +39,8 @@ PHOTO_SUFFIXES = frozenset({".jpg", ".jpeg", ".png", ".webp"})  # what a folder 
 TRANSLATE_MODEL = "free-stack"  # a short mechanical rewrite: the cheap combo
 
 Encode = Callable[[list[bytes]], Any]
+Progress = Callable[[int, int], None]  # (photos done, photos in all)
+_BATCH = 16  # photos copied and encoded at a time: the progress step and what a cancel keeps
 
 
 class Untranslated(Exception):
@@ -169,12 +171,24 @@ async def remove(item: str) -> bool:
     return True
 
 
-async def add_photos(paths: list[Path], disliked: bool) -> Added:
-    """Copy the photos (and the photos in folders) in and store their vectors; needs the extra."""
-    copies, skipped = await asyncio.to_thread(_clean_copies, paths)
-    if copies:
-        await _keep(copies, disliked)
-    return Added([Photo(n, label, disliked) for n, (label, _) in copies.items()], skipped)
+async def add_photos(paths: list[Path], disliked: bool, progress: Progress | None = None) -> Added:
+    """Copy the photos (and the photos in folders) in and store their vectors; needs the extra.
+
+    Batch by batch: ``progress(done, total)`` after each, and a cancel keeps the batches done.
+    """
+    files = list(_files(paths))
+    added: list[Photo] = []
+    skipped: list[str] = []
+    for start in range(0, len(files), _BATCH):
+        batch = files[start : start + _BATCH]
+        copies, missed = await asyncio.to_thread(_clean_copies, batch)
+        if copies:
+            await _keep(copies, disliked)
+        added += [Photo(n, label, disliked) for n, (label, _) in copies.items()]
+        skipped += missed
+        if progress is not None:
+            progress(start + len(batch), len(files))
+    return Added(added, skipped)
 
 
 async def add_linked(url: str, disliked: bool) -> Photo:
@@ -233,10 +247,10 @@ async def _keep(copies: dict[str, tuple[str, bytes]], disliked: bool) -> None:
 async def photo_encoder() -> Encode:
     """The real photo encoder; downloads the model the first time (~200 MB)."""
     from buysmarter.style import weights
-    from buysmarter.style.encoder import Encoder
+    from buysmarter.style.encoder import shared
 
-    directory = await weights.download()
-    return (await asyncio.to_thread(Encoder.load, directory)).images
+    await weights.download()
+    return (await asyncio.to_thread(shared)).images
 
 
 class _Translation(BaseModel):
@@ -295,6 +309,7 @@ def _clean(raw: bytes) -> tuple[str, bytes]:
 
     try:
         with Image.open(io.BytesIO(raw)) as img:
+            img.draft("RGB", (_MAX_SIDE, _MAX_SIDE))  # a big JPEG decodes at a fraction
             rgb = ImageOps.exif_transpose(img).convert("RGB")
     except UnidentifiedImageError as exc:
         raise OSError("not an image") from exc

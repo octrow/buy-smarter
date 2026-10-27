@@ -112,8 +112,9 @@ class Style(Capability):
 
 async def _match(pool: list[Candidate], current: profile.Profile) -> None:
     from buysmarter.style import match  # the extra: only once it is known to be there
+    from buysmarter.style.encoder import shared
 
-    model = await asyncio.to_thread(match.encoder)
+    model = await asyncio.to_thread(shared)
     async with httpx.AsyncClient(follow_redirects=True) as client:
         await match.match_pool(pool, current, model, functools.partial(match.fetch_photo, client))
 

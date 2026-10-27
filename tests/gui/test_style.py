@@ -181,3 +181,68 @@ def test_strength_is_saved_as_the_cli_stores_it(qtbot, runner):
     screen.strength.setValue(0)
 
     qtbot.waitUntil(lambda: _profile().strength == 0, timeout=WAIT_MS)
+
+
+def _slow_encoder(monkeypatch):
+    """Every batch takes a moment: long enough to see the bar and press «Отмена»."""
+    import time
+
+    import numpy as np
+
+    def encode(blobs):
+        time.sleep(0.3)
+        return np.ones((len(blobs), 4), dtype=np.float32) / 2
+
+    async def fake():
+        return encode
+
+    monkeypatch.setattr(profile, "photo_encoder", fake)
+
+
+def _folder(tmp_path, photo, count: int):
+    looks = tmp_path / "looks"
+    looks.mkdir()
+    for i in range(count):
+        photo(f"{i}.jpg", (i * 7, 50, 90)).rename(looks / f"{i:02d}.jpg")
+    return looks
+
+
+def test_adding_a_folder_shows_progress_and_hides_it_when_done(
+    qtbot, runner, tmp_path, photo, monkeypatch
+):
+    _slow_encoder(monkeypatch)
+    looks = _folder(tmp_path, photo, 20)
+    screen = StyleScreen(runner, pick_folder=lambda _parent: str(looks))
+    qtbot.addWidget(screen)
+    screen.show()
+
+    screen.add_folder_button.click()
+
+    qtbot.waitUntil(
+        lambda: screen.progress.isVisible() and screen.progress.value() == 16, timeout=WAIT_MS
+    )
+    assert screen.cancel_button.isVisible()
+    qtbot.waitUntil(lambda: screen.photos.count() == 20, timeout=WAIT_MS)
+    assert not screen.progress.isVisible() and not screen.cancel_button.isVisible()
+
+
+def test_cancel_stops_after_the_current_batch_and_keeps_it(
+    qtbot, runner, tmp_path, photo, monkeypatch
+):
+    _slow_encoder(monkeypatch)
+    looks = _folder(tmp_path, photo, 40)
+    screen = StyleScreen(runner, pick_folder=lambda _parent: str(looks))
+    qtbot.addWidget(screen)
+    screen.show()
+    screen.add_folder_button.click()
+    qtbot.waitUntil(lambda: screen.progress.value() >= 16, timeout=WAIT_MS)
+
+    screen.cancel_button.click()
+
+    qtbot.waitUntil(
+        lambda: screen.message.text().startswith(style_cli.STOPPED[:10]), timeout=WAIT_MS
+    )
+    kept = len(_profile().photos)
+    assert 16 <= kept < 40
+    qtbot.waitUntil(lambda: screen.photos.count() == kept, timeout=WAIT_MS)
+    assert not screen.progress.isVisible()

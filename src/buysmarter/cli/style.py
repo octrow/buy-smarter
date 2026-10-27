@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Annotated, Any
 import typer
 from rich.console import Console
 from rich.markup import escape
+from rich.progress import MofNCompleteColumn, Progress
 from rich.table import Table
 from rich.text import Text
 
@@ -48,6 +49,7 @@ LIKED = "Добавлено в образцы стиля: «{}»."
 DISLIKED = "Добавлено в «нет»: «{}»."
 # Under a console report where style works: the app shows 👍/👎 buttons instead.
 VOTE_HINT = "👍/👎: buysmarter style like|dislike <ссылка>"
+STOPPED = "Остановлено. Уже добавленные фото остались в образцах."
 NOT_FOUND = "В профиле нет такого фото или фразы."
 MODEL_DOWN = "Не удалось скачать модель стиля. Подробности в логе."
 MODEL_READY = "Модель стиля скачана."
@@ -173,8 +175,23 @@ def add(
         raise typer.Exit(code=1)
     if weights.missing():
         _say(DOWNLOADING, "dim")
-    added = _run(profile.add_photos(files, disliked=no))
+    try:
+        added = _added_with_bar(files, disliked=no)
+    except KeyboardInterrupt:
+        _say(STOPPED, "yellow")
+        raise typer.Exit(code=130) from None
     _say(added_line(added), "yellow" if added.skipped else "green")
+
+
+def _added_with_bar(files: list[Path], disliked: bool) -> profile.Added:
+    """``add_photos`` under a «N из M» bar; Ctrl+C stops after the batch under way."""
+    with Progress(*Progress.get_default_columns(), MofNCompleteColumn(), transient=True) as bar:
+        task = bar.add_task("Фото", total=None)
+        return _run(
+            profile.add_photos(
+                files, disliked, lambda done, total: bar.update(task, completed=done, total=total)
+            )
+        )
 
 
 @style_app.command()

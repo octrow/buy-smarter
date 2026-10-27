@@ -10,7 +10,7 @@ from collections.abc import Callable, Coroutine
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QIcon, QImageReader, QPixmap, QShowEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QListView,
     QListWidget,
     QListWidgetItem,
+    QProgressBar,
     QPushButton,
     QSpinBox,
     QVBoxLayout,
@@ -42,6 +43,7 @@ from buysmarter.cli.style import (
     PHOTOS,
     PHRASE_HINT,
     SAVED,
+    STOPPED,
     STRENGTH,
     UNTRANSLATED,
     added_line,
@@ -49,7 +51,7 @@ from buysmarter.cli.style import (
     photo_count,
     phrase_line,
 )
-from buysmarter.gui.bridge import CoreRunner
+from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.theme import SPACE, card_body, set_state
 from buysmarter.memory.prefs import as_list
 from buysmarter.style import profile, weights
@@ -99,9 +101,9 @@ async def _phrase(text: str, never: bool) -> str:
     return SAVED
 
 
-async def _photos(paths: list[Path], disliked: bool) -> str:
+async def _photos(paths: list[Path], disliked: bool, progress: profile.Progress) -> str:
     try:
-        added = await profile.add_photos(paths, disliked=disliked)
+        added = await profile.add_photos(paths, disliked, progress)
     except weights.WeightsError as exc:
         logger.warning("Style model not downloaded: %r", exc)
         return MODEL_DOWN
@@ -169,6 +171,8 @@ def _card(title: str) -> tuple[QGroupBox, QVBoxLayout]:
 class StyleScreen(QWidget):
     """Edits the style profile: brands, phrases and sample photos."""
 
+    _photo_progress = Signal(int, int)  # (done, total): the core loop thread -> the GUI thread
+
     def __init__(
         self,
         runner: CoreRunner,
@@ -202,6 +206,7 @@ class StyleScreen(QWidget):
         inside.addWidget(self.no_extra)
         inside.addLayout(self._build_model_row())
         inside.addLayout(self._build_photo_buttons())
+        inside.addLayout(self._build_progress_row())
         inside.addWidget(self.photos, 1)
         return card
 
@@ -220,6 +225,21 @@ class StyleScreen(QWidget):
         )
         buttons.addStretch(1)
         return buttons
+
+    def _build_progress_row(self) -> QHBoxLayout:
+        """«N из M» while photos are added, with «Отмена»; hidden otherwise."""
+        self.progress = QProgressBar(textVisible=False)  # the theme's bar is thin: count beside it
+        self.progress.setAccessibleName("Добавление фото")
+        self.progress_count = _caption("")
+        self.cancel_button = QPushButton("Отмена")
+        self.cancel_button.clicked.connect(self._cancel_adding)
+        self._photo_progress.connect(self._on_progress)
+        self._adding: Job | None = None
+        self._show_progress(False)
+        row = _row(self.progress, self.progress_count, self.cancel_button)
+        row.setStretch(0, 1)
+        row.setStretch(1, 0)
+        return row
 
     def _build_model_row(self) -> QHBoxLayout:
         self.model_status = _caption("")
@@ -317,15 +337,43 @@ class StyleScreen(QWidget):
 
     def _add_photos(self, disliked: bool) -> None:
         if paths := self._pick_photos(self):
-            self._say(ADDING)
-            self._set_busy(True)
-            self._run(_photos([Path(p) for p in paths], disliked))
+            self._start_adding([Path(p) for p in paths], disliked)
 
     def _add_folder(self) -> None:
         if folder := self._pick_folder(self):
-            self._say(ADDING)
-            self._set_busy(True)
-            self._run(_photos([Path(folder)], disliked=False))
+            self._start_adding([Path(folder)], disliked=False)
+
+    def _start_adding(self, paths: list[Path], disliked: bool) -> None:
+        self._say(ADDING)
+        self._set_busy(True)
+        self.progress.setRange(0, 0)  # busy until the first batch says how many there are
+        self._show_progress(True)
+        self._adding = self._runner.submit(_photos(paths, disliked, self._photo_progress.emit))
+        self._adding.finished.connect(self._adding_done)
+        self._adding.cancelled.connect(lambda: self._adding_done(STOPPED))
+        self._adding.failed.connect(self._failed)
+
+    def _on_progress(self, done: int, total: int) -> None:
+        self.progress.setRange(0, total)
+        self.progress.setValue(done)
+        self.progress_count.setText(f"{done} из {total}")
+
+    def _cancel_adding(self) -> None:
+        if self._adding is not None:
+            self.cancel_button.setEnabled(False)  # the batch under way finishes first
+            self._adding.cancel()
+
+    def _adding_done(self, line: str) -> None:
+        self._adding = None
+        self._show_progress(False)
+        self._done(line, None)
+
+    def _show_progress(self, shown: bool) -> None:
+        self.progress.setVisible(shown)
+        self.progress_count.setVisible(shown)
+        self.progress_count.clear()
+        self.cancel_button.setVisible(shown)
+        self.cancel_button.setEnabled(shown)
 
     def _download(self) -> None:
         self.model_status.setText(DOWNLOADING)
@@ -366,6 +414,8 @@ class StyleScreen(QWidget):
         self.reload()
 
     def _failed(self, _message: str) -> None:
+        self._adding = None
+        self._show_progress(False)
         self._set_busy(False)
         self._say(STORE_DOWN)  # the details are in the log
 

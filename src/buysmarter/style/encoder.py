@@ -6,6 +6,7 @@ blind to negation: a phrase names the thing itself ("glossy white plastic sole")
 "no X".
 """
 
+import functools
 import io
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,7 @@ from typing import Any
 import numpy as np
 from PIL import Image, ImageOps
 
-from buysmarter.style.weights import FILES
+from buysmarter.style.weights import FILES, weights_dir
 
 BATCH = 16  # the spike's fastest batch on a laptop CPU
 _SIZE = 224
@@ -64,3 +65,9 @@ class Encoder:
         """Unit vectors, one per phrase (lowercased, as the model was trained)."""
         ids = [e.ids for e in self._tokenizer.encode_batch([p.lower() for p in phrases])]
         return _unit(self._text.run(None, {"input_ids": np.array(ids, dtype=np.int64)})[0])
+
+
+@functools.cache
+def shared() -> Encoder:
+    """The model from the user cache, loaded once per process (about a second)."""
+    return Encoder.load(weights_dir())

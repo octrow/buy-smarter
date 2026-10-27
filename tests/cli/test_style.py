@@ -307,3 +307,16 @@ def test_the_console_report_says_how_to_vote_when_style_works(
     console.render(result, 3)
 
     assert (style_cli.VOTE_HINT in capsys.readouterr().out) == shown
+
+
+def test_ctrl_c_while_adding_says_what_was_kept(monkeypatch, tmp_path, encoder) -> None:
+    async def interrupted(paths, disliked, progress=None):
+        progress(16, 40)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(profile, "add_photos", interrupted)
+
+    result = _style("add", str(tmp_path))
+
+    assert result.exit_code == 130
+    assert style_cli.STOPPED in result.stdout

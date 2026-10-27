@@ -6,7 +6,6 @@ capability turns the cosines into the «Стиль» axis; this module only meas
 """
 
 import asyncio
-import functools
 from collections.abc import Awaitable, Callable
 from typing import Protocol
 
@@ -16,8 +15,7 @@ import numpy as np
 from buysmarter.db import repo
 from buysmarter.db.base import async_session
 from buysmarter.ranking.models import Candidate
-from buysmarter.style import cache, weights
-from buysmarter.style.encoder import Encoder
+from buysmarter.style import cache
 from buysmarter.style.profile import (
     LIKE_PHOTO,
     LIKE_TEXT,
@@ -40,12 +38,6 @@ class Encodes(Protocol):
 
 # (vectors, one name per row) of one compared kind
 Samples = tuple[np.ndarray, list[str]]
-
-
-@functools.cache
-def encoder() -> Encoder:
-    """The model, loaded once per process (about a second); the files must be downloaded."""
-    return Encoder.load(weights.weights_dir())
 
 
 async def match_pool(pool: list[Candidate], current: Profile, model: Encodes, fetch: Fetch) -> None:
