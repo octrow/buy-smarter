@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-27
+
 ### Fixed
 
 - When the review-summary penalties pushed the best pick down, the new best from below the top 3 had no summary, counterfeit check or required-feature verdicts. It now gets its own summary, applied the same way (up to 3 more).
