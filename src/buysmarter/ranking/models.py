@@ -9,7 +9,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from buysmarter.ranking.audience import as_audience
 
 Intent = Literal["product", "need", "open", "multi", "service", "unclear"]
 Restricted = Literal["rx", "alcohol", "tobacco", "weapon"]
@@ -56,6 +58,11 @@ class QueryConstraints(BaseModel):
     dims: dict[str, str] = Field(default_factory=dict)
     exclude_substances: list[str] = Field(default_factory=list)
     original_only: bool = False
+
+    @field_validator("gender")
+    @classmethod
+    def _one_of_ours(cls, value: str | None) -> str | None:
+        return as_audience(value)
 
 
 class PriceHistory(BaseModel):

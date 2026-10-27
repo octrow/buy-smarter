@@ -31,6 +31,13 @@ def test_other_audience_flags_only_a_listing_marked_for_someone_else():
     assert other_audience(MALE, "Кроссовки Demix") is None
 
 
+def test_the_parsed_audience_is_one_of_ours_whatever_word_the_llm_used():
+    assert QueryConstraints(gender="мужской").gender == MALE
+    assert QueryConstraints(gender="Женский").gender == FEMALE
+    assert QueryConstraints(gender=KIDS).gender == KIDS
+    assert QueryConstraints(gender="унисекс").gender is None
+
+
 def test_hard_filter_drops_other_audience_using_the_category_path_too():
     women = Candidate(
         source="kaspi",

@@ -54,6 +54,16 @@ def query_audience(text: str) -> str | None:
     return found.pop() if len(found) == 1 else None
 
 
+def as_audience(value: str | None) -> str | None:
+    """One of ours from whatever word names it ("мужской" -> MALE), None when it names none.
+
+    The LLM parse fills ``gender`` in its own words; the filter compares names.
+    """
+    if value is None or value in _AUDIENCE_RES:
+        return value
+    return query_audience(value)
+
+
 def other_audience(wanted: str, listing_text: str) -> str | None:
     """The audience a listing is marked for when that excludes ``wanted``, else None.
 

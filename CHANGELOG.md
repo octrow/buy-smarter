@@ -12,6 +12,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Adding style photos shows «N из M» with «Отмена» in the app and a bar in the CLI (Ctrl+C); photos go in 16 at a time, so a stop keeps what is done, and big JPEGs decode at a fraction of their size.
 - 👍/👎 on a clothing report: the app's buttons (best pick, selected alternative) and `buysmarter style like|dislike <link>` add the card's main photo to the style samples.
 
+### Fixed
+
+- «мужские кроссовки» kept only unisex and unmarked cards: the LLM parse wrote the audience as «мужской», and the filter, comparing it with «male», dropped every card marked for men. The parse's word is now mapped to men / women / kids.
+
 ## [0.9.1] - 2026-10-27
 
 ### Fixed
