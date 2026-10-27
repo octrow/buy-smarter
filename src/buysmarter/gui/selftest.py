@@ -72,6 +72,7 @@ def _isolate(tmp: Path) -> None:
     os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{tmp / 'buysmarter.db'}"
     os.environ["BUYSMARTER_PREFS_FILE"] = str(tmp / "prefs.json")
     os.environ["BUYSMARTER_KNOWLEDGE_DIR"] = str(tmp / "knowledge")
+    os.environ["BUYSMARTER_STYLE_DIR"] = str(tmp / "style")
     os.environ["OZON_STATE_PATH"] = str(tmp / "ozon_state.json")
 
 

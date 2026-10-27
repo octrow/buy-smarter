@@ -18,6 +18,7 @@ TEST_DB = _TEST_ROOT / "test.db"
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB}"
 os.environ["BUYSMARTER_PREFS_FILE"] = str(_TEST_ROOT / "legacy" / "prefs.json")
 os.environ["BUYSMARTER_KNOWLEDGE_DIR"] = str(_TEST_ROOT / "legacy" / "knowledge")
+os.environ["BUYSMARTER_STYLE_DIR"] = str(_TEST_ROOT / "style")
 # The GUI tests run headless.
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -32,9 +33,9 @@ from keyring.errors import PasswordDeleteError  # noqa: E402
 SERVER_TESTS = ("api/*", "test_jobs.py", "test_worker.py", "test_telemetry.py")
 _HAS_SERVER_EXTRA = all(importlib.util.find_spec(m) for m in ("fastapi", "redis", "taskiq"))
 collect_ignore_glob = [] if _HAS_SERVER_EXTRA else list(SERVER_TESTS)
-# The desktop app tests need the [gui] extra.
 if not all(importlib.util.find_spec(m) for m in ("onnxruntime", "tokenizers", "PIL", "numpy")):
     collect_ignore_glob.append("style")  # the `style` extra is not installed
+# The desktop app tests need the [gui] extra.
 if not importlib.util.find_spec("PySide6"):
     collect_ignore_glob.append("gui")  # the directory itself: its conftest imports PySide6
 
@@ -236,3 +237,30 @@ def recommend_result():
     rec = Recommendation(best=scored, ranked=[scored])
     constraints = QueryConstraints(search_phrase="ирригатор", city="Алматы", budget_max=40000)
     return RecommendResult(recommendation=rec, constraints=constraints)
+
+
+@pytest.fixture
+def photo(tmp_path):
+    """A JPEG with camera EXIF; ``photo(name, colour)`` writes another one."""
+    image = pytest.importorskip("PIL.Image")
+
+    def make(name: str = "look.jpg", colour: str = "navy"):
+        exif = image.Exif()
+        exif[0x010F] = "SecretCam"  # Make
+        path = tmp_path / name
+        image.new("RGB", (64, 48), colour).save(path, exif=exif)
+        return path
+
+    return make
+
+
+@pytest.fixture
+def encoder(monkeypatch):
+    """No model download: every photo encodes to the same unit vector."""
+    np = pytest.importorskip("numpy")
+    from buysmarter.style import profile
+
+    async def fake():
+        return lambda blobs: np.ones((len(blobs), 4), dtype=np.float32) / 2
+
+    monkeypatch.setattr(profile, "photo_encoder", fake)

@@ -340,12 +340,37 @@ async def get_style_vectors(
     return {key: vector for key, vector in (await session.execute(stmt)).all()}
 
 
-async def add_style_vectors(session: AsyncSession, kind: str, vectors: Mapping[str, bytes]) -> None:
+async def add_style_vectors(
+    session: AsyncSession,
+    kind: str,
+    vectors: Mapping[str, bytes],
+    labels: Mapping[str, str] | None = None,
+) -> None:
     """Store new vectors of ``kind``; a key already stored keeps its vector."""
     known = await get_style_vectors(session, kind, vectors)
     session.add_all(
-        StyleVector(kind=kind, key=key, vector=vector)
+        StyleVector(kind=kind, key=key, vector=vector, label=(labels or {}).get(key))
         for key, vector in vectors.items()
         if key not in known
     )
     await session.commit()
+
+
+async def list_style_vectors(
+    session: AsyncSession, kinds: Iterable[str]
+) -> list[tuple[str, str, str | None]]:
+    """``(kind, key, label)`` of every vector of these kinds, oldest first."""
+    stmt = (
+        select(StyleVector.kind, StyleVector.key, StyleVector.label)
+        .where(StyleVector.kind.in_(list(kinds)))
+        .order_by(StyleVector.id)
+    )
+    return [(kind, key, label) for kind, key, label in (await session.execute(stmt)).all()]
+
+
+async def delete_style_vectors(session: AsyncSession, kinds: Iterable[str], key: str) -> int:
+    """Drop the vectors of these kinds stored under ``key``; how many there were."""
+    stmt = delete(StyleVector).where(StyleVector.kind.in_(list(kinds)), StyleVector.key == key)
+    result = await session.execute(stmt)
+    await session.commit()
+    return int(result.rowcount)  # type: ignore[attr-defined]

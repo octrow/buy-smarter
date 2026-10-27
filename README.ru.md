@@ -176,6 +176,13 @@ buysmarter prefs set marketplaces kaspi,olx
 buysmarter prefs set excluded_brands "Noname, Generic"
 buysmarter prefs clear budget
 
+# Вкус в одежде (экран «Стиль»; для фото нужен extra `style`)
+buysmarter style
+buysmarter style add ~/style/like                # фото или папки; --no — то, что не нравится
+buysmarter style brands "Salomon, New Balance"
+buysmarter style never "белая глянцевая пластиковая подошва"   # LLM переводит один раз
+buysmarter style remove 3f2a9c1d0e4b5a67.jpg
+
 # Сохранённые площадки (иначе все три) или выборочно; больше кандидатов; без md-отчёта
 buysmarter recommend "ирригатор до 40000 тг" --sources kaspi,olx --top 10 --no-save
 

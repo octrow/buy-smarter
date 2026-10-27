@@ -37,6 +37,7 @@ from buysmarter.gui.screens.report import ReportScreen
 from buysmarter.gui.screens.saved import SavedScreen
 from buysmarter.gui.screens.search import SearchRun, SearchScreen
 from buysmarter.gui.screens.settings import SettingsScreen, store_available, unavailable_sources
+from buysmarter.gui.screens.style import StyleScreen
 from buysmarter.gui.theme import (
     CONTENT_MAX_WIDTH,
     FONT_FAMILY,
@@ -106,6 +107,7 @@ class MainWindow(QMainWindow):
         self.report = ReportScreen(runner, learning=self.learning)
         self.categories = CategoriesScreen(runner, self.learning)
         self.preferences = PreferencesScreen(runner)
+        self.style_profile = StyleScreen(runner)
         self.history = HistoryScreen(runner)
         self.saved = SavedScreen()
         self.settings = SettingsScreen(runner)
@@ -124,7 +126,7 @@ class MainWindow(QMainWindow):
                 heading = None if screen is self.search else title
                 page = screen if screen is self.report else _centered(screen, heading)
                 # A long question must not squeeze the form, nor a long list the summary.
-                if screen in (self.search, self.categories):
+                if screen in (self.search, self.categories, self.style_profile):
                     page = _scrolled(page)
                 index = self.stack.addWidget(page)
                 self.sidebar.addItem(_nav_item(title, icon_name, index))
@@ -159,6 +161,7 @@ class MainWindow(QMainWindow):
                 (
                     ("Категории", "mdi6.shape-outline", self.categories),
                     ("Настройки поиска", "mdi6.tune-variant", self.preferences),
+                    ("Стиль", "mdi6.hanger", self.style_profile),
                     ("Состояние и ключи", "mdi6.key-outline", self.settings),
                 ),
             ),

@@ -36,6 +36,7 @@ from buysmarter.cli.report import (
     save_report,
 )
 from buysmarter.cli.reports import reports_app
+from buysmarter.cli.style import style_app
 from buysmarter.knowledge.generate import GENERATE_KNOWLEDGE_MODEL, learn_from_notes
 from buysmarter.knowledge.generate import learn_category as learn_category_knowledge
 from buysmarter.llm import keys
@@ -350,6 +351,7 @@ app.command()(refresh)
 app.command()(history)
 app.add_typer(prefs_app, name="prefs")
 app.add_typer(category_app, name="category")
+app.add_typer(style_app, name="style")
 app.add_typer(reports_app, name="reports")
 
 

@@ -17,6 +17,9 @@ from collections.abc import Callable
 from pathlib import Path
 
 _SIZE = (1280, 800)
+_SMALL = (960, 640)  # the window's minimum: «Стиль» must still fit
+_STYLE_SAMPLES = Path.home() / "style-test" / "like"  # the developer's photos, if any
+_STYLE_PHOTOS = 12
 _SETTLE_S = 0.3
 _STARTUP_S = 2.0
 _PUMP_MS = 50
@@ -61,6 +64,7 @@ def _grab_all(out: Path) -> None:
     runner = CoreRunner()
     try:
         runner.submit(_seed_categories())
+        runner.submit(_seed_style())
         window = MainWindow(runner)
         window.resize(*_SIZE)
         window.show()
@@ -103,6 +107,7 @@ def _grab_screens(window: object, settle: Callable[[], None], out: Path) -> None
     _grab_clarification(window, settle, out)
     _grab_learning(window, settle, out)
     _grab_category(window, settle, out)
+    _grab_style_small(window, settle, out)
 
 
 def _grab_clarification(window: object, settle: Callable[[], None], out: Path) -> None:
@@ -181,6 +186,45 @@ def _grab_category(window: object, settle: Callable[[], None], out: Path) -> Non
     settle()
     window.grab().save(str(out / "category.png"))
     print("category.png")
+
+
+async def _seed_style() -> None:
+    """Brands, two phrases and a dozen sample photos for «Стиль»; no model download."""
+    from buysmarter import style
+    from buysmarter.style import profile
+
+    await profile.set_brands(["Salomon", "New Balance", "Helly Hansen"])
+    await profile.add_phrase("technical shell jacket", never=False)
+    await profile.add_phrase("glossy white plastic sole", never=True)
+    if not style.available():
+        return
+    import numpy as np
+    from PIL import Image
+
+    async def fake_encoder():  # the screen shows photos, not vectors
+        return lambda blobs: np.ones((len(blobs), 4), dtype=np.float32) / 2
+
+    profile.photo_encoder = fake_encoder
+    found = [
+        p for p in sorted(_STYLE_SAMPLES.rglob("*")) if p.suffix.lower() in profile.PHOTO_SUFFIXES
+    ]
+    if not found:  # CI: plain swatches
+        swatches = Path(tempfile.mkdtemp())
+        for i, colour in enumerate(("navy", "olive", "black", "khaki", "grey", "brown")):
+            found.append(swatches / f"{i}.jpg")
+            Image.new("RGB", (300, 400), colour).save(found[-1])
+    await profile.add_photos(found[: _STYLE_PHOTOS - 2], disliked=False)
+    await profile.add_photos(found[_STYLE_PHOTOS - 2 : _STYLE_PHOTOS], disliked=True)
+
+
+def _grab_style_small(window: object, settle: Callable[[], None], out: Path) -> None:
+    """«Стиль» at the window's minimum size."""
+    window.resize(*_SMALL)
+    window._show_screen(window.style_profile)
+    settle()
+    window.grab().save(str(out / "style-960x640.png"))
+    window.resize(*_SIZE)
+    print("style-960x640.png")
 
 
 def _pump(app: object, runner: object, seconds: float) -> None:

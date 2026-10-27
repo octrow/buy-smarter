@@ -1,0 +1,349 @@
+"""«Стиль»: the clothing-taste profile, as ``buysmarter style`` (plan В9).
+
+Brands, phrases «нравится»/«нет» and sample photos; the texts are the CLI's (``cli/style``),
+the calls the core's (``style.profile``), so either entry point sees what the other saved.
+Every change is stored at once; a job answers with the line to show.
+"""
+
+import logging
+from collections.abc import Callable, Coroutine
+from pathlib import Path
+from typing import Any
+
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QIcon, QImageReader, QPixmap, QShowEvent
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QFileDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListView,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from buysmarter import style
+from buysmarter.cli.prefs import STORE_DOWN
+from buysmarter.cli.style import (
+    DOWNLOADING,
+    LIKES,
+    MODEL_DOWN,
+    MODEL_READY,
+    NEVERS,
+    NO_EXTRA,
+    NOT_FOUND,
+    PHOTOS,
+    PHRASE_HINT,
+    SAVED,
+    UNTRANSLATED,
+    added_line,
+    model_line,
+    photo_count,
+    phrase_line,
+)
+from buysmarter.gui.bridge import CoreRunner
+from buysmarter.gui.theme import SPACE, card_body, set_state
+from buysmarter.memory.prefs import as_list
+from buysmarter.style import profile, weights
+
+logger = logging.getLogger(__name__)
+
+_PRIVATE = "Фото остаются на этом компьютере."
+ADDING = "Добавляю фото… В первый раз скачивается модель стиля (~200 МБ)."
+_THUMB_PX = 96
+_PHOTOS_MIN_PX = 240  # about two rows of thumbnails
+_PHRASES_MIN_PX = 96
+_PHOTO_FILTER = "Фото (*.jpg *.jpeg *.png *.webp)"
+_KEY = Qt.ItemDataRole.UserRole  # an item's photo name or phrase text
+
+type PickPhotos = Callable[[QWidget], list[str]]
+type PickFolder = Callable[[QWidget], str]
+
+
+def pick_photos(parent: QWidget) -> list[str]:
+    """The photos the user picks, ``[]`` when cancelled (as ``style add FILES``)."""
+    paths, _ = QFileDialog.getOpenFileNames(parent, "Фото одежды", "", _PHOTO_FILTER)
+    return paths
+
+
+def pick_folder(parent: QWidget) -> str:
+    """The folder the user picks, ``""`` when cancelled (as ``style add FOLDER``)."""
+    return QFileDialog.getExistingDirectory(parent, "Папка с фото одежды")
+
+
+async def _download() -> str:
+    try:
+        await weights.download()
+    except weights.WeightsError as exc:
+        logger.warning("Style model not downloaded: %r", exc)
+        return MODEL_DOWN
+    return MODEL_READY
+
+
+async def _phrase(text: str, never: bool) -> str:
+    try:
+        await profile.add_phrase(text, never=never)
+    except profile.Untranslated:
+        return UNTRANSLATED
+    return SAVED
+
+
+async def _photos(paths: list[Path], disliked: bool) -> str:
+    try:
+        added = await profile.add_photos(paths, disliked=disliked)
+    except weights.WeightsError as exc:
+        logger.warning("Style model not downloaded: %r", exc)
+        return MODEL_DOWN
+    return added_line(added)
+
+
+async def _remove(keys: list[str]) -> str:
+    found = [await profile.remove(key) for key in keys]
+    return SAVED if all(found) else NOT_FOUND
+
+
+async def _brands(text: str) -> str:
+    await profile.set_brands(as_list(text))
+    return SAVED
+
+
+def _thumbnail(path: Path) -> QIcon:
+    """A small icon, decoded at that size (fast even for a big JPEG)."""
+    reader = QImageReader(str(path))
+    if (size := reader.size()).isValid():
+        reader.setScaledSize(size.scaled(_THUMB_PX, _THUMB_PX, Qt.AspectRatioMode.KeepAspectRatio))
+    return QIcon(QPixmap.fromImage(reader.read()))
+
+
+def _caption(text: str) -> QLabel:
+    label = QLabel(text, wordWrap=True)
+    set_state(label, "role", "caption")
+    return label
+
+
+def _row(*widgets: QWidget) -> QHBoxLayout:
+    row = QHBoxLayout()
+    row.setSpacing(SPACE["md"])
+    for widget in widgets:
+        row.addWidget(widget, 1 if isinstance(widget, QLineEdit | QLabel) else 0)
+    return row
+
+
+def _card(title: str) -> tuple[QGroupBox, QVBoxLayout]:
+    card = QGroupBox(title)
+    inside = card_body(QVBoxLayout(card))
+    inside.setSpacing(SPACE["sm"])
+    return card, inside
+
+
+class StyleScreen(QWidget):
+    """Edits the style profile: brands, phrases and sample photos."""
+
+    def __init__(
+        self,
+        runner: CoreRunner,
+        pick_photos: PickPhotos = pick_photos,
+        pick_folder: PickFolder = pick_folder,
+    ) -> None:
+        super().__init__()
+        self._runner = runner
+        self._pick_photos = pick_photos
+        self._pick_folder = pick_folder
+        self.loaded = False  # the first read of the profile has arrived
+        self.message = QLabel(wordWrap=True)
+        set_state(self.message, "role", "muted")
+        self.message.hide()  # until there is something to say: no empty gap under the heading
+        layout = QVBoxLayout(self)
+        # Under the screen heading (app._centered): no top gap of its own.
+        layout.setContentsMargins(SPACE["xxl"], SPACE["lg"], SPACE["xxl"], SPACE["xl"])
+        layout.setSpacing(SPACE["lg"])
+        layout.addWidget(self.message)
+        layout.addWidget(self._build_photos(), 1)
+        layout.addWidget(self._build_phrases())
+        layout.addWidget(self._build_brands())
+
+    def _build_photos(self) -> QGroupBox:
+        self.photos = QListWidget()
+        self.photos.setViewMode(QListView.ViewMode.IconMode)
+        self.photos.setIconSize(QSize(_THUMB_PX, _THUMB_PX))
+        self.photos.setResizeMode(QListView.ResizeMode.Adjust)
+        self.photos.setMovement(QListView.Movement.Static)
+        # A fixed cell with room for the «Нет» caption under the photo.
+        self.photos.setGridSize(QSize(_THUMB_PX + SPACE["md"], _THUMB_PX + SPACE["xl"]))
+        self.photos.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.photos.setMinimumHeight(_PHOTOS_MIN_PX)
+        self.photos.setAccessibleName("Фото-образцы")
+        self.no_extra = QLabel(NO_EXTRA, wordWrap=True)
+        set_state(self.no_extra, "state", "warning")
+        self.add_button = QPushButton("Добавить фото…")
+        set_state(self.add_button, "primary", "true")
+        self.add_folder_button = QPushButton("Добавить папку…")
+        self.add_no_button = QPushButton(f"Добавить в «{NEVERS.lower()}»…")
+        self.remove_photo_button = QPushButton("Удалить")
+        self.add_button.clicked.connect(lambda: self._add_photos(disliked=False))
+        self.add_folder_button.clicked.connect(self._add_folder)
+        self.add_no_button.clicked.connect(lambda: self._add_photos(disliked=True))
+        self.remove_photo_button.clicked.connect(self._remove_photos)
+        self.photo_summary = _caption("")
+        buttons = _row(
+            self.add_button, self.add_folder_button, self.add_no_button, self.remove_photo_button
+        )
+        buttons.addStretch(1)
+        card, inside = _card("Образцы")
+        inside.addWidget(self.photo_summary)
+        inside.addWidget(self.no_extra)
+        inside.addLayout(self._build_model_row())
+        inside.addLayout(buttons)
+        inside.addWidget(self.photos, 1)
+        return card
+
+    def _build_model_row(self) -> QHBoxLayout:
+        self.model_status = _caption("")
+        self.download_button = QPushButton("Скачать модель")
+        self.download_button.clicked.connect(self._download)
+        return _row(self.model_status, self.download_button)
+
+    def _build_phrases(self) -> QGroupBox:
+        self.phrase = QLineEdit(placeholderText="например: белая глянцевая пластиковая подошва")
+        self.phrase.setAccessibleName("Фраза")
+        self.like_button = QPushButton(f"+ {LIKES}")
+        self.never_button = QPushButton(f"+ {NEVERS}")
+        self.like_button.clicked.connect(lambda: self._add_phrase(never=False))
+        self.never_button.clicked.connect(lambda: self._add_phrase(never=True))
+        self.phrases = QListWidget()
+        self.phrases.setMinimumHeight(_PHRASES_MIN_PX)
+        self.phrases.setAccessibleName("Фразы")
+        self.remove_phrase_button = QPushButton("Удалить фразу")
+        self.remove_phrase_button.clicked.connect(self._remove_phrase)
+        card, inside = _card("Фразы")
+        inside.addLayout(_row(self.phrase, self.like_button, self.never_button))
+        inside.addWidget(_caption(PHRASE_HINT))
+        inside.addWidget(self.phrases)
+        inside.addWidget(self.remove_phrase_button, 0, Qt.AlignmentFlag.AlignLeft)
+        return card
+
+    def _build_brands(self) -> QGroupBox:
+        self.brands = QLineEdit(placeholderText="через запятую, например: Salomon, New Balance")
+        self.brands.setAccessibleName("Бренды")
+        self.brands.returnPressed.connect(self._save_brands)
+        self.save_brands = QPushButton("Сохранить")
+        self.save_brands.clicked.connect(self._save_brands)
+        card, inside = _card("Бренды")
+        inside.addLayout(_row(self.brands, self.save_brands))
+        inside.addWidget(_caption("По ним ищутся вещи на Kaspi, в этом порядке (до шести)."))
+        return card
+
+    def showEvent(self, event: QShowEvent) -> None:  # noqa: N802 - Qt's name
+        super().showEvent(event)
+        self.no_extra.setVisible(not style.available())
+        self._set_busy(False)
+        self._show_model()
+        self.reload()
+
+    def reload(self) -> None:
+        job = self._runner.submit(profile.load())
+        job.finished.connect(self._fill)
+        job.failed.connect(self._failed)
+
+    def _fill(self, current: profile.Profile) -> None:
+        if not self.brands.isModified():  # keep what the user is typing
+            self.brands.setText(", ".join(current.brands))
+        self.phrases.clear()
+        for title, phrases in ((LIKES, current.likes), (NEVERS, current.nevers)):
+            for phrase in phrases:
+                item = QListWidgetItem(f"{title}: {phrase_line(phrase)}")
+                item.setData(_KEY, phrase.text)
+                self.phrases.addItem(item)
+        self.photos.clear()
+        for photo in current.photos:
+            item = QListWidgetItem(_thumbnail(photo.path), NEVERS if photo.disliked else "")
+            item.setData(_KEY, photo.name)
+            item.setToolTip(photo.label)
+            self.photos.addItem(item)
+        self.photo_summary.setText(f"{PHOTOS}: {photo_count(current.photos)}. {_PRIVATE}")
+        self.loaded = True
+
+    def _save_brands(self) -> None:
+        self.brands.setModified(False)
+        self._run(_brands(self.brands.text()))
+
+    def _add_phrase(self, never: bool) -> None:
+        if text := self.phrase.text().strip():
+            self._run(_phrase(text, never), clear=self.phrase)
+
+    def _remove_phrase(self) -> None:
+        if (item := self.phrases.currentItem()) is not None:
+            self._run(_remove([item.data(_KEY)]))
+
+    def _add_photos(self, disliked: bool) -> None:
+        if paths := self._pick_photos(self):
+            self._say(ADDING)
+            self._set_busy(True)
+            self._run(_photos([Path(p) for p in paths], disliked))
+
+    def _add_folder(self) -> None:
+        if folder := self._pick_folder(self):
+            self._say(ADDING)
+            self._set_busy(True)
+            self._run(_photos([Path(folder)], disliked=False))
+
+    def _download(self) -> None:
+        self.model_status.setText(DOWNLOADING)
+        self._set_busy(True)
+        job = self._runner.submit(_download())
+        job.finished.connect(self._downloaded)
+        job.failed.connect(self._failed)
+
+    def _downloaded(self, line: str) -> None:
+        self._set_busy(False)
+        self._show_model()
+        if line != MODEL_READY:
+            self._say(line)
+
+    def _show_model(self) -> None:
+        """The model's state; the button only when there is something to download."""
+        line = model_line()
+        self.model_status.setText("" if line == NO_EXTRA else line)
+        self.model_status.setVisible(line != NO_EXTRA)
+        self.download_button.setVisible(line not in (NO_EXTRA, MODEL_READY))
+
+    def _remove_photos(self) -> None:
+        if keys := [item.data(_KEY) for item in self.photos.selectedItems()]:
+            self._run(_remove(keys))
+
+    def _run(self, work: Coroutine[Any, Any, str], clear: QLineEdit | None = None) -> None:
+        """Store a change; show its line, empty ``clear`` once it is saved, read back."""
+        job = self._runner.submit(work)
+        job.finished.connect(lambda line: self._done(line, clear))
+        job.failed.connect(self._failed)
+
+    def _done(self, line: str, clear: QLineEdit | None) -> None:
+        self._set_busy(False)
+        self._say(line)
+        self._show_model()  # adding photos downloads it the first time
+        if clear is not None and line == SAVED:
+            clear.clear()
+        self.reload()
+
+    def _failed(self, _message: str) -> None:
+        self._set_busy(False)
+        self._say(STORE_DOWN)  # the details are in the log
+
+    def _say(self, line: str) -> None:
+        self.message.setText(line)
+        self.message.setVisible(bool(line))
+
+    def _set_busy(self, busy: bool) -> None:
+        enabled = style.available() and not busy
+        for button in (
+            self.add_button,
+            self.add_folder_button,
+            self.add_no_button,
+            self.download_button,
+        ):
+            button.setEnabled(enabled)
