@@ -37,7 +37,7 @@ cached), then simplicity (one model + a small learner preferred over a training 
 1. **Embedding model.** Compare current fashion-domain image–text models on public fashion retrieval benchmarks
    (LookBench, DeepFashion, Fashion-IQ, KAGL, Polyvore, H&M): Marqo-FashionSigLIP / Marqo-FashionCLIP, HopitAI MODA
    (`moda-fashion-distilled`, `moda-pro-lite-plus`), FashionCLIP 2.0, general SigLIP 2 / OpenCLIP / jina-clip /
-   newer 2025–2026 models. For each: params, embedding dim, license, CPU latency per image (ONNX / int8 if known),
+   newer 2025–2026 models. For each: params, embedding dim, CPU latency per image (ONNX / int8 if known),
    multilingual text support (Russian queries!), and how it handles marketplace photos (model shots vs flat-lay vs
    amateur OLX photos).
 2. **Taste learner on top of embeddings.** Which method works best with 5–300 labeled items per user: centroid /
@@ -53,11 +53,11 @@ cached), then simplicity (one model + a small learner preferred over a training 
    vector storage in a local app (sqlite-vec, LanceDB, FAISS, plain numpy), re-ranking cost, explainability ("похоже на
    ваши X и Y") suitable for a report that explains every score.
 6. **Existing open-source systems** (GitHub, Hugging Face Spaces, papers with code) for personal fashion
-   recommendation from likes — what can be reused as-is, what is research-only. Note stars, last commit, license.
+   recommendation from likes — what can be reused as-is, what is research-only. Note stars and last commit.
 7. **Evaluation without a big dataset.** How to measure that the module helps for one user (offline replay of
    likes, small A/B in the report, metrics like nDCG@10 / hit-rate of liked items).
-8. **Risks.** Licenses of weights (commercial use, redistribution in a desktop installer), model size in the
-   installer, privacy of user photos (all local?), bias.
+8. **Risks.** Model size and download, privacy of user photos (all local?), bias. This is a personal project:
+   **licenses do not matter** — do not exclude or rank anything by license.
 
 ## Output format
 
@@ -69,5 +69,5 @@ cached), then simplicity (one model + a small learner preferred over a training 
 5. **Open questions** you could not resolve, with what would resolve them.
 6. **Sources**: full list with dates.
 
-Starting points already found (verify and go beyond): `hopit-ai/Moda` (MIT, 2026), `marqo-ai/marqo-FashionCLIP`
-(Apache-2.0), `patrickjohncyh/fashion-clip` (MIT), `SerendipityOneInc/look-bench` (Apache-2.0).
+Starting points already found (verify and go beyond): `hopit-ai/Moda` (2026), `marqo-ai/marqo-FashionCLIP`,
+`patrickjohncyh/fashion-clip`, `SerendipityOneInc/look-bench`.
