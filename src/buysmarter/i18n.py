@@ -58,6 +58,7 @@ _STRONG = {
     "popularity": "популярный",
     "availability": "в наличии",
     "ingredient": "нужный состав",
+    "style": "в вашем стиле",
 }
 _WEAK = {
     "brand": "неизвестный бренд",
@@ -67,6 +68,7 @@ _WEAK = {
     "popularity": "мало покупок",
     "availability": "нет в наличии",
     "ingredient": "состав не подтверждён",
+    "style": "не ваш стиль",
 }
 _REFERENCE = {"trusted-brand": "по известным брендам", "pool": "по всем предложениям"}
 
