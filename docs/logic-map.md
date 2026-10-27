@@ -352,7 +352,7 @@ Module: `ranking/selection`
 
 Decides: whether reviews change the ranking.
 1. Kaspi only, top 6 Kaspi candidates: fetch reviews; discount review axes that look fake; penalize a high share of defect complaints; check counterfeit signals.
-2. With LLM and summaries on: summaries for the top 3 of any source, chosen before penalties. A summary needs at least 5 review texts, else `review_summary_note` says why. The LLM writes the text (pros, cons, complaints, verdict, red flags); Jev decides counterfeit, reliability and the required-feature verdicts (Jev fails → none of them this run). Counterfeit or serious reliability concerns cut the score; review verdicts on required features apply.
+2. With LLM and summaries on: summaries for the top 3 of any source, chosen before penalties. A summary needs at least 5 review texts, else `review_summary_note` says why. The LLM writes the text (pros, cons, complaints, verdict, red flags); Jev decides counterfeit, reliability and the required-feature verdicts (Jev fails → none of them this run). Counterfeit or serious reliability concerns cut the score; review verdicts on required features apply. A best pick the penalties lift from below the top 3 gets its own summary, applied the same way, up to 3 more times (#14); past that `review_summary_note` says it was not among the summarized.
 3. No LLM with required features: stem search over fetched reviews instead.
 With LLM and summaries off (`--no-review-summary`) required features are not checked in reviews at all.
 After each change the roles are picked again (step 18), so the best pick may change.
@@ -426,4 +426,3 @@ Short list; details and fixes are in the plan (number in brackets).
 - Without an LLM there is no intent detection: only an unreadable query and capabilities ask, so MCP and the API (no LLM by default) search "подарок для мамы" as it is (phase 2).
 - Kaspi search has no budget cap (#5).
 - `refresh` collects without category knowledge (#6).
-- After review penalties a new best pick may have no summary (#14).

@@ -190,7 +190,13 @@ def _apply_counterfeit_checks(recommendation: Recommendation, fetched: _Fetched)
 _REVIEW_SUMMARY_TOP_N = 3
 _SUMMARY_CONCURRENCY = 3  # parallel review-summary LLM calls
 _MIN_REVIEWS_FOR_SUMMARY = 5
-_NOT_SUMMARIZED = f"лучший выбор не вошёл в топ-{_REVIEW_SUMMARY_TOP_N}, чьи отзывы сводятся"
+# A best pick the penalties lifted from below the summarized top gets its own summary, at
+# most this many times (finding #14); then it stays without one.
+_EXTRA_SUMMARIES = 3
+_NOT_SUMMARIZED = (
+    f"лучший выбор не вошёл в {_REVIEW_SUMMARY_TOP_N + _EXTRA_SUMMARIES} кандидатов, "
+    "чьи отзывы сводятся"
+)
 
 SummariesById = dict[tuple[str, str], ReviewSummary]
 # A summary, or the reason a candidate has none.
@@ -231,6 +237,17 @@ async def _summarize_top(
     required_features: Sequence[str] = (),
 ) -> _SummaryOutcomes:
     """Summarize the top-N ranked candidates' reviews (≥ floor), degrading gracefully."""
+    selected = recommendation.ranked[:_REVIEW_SUMMARY_TOP_N]
+    return await _summarize(selected, active, reviews_by_id, required_features)
+
+
+async def _summarize(
+    selected: Sequence[ScoredCandidate],
+    active: dict[str, ProductSource],
+    reviews_by_id: ReviewsById,
+    required_features: Sequence[str],
+) -> _SummaryOutcomes:
+    """Summarize these candidates' reviews (≥ floor), degrading gracefully."""
     semaphore = asyncio.Semaphore(_SUMMARY_CONCURRENCY)
 
     async def summarize(scored: ScoredCandidate) -> ReviewSummary | str:
@@ -247,7 +264,6 @@ async def _summarize_top(
                 logger.warning("Review summarization failed (%r); skipping candidate", exc)
                 return "AI не смог свести отзывы (подробности в логе)"
 
-    selected = recommendation.ranked[:_REVIEW_SUMMARY_TOP_N]
     results = await asyncio.gather(*(summarize(scored) for scored in selected))
     return {_candidate_key(scored): out for scored, out in zip(selected, results, strict=True)}
 
@@ -274,6 +290,15 @@ def _apply_summary_penalties(
     rescored = [adjusted.get(_candidate_key(s), s) for s in recommendation.ranked]
     return assemble_recommendation(
         rescored, recommendation.rejected_count, recommendation.rejected_reasons
+    )
+
+
+def _apply_summaries(recommendation: Recommendation, outcomes: _SummaryOutcomes) -> Recommendation:
+    """Fold these summaries' penalties and required-feature verdicts in (each summary once)."""
+    summaries = {k: v for k, v in outcomes.items() if isinstance(v, ReviewSummary)}
+    recommendation = _apply_summary_penalties(recommendation, summaries)
+    return _apply_requirement_checks(
+        recommendation, {key: s.requirement_checks for key, s in summaries.items()}
     )
 
 
@@ -325,7 +350,8 @@ async def review_pass(
 
     Runs while sources are still open. The trust re-score is Kaspi-only (cheap
     endpoint). Summaries cover the top-3 ranked candidates (whatever their
-    source); their severity signals penalize scores and may change the best pick.
+    source); their severity signals penalize scores and may change the best pick, and
+    a new best from below gets its own summary (up to ``_EXTRA_SUMMARIES``, finding #14).
     The returned summary is the (possibly new) best pick's — that drives the panel.
     """
     reviews_by_id: ReviewsById = {}
@@ -339,11 +365,14 @@ async def review_pass(
     missing_note = None
     if with_review_summary and use_llm:
         outcomes = await _summarize_top(recommendation, active, reviews_by_id, required_features)
-        summaries = {k: v for k, v in outcomes.items() if isinstance(v, ReviewSummary)}
-        recommendation = _apply_summary_penalties(recommendation, summaries)
-        recommendation = _apply_requirement_checks(
-            recommendation, {key: s.requirement_checks for key, s in summaries.items()}
-        )
+        recommendation = _apply_summaries(recommendation, outcomes)
+        for _ in range(_EXTRA_SUMMARIES):
+            best = recommendation.best
+            if _candidate_key(best) in outcomes:
+                break
+            extra = await _summarize([best], active, reviews_by_id, required_features)
+            outcomes |= extra
+            recommendation = _apply_summaries(recommendation, extra)
         outcome = outcomes.get(_candidate_key(recommendation.best), _NOT_SUMMARIZED)
         review_summary = outcome if isinstance(outcome, ReviewSummary) else None
         missing_note = outcome if isinstance(outcome, str) else None

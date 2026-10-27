@@ -910,6 +910,82 @@ async def test_review_pass_penalizes_counterfeit_and_flips_best(monkeypatch):
     assert "кожа сгорает" in k1.cons
 
 
+# --- #14: the best pick after the summary penalties gets its own summary --------
+
+
+def _counterfeit_pass(fakes: set[str], calls: list[str]):
+    async def _fake_summarize(reviews, features=None):
+        pid = reviews[0].product_id
+        calls.append(pid)
+        if pid in fakes:
+            return ReviewSummary(counterfeit_suspicion=True)
+        return ReviewSummary(pros=[f"хорош {pid}"])
+
+    return _fake_summarize
+
+
+async def _pass_over(
+    monkeypatch, scores: list[float], fakes: set[str], few: set[str] = frozenset()
+):
+    calls: list[str] = []
+    monkeypatch.setattr(review_mod, "summarize_reviews", _counterfeit_pass(fakes, calls))
+    pids = [f"k{i}" for i in range(1, len(scores) + 1)]
+    kaspi = _MultiReviewKaspi({p: _reviews(p, 2 if p in few else 8) for p in pids})
+    recommendation = assemble_recommendation(
+        [_scored(p, total) for p, total in zip(pids, scores, strict=True)], 0
+    )
+    out, summary, note = await review_mod.review_pass(
+        recommendation, {"kaspi": kaspi}, use_llm=True, with_review_summary=True
+    )
+    return out, summary, note, calls
+
+
+def _total(out, pid: str) -> float:
+    return next(s.total_score for s in out.ranked if s.candidate.source_product_id == pid)
+
+
+async def test_a_new_best_below_the_summarized_top_gets_its_own_summary(monkeypatch) -> None:
+    out, summary, note, calls = await _pass_over(
+        monkeypatch, [90, 85, 80, 75, 70], {"k1", "k2", "k3"}
+    )
+
+    assert out.best.candidate.source_product_id == "k4"
+    assert summary is not None and summary.pros == ["хорош k4"]
+    assert note is None
+    assert sorted(calls) == ["k1", "k2", "k3", "k4"]
+    assert _total(out, "k1") == 54.0  # each summary penalizes once
+
+
+async def test_a_counterfeit_new_best_hands_over_to_the_next(monkeypatch) -> None:
+    out, summary, _note, calls = await _pass_over(
+        monkeypatch, [90, 85, 80, 75, 70], {"k1", "k2", "k3", "k4"}
+    )
+
+    assert out.best.candidate.source_product_id == "k5"
+    assert summary is not None and summary.pros == ["хорош k5"]
+    assert calls[3:] == ["k4", "k5"]
+    assert _total(out, "k4") == 45.0
+
+
+async def test_extra_summaries_stop_after_three(monkeypatch) -> None:
+    fakes = {"k1", "k2", "k3", "k4", "k5", "k6"}
+    out, summary, note, calls = await _pass_over(monkeypatch, [90, 85, 80, 75, 70, 65, 60], fakes)
+
+    assert out.best.candidate.source_product_id == "k7"
+    assert summary is None and note == review_mod._NOT_SUMMARIZED
+    assert len(calls) == 6
+
+
+async def test_a_new_best_with_few_reviews_says_why(monkeypatch) -> None:
+    out, summary, note, calls = await _pass_over(
+        monkeypatch, [90, 85, 80, 75], {"k1", "k2", "k3"}, few={"k4"}
+    )
+
+    assert out.best.candidate.source_product_id == "k4"
+    assert summary is None and note is not None and "мало текстов отзывов" in note
+    assert len(calls) == 3
+
+
 # --- Fix 1a: latin-jargon stripping for search queries ----------------------
 
 

@@ -6,6 +6,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ### Fixed
 
+- When the review-summary penalties pushed the best pick down, the new best from below the top 3 had no summary, counterfeit check or required-feature verdicts. It now gets its own summary, applied the same way (up to 3 more).
 - A switch in «Как оцениваем эту категорию» on a report no longer makes the related profile it found the parent of the query's category: after unticking «Состав» on «крем от акне», «крем для рук» read the acne books. The switch now writes only the choice, as `category set` does.
 
 ## [0.9.0] - 2026-10-27
