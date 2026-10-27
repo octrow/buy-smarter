@@ -120,6 +120,20 @@ def _thumbnail(path: Path) -> QIcon:
     return QIcon(QPixmap.fromImage(reader.read()))
 
 
+def _photo_grid() -> QListWidget:
+    grid = QListWidget()
+    grid.setViewMode(QListView.ViewMode.IconMode)
+    grid.setIconSize(QSize(_THUMB_PX, _THUMB_PX))
+    grid.setResizeMode(QListView.ResizeMode.Adjust)
+    grid.setMovement(QListView.Movement.Static)
+    # A fixed cell with room for the «Нет» caption under the photo.
+    grid.setGridSize(QSize(_THUMB_PX + SPACE["md"], _THUMB_PX + SPACE["xl"]))
+    grid.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+    grid.setMinimumHeight(_PHOTOS_MIN_PX)
+    grid.setAccessibleName("Фото-образцы")
+    return grid
+
+
 def _caption(text: str) -> QLabel:
     label = QLabel(text, wordWrap=True)
     set_state(label, "role", "caption")
@@ -168,16 +182,7 @@ class StyleScreen(QWidget):
         layout.addWidget(self._build_brands())
 
     def _build_photos(self) -> QGroupBox:
-        self.photos = QListWidget()
-        self.photos.setViewMode(QListView.ViewMode.IconMode)
-        self.photos.setIconSize(QSize(_THUMB_PX, _THUMB_PX))
-        self.photos.setResizeMode(QListView.ResizeMode.Adjust)
-        self.photos.setMovement(QListView.Movement.Static)
-        # A fixed cell with room for the «Нет» caption under the photo.
-        self.photos.setGridSize(QSize(_THUMB_PX + SPACE["md"], _THUMB_PX + SPACE["xl"]))
-        self.photos.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        self.photos.setMinimumHeight(_PHOTOS_MIN_PX)
-        self.photos.setAccessibleName("Фото-образцы")
+        self.photos = _photo_grid()
         self.no_extra = QLabel(NO_EXTRA, wordWrap=True)
         set_state(self.no_extra, "state", "warning")
         self.add_button = QPushButton("Добавить фото…")
