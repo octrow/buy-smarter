@@ -6,7 +6,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ### Added
 
-- Groundwork for clothing taste (the `style` extra: `onnxruntime`, `tokenizers`, `pillow`, `numpy`): the Marqo-FashionSigLIP int8 ONNX model, pinned and SHA-256-checked, downloads once into the user cache; card photos are encoded once and kept in the store (`style_vectors`); `doctor` shows a «Clothing style» row. Nothing ranks by style yet.
+- Groundwork for clothing taste (the `style` extra: `onnxruntime`, `tokenizers`, `pillow`, `numpy`): the Marqo-FashionSigLIP int8 ONNX model, pinned and SHA-256-checked, downloads once into the user cache; card photos are encoded once and kept in the store (`style_vectors`); `doctor` shows a «Clothing style» row.
 - A clothing-style profile: the «Стиль» screen and `buysmarter style` add sample photos or whole folders (copied without EXIF, never uploaded; `--no` for dislikes), brands, and «нравится»/«нет» phrases (a Russian phrase gets English descriptions from one LLM call), and download the model on demand.
 - The `style` capability: for clothing, footwear and accessories (Jev asks for a new product type; a switch on the report and `category set`), the profile's brands bring up to six Kaspi searches, and every card's main photo is compared with the sample photos and phrases for a «Стиль» axis («похоже на ваше фото «…»», «похоже на «нет: …»»). «Сила стиля» / `style strength N` sets its weight (20 by default, 0 = off).
 - Adding style photos shows «N из M» with «Отмена» in the app and a bar in the CLI (Ctrl+C); photos go in 16 at a time, so a stop keeps what is done, and big JPEGs decode at a fraction of their size.
