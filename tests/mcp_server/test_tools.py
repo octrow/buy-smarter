@@ -9,6 +9,7 @@ import logging
 
 import pytest
 
+from buysmarter.cli import report
 from buysmarter.mcp_server import server
 from buysmarter.ranking.models import (
     AxisScore,
@@ -111,6 +112,19 @@ async def test_recommend_tool_returns_markdown_with_sections(monkeypatch) -> Non
     assert "# buy-smarter: рекомендация" in out
     assert "## Лучший выбор" in out
     assert "Waterpik WP-100" in out
+
+
+async def test_recommend_tool_saves_the_report_to_past_searches(monkeypatch) -> None:
+    async def fake_recommend(query, **kwargs):
+        return _stub_result()
+
+    monkeypatch.setattr(server, "run_recommend", fake_recommend)
+
+    tool = await _get_tool("recommend")
+    await tool.fn("нужен ирригатор", city="Алматы")
+
+    [path] = report.saved_reports()
+    assert report.report_parts(path)[1] == "нужен ирригатор"
 
 
 async def test_recommend_tool_asks_the_host_to_ask_the_human(monkeypatch) -> None:

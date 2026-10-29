@@ -22,6 +22,7 @@ from buysmarter.cli.report import (
     render_markdown,
     render_no_new_pick_markdown,
     render_no_substance_markdown,
+    save_report,
 )
 from buysmarter.i18n import kzt
 from buysmarter.memory import prefs
@@ -181,9 +182,20 @@ async def recommend(
         return render_no_new_pick_markdown(exc)
     except ValueError as exc:
         return f"No recommendation: {exc}"
+    _save_report(result, query, max(top, 1), parse_with_llm)
     return render_markdown(result, max(top, 1), use_llm=parse_with_llm) + await _start_learning(
         result, parse_with_llm
     )
+
+
+def _save_report(result: RecommendResult, query: str, top: int, use_llm: bool) -> None:
+    """The same report the CLI and GUI save, so the run shows in «Прошлые поиски»."""
+    try:
+        path = save_report(result, query, top, None, use_llm=use_llm)
+    except OSError as exc:  # a full disk must not lose the answer to the host
+        logger.warning("Report not saved: %r", exc)
+        return
+    logger.info("Report saved to %s", path)
 
 
 def _clarification_markdown(clarification: Clarification) -> str:
