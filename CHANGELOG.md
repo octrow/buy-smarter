@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-29
+
 ### Added
 
 - Groundwork for clothing taste (the `style` extra: `onnxruntime`, `tokenizers`, `pillow`, `numpy`): the Marqo-FashionSigLIP int8 ONNX model, pinned and SHA-256-checked, downloads once into the user cache; card photos are encoded once and kept in the store (`style_vectors`); `doctor` shows a «Clothing style» row.
@@ -12,6 +14,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Adding style photos shows «N из M» with «Отмена» in the app and a bar in the CLI (Ctrl+C); photos go in 16 at a time, so a stop keeps what is done, and big JPEGs decode at a fraction of their size.
 - 👍/👎 on a clothing report: the app's buttons (best pick, selected alternative) and `buysmarter style like|dislike <link>` add the card's main photo to the style samples.
 - Every row of the console and markdown report says why its «Стиль» score is what it is, not only the best pick; in the app, the score cell's tooltip.
+- A style photo sample counts only for cards of its own garment: sneaker photos no longer rank jeans. Garments are read zero-shot (the two likeliest for a sample and a card); a card with no liked sample of its garment gets half the axis, «нет образцов такого типа».
+
+### Changed
+
+- MCP and the HTTP API use the LLM by default, as the CLI and the app do; with the LLM off they also lost relevance, review summaries and composition. A run with no configured route still goes keyless and says so.
+- MCP `recommend` saves its report, so the run shows in «Прошлые поиски» and `buysmarter history`.
 
 ### Fixed
 
@@ -20,6 +28,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - The six style-brand searches went to the first six brands for any clothing, so sneaker brands crowded out jacket ones; the category's own brands now go first and other categories' last.
 - An expired saved Ozon session left Ozon out of every search (403) until `ozon-setup` was run again; it is now set aside (`*.expired`) and the search goes on without it in the bundled Chromium.
 - Official-store cards (adidas.kz, puma.kz) had no photo and got half of «Стиль»; their main photo is now read from the store page.
+- A declined city («в Шымкенте», «Караганде») missed the marketplace ids and searched Almaty in silence. One normalization now reads the 21 marketplace cities in Latin or any Russian case for the naive parse, `--city`, the LLM and the saved city; a city no marketplace knows is said in the report, and MCP keeps the query's city.
+- The «Стиль» screen splits samples into «Нравится» and «Нет», each with its own buttons and grid.
+- Desktop layout: bold text renders (Inter bundled as static 400/600/700 instead of the variable font); one rhythm of page and card gaps on every screen; report metrics, link and table columns line up; titles and health rows fit the 960×640 window; settings labels sit centred on their fields; past searches show the whole query.
+
+### Security
+
+- `authlib` 1.9.1 (CVE-2026-114614 to CVE-2026-114620, CVE-2026-96760) and `dnspython` 2.9.0 (CVE-2026-114605) in the lock file.
 
 ## [0.9.1] - 2026-10-27
 
