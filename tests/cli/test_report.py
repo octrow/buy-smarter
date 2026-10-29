@@ -10,7 +10,7 @@ from buysmarter.ranking.models import (
     ScoredCandidate,
 )
 from buysmarter.services.matching import UsedListing
-from buysmarter.services.recommend import NoSubstanceMatch, RecommendResult
+from buysmarter.services.recommend import NO_LLM_STEPS, NoSubstanceMatch, RecommendResult
 
 
 def _scored(pid: str, title: str, price: int, score: float, tier: str | None) -> ScoredCandidate:
@@ -333,13 +333,12 @@ def test_no_substance_markdown_without_alternatives_has_no_table() -> None:
 
 
 def test_a_keyless_run_ends_the_parsed_request_with_the_skipped_steps() -> None:
-    result = _result().model_copy(
-        update={"skipped_llm_steps": ["query parsing", "review summaries", "ingredient extraction"]}
-    )
+    result = _result().model_copy(update={"skipped_llm_steps": list(NO_LLM_STEPS)})
     md = render_markdown(result, top=8)
     section = md.split("## Запрос\n", 1)[1].split("\n## ", 1)[0]
     assert section.rstrip().endswith(
-        "_AI не настроен: запрос разобран по ключевым словам, без сводки отзывов и разбора "
+        "_AI не настроен: запрос разобран по ключевым словам, без проверки релевантности, "
+        "подбора похожей категории, сопоставления объявлений OLX, сводки отзывов и разбора "
         "состава. Ключ добавляется командой `buysmarter llm set-key <provider>`._"
     )
 

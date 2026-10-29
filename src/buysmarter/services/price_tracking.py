@@ -155,7 +155,7 @@ class ProductHistory(BaseModel):
 async def product_history(term: str) -> list[ProductHistory]:
     """Look up products by title/url substring and return their snapshot history.
 
-    Best-effort — returns ``[]`` when Postgres is unreachable.
+    Best-effort — returns ``[]`` when the store is unreachable.
     """
     try:
         async with async_session() as session:

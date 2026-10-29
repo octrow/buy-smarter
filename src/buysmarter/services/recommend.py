@@ -6,7 +6,7 @@ candidates, cross-source dedupe, best-effort persist, then rank. Kaspi + Ozon
 feed the main ranking pool; OLX used listings are matched against the winners
 and surfaced as a separate advisory "Б/у на OLX" section (docs/INIT_DATA.md
 "Used Market" — the "б/у может быть лучше" differentiator). DB and LLM are both
-optional — the CLI must work keyless and without Postgres, and one source
+optional — the CLI must work keyless and without a local store, and one source
 failing (e.g. an Ozon browser hiccup) must never kill the run.
 """
 
@@ -101,7 +101,14 @@ logger = logging.getLogger(__name__)
 # yields one (docs/INIT_DATA.md, most users are in Almaty).
 _DEFAULT_CITY = "Алматы"
 # What a run with no LLM route (no key, no claude CLI) does without the LLM.
-NO_LLM_STEPS = ("query parsing", "review summaries", "ingredient extraction")
+NO_LLM_STEPS = (
+    "query parsing",
+    "relevance check",
+    "related category matching",
+    "OLX title matching",
+    "review summaries",
+    "ingredient extraction",
+)
 
 
 class RecommendResult(BaseModel):
@@ -488,6 +495,8 @@ async def recommend(
     run = _Run(query, constraints, profile, capabilities, use_llm)
     try:
         pool = await _collect(run, active)
+        if persist and pool.persist_rows:  # prices seen count even when nothing is picked
+            await save_snapshots(pool.persist_rows, constraints.search_phrase)
         recommendation, review_summary, review_summary_note = await _rank(
             run, pool, active, with_review_summary
         )
@@ -500,8 +509,6 @@ async def recommend(
         for src in active.values():
             await aclose(src)
 
-    if persist and pool.persist_rows:
-        await save_snapshots(pool.persist_rows, constraints.search_phrase)
     apply_cross_notes(recommendation, pool.notes)
     used_listings = await _used_listings(run, pool, recommendation)
     logger.info("stage %s took %.2fs", "total", time.perf_counter() - total_start)

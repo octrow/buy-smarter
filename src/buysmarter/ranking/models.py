@@ -70,7 +70,7 @@ class PriceHistory(BaseModel):
 
     ``avg``/``min`` are over the past N days of ``PriceSnapshot.min_price`` for
     this product; ``count`` is how many snapshots backed the aggregate. Attached
-    best-effort from the DB before ranking, so it is ``None`` without Postgres.
+    best-effort from the store before ranking, so it is ``None`` without one.
     """
 
     avg: float

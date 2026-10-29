@@ -1804,6 +1804,9 @@ async def test_without_any_llm_route_the_run_goes_keyless_and_says_what_it_skipp
     assert result.recommendation.ranked
     assert result.skipped_llm_steps == [
         "query parsing",
+        "relevance check",
+        "related category matching",
+        "OLX title matching",
         "review summaries",
         "ingredient extraction",
     ]
@@ -1860,6 +1863,27 @@ async def test_nothing_new_in_budget_still_shows_the_olx_ads_within_it() -> None
         "Новых предложений нет: дороже бюджета ×1. На OLX нашлось:"
     )
     assert isinstance(no_pick, ValueError)
+
+
+async def test_nothing_new_in_budget_still_saves_the_price_snapshots(monkeypatch) -> None:
+    from buysmarter.services import recommend as recommend_module
+
+    saved = []
+
+    async def fake_save(rows, phrase) -> None:
+        saved.append((len(rows), phrase))
+
+    monkeypatch.setattr(recommend_module, "save_snapshots", fake_save)
+    kaspi = FakeSource(
+        "kaspi", [_rp("kaspi", "k1", "Waterpik WP-100 ирригатор портативный", 60000)]
+    )
+
+    with pytest.raises(NoNewPick):
+        await recommend(
+            "ирригатор портативный, до 40000 тг", use_llm=False, sources=["kaspi"], source=kaspi
+        )
+
+    assert saved == [(1, "ирригатор портативный")]
 
 
 async def test_nothing_new_without_olx_in_the_search_does_not_speak_of_olx() -> None:

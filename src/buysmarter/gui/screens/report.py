@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from buysmarter.cli.report import (
     COMPARED_HEADER,
+    NO_LLM_TEXT,
     SUMMARY_TITLE,
     USED_HEADERS,
     assessed_note,
@@ -174,10 +175,7 @@ def could_not_verify(result: RecommendResult, run: SearchRun) -> list[str]:
         elif state == "failed":
             lines.append(f"{name}: ошибка — его предложений нет в отчёте (подробности в логе)")
     if result.skipped_llm_steps:
-        lines.append(
-            "AI не настроен: запрос разобран по ключевым словам, без сводки отзывов и разбора "
-            "состава. Ключ можно добавить в «Состояние и ключи»"
-        )
+        lines.append(f"{NO_LLM_TEXT}. Ключ можно добавить в «Состояние и ключи»")
     elif note := summary_note(result, use_llm=run.use_llm, asked=run.review_summary):
         lines.append(note.removesuffix("."))
     if note := ingredients_unchecked_note(result):

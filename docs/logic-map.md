@@ -108,9 +108,9 @@ Module: `cli/main`, `cli/console`, `cli/progress`, `cli/prefs`, `cli/category`, 
 Decides: whether this run can use an LLM at all.
 Branches:
 - a route exists (API key in env or keyring, or the `claude` CLI) → LLM steps on;
-- no route → run goes no-LLM and reports the skipped steps (query parsing, review summaries, ingredient extraction);
+- no route → run goes no-LLM and reports the skipped steps (`NO_LLM_STEPS`: query parsing, the relevance pass, related-category matching, OLX title canonicalization, review summaries, ingredient extraction);
 - user opted out (`--no-llm`, `parse_with_llm=False`, `use_llm=false`) → no-LLM, nothing reported as skipped;
-- in both no-LLM cases these also stop: the LLM relevance pass, related-category matching by LLM, OLX title canonicalization (the skipped-steps list names only the three above).
+- an opt-out stops the same steps.
 Module: `llm/adapter`, `llm/keys`
 
 ### 2. Parse the request
@@ -379,7 +379,7 @@ Module: `services/review_pass`, `services/recommend`, `ranking/selection`, `capa
 Decides: what the next run knows.
 Each Kaspi/Ozon product, its offers and one price snapshot are saved; the search phrase is added to the tracked list for `refresh`.
 Always runs: no entry point passes `persist=False`; CLI `--no-save` skips only the markdown report.
-Runs only after a successful ranking: `NoSubstanceMatch` or "no candidates" skips it.
+Runs right after collecting (step 11), before ranking: `NoSubstanceMatch` or "no candidates" still saves.
 The snapshot price is min(offers + card price); the candidate price is min(offers).
 A store failure is logged and ignored.
 Module: `services/collect`, `db/repo`

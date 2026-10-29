@@ -152,14 +152,18 @@ def _hidden_md(result: RecommendResult) -> list[str]:
     return ["", f"_{note}_", "", *items]
 
 
+# What a keyless run went without (``NO_LLM_STEPS``), in the console, markdown and the app.
+NO_LLM_TEXT = (
+    "AI не настроен: запрос разобран по ключевым словам, без проверки релевантности, "
+    "подбора похожей категории, сопоставления объявлений OLX, сводки отзывов и разбора состава"
+)
+
+
 def skipped_llm_note(result: RecommendResult) -> str | None:
     """The steps a keyless run did without LLM, or None when the LLM ran (or was opted out)."""
     if not result.skipped_llm_steps:
         return None
-    return (
-        "AI не настроен: запрос разобран по ключевым словам, без сводки отзывов и разбора "
-        "состава. Ключ добавляется командой `buysmarter llm set-key <provider>`."
-    )
+    return f"{NO_LLM_TEXT}. Ключ добавляется командой `buysmarter llm set-key <provider>`."
 
 
 def ingredients_unchecked_note(result: RecommendResult) -> str | None:
