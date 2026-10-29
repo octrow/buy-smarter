@@ -140,3 +140,19 @@ def test_a_borderline_answer_leaves_composition_to_learning(noul: float, on: boo
     settings = classify.settings_from({"cap_composition": {"noul": noul}})
 
     assert settings["composition"].enabled is on
+
+
+async def test_a_learned_profile_is_asked_only_about_a_capability_added_later(monkeypatch) -> None:
+    await save_knowledge("кроссовки", BrandBook(), ModelBook(), "opus")
+    old = {"enabled": False, "params": {}, "set_by": "jev", "user": None}
+    await store_mod.update_knowledge(
+        "кроссовки", {"capabilities": {"composition": old, "benchmark": old}}, "jev"
+    )
+    jev = _fake(monkeypatch, _Jev({"cap_style": 0.9}))
+
+    profile = await ensure_profile("кроссовки", use_llm=True)
+    await ensure_profile("кроссовки", use_llm=True)
+
+    assert jev.calls == [{"cap_style"}]
+    assert (await _caps("кроссовки"))["style"]["enabled"] is True
+    assert profile.enabled("style") is not None

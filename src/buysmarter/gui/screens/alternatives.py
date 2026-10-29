@@ -10,10 +10,10 @@ from PySide6.QtCore import (
     Qt,
 )
 
-from buysmarter.cli.report import tier_cell
+from buysmarter.cli.report import row_reason, tier_cell
 from buysmarter.gui.labels import BEST_ROLE, ROLE_LABELS, axis_label, clean_title, source_label
 from buysmarter.gui.prefs_fields import kzt
-from buysmarter.ranking.models import Recommendation, ScoredCandidate
+from buysmarter.ranking.models import AxisScore, Recommendation, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
 
 SORT_ROLE = Qt.ItemDataRole.UserRole
@@ -101,10 +101,14 @@ class AlternativesModel(QAbstractTableModel):
         if column == PRODUCT_COLUMN:
             return scored.candidate.title
         if column == SCORE_COLUMN:  # the axes, also when their columns are hidden
-            return "\n".join(
-                f"{axis_label(a.name)}: {a.score:.1f}/{a.max_score:.0f}" for a in scored.axes
-            )
+            return "\n".join(_axis_line(a) for a in scored.axes)
         return None
+
+
+def _axis_line(axis: AxisScore) -> str:
+    why = row_reason(axis)
+    line = f"{axis_label(axis.name)}: {axis.score:.1f}/{axis.max_score:.0f}"
+    return f"{line} — {why}" if why else line
 
 
 def _identity(scored: ScoredCandidate) -> tuple[str, str]:

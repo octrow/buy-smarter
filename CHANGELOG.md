@@ -11,10 +11,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - The `style` capability: for clothing, footwear and accessories (Jev asks for a new product type; a switch on the report and `category set`), the profile's brands bring up to six Kaspi searches, and every card's main photo is compared with the sample photos and phrases for a «Стиль» axis («похоже на ваше фото «…»», «похоже на «нет: …»»). «Сила стиля» / `style strength N` sets its weight (20 by default, 0 = off).
 - Adding style photos shows «N из M» with «Отмена» in the app and a bar in the CLI (Ctrl+C); photos go in 16 at a time, so a stop keeps what is done, and big JPEGs decode at a fraction of their size.
 - 👍/👎 on a clothing report: the app's buttons (best pick, selected alternative) and `buysmarter style like|dislike <link>` add the card's main photo to the style samples.
+- Every row of the console and markdown report says why its «Стиль» score is what it is, not only the best pick; in the app, the score cell's tooltip.
 
 ### Fixed
 
 - «мужские кроссовки» kept only unisex and unmarked cards: the LLM parse wrote the audience as «мужской», and the filter, comparing it with «male», dropped every card marked for men. The parse's word is now mapped to men / women / kids.
+- Clothing profiles learned before `style` existed never got it: Jev asks a stored profile, once, about a capability added after it was classified.
+- The six style-brand searches went to the first six brands for any clothing, so sneaker brands crowded out jacket ones; the category's own brands now go first and other categories' last.
+- Official-store cards (adidas.kz, puma.kz) had no photo and got half of «Стиль»; their main photo is now read from the store page.
 
 ## [0.9.1] - 2026-10-27
 

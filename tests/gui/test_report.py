@@ -302,3 +302,16 @@ def test_a_summary_turned_off_on_the_form_is_not_reported_as_missing(qtbot, resu
     # as the CLI's --no-review-summary: the user asked for none
     run = SearchRun("ирригатор", True, _ALL_RAN.source_states, review_summary=False)
     assert "Сводка отзывов недоступна" not in _texts(_shown(qtbot, result, run))
+
+
+def test_a_rows_style_reason_is_in_its_score_tooltip_as_in_the_cli(qtbot, result):
+    from buysmarter.gui.screens.alternatives import SCORE_COLUMN, AlternativesModel
+    from buysmarter.ranking.models import AxisScore
+
+    scored = result.recommendation.ranked[1]
+    style = AxisScore(name="style", score=13.4, max_score=20, explanation="похоже на «look.jpg»")
+    scored = scored.model_copy(update={"axes": [*scored.axes, style]})
+
+    tip = AlternativesModel._tooltip(scored, SCORE_COLUMN) or ""
+
+    assert "Стиль: 13.4/20 — похоже на «look.jpg»" in tip

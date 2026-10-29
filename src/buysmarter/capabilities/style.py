@@ -1,8 +1,9 @@
 """Style: clothing ranked by the user's own taste (plan 2026-10-27-clothing-taste-mvp, В2–В6).
 
 A category capability Jev offers for clothing, footwear and accessories. It works only with
-a style profile (``style.profile``): its brands bring up to six extra Kaspi searches, and
-with sample photos or phrases (and the ``style`` extra, its model downloaded) every card's
+a style profile (``style.profile``): its brands bring up to six extra Kaspi searches, those
+the category's brand book knows first and those only other categories' books know last.
+With sample photos or phrases (and the ``style`` extra, its model downloaded) every card's
 main photo is compared with them for the «Стиль» axis. The axis is the card's percentile in
 the pool by its nearest liked sample, less ``NEVER_PER_Z`` for every standard deviation a
 «нет» sample is closer than the pool's average; a card without a photo gets half.
@@ -20,7 +21,9 @@ import httpx
 
 from buysmarter import style
 from buysmarter.capabilities.base import Capability, CapabilityContext
-from buysmarter.knowledge.profile import CapabilitySetting, ResolvedProfile
+from buysmarter.knowledge.brands import BrandBook
+from buysmarter.knowledge.profile import BRAND_KEY, CapabilitySetting, ResolvedProfile
+from buysmarter.knowledge.store import stored_records
 from buysmarter.ranking.models import AxisScore, Candidate, QueryConstraints
 from buysmarter.services.collect import stage
 from buysmarter.style import profile
@@ -53,11 +56,22 @@ class Style(Capability):
         "matter when choosing?"
     )
 
+    _elsewhere: frozenset[str] = frozenset()  # the user's brands some stored brand book knows
+
     async def prime(self) -> None:
         try:
-            await profile.load()
+            current = await profile.load()
         except Exception as exc:  # noqa: BLE001 - no profile is a search without style
             logger.warning("Style profile not loaded (%r); style off for this search", exc)
+            return
+        books = [
+            BrandBook.model_validate(raw[BRAND_KEY])
+            for raw in (await stored_records()).values()
+            if raw.get(BRAND_KEY)
+        ]
+        self._elsewhere = frozenset(
+            b for b in current.brands if any(book.resolve(b)[0] for book in books)
+        )
 
     def current_axis_weight(self) -> float:
         """The user's strength; 0 with brands only (nothing to compare photos with)."""
@@ -75,7 +89,15 @@ class Style(Capability):
 
     def searches(self, ctx: CapabilityContext) -> list[tuple[str, list[str]]]:
         product = ctx.constraints.product_type.strip() or ctx.constraints.search_phrase
-        brands = profile.current().brands[:MAX_BRAND_SEARCHES]
+        book = ctx.profile.brand_book
+
+        def order(brand: str) -> int:
+            """This category's brands, then unknown ones, then other categories' (sneakers)."""
+            if book is not None and book.resolve(brand)[0]:
+                return 0
+            return 2 if brand in self._elsewhere else 1
+
+        brands = sorted(profile.current().brands, key=order)[:MAX_BRAND_SEARCHES]
         return [(f"{product} {brand}", [brand]) for brand in brands]
 
     async def enrich(self, ctx: CapabilityContext, pool: list[Candidate]) -> None:

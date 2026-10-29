@@ -9,7 +9,10 @@ from buysmarter.capabilities.base import CapabilityContext
 from buysmarter.capabilities.flow import activate
 from buysmarter.capabilities.style import NO_PHOTO, STYLE
 from buysmarter.i18n import AXIS_SHORT, axis_label, pro_con
+from buysmarter.knowledge.brands import BrandBook
+from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.knowledge.profile import CapabilitySetting, ResolvedProfile
+from buysmarter.knowledge.store import save_knowledge
 from buysmarter.ranking.models import Candidate, QueryConstraints
 from buysmarter.style import profile
 from buysmarter.style.profile import LIKE_PHOTO, LIKE_TEXT, NEVER_PHOTO, NEVER_TEXT
@@ -80,6 +83,27 @@ def test_at_most_six_brands_are_searched() -> None:
     _load()
 
     assert len(CAP.searches(_ctx())) == 6
+
+
+async def test_the_category_brands_go_first_and_other_categories_brands_last() -> None:
+    shoes = ["adidas", "New Balance", "Salomon", "Brooks"]
+    await profile.set_brands([*shoes, "Helly Hansen", "Arc'teryx", "Stone Island"])
+    await save_knowledge("кроссовки", BrandBook(tiers=dict.fromkeys(shoes, "A")), ModelBook(), "t")
+    book = BrandBook(tiers={"Helly Hansen": "A"})
+    await CAP.prime()
+    parka = ResolvedProfile(slug="парка", brand_book=book, capabilities=ON.capabilities)
+    jacket = QueryConstraints(search_phrase="мужская зимняя куртка", product_type="парка")
+
+    brands = [b for _, (b,) in CAP.searches(CapabilityContext(parka, jacket))]
+
+    assert brands == [
+        "Helly Hansen",
+        "Arc'teryx",
+        "Stone Island",
+        "adidas",
+        "New Balance",
+        "Salomon",
+    ]
 
 
 def test_the_closest_card_to_a_liked_photo_scores_highest_and_says_why(styled) -> None:

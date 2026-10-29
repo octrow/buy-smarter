@@ -36,7 +36,7 @@ from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import IngredientBook
 from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.llm.review_summary import ReviewSummary
-from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
+from buysmarter.ranking.models import AxisScore, Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.collect import ALL_SOURCES
 from buysmarter.services.matching import UsedListing
@@ -404,9 +404,24 @@ def tier_cell(c: Candidate) -> str:
     return c.brand_tier or "—"
 
 
+# Axes whose reason is the offer's own (which sample it looks like): every row says it,
+# not only the best pick (the app: the score cell's tooltip).
+ROW_REASONS = frozenset({"style"})
+
+
+def row_reason(axis: AxisScore) -> str:
+    """The axis's reason when it is in ``ROW_REASONS``, else empty."""
+    return explain(axis.explanation) if axis.name in ROW_REASONS and axis.explanation else ""
+
+
 def axes_cell(scored: ScoredCandidate) -> str:
     """An offer's axis scores in one cell: the app's per-axis columns, one letter each."""
-    return " · ".join(f"{AXIS_SHORT.get(a.name, a.name)} {a.score:.1f}" for a in scored.axes)
+    return " · ".join(_axis_short(a) for a in scored.axes)
+
+
+def _axis_short(axis: AxisScore) -> str:
+    why = row_reason(axis)
+    return f"{AXIS_SHORT.get(axis.name, axis.name)} {axis.score:.1f}" + (f" ({why})" if why else "")
 
 
 def axes_legend(ranked: list[ScoredCandidate]) -> str:

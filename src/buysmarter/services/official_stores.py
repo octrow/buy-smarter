@@ -65,6 +65,7 @@ class StoreOffer(BaseModel):
     url: str | None = None
     price: int
     in_stock: bool = True
+    image_url: str | None = None  # the main photo (the style axis looks at it)
 
 
 def parse_store_offers(html: str, page_url: str = "") -> list[StoreOffer]:
@@ -79,7 +80,15 @@ def parse_store_offers(html: str, page_url: str = "") -> list[StoreOffer]:
         except ValueError:
             continue
         _collect_products(data, offers)
-    return [o.model_copy(update={"url": _safe_link(page_url, o.url)}) for o in offers]
+    return [
+        o.model_copy(
+            update={
+                "url": _safe_link(page_url, o.url),
+                "image_url": _safe_link(page_url, o.image_url),
+            }
+        )
+        for o in offers
+    ]
 
 
 def _safe_link(page_url: str, link: str | None) -> str | None:
@@ -120,7 +129,17 @@ def _product_offer(product: dict[str, Any]) -> StoreOffer | None:
         url=product.get("url") if isinstance(product.get("url"), str) else None,
         price=price,
         in_stock=not any(mark in availability for mark in _OUT_OF_STOCK),
+        image_url=_first_image(product.get("image")),
     )
+
+
+def _first_image(image: Any) -> str | None:
+    """schema.org ``image``: a link, an ImageObject, or a list of either."""
+    if isinstance(image, list):
+        image = image[0] if image else None
+    if isinstance(image, dict):
+        image = image.get("url") or image.get("contentUrl")
+    return image if isinstance(image, str) else None
 
 
 def _int_price(value: Any) -> int | None:
@@ -282,6 +301,7 @@ def _to_candidate(offer: StoreOffer, brand: str, book: BrandBook) -> Candidate:
         brand_tier=book.tiers.get(brand),
         price=offer.price,
         url=offer.url,
+        image_url=offer.image_url,
         official_seller=True,
         reference_price=book.price_floors.get(brand),
         reference_kind="brand" if brand in book.price_floors else None,

@@ -691,3 +691,24 @@ def test_a_marketplace_error_names_the_marketplace_and_the_status_without_intern
 
     assert marketplace_error_text(status) == "Kaspi не ответил: ошибка HTTP 503. Попробуйте позже."
     assert marketplace_error_text(down) == "Kaspi не отвечает: нет связи. Попробуйте позже."
+
+
+def test_a_rows_style_cell_says_why_not_only_the_best_picks() -> None:
+    from buysmarter.cli.report import axes_cell
+
+    scored = (
+        _result()
+        .recommendation.ranked[0]
+        .model_copy(
+            update={
+                "axes": [
+                    AxisScore(name="price", score=25.0, max_score=25.0, explanation="cheap"),
+                    AxisScore(
+                        name="style", score=13.4, max_score=20, explanation="похоже на «a.jpg»"
+                    ),
+                ]
+            }
+        )
+    )
+
+    assert axes_cell(scored) == "Ц 25.0 · Ст 13.4 (похоже на «a.jpg»)"

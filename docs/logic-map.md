@@ -186,7 +186,7 @@ The found profile's parent (one step) fills the books it does not set; each book
 Books nothing stored provides fall back to the static seed (irrigators), owned by the query's slug.
 Old records are read through an adapter: `category_type: composition_driven` becomes the composition capability. Saving merges into the record, and the old keys are still written. Capabilities merge by name in one place (`update_knowledge`): an automatic writer (learning, Jev, a move, healing) changes a capability only when its source is not weaker than the stored one and never touches the user's choice; only the user's own writer changes it, and a reset keeps the learned parameters.
 An old record that is a copy left by the pre-profile alias save (no capabilities, no parent, its brand book equal to a related composition profile's) is healed once: it becomes that profile's child and its aliases move to the parent. Every check marks the record, so Jev is asked once.
-A product type seen first (nothing stored under it, with LLM) is classified by Jev (`ensure_profile`): one noul question per category capability that has one (composition) and per benchmark provider (Kimovil), state `{product_type}`. The questions ride in the Jev call that picks a related profile; with nothing to pick from, they go in a call of their own. A related profile found drops the answers; otherwise every answer is saved, yes or no (`set_by: jev`, threshold `CLASSIFY_MIN_NOUL`), in a record without books; a failed call saves nothing. The next request asks nothing. Composition from Jev without an ingredient book stays inactive.
+A product type seen first (nothing stored under it, with LLM) is classified by Jev (`ensure_profile`): one noul question per category capability that has one (composition) and per benchmark provider (Kimovil), state `{product_type}`. The questions ride in the Jev call that picks a related profile; with nothing to pick from, they go in a call of their own. A related profile found drops the answers; otherwise every answer is saved, yes or no (`set_by: jev`, threshold `CLASSIFY_MIN_NOUL`), in a record without books; a failed call saves nothing. The next request asks nothing. A stored profile found (with LLM) is asked, once, only about the capabilities it has no setting for (added after it was classified or learned, as style), state `{product_type: <its slug>}`; the answers are saved to it. Composition from Jev without an ingredient book stays inactive.
 Then capabilities are switched on (see Capabilities), and a capability's `clarify` hook may ask (step 2a). This step runs before step 5, so a question never starts a browser.
 No LLM: exact slug and synonyms only.
 Fails: never blocks. Missing knowledge sets `knowledge_missing` and weakens the brand axis.
@@ -199,7 +199,7 @@ Module: `knowledge/store`, `db/repo`, `knowledge/profile`, `knowledge/brands`, `
 
 Decides: extra Kaspi searches the active capabilities ask for.
 Composition: the required active substances come from the search phrase and required features without their "без X" phrases, mapped to canonical names by the ingredient book; each substance gets searches by its name and its equivalent product names (at most 5).
-Style: one search "<product type> <brand>" for each of the profile's first 6 brands; a hit must name the brand.
+Style: one search "<product type> <brand>" for up to 6 of the profile's brands, those the category's brand book knows first, then unknown ones, then those only other stored books know (sneaker brands do not crowd out jacket ones); a hit must name the brand.
 No capability asks → none.
 Module: `capabilities/composition`, `capabilities/style`, `services/collect`
 
@@ -240,7 +240,7 @@ Module: `normalize/candidate`
 ### 10. Official stores
 
 Decides: extra candidates from brand sites named in the brand book. The official_stores capability's `candidates` hook does it (on unless the category switched it off); the step is a no-op when it is off.
-Each store page is read as schema.org product data; offers a capability's listing check rejects (another audience, another tyre or mattress size) are dropped before the per-store cut, then the cheapest in-budget items are added.
+Each store page is read as schema.org product data; offers a capability's listing check rejects (another audience, another tyre or mattress size) are dropped before the per-store cut, then the cheapest in-budget items are added, each with its main photo (the style axis compares it).
 No brand book or no store URLs → nothing added. A store that blocks us → nothing from it.
 Module: `services/official_stores`, `capabilities/official_stores`, `capabilities/flow`
 
@@ -318,7 +318,7 @@ over budget → excluded brand → unknown brand when trusted-only → not avail
 Required features are checked only when the candidate has specs. Ozon cards past the top 4, official-store candidates and apparel variant cards skip the check (they get an "unverified" con). Benchmark (step 15) fills specs for phones, which turns the check on.
 "Proven absent" is decided per candidate: checked, the substance not detected, and a composition text present. Unchecked or no composition text is a data gap, not a rejection.
 Ingredient axis: substance present 25 (0.7 of it with an unknown or other concentration); unchecked 0.3 × 25 = 7.5 for every candidate, with the con "состав не проверен: <substance>?"; checked and absent 0.
-Style axis («Стиль»): the card's percentile in the pool by its nearest liked photo or «нравится» phrase (ties share a rank), less 0.15 for every standard deviation its nearest «нет» sample is closer than the pool's average, clamped to 0–1; no photo compared: half, "нет фото — не сравнивали".
+Style axis («Стиль»): the card's percentile in the pool by its nearest liked photo or «нравится» phrase (ties share a rank), less 0.15 for every standard deviation its nearest «нет» sample is closer than the pool's average, clamped to 0–1; no photo compared: half, "нет фото — не сравнивали". Its reason is the offer's own, so every row says it: the console and markdown «Оси» cell in brackets, the app's score tooltip (`cli/report.ROW_REASONS`).
 Nothing passes → `NoNewPick` (a `ValueError`: "no candidates passed hard filters") with the rejection reasons, the OLX ads (step 21) and whether OLX was searched ("На OLX тоже ничего" only then, `cli/report.no_new_pick_message`). CLI: exit 0 with ads, else 1; the app shows the same OLX table under the message, as for `NoSubstanceMatch` the nearest products. Worker: `no_match` with `rejected_reasons` and `used_listings`. The same path runs when `original_only` hid every candidate (step 19).
 
 **Market context**: price reference and review maximums are computed from the passed pool, so price is judged relative to the pool.

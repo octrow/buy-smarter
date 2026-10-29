@@ -99,19 +99,17 @@ async def _ask_alone(product_type: str, questions: Questions) -> Answers:
         return {}
 
 
-async def ensure_profile(
-    category: str, *, use_llm: bool, search_phrase: str | None = None
-) -> ResolvedProfile:
-    """``resolve_profile``, plus the classifier's capabilities for a product type seen first."""
-    stored = await load_knowledge(category) if use_llm else None
-    questions = capability_questions() if use_llm and _unclassified(stored) else {}
-    profile, answers = await resolve_and_ask(
-        category, use_llm=use_llm, search_phrase=search_phrase, questions=questions
-    )
-    if not questions or profile.found is not None:
-        return profile
-    if answers is None:
-        answers = await _ask_alone(category, questions)
+def _unasked(questions: Questions, capabilities: dict[str, CapabilitySetting]) -> Questions:
+    """The questions about capabilities the profile has no setting for (added after it)."""
+    return {
+        key: q
+        for key, q in questions.items()
+        if (BENCHMARK if key.startswith(_BENCH) else key.removeprefix(_CAP)) not in capabilities
+    }
+
+
+async def _save(category: str, profile: ResolvedProfile, answers: Answers) -> ResolvedProfile:
+    """Jev's answers saved under ``category`` and laid on ``profile``; nothing on a bad answer."""
     try:
         settings = settings_from(answers)
     except (KeyError, TypeError, ValueError) as exc:
@@ -126,3 +124,28 @@ async def ensure_profile(
     )
     capabilities = combine_all(profile.capabilities, settings)
     return profile.model_copy(update={"capabilities": capabilities})
+
+
+async def ensure_profile(
+    category: str, *, use_llm: bool, search_phrase: str | None = None
+) -> ResolvedProfile:
+    """``resolve_profile``, plus the classifier's capabilities for a product type seen first.
+
+    A stored profile found is asked, once, only about capabilities added after it was
+    classified or learned (style came after the shoe profiles).
+    """
+    stored = await load_knowledge(category) if use_llm else None
+    questions = capability_questions() if use_llm and _unclassified(stored) else {}
+    profile, answers = await resolve_and_ask(
+        category, use_llm=use_llm, search_phrase=search_phrase, questions=questions
+    )
+    if profile.found is not None:
+        unasked = _unasked(capability_questions(), profile.capabilities) if use_llm else {}
+        if not unasked:
+            return profile
+        return await _save(profile.found, profile, await _ask_alone(profile.found, unasked))
+    if not questions:
+        return profile
+    if answers is None:
+        answers = await _ask_alone(category, questions)
+    return await _save(category, profile, answers)

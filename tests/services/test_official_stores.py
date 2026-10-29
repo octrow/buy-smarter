@@ -47,6 +47,27 @@ def test_product_links_are_resolved_and_non_https_dropped():
     assert [o.url for o in offers] == ["https://puma.kz/rel", None]
 
 
+def test_the_product_photo_is_read_whatever_shape_the_page_gives_it():
+    shapes = [
+        "https://puma.kz/a.png",
+        ["/b.webp", "https://puma.kz/c.png"],
+        {"@type": "ImageObject", "url": "https://puma.kz/d.png"},
+        "http://puma.kz/e.png",
+    ]
+    html = _page(*[_product(str(i), 1000) | {"image": img} for i, img in enumerate(shapes)])
+
+    offers = parse_store_offers(html, "https://puma.kz/men")
+
+    assert [o.image_url for o in offers] == [
+        "https://puma.kz/a.png",
+        "https://puma.kz/b.webp",
+        "https://puma.kz/d.png",
+        None,
+    ]
+    candidate = stores._to_candidate(offers[0], "Puma", BrandBook())
+    assert candidate.image_url == "https://puma.kz/a.png"
+
+
 def test_an_overflowing_price_is_skipped_not_a_crash():
     assert parse_store_offers(_page(_product("Inf", "1e999"))) == []
 
