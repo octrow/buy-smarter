@@ -78,7 +78,7 @@ def test_a_finished_search_saves_the_cli_report_and_lists_it_in_past_searches(
 
     [path] = saved_reports()
     assert path.name.endswith("-ирригатор-до-40000.md")
-    assert "Отчёт сохранён" in window.search.message.text()
+    assert window.search.message.text().startswith("Отчёт сохранён")  # no leading space
     window.saved.reload()
     assert window.saved.reports.count() == 1
     assert "Philips Sonicare Power Flosser" in window.saved.view.toPlainText()

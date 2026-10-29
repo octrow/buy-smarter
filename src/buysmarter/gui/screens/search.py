@@ -680,7 +680,8 @@ class SearchScreen(QWidget):
 
     def note_saved(self) -> None:
         """Say where the finished search's report went; it now heads the recent searches."""
-        self.message.setText(f"{self.message.text()} Отчёт сохранён — см. «Прошлые поиски».")
+        saved = "Отчёт сохранён — см. «Прошлые поиски»."
+        self.message.setText(f"{self.message.text()} {saved}".strip())
         self.refresh_recent()
 
     def _on_failed(self, message: str) -> None:

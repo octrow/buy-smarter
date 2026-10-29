@@ -138,6 +138,7 @@ QFrame#recent:hover {{ border-color: {p["accent"]}; }}
 QFrame#recent QLabel {{ background: transparent; }}
 QPushButton[flat="true"] {{ background: transparent; border: 1px solid transparent; color: {p["accent"]}; }}
 QPushButton[flat="true"]:hover {{ background: {p["accent_soft"]}; }}
+QPushButton#option, QGroupBox QPushButton#option {{ text-align: left; font-weight: 400; }}
 QPushButton#inlineLink {{ padding-left: 0; padding-right: 0; }}  /* starts on the text's vertical */
 QPushButton#inlineLink:hover {{ background: transparent; text-decoration: underline; }}
 QLabel[role="muted"] {{ color: {p["text_muted"]}; }}

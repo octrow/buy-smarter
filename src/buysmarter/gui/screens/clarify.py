@@ -36,7 +36,7 @@ class ClarificationBox(QFrame):
         self.skip_button.clicked.connect(self.skipped.emit)
         # One option per line: the LLM's options can be long, a row would widen the window.
         self._options = QVBoxLayout()
-        self._options.setSpacing(SPACE["xs"])
+        self._options.setSpacing(SPACE["sm"])
         self.option_buttons: list[QPushButton] = []
         own_row = QHBoxLayout()
         own_row.setSpacing(SPACE["sm"])
@@ -64,6 +64,7 @@ class ClarificationBox(QFrame):
         self.option_buttons = []
         for option in clarification.options:
             button = QPushButton(option)
+            button.setObjectName("option")  # reads as a list of answers, not a stack of actions
             button.clicked.connect(lambda _checked=False, text=option: self.answered.emit(text))
             self._options.addWidget(button)
             self.option_buttons.append(button)

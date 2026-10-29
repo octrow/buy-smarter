@@ -300,6 +300,8 @@ class StyleScreen(QWidget):
         self.strength = QSpinBox(minimum=0, maximum=profile.STRENGTH_MAX)
         self.strength.setValue(profile.STRENGTH_DEFAULT)
         self.strength.setAccessibleName(STRENGTH)
+        # QSS horizontal padding does not reach a spin box's text: inset it as budget_box does.
+        self.strength.lineEdit().setTextMargins(SPACE["sm"], 0, SPACE["sm"], 0)
         self.strength.valueChanged.connect(self._save_strength)
         form = QFormLayout()
         form.setHorizontalSpacing(SPACE["lg"])
