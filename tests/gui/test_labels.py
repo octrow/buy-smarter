@@ -16,6 +16,9 @@ def test_axis_explanations_read_in_russian_and_keep_their_figures():
     )
     assert explain("out of stock") == "нет в наличии"
     assert explain("in stock; доставка завтра") == "в наличии; доставка завтра"
+    assert explain("not in the benchmark, counted as the pool's weakest 30/100") == (
+        "модели нет в рейтинге — как у худшей известной: 30/100"
+    )
 
 
 def test_an_unknown_phrase_passes_through_unchanged():

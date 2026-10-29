@@ -113,6 +113,7 @@ def compute_market_context(candidates: list[Candidate]) -> MarketContext:
     prices = sorted(c.price for c in candidates if c.price > 0) or [0]
     review_counts = [c.review_count for c in candidates if c.review_count is not None]
     tiered_prices = _tiered_prices(candidates)
+    indexes = [c.benchmark_index for c in candidates if c.benchmark_index is not None]
     trusted_median = int(statistics.median(tiered_prices)) if tiered_prices else None
     return MarketContext(
         min_price=prices[0],
@@ -122,6 +123,7 @@ def compute_market_context(candidates: list[Candidate]) -> MarketContext:
         max_review_count=max(review_counts) if review_counts else 0,
         max_review_count_by_source=_max_reviews_by_source(candidates),
         pool_size=len(candidates),
+        min_benchmark_index=min(indexes, default=None),
     )
 
 
@@ -328,7 +330,10 @@ def _score_reviews(
 
 
 def _score_specs(
-    candidate: Candidate, constraints: QueryConstraints, weights: dict[str, float]
+    candidate: Candidate,
+    constraints: QueryConstraints,
+    market: MarketContext,
+    weights: dict[str, float],
 ) -> AxisScore:
     weight = weights["specs"]
     required = constraints.required_features
@@ -348,6 +353,18 @@ def _score_specs(
         coverage = (coverage + candidate.benchmark_index / BENCHMARK_INDEX_MAX) / 2
         label = candidate.benchmark_label or "benchmark"
         explanation += f"; {label} {candidate.benchmark_index:.0f}/100"
+    elif (
+        candidate.benchmark_missing
+        and market.min_benchmark_index is not None
+        and market.min_benchmark_index < BENCHMARK_INDEX_MAX / 2
+    ):
+        # Unknown to the benchmark is no better than the weakest known model in the pool,
+        # but never lifted by it: a pool of flagships leaves an unknown phone neutral.
+        coverage = (coverage + market.min_benchmark_index / BENCHMARK_INDEX_MAX) / 2
+        explanation += (
+            f"; not in the benchmark, counted as the pool's weakest "
+            f"{market.min_benchmark_index:.0f}/100"
+        )
     return AxisScore(
         name="specs", score=round(weight * coverage, 2), max_score=weight, explanation=explanation
     )
@@ -552,7 +569,7 @@ def _score_axes(
         _score_brand(candidate, weights),
         price_axis,
         _score_reviews(candidate, market, weights),
-        _score_specs(candidate, constraints, weights),
+        _score_specs(candidate, constraints, market, weights),
         _score_popularity(candidate, market, weights),
         _score_availability(candidate, weights, today),
     ]

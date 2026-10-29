@@ -138,6 +138,8 @@ async def enrich_with_kimovil(
     phones = await _resolve_all(list(by_query), source, cache)
     for query, phone in phones.items():
         if phone is None:
+            for candidate in by_query[query]:
+                candidate.benchmark_missing = True
             continue
         extra = russian_specs(phone)
         for candidate in by_query[query]:

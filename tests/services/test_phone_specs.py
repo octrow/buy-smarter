@@ -98,6 +98,15 @@ async def test_hits_and_misses_are_cached_across_runs(tmp_path):
     assert again.benchmark_index == 84.0
 
 
+async def test_a_model_the_source_does_not_know_is_marked_missing(tmp_path):
+    nokia = _cand("2", "Nokia 3310")
+    await enrich_with_kimovil(
+        [nokia], source=FakeKimovil({}), cache=KimovilCache(tmp_path / "k.db")
+    )
+
+    assert nokia.benchmark_missing and nokia.benchmark_index is None
+
+
 async def test_a_failing_lookup_leaves_candidates_untouched(tmp_path):
     class Broken(FakeKimovil):
         async def lookup(self, title):
@@ -107,6 +116,7 @@ async def test_a_failing_lookup_leaves_candidates_untouched(tmp_path):
     await enrich_with_kimovil([phone], source=Broken({}), cache=KimovilCache(tmp_path / "k.db"))
 
     assert phone.benchmark_index is None and phone.specs == {}
+    assert not phone.benchmark_missing  # a failure is not «no such model»
 
 
 async def test_lookups_are_capped_per_run(tmp_path, monkeypatch):
@@ -118,3 +128,4 @@ async def test_lookups_are_capped_per_run(tmp_path, monkeypatch):
     await enrich_with_kimovil(pool, source=source, cache=KimovilCache(tmp_path / "k.db"))
 
     assert source.lookups == ["samsung galaxy a10", "samsung galaxy a20"]
+    assert [c.benchmark_missing for c in pool] == [True, True, False, False]  # never looked up

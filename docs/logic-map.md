@@ -288,7 +288,7 @@ Module: `services/recommend`, `llm/relevance`, `capabilities/flow`
 
 Decides: a performance index (feeds the specs axis) and model specs in Kaspi wording ("120 Гц").
 The benchmark capability is on only with a provider (`capabilities/benchmark_providers`; today only Kimovil). The profile names it (with the provider as a parameter, or the rule picks one), else the rule alone, over the product type (the search phrase when the parse gave none): смартфон(ы), телефон(ы) or smartphone as a whole word before the first preposition (для, на, к, под, от, с), or iphone/айфон as the first word. "мобильный телефон" → yes; "чехол для телефона", "держатель телефона", "радиотелефон", "телефонный кабель", "кнопочный телефон", "стационарный телефон" → no. RAM and storage are not copied: the listing may be another variant.
-The core averages `benchmark_index` into the specs axis without knowing its source.
+The core averages `benchmark_index` into the specs axis without knowing its source. A model the source does not know (`benchmark_missing`) counts as the weakest known index in the pool when that index is below 50 (a pool of strong phones does not lift it); a model never looked up (past `MAX_LOOKUPS`) or whose lookup failed keeps the neutral half.
 Cached; fails open.
 Module: `capabilities/benchmark`, `capabilities/benchmark_providers`, `services/phone_specs`
 

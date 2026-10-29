@@ -128,6 +128,8 @@ class Candidate(BaseModel):
     # source that gave it ("Kimovil" for phones). None == no index for this model.
     benchmark_index: float | None = None
     benchmark_label: str | None = None
+    # Looked up, and the source has no such model; a model never looked up stays False.
+    benchmark_missing: bool = False
     # The brand was read from the title only (the card had no brand field): a
     # weaker signal than a brand field, since counterfeits name a brand in the title.
     brand_from_title: bool = False
@@ -180,6 +182,7 @@ class MarketContext(BaseModel):
     max_review_count: int
     max_review_count_by_source: dict[str, int] = Field(default_factory=dict)
     pool_size: int
+    min_benchmark_index: float | None = None  # the weakest known index in the pool
 
 
 class Recommendation(BaseModel):

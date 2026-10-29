@@ -144,6 +144,10 @@ _PHRASES: list[tuple[re.Pattern[str], str | Callable[[re.Match[str]], str]]] = [
         re.compile(r"(?P<m>\d+)/(?P<n>\d+) required features matched"),
         r"совпало требований: \g<m> из \g<n>",
     ),
+    (
+        re.compile(r"not in the benchmark, counted as the pool's weakest (?P<i>\d+)/100"),
+        r"модели нет в рейтинге — как у худшей известной: \g<i>/100",
+    ),
     (re.compile(r"single candidate — no pool comparison"), "один кандидат — не с кем сравнить"),
     (re.compile(r"no review-count data for popularity"), "нет числа отзывов"),
     (re.compile(r"no popularity data across pool"), "нет данных о популярности"),

@@ -1400,6 +1400,43 @@ def test_without_a_benchmark_index_the_specs_axis_is_unchanged():
     assert "Kimovil" not in axis.explanation
 
 
+def test_a_phone_missing_from_the_benchmark_is_no_better_than_the_weakest_known_one():
+    found = _candidate(source_product_id="found", benchmark_index=30.0, benchmark_label="Kimovil")
+    missing = _candidate(source_product_id="missing", benchmark_missing=True)
+    market = compute_market_context([found, missing])
+    no_req = _constraints(required_features=[])
+
+    axes = {
+        c.source_product_id: next(a for a in score(c, no_req, market).axes if a.name == "specs")
+        for c in (found, missing)
+    }
+
+    assert axes["missing"].score == axes["found"].score
+    assert "weakest" in axes["missing"].explanation
+
+
+def test_a_pool_of_strong_phones_does_not_lift_an_unknown_one():
+    flagship = _candidate(source_product_id="f", benchmark_index=85.0, benchmark_label="Kimovil")
+    missing = _candidate(source_product_id="missing", benchmark_missing=True)
+    market = compute_market_context([flagship, missing])
+
+    scored = score(missing, _constraints(required_features=[]), market)
+
+    axis = next(a for a in scored.axes if a.name == "specs")
+    assert axis.score == DEFAULT_WEIGHTS["specs"] * 0.5
+
+
+def test_a_phone_never_looked_up_keeps_the_neutral_specs_half():
+    found = _candidate(source_product_id="found", benchmark_index=30.0, benchmark_label="Kimovil")
+    unchecked = _candidate(source_product_id="unchecked")  # past the lookup cap
+    market = compute_market_context([found, unchecked])
+
+    scored = score(unchecked, _constraints(required_features=[]), market)
+
+    axis = next(a for a in scored.axes if a.name == "specs")
+    assert axis.score == DEFAULT_WEIGHTS["specs"] * 0.5
+
+
 def test_variant_key_equal_for_beige_and_brown_guitar_variants():
     assert variant_key("Гитара акустическая Liewen Toun AR38 бежевый") == variant_key(
         "Гитара акустическая Liewen Toun AR38 коричневый"

@@ -15,6 +15,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Price snapshots are saved right after collecting, so a search ending in `NoSubstanceMatch` or «no candidates» keeps them (#18).
 - The no-LLM note names every step that is skipped without a key, not only parsing, summaries and composition (#23).
 - `refresh` searches a tracked category with its brand book, as a search does: brand-targeted Kaspi searches come back (no LLM, still no budget) (#6).
+- A phone Kimovil does not know no longer outranks a known mediocre one: it counts as the weakest known index in the pool when that is below 50 («модели нет в рейтинге — как у худшей известной»); a model past the lookup cap or with a failed lookup stays neutral (#20).
 
 ## [0.10.0] - 2026-10-29
 
