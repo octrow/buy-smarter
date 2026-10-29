@@ -65,9 +65,13 @@ def fake_sources(monkeypatch):
     async def close(src):
         closed.append(src)
 
+    async def no_books(*_args, **_kwargs):
+        return None, None
+
     monkeypatch.setattr(pt, "resolve_sources", lambda *_args: {"kaspi": "kaspi-src"})
     monkeypatch.setattr(pt, "resolve_city", no_city)
     monkeypatch.setattr(pt, "aclose", close)
+    monkeypatch.setattr(pt, "resolve_books", no_books)
     return closed
 
 
@@ -91,6 +95,27 @@ async def test_refresh_lists_the_five_biggest_drops_biggest_first(fake_sources, 
     assert (result.product_count, result.changed) == (7, 7)
     assert [d.delta for d in result.drops] == [-600, -500, -400, -300, -200]
     assert fake_sources == ["kaspi-src", "kaspi-src"]
+
+
+async def test_refresh_searches_with_the_categorys_brand_book(fake_sources, monkeypatch):
+    book = object()
+    seen: list[object] = []
+
+    async def books(category, *, use_llm):
+        assert (category, use_llm) == ("irrigators", False)
+        return book, None
+
+    async def gather(_active, _category, _city, brand_book, _budget):
+        seen.append(brand_book)
+        return "collected"
+
+    monkeypatch.setattr(pt, "resolve_books", books)
+    monkeypatch.setattr(pt, "gather_sources", gather)
+    monkeypatch.setattr(pt, "merge_new_goods", lambda collected: ([], []))
+
+    await pt.refresh_category("irrigators")
+
+    assert seen == [book]
 
 
 async def test_refresh_closes_the_sources_when_collecting_fails(fake_sources, monkeypatch):

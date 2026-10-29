@@ -419,7 +419,7 @@ Module: `knowledge/generate`, `knowledge/store`, `services/official_stores`, `se
 
 ### Price tracking
 
-`refresh` re-collects every tracked category and reports the biggest price drops.
+`refresh` re-collects every tracked category with its brand book (no LLM, no budget) and reports the biggest price drops.
 It runs all sources without category knowledge, ranking or LLM.
 `history` shows one product's stored snapshots.
 Feeds: step 11.
@@ -436,4 +436,3 @@ Short list; details and fixes are in the plan (number in brackets).
 - Dedupe still merges FE/SE variants, chip generations (M2/M3) and RAM-only variants; overlap is asymmetric (#13).
 - Capabilities are switched on by stored profiles, the Jev classifier on the first sight of a product type (`ensure_profile`) and fallback rules. `recommend()` never learns a category itself; entry points may start learning after the report (Learning a category). Findings #1 and #2 are fixed.
 - Without an LLM there is no intent detection: only an unreadable query and capabilities ask, so a keyless or opted-out run searches "подарок для мамы" as it is (phase 2).
-- `refresh` collects without category knowledge (#6).

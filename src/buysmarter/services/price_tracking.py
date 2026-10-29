@@ -18,6 +18,7 @@ from buysmarter.db.repo import (
     track_category,
     upsert_product,
 )
+from buysmarter.knowledge.store import resolve_books
 from buysmarter.services.collect import (
     ALL_SOURCES,
     ProductRow,
@@ -97,14 +98,16 @@ async def _persist_refresh(rows: list[ProductRow], category: str) -> list[PriceC
 async def refresh_category(category: str) -> CategoryRefresh:
     """Search-only re-scan of one category: persist snapshots, report changes.
 
-    All sources, naive (no brand-targeted searches, no ranking, no LLM). The
+    All sources with the category's brand book (brand-targeted searches, as a
+    search does), no ranking, no LLM. The
     persistence records a new snapshot per product and compares it to the prior
     one to surface price movements.
     """
     active = await asyncio.to_thread(resolve_sources, list(ALL_SOURCES), None, None, None)
     city, _ = await resolve_city(None, None)
+    book, _ = await resolve_books(category, use_llm=False)
     try:
-        collected = await gather_sources(active, category, city, None, None)
+        collected = await gather_sources(active, category, city, book, None)
         _, persist_rows = merge_new_goods(collected)
     finally:
         for src in active.values():

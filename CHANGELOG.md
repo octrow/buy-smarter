@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Fixed
+
+- `refresh` searches a tracked category with its brand book, as a search does: brand-targeted Kaspi searches come back (no LLM, still no budget) (#6).
+
 ## [0.10.0] - 2026-10-29
 
 ### Added
