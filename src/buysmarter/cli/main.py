@@ -2,6 +2,7 @@
 
 import asyncio
 import functools
+import io
 import logging
 import sys
 from pathlib import Path
@@ -448,6 +449,10 @@ _INTERRUPTED = 130  # typer's exit code for Ctrl+C
 
 def main() -> None:
     """``buysmarter``: the typer app, with a word on Ctrl+C instead of a silent exit."""
+    # A redirected stdout on Windows is cp1252, and the help and reports are Russian.
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8")
     try:
         app()
     except SystemExit as exc:

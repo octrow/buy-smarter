@@ -21,3 +21,22 @@ def test_settings_reads_env(monkeypatch) -> None:
 
 def test_cli_app_exists() -> None:
     assert isinstance(app, typer.Typer)
+
+
+def test_help_survives_a_cp1252_stdout(monkeypatch) -> None:
+    """A redirected stdout on Windows is cp1252; the help of `style`, `prefs`… is Russian."""
+    import io
+    import sys
+
+    import pytest
+
+    from buysmarter.cli.main import main
+
+    raw = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(raw, encoding="cp1252"))
+    monkeypatch.setattr(sys, "argv", ["buysmarter", "--help"])
+    with pytest.raises(SystemExit) as exc:
+        main()
+    sys.stdout.flush()
+    assert exc.value.code == 0
+    assert "Стиль" in raw.getvalue().decode("utf-8")

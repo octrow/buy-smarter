@@ -32,6 +32,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - The «Стиль» screen splits samples into «Нравится» and «Нет», each with its own buttons and grid.
 - Desktop layout: bold text renders (Inter bundled as static 400/600/700 instead of the variable font); one rhythm of page and card gaps on every screen; report metrics, link and table columns line up; titles and health rows fit the 960×640 window; settings labels sit centred on their fields; past searches show the whole query.
 
+- `buysmarter --help` crashed on Windows when its output was redirected (a cp1252 pipe could not encode the Russian help of `prefs`, `category`, `style`, `reports`); the CLI now writes UTF-8.
+
 ### Security
 
 - `authlib` 1.9.1 (CVE-2026-114614 to CVE-2026-114620, CVE-2026-96760) and `dnspython` 2.9.0 (CVE-2026-114605) in the lock file.

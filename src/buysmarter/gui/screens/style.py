@@ -249,7 +249,8 @@ class StyleScreen(QWidget):
         form = form_rows((LIKES, liked), (NEVERS, never))
         for row in range(form.rowCount()):  # the label beside the buttons, not mid-grid
             label = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
-            label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+            if label is not None:
+                label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         inside.addLayout(form)
         return card
 
