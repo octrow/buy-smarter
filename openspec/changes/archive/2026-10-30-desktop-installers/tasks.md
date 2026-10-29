@@ -18,4 +18,4 @@
 
 ## 4. Architectures
 
-- [ ] 4.1 macOS x64, Linux arm64 and Windows arm64 in the matrix; archive and installer names carry the arch
+- [x] 4.1 macOS x64 and Linux arm64 (Ubuntu 24.04: PySide6 aarch64 wheels need glibc 2.39) in the matrix; archive, artifact and `.deb` names carry the arch. Windows arm64 runs the x64 setup emulated: `cryptography` ships no win_arm64 wheel (verified by run 40951429720)

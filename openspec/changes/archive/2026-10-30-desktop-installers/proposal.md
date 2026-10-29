@@ -13,7 +13,7 @@ Linux here.
   with an icon, and declares the Qt runtime libraries as dependencies, so `apt` installs them.
 - **Windows:** a setup `.exe` (Inno Setup) with a Start-menu entry and an uninstaller, per user, no admin rights.
 - **macOS:** a `.dmg` with the `.app` and an Applications link.
-- **More architectures:** macOS x64, Linux arm64 and Windows arm64 builds, on free GitHub runners.
+- **More architectures:** macOS x64 and Linux arm64 builds, on free GitHub runners; Windows on ARM runs the x64 setup.
 - The release notes come from the version's CHANGELOG.md section plus a downloads table, instead of a bare
   "Full Changelog" link.
 

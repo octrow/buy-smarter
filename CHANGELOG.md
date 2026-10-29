@@ -6,6 +6,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ### Added
 
+- Desktop builds for Intel Macs (`…-macos-x64.dmg`) and ARM Linux (`buysmarter_<version>_arm64.deb`, `…-linux-arm64.tar.gz`, Ubuntu 24.04 or newer); Windows on ARM runs the x64 setup.
 - Shoe cards are compared with the shoes cut out of the style samples, not with whole outfit photos (where the vector is the jacket's): a clothes segmenter (SegFormer-B2, pinned, downloaded with the style model) cuts the shoes out once per photo.
 
 ### Fixed
