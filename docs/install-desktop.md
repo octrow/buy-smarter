@@ -13,6 +13,9 @@ Python on your machine.
 | Ubuntu / Debian | `buysmarter_<version>_amd64.deb` | install script |
 | Other Linux | install script | `buysmarter-<version>-linux-x64.tar.gz` |
 
+The names above are for the common machines. An Intel Mac takes `…-macos-x64.dmg`. ARM Linux (Ubuntu 24.04
+or newer) takes `buysmarter_<version>_arm64.deb` or `…-linux-arm64.tar.gz`. Windows on ARM runs the x64 setup.
+
 ## Install script
 
 macOS / Linux, in Terminal:

@@ -19,10 +19,10 @@ cat <<NOTES
 
 | System | File |
 |---|---|
-| Ubuntu / Debian | \`buysmarter_${version}_amd64.deb\` (ARM: \`_arm64.deb\`): open it, or \`sudo apt install ./buysmarter_${version}_amd64.deb\` |
-| Windows | \`buysmarter-${version}-windows-x64-setup.exe\` (ARM: \`-windows-arm64-setup.exe\`; or the \`.zip\` to run without installing) |
+| Ubuntu / Debian | \`buysmarter_${version}_amd64.deb\` (ARM, Ubuntu 24.04+: \`_arm64.deb\`): open it, or \`sudo apt install ./buysmarter_${version}_amd64.deb\` |
+| Windows | \`buysmarter-${version}-windows-x64-setup.exe\` (also on Windows on ARM; or the \`.zip\` to run without installing) |
 | macOS | \`buysmarter-${version}-macos-arm64.dmg\` for Apple silicon, \`-macos-x64.dmg\` for Intel (or the \`.app.zip\`) |
-| Other Linux | \`buysmarter-${version}-linux-x64.tar.gz\` (ARM: \`-linux-arm64.tar.gz\`) |
+| Other Linux | \`buysmarter-${version}-linux-x64.tar.gz\` (ARM, glibc 2.39+: \`-linux-arm64.tar.gz\`) |
 
 The builds are unsigned: see [Installing the desktop app](https://github.com/octrow/buy-smarter/blob/v${version}/docs/install-desktop.md)
 for the first-launch steps. Ozon needs Google Chrome. The command-line tool and MCP server: \`pip install buysmarter==${version}\`

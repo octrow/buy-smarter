@@ -9,6 +9,7 @@ set -eu
 umask 022
 version="$1" build="$2" out="$3"
 arch="$(dpkg --print-architecture)"
+glibc="$(ldd --version | head -n 1 | awk '{print $NF}')"  # the build host's: the bundle needs at least it
 here="$(cd "$(dirname "$0")" && pwd)"
 icon="$here/../../src/buysmarter/gui/theme/icon.svg"
 root="$(mktemp -d)"
@@ -26,7 +27,7 @@ Version: $version
 Architecture: $arch
 Maintainer: Daniil Petrov <octrow@users.noreply.github.com>
 Installed-Size: $(du -sk "$root" | cut -f1)
-Depends: libc6 (>= 2.35), libegl1, libgl1, libdrm2, libwayland-client0, libwayland-cursor0, libwayland-egl1, libxcb1, libfontconfig1, libxkbcommon0, libxkbcommon-x11-0, libxcb-cursor0, libxcb-icccm4, libxcb-keysyms1, libxcb-shape0, libdbus-1-3
+Depends: libc6 (>= $glibc), libegl1, libgl1, libdrm2, libwayland-client0, libwayland-cursor0, libwayland-egl1, libxcb1, libfontconfig1, libxkbcommon0, libxkbcommon-x11-0, libxcb-cursor0, libxcb-icccm4, libxcb-keysyms1, libxcb-shape0, libdbus-1-3
 Suggests: google-chrome-stable
 Section: utils
 Priority: optional

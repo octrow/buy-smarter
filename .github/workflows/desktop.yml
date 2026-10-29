@@ -17,15 +17,12 @@ jobs:
           - os: ubuntu-22.04  # the oldest glibc we build on is the minimum the Linux build needs
             platform: linux
             arch: x64
-          - os: ubuntu-22.04-arm
+          - os: ubuntu-24.04-arm  # PySide6's aarch64 wheels need glibc 2.39
             platform: linux
             arch: arm64
-          - os: windows-latest
+          - os: windows-latest  # also runs on Windows on ARM, emulated: cryptography ships no win_arm64 wheel
             platform: windows
             arch: x64
-          - os: windows-11-arm
-            platform: windows
-            arch: arm64
           - os: macos-latest
             platform: macos
             arch: arm64
@@ -78,7 +75,7 @@ jobs:
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; if ($LASTEXITCODE) { exit 1 } }
-          & $iscc /Q "/DAppVersion=$(uv version --short)" "/DAppArch=${{ matrix.arch }}" "/DSourceDir=$PWD\dist\buysmarter" "/O$PWD\out" packaging\windows\buysmarter.iss
+          & $iscc /Q "/DAppVersion=$(uv version --short)" "/DSourceDir=$PWD\dist\buysmarter" "/O$PWD\out" packaging\windows\buysmarter.iss
           if ($LASTEXITCODE) { exit 1 }
           $setup = (Get-ChildItem out\*-setup.exe).FullName
           $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER' -Wait -PassThru

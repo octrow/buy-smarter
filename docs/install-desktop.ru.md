@@ -13,6 +13,9 @@
 | Ubuntu / Debian | `buysmarter_<версия>_amd64.deb` | скрипт установки |
 | Другой Linux | скрипт установки | `buysmarter-<версия>-linux-x64.tar.gz` |
 
+В таблице имена для обычных машин. Mac на Intel берёт `…-macos-x64.dmg`. Linux на ARM (Ubuntu 24.04
+и новее) — `buysmarter_<версия>_arm64.deb` или `…-linux-arm64.tar.gz`. Windows на ARM ставит x64-установщик.
+
 ## Скрипт установки
 
 macOS / Linux, в Терминале:
