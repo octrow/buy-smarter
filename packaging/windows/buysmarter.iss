@@ -1,8 +1,11 @@
 ; Windows setup for the desktop app: per-user install (no admin rights), Start-menu entry, uninstaller.
 ; Built by desktop.yml after PyInstaller:
-;   ISCC /DAppVersion=<version> /DSourceDir=<repo>\dist\buysmarter /O<repo>\out packaging\windows\buysmarter.iss
+;   ISCC /DAppVersion=<version> /DAppArch=x64|arm64 /DSourceDir=<repo>\dist\buysmarter /O<repo>\out packaging\windows\buysmarter.iss
 #ifndef AppVersion
   #error Pass /DAppVersion=<version>
+#endif
+#ifndef AppArch
+  #error Pass /DAppArch=x64 or /DAppArch=arm64
 #endif
 #ifndef SourceDir
   #error Pass /DSourceDir=<one-dir build>
@@ -21,9 +24,14 @@ PrivilegesRequired=lowest
 DefaultDirName={autopf}\buysmarter
 DisableProgramGroupPage=yes
 DisableDirPage=auto
+#if AppArch == "arm64"
+ArchitecturesAllowed=arm64
+ArchitecturesInstallIn64BitMode=arm64
+#else
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputBaseFilename=buysmarter-{#AppVersion}-windows-x64-setup
+#endif
+OutputBaseFilename=buysmarter-{#AppVersion}-windows-{#AppArch}-setup
 SetupIconFile=buysmarter.ico
 UninstallDisplayIcon={app}\buysmarter.exe
 UninstallDisplayName=buy-smarter

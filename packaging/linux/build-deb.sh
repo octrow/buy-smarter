@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build buysmarter_<version>_amd64.deb from the PyInstaller one-dir build.
+# Build buysmarter_<version>_<arch>.deb (amd64 or arm64, the build host's) from the PyInstaller one-dir build.
 # Usage: packaging/linux/build-deb.sh <version> <one-dir build> <output dir>
 # The app goes to /opt/buysmarter, the menu entry and icon to /usr/share; Depends pulls in the Qt runtime
 # libraries a real screen needs (the offscreen self-test does not), so `apt install ./<deb>` brings them:
@@ -8,6 +8,7 @@
 set -eu
 umask 022
 version="$1" build="$2" out="$3"
+arch="$(dpkg --print-architecture)"
 here="$(cd "$(dirname "$0")" && pwd)"
 icon="$here/../../src/buysmarter/gui/theme/icon.svg"
 root="$(mktemp -d)"
@@ -22,7 +23,7 @@ install -m 644 "$icon" "$root/usr/share/icons/hicolor/scalable/apps/buysmarter.s
 cat > "$root/DEBIAN/control" <<CONTROL
 Package: buysmarter
 Version: $version
-Architecture: amd64
+Architecture: $arch
 Maintainer: Daniil Petrov <octrow@users.noreply.github.com>
 Installed-Size: $(du -sk "$root" | cut -f1)
 Depends: libc6 (>= 2.35), libegl1, libgl1, libdrm2, libwayland-client0, libwayland-cursor0, libwayland-egl1, libxcb1, libfontconfig1, libxkbcommon0, libxkbcommon-x11-0, libxcb-cursor0, libxcb-icccm4, libxcb-keysyms1, libxcb-shape0, libdbus-1-3
@@ -35,4 +36,4 @@ Description: Explainable shopping assistant for Kaspi, Ozon and OLX
  and specs, and explains the pick. Ozon needs Google Chrome.
 CONTROL
 mkdir -p "$out"
-dpkg-deb --root-owner-group -Zxz --build "$root" "$out/buysmarter_${version}_amd64.deb"
+dpkg-deb --root-owner-group -Zxz --build "$root" "$out/buysmarter_${version}_${arch}.deb"
