@@ -4,8 +4,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Added
+
+- Shoe cards are compared with the shoes cut out of the style samples, not with whole outfit photos (where the vector is the jacket's): a clothes segmenter (SegFormer-B2, pinned, downloaded with the style model) cuts the shoes out once per photo.
+
 ### Fixed
 
+- The price snapshot is the price the candidate is ranked at (the cheapest offer, else the card price), so a cheaper card price no longer drags the 30-day average down into a false «цена выше средней» (#19).
+- With the LLM and `--no-review-summary`, required features went unchecked in reviews; they are checked by word stems whenever no summary runs (#21).
+- Price snapshots are saved right after collecting, so a search ending in `NoSubstanceMatch` or «no candidates» keeps them (#18).
+- The no-LLM note names every step that is skipped without a key, not only parsing, summaries and composition (#23).
 - `refresh` searches a tracked category with its brand book, as a search does: brand-targeted Kaspi searches come back (no LLM, still no budget) (#6).
 
 ## [0.10.0] - 2026-10-29
