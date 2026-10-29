@@ -3,6 +3,12 @@
 Liked and disliked photos are compared photo to photo, «нравится»/«нет» phrases through the
 text tower (their English descriptions, encoded once and kept as ``text`` vectors). The
 capability turns the cosines into the «Стиль» axis; this module only measures.
+
+A photo sample counts only for a card of its own garment: sneaker photos say nothing about
+jeans (the spike: other-category samples rank at chance). The garment is read zero-shot by
+the text tower: a photo may be any of its ``LIKELIEST`` garments (an outfit shows several, a
+card may be misread: sneakers as sandals), a sample counts when it shares one with the card.
+Phrases are not typed: always compared.
 """
 
 import asyncio
@@ -27,6 +33,13 @@ from buysmarter.style.profile import (
 )
 
 _FETCH_TIMEOUT = httpx.Timeout(10.0)
+GARMENTS = (
+    "sneakers", "boots", "dress shoes", "sandals", "jacket", "coat", "trousers", "jeans",
+    "shorts", "t-shirt", "shirt", "sweater", "hoodie", "dress", "skirt", "bag", "hat",
+)  # fmt: skip
+# Held out on 125 liked photos against 211 Kaspi cards: 2 ranks as well as no filter, 1 drops
+# coats from 0.71 to 0.59. ponytail: one global k; a garment-cropping model would make it 1.
+LIKELIEST = 2
 
 Fetch = Callable[[str], Awaitable[bytes | None]]
 
@@ -45,11 +58,51 @@ async def match_pool(pool: list[Candidate], current: Profile, model: Encodes, fe
     kinds = await _samples(current, model)
     if not kinds:
         return
+    garments = await _text_vectors([f"a photo of {g}" for g in GARMENTS], model)
+    sample_garments = {
+        kind: _likeliest(vectors, garments)
+        for kind, (vectors, _) in kinds.items()
+        if kind in (LIKE_PHOTO, NEVER_PHOTO)
+    }
     urls = [c.image_url for c in pool if c.image_url]
     cards = await cache.card_vectors(urls, fetch, model.images)
     for candidate in pool:
         if (vector := cards.get(candidate.image_url or "")) is not None:
-            candidate.style_match = {kind: _nearest(vector, s) for kind, s in kinds.items()}
+            card_garments = _likeliest(vector[None, :], garments)[0]
+            candidate.style_match = _card_match(vector, card_garments, kinds, sample_garments)
+
+
+def _card_match(
+    card: np.ndarray,
+    card_garments: np.ndarray,
+    kinds: dict[str, Samples],
+    sample_garments: dict[str, np.ndarray],
+) -> dict[str, tuple[float, str]]:
+    """The nearest sample of each kind; a photo kind sharing no garment with the card is out."""
+    match = {}
+    for kind, samples in kinds.items():
+        typed: Samples | None = samples
+        if kind in sample_garments:
+            typed = _of_garment(samples, sample_garments[kind], card_garments)
+        if typed is not None:
+            match[kind] = _nearest(card, typed)
+    return match
+
+
+def _likeliest(vectors: np.ndarray, garments: np.ndarray) -> np.ndarray:
+    """Each row's ``LIKELIEST`` garments, as indexes into ``GARMENTS``."""
+    return np.argsort(-(vectors @ garments.T), axis=1, kind="stable")[:, :LIKELIEST]
+
+
+def _of_garment(
+    samples: Samples, sample_garments: np.ndarray, card_garments: np.ndarray
+) -> Samples | None:
+    """The samples sharing a garment with the card; ``None`` when there is none."""
+    keep = np.isin(sample_garments, card_garments).any(axis=1)
+    if not keep.any():
+        return None
+    vectors, names = samples
+    return vectors[keep], [n for n, k in zip(names, keep, strict=True) if k]
 
 
 def _nearest(card: np.ndarray, samples: Samples) -> tuple[float, str]:
@@ -84,17 +137,21 @@ async def _photo_samples(current: Profile) -> dict[str, Samples]:
 async def _phrase_vectors(phrases: list[Phrase], model: Encodes) -> Samples:
     """One row per English description, named by the phrase as the user wrote it."""
     rows = [(en, p.text) for p in phrases for en in p.en]
-    texts = list(dict.fromkeys(en for en, _ in rows))
+    return await _text_vectors([en for en, _ in rows], model), [text for _, text in rows]
+
+
+async def _text_vectors(texts: list[str], model: Encodes) -> np.ndarray:
+    """One row per text, encoded the first time and kept as ``text`` vectors."""
+    unique = list(dict.fromkeys(texts))
     async with async_session() as session:
-        stored = await repo.get_style_vectors(session, TEXT, texts)
-        new = [t for t in texts if t not in stored]
+        stored = await repo.get_style_vectors(session, TEXT, unique)
+        new = [t for t in unique if t not in stored]
         if new:
             encoded = await asyncio.to_thread(model.texts, new)
             fresh = {t: encoded[i].astype(np.float32).tobytes() for i, t in enumerate(new)}
             await repo.add_style_vectors(session, TEXT, fresh)
             stored = {**stored, **fresh}
-    vectors = np.stack([np.frombuffer(stored[en], np.float32) for en, _ in rows])
-    return vectors, [text for _, text in rows]
+    return np.stack([np.frombuffer(stored[t], np.float32) for t in texts])
 
 
 async def fetch_photo(client: httpx.AsyncClient, url: str) -> bytes | None:

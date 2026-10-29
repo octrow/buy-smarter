@@ -306,6 +306,7 @@ Module: `capabilities/composition`, `llm/ingredients`, `ranking/filters`
 Decides: how close each card's main photo is to the user's samples: the nearest liked photo, «нравится» phrase, disliked photo and «нет» phrase (`Candidate.style_match`, cosine and the sample's name).
 Only with sample photos or phrases, the `style` extra and the model downloaded; else nothing (brands only: no axis; no model: no axis data, every card gets half).
 Card photos are fetched 8 at a time and encoded once (vectors kept by URL in `style_vectors`); phrase descriptions are encoded once too (`text`). The whole step stops after 30 s; cards not reached keep no match.
+A photo sample counts only for a card sharing one of its 2 likeliest garments (sneakers, jacket, jeans…, read zero-shot by the text tower, `style/match.GARMENTS`); phrases are always compared. No liked sample of the card's garments: the axis gives half, "нет образцов такого типа".
 A photo that cannot be fetched: that card is not compared.
 Module: `capabilities/style`, `style/match`, `style/cache`, `style/encoder`
 

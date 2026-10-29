@@ -7,7 +7,7 @@ import pytest
 from buysmarter.capabilities import REGISTRY
 from buysmarter.capabilities.base import CapabilityContext
 from buysmarter.capabilities.flow import activate
-from buysmarter.capabilities.style import NO_PHOTO, STYLE
+from buysmarter.capabilities.style import NO_PHOTO, NO_SAMPLE_OF_TYPE, STYLE
 from buysmarter.i18n import AXIS_SHORT, axis_label, pro_con
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.models_book import ModelBook
@@ -204,3 +204,13 @@ def test_the_report_names_the_axis_in_russian_with_its_own_letter() -> None:
 def test_a_strong_or_weak_style_is_said_in_russian() -> None:
     assert pro_con(f"strong {STYLE}") == "в вашем стиле"
     assert pro_con(f"weak {STYLE}") == "не ваш стиль"
+
+
+def test_a_card_with_no_liked_sample_of_its_type_gets_half_and_says_why(styled) -> None:
+    jeans = _card("1", **{LIKE_PHOTO: (0.9, "look.jpg")})
+    untyped = _card("2", **{NEVER_PHOTO: (0.1, "bad.jpg")})  # no liked sample of its type
+
+    axis = _axis([jeans, untyped], untyped)
+
+    assert axis.score == 10.0
+    assert axis.explanation == NO_SAMPLE_OF_TYPE

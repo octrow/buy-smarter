@@ -10,6 +10,14 @@ from buysmarter.style.profile import LIKE_PHOTO, LIKE_TEXT, NEVER_PHOTO, NEVER_T
 
 _PHOTOS = {b"a": [1.0, 0.0, 0.0, 0.0], b"b": [0.0, 1.0, 0.0, 0.0]}
 _TEXTS = {"glossy white plastic sole": [0.0, 0.0, 1.0, 0.0], "shell jacket": [0.0, 0.0, 0.0, 1.0]}
+# Photo «a» is sneakers or boots, «b» a jacket or a coat: no garment in common.
+_GARMENTS = {
+    "a photo of sneakers": [1.0, 0.0, 0.0, 0.0],
+    "a photo of boots": [0.5, 0.0, 0.0, 0.0],
+    "a photo of jacket": [0.0, 1.0, 0.0, 0.0],
+    "a photo of coat": [0.0, 0.5, 0.0, 0.0],
+}
+_OTHER_GARMENT = [0.0, 0.0, 0.0, 0.0]
 
 
 class FakeEncoder:
@@ -21,7 +29,8 @@ class FakeEncoder:
 
     def texts(self, phrases):
         self.texts_seen += phrases
-        return np.array([_TEXTS[p] for p in phrases], dtype=np.float32)
+        rows = [_TEXTS.get(p) or _GARMENTS.get(p, _OTHER_GARMENT) for p in phrases]
+        return np.array(rows, dtype=np.float32)
 
 
 async def _fetch(url: str) -> bytes | None:
@@ -59,11 +68,21 @@ async def test_each_card_gets_its_nearest_samples_and_a_card_without_a_photo_non
     await match.match_pool([liked, plastic, blind], current, FakeEncoder(), _fetch)
 
     assert liked.style_match[LIKE_PHOTO] == (1.0, "look.jpg")
-    assert liked.style_match[NEVER_PHOTO][0] == 0.0
     assert plastic.style_match[NEVER_PHOTO] == (1.0, "bad.jpg")
     assert plastic.style_match[NEVER_TEXT] == (0.0, "glossy white plastic sole")
-    assert set(liked.style_match) == {LIKE_PHOTO, LIKE_TEXT, NEVER_PHOTO, NEVER_TEXT}
+    assert set(liked.style_match) == {LIKE_PHOTO, LIKE_TEXT, NEVER_TEXT}
     assert blind.style_match == {}
+
+
+async def test_a_photo_sample_of_another_garment_is_not_compared() -> None:
+    current = await _samples()  # a liked sneaker photo, a «нет» jacket photo
+    sneakers, jacket = _card("1", "a"), _card("2", "b")
+
+    await match.match_pool([sneakers, jacket], current, FakeEncoder(), _fetch)
+
+    assert NEVER_PHOTO not in sneakers.style_match
+    assert LIKE_PHOTO not in jacket.style_match
+    assert LIKE_TEXT in jacket.style_match  # phrases are not typed: always compared
 
 
 async def test_phrase_vectors_are_encoded_once_and_kept() -> None:
@@ -73,7 +92,9 @@ async def test_phrase_vectors_are_encoded_once_and_kept() -> None:
     await match.match_pool([_card("1", "a")], current, encoder, _fetch)
     await match.match_pool([_card("2", "b")], current, encoder, _fetch)
 
-    assert sorted(encoder.texts_seen) == ["glossy white plastic sole", "shell jacket"]
+    phrases = [t for t in encoder.texts_seen if not t.startswith("a photo of ")]
+    assert sorted(phrases) == ["glossy white plastic sole", "shell jacket"]
+    assert len(encoder.texts_seen) == len(set(encoder.texts_seen))  # garments encoded once too
 
 
 async def test_a_profile_of_brands_only_matches_nothing() -> None:

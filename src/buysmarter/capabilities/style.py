@@ -6,7 +6,8 @@ the category's brand book knows first and those only other categories' books kno
 With sample photos or phrases (and the ``style`` extra, its model downloaded) every card's
 main photo is compared with them for the «Стиль» axis. The axis is the card's percentile in
 the pool by its nearest liked sample, less ``NEVER_PER_Z`` for every standard deviation a
-«нет» sample is closer than the pool's average; a card without a photo gets half.
+«нет» sample is closer than the pool's average; a card without a photo, or without a liked
+sample of its garment (``style.match``), gets half.
 The user's strength (0–50, default 20) is the axis weight; 0 switches it off.
 """
 
@@ -37,6 +38,7 @@ NEVER_PER_Z = 0.15  # the spike's never-phrase penalty, per z-unit above the poo
 MAX_BRAND_SEARCHES = 6
 ENRICH_TIMEOUT_S = 30.0  # ~100 new photos take ~8 s; a slow CDN must not hold the search
 NO_PHOTO = "нет фото — не сравнивали"
+NO_SAMPLE_OF_TYPE = "нет образцов такого типа"
 _UNLIKE = "не похоже на ваши образцы"
 _LIKES = {LIKE_PHOTO: "похоже на ваше фото «{}»", LIKE_TEXT: "похоже на «{}»"}
 
@@ -167,7 +169,7 @@ def _liked(state: _PoolState, match: dict[str, tuple[float, str]]) -> tuple[floa
         for kind in _LIKES
         if kind in match
     ]
-    return max(found) if found else (0.5, _UNLIKE)
+    return max(found) if found else (0.5, NO_SAMPLE_OF_TYPE)
 
 
 def _percentile(pool: list[float], value: float) -> float:
