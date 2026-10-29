@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, Slot
 from PySide6.QtGui import QFontDatabase, QGuiApplication, QIcon
-from PySide6.QtWidgets import QApplication, QLayout, QWidget
+from PySide6.QtWidgets import QApplication, QLabel, QLayout, QWidget
 
 os.environ.setdefault("QT_API", "pyside6")  # qtawesome loads Qt through qtpy: never another binding
 import qtawesome  # noqa: E402 - needs QT_API first
@@ -31,6 +31,12 @@ FONT_FAMILY = "Inter"  # the family name the Inter-*.ttf files register
 TYPE = {"caption": 12, "body": 14, "subhead": 16, "title": 20, "display": 24, "hero": 28}
 # Spacing: a 4px grid.
 SPACE = {"xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24, "xxl": 32}
+# The same rhythm on every screen. Between cards: no less than a card's own padding (xl), or
+# the cards stop reading as separate units. Between rows inside a card: md.
+PAGE_GAP = SPACE["xl"]
+CARD_GAP = SPACE["md"]
+# Prose lines stop at ~70 characters (rules: 40-70), however wide the window: 70 x 8px at 14px.
+PROSE_MAX_PX = 70 * SPACE["sm"]
 RADIUS = 6
 # Field text boxes, sized so a line edit, a combo box and a spin box all come out 36px tall:
 # Fusion adds 3px more frame around a spin box than around a line edit.
@@ -131,8 +137,6 @@ QLabel#hero {{ font-size: {t["hero"]}px; font-weight: 700; }}
 QLabel#sectionTitle {{ font-size: {t["subhead"]}px; font-weight: 600; }}
 QFrame#card {{ background: {p["surface"]}; border: 1px solid {p["border"]}; border-radius: {r + 4}px; }}
 QFrame#card QLabel, QFrame#card QCheckBox, QFrame#card QWidget#plain {{ background: transparent; }}
-QLineEdit#bigQuery {{ font-size: {t["subhead"]}px; padding: {s["md"]}px; border-radius: {r + 2}px; }}
-QLineEdit#bigQuery:focus {{ padding: {s["md"] - 1}px; }}
 QFrame#recent {{ background: {p["surface"]}; border: 1px solid {p["border"]}; border-radius: {r + 2}px; }}
 QFrame#recent:hover {{ border-color: {p["accent"]}; }}
 QFrame#recent QLabel {{ background: transparent; }}
@@ -276,9 +280,30 @@ def apply_theme(app: QApplication) -> None:
     hints.colorSchemeChanged.connect(restyle)
 
 
+class Prose(QLabel):
+    """A paragraph: wraps, and stops at ``PROSE_MAX_PX`` however wide the card.
+
+    For text that stands on its own line; a status beside buttons stays a plain QLabel, or the
+    space it gives up stretches the buttons.
+    """
+
+    def __init__(self, text: str = "") -> None:
+        super().__init__(text, wordWrap=True)
+        self.setMaximumWidth(PROSE_MAX_PX)
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802 - Qt's name
+        # QLabel measures at the width it is offered, even past its maximum, and the layout
+        # then makes room for fewer lines than the capped label wraps to.
+        return super().heightForWidth(min(width, self.maximumWidth()))
+
+
 def card_body[L: QLayout](layout: L) -> L:
-    """A card's (QGroupBox's) layout without the style's own margins: the QSS padding frames the card."""
+    """A card's (QGroupBox's) layout without the style's own margins: the QSS padding frames the card.
+
+    Rows inside are ``CARD_GAP`` apart, the same in every card.
+    """
     layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(CARD_GAP)
     return layout
 
 

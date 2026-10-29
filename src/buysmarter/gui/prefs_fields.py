@@ -5,7 +5,7 @@ from typing import Any
 from PySide6.QtCore import QLocale
 from PySide6.QtWidgets import QCheckBox, QLabel, QSpinBox
 
-from buysmarter.gui.theme import SPACE, set_state
+from buysmarter.gui.theme import SPACE, Prose, set_state
 from buysmarter.i18n import SOURCE_LABELS
 from buysmarter.i18n import kzt as kzt  # re-exported: the screens format prices through here
 
@@ -43,7 +43,7 @@ def budget_box() -> QSpinBox:
 
 def store_warning() -> QLabel:
     """Hidden until the health checks find the store off (``setVisible(True)``)."""
-    label = QLabel(STORE_OFF, wordWrap=True)
+    label = Prose(STORE_OFF)
     set_state(label, "state", "warning")
     label.hide()
     return label

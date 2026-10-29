@@ -134,7 +134,7 @@ def style_check() -> Check:
         app_hint = "Подбор одежды по вкусу выключен: в этой установке нет модуля стиля."
         return Check(STYLE, False, hint, app_hint=app_hint)
     if weights.missing():
-        app_detail = "модель скачается при первом добавлении фото (~200 МБ)"
+        app_detail = "модель скачается при первом добавлении фото (~200\u00a0МБ)"  # no lone «МБ)»
         return Check(
             STYLE, True, "", "model downloads on first use (~200 MB)", app_detail=app_detail
         )

@@ -46,7 +46,7 @@ from buysmarter.gui.bridge import CoreRunner
 from buysmarter.gui.capability_toggles import CapabilityToggles
 from buysmarter.gui.learning import LEARN_FAILED, CategoryLearning
 from buysmarter.gui.tables import FitTableWidget, stretch_column
-from buysmarter.gui.theme import SPACE, card_body, set_state
+from buysmarter.gui.theme import PAGE_GAP, SPACE, card_body, set_state
 from buysmarter.knowledge.generate import learn_category, learn_from_notes
 from buysmarter.llm.adapter import LlmError
 
@@ -110,11 +110,11 @@ class CategoriesScreen(QWidget):
         layout = QVBoxLayout(self)
         # Under the screen heading (app._centered): no top gap of its own.
         layout.setContentsMargins(SPACE["xxl"], SPACE["lg"], SPACE["xxl"], SPACE["xl"])
-        layout.setSpacing(SPACE["lg"])
+        layout.setSpacing(PAGE_GAP)
         layout.addWidget(self._build_learn_card())
         layout.addWidget(self._build_list())
         self._detail = QVBoxLayout()
-        self._detail.setSpacing(SPACE["lg"])
+        self._detail.setSpacing(PAGE_GAP)
         layout.addLayout(self._detail)
         layout.addStretch(1)
         learning.started.connect(self._on_learning)
@@ -127,7 +127,6 @@ class CategoriesScreen(QWidget):
         set_state(self.status, "role", "caption")
         card = QGroupBox("Изучить категорию")
         inside = card_body(QVBoxLayout(card))
-        inside.setSpacing(SPACE["md"])
         inside.addLayout(self._build_learn_row())
         inside.addWidget(self.web)
         inside.addWidget(self.status)
@@ -227,7 +226,6 @@ class CategoriesScreen(QWidget):
         row, rows = detail.row, detail.knowledge
         card = QGroupBox(row.name)
         inside = card_body(QVBoxLayout(card))
-        inside.setSpacing(SPACE["md"])
         about = QLabel(" · ".join(filter(None, (row.books, row.parent, row.updated))))
         set_state(about, "role", "caption")
         inside.addWidget(about)

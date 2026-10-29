@@ -3,7 +3,7 @@
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout
 
-from buysmarter.gui.theme import SPACE, set_state
+from buysmarter.gui.theme import CARD_GAP, SPACE, Prose, set_state
 from buysmarter.services.understanding import Clarification
 
 _OWN_PLACEHOLDER = "или свой ответ"
@@ -22,7 +22,7 @@ class ClarificationBox(QFrame):
     def __init__(self) -> None:
         super().__init__()
         self.setObjectName("card")
-        self.warning = QLabel(wordWrap=True)
+        self.warning = Prose()
         set_state(self.warning, "state", "warning")
         self.question = QLabel(wordWrap=True)
         self.question.setObjectName("sectionTitle")
@@ -44,8 +44,8 @@ class ClarificationBox(QFrame):
         own_row.addWidget(send)
         own_row.addWidget(self.skip_button)
         body = QVBoxLayout(self)
-        body.setContentsMargins(SPACE["xl"], SPACE["lg"], SPACE["xl"], SPACE["lg"])
-        body.setSpacing(SPACE["md"])
+        body.setContentsMargins(SPACE["xl"], SPACE["xl"], SPACE["xl"], SPACE["xl"])  # as every card
+        body.setSpacing(CARD_GAP)
         body.addWidget(self.warning)
         body.addWidget(self.question)
         body.addLayout(self._options)

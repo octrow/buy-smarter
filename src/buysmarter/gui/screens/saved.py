@@ -12,6 +12,7 @@ from PySide6.QtGui import (
     QGuiApplication,
     QShowEvent,
     QTextBlock,
+    QTextBlockFormat,
     QTextCharFormat,
     QTextCursor,
     QTextDocument,
@@ -23,7 +24,6 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QHBoxLayout,
-    QLabel,
     QListWidget,
     QListWidgetItem,
     QPushButton,
@@ -33,7 +33,7 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter.cli.report import report_label, report_text, saved_reports
-from buysmarter.gui.theme import SPACE, TYPE, current_palette, set_state
+from buysmarter.gui.theme import SPACE, TYPE, Prose, current_palette, set_state
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,7 @@ def _report_item(path: Path) -> QListWidgetItem:
 # Bold: DESIGN.md's past-search headings (20/16 bold).
 _HEADINGS = {1: (TYPE["title"], QFont.Weight.Bold), 2: (TYPE["subhead"], QFont.Weight.Bold)}
 _HEADING_DEFAULT = (TYPE["body"], QFont.Weight.Bold)
+_LEADING_PCT = 150
 
 
 def style_report(doc: QTextDocument, p: dict[str, str]) -> None:
@@ -70,6 +71,7 @@ def style_report(doc: QTextDocument, p: dict[str, str]) -> None:
             _style_heading(block, *_HEADINGS.get(level, _HEADING_DEFAULT))
         _recolor_links(block, p["accent"])
         _mute_notes(block, p["text_muted"])
+        _space_lines(block)
         if (table := QTextCursor(block).currentTable()) is not None:
             _style_table(table, p)
         block = block.next()
@@ -103,6 +105,15 @@ def _recolor_links(block: QTextBlock, color: str) -> None:
             fmt.setFontUnderline(False)
             cursor.mergeCharFormat(fmt)
         it += 1
+
+
+def _space_lines(block: QTextBlock) -> None:
+    """Body lines at 150% leading (rules: line height 1.5); headings and tables keep theirs."""
+    if block.blockFormat().headingLevel() or QTextCursor(block).currentTable() is not None:
+        return
+    fmt = block.blockFormat()
+    fmt.setLineHeight(_LEADING_PCT, QTextBlockFormat.LineHeightTypes.ProportionalHeight.value)
+    QTextCursor(block).setBlockFormat(fmt)
 
 
 def _mute_notes(block: QTextBlock, color: str) -> None:
@@ -151,7 +162,7 @@ class SavedScreen(QWidget):
         # anywhere, only a 100%-wide table's 1px border is left over, not worth a scroll bar.
         self.view.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
         self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.empty = QLabel(_EMPTY, wordWrap=True)
+        self.empty = Prose(_EMPTY)
         set_state(self.empty, "role", "muted")
         self.folder_button = QPushButton("Открыть папку")
         self.folder_button.clicked.connect(self._open_folder)

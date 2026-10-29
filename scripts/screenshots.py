@@ -2,7 +2,8 @@
 
     uv run python scripts/screenshots.py OUT_DIR   ->  OUT_DIR/light/*.png, OUT_DIR/dark/*.png
 
-Every screen at the default size and at the window's minimum (`*-960x640.png`), plus the report
+Every screen at the default size, the window's minimum (`*-960x640.png`) and maximised on a
+1440p monitor (`*-2560x1440.png`), plus the report
 filled from the GUI tests' fixture, rendered full length (`report-full*.png`).
 
 Runs offscreen on the self-test's temp store, with a copy of the saved reports so «Прошлые
@@ -21,6 +22,7 @@ from pathlib import Path
 
 _SIZE = (1280, 800)
 _SMALL = (960, 640)  # the window's minimum: «Стиль» must still fit
+_LARGE = (2560, 1440)  # a maximised window on a 1440p monitor
 _STYLE_SAMPLES = Path.home() / "style-test" / "like"  # the developer's photos, if any
 _STYLE_PHOTOS = 12
 _SETTLE_S = 0.3
@@ -104,7 +106,7 @@ def _grab_screens(window: object, settle: Callable[[], None], out: Path) -> None
             continue  # a group header
         window.sidebar.setCurrentRow(row)
         _scroll_top(window)  # the previous pass may have left it scrolled
-        for suffix, size in (("", _SIZE), ("-960x640", _SMALL)):
+        for suffix, size in (("", _SIZE), ("-960x640", _SMALL), ("-2560x1440", _LARGE)):
             window.resize(*size)
             settle()
             name = f"{row:02d}-{item.text()}{suffix}.png"

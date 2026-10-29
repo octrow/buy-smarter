@@ -81,3 +81,22 @@ def test_the_check_icon_url_survives_spaces_and_backslashes_in_the_install_path(
     url = qss.split("image: url(", 1)[1].split(")", 1)[0]
     assert url.startswith('"') and url.endswith('check-light.svg"')
     assert "\\" not in url
+
+
+def test_screens_take_colors_and_sizes_only_from_the_theme():
+    """Every screen follows the same rules: no colour literal, inline style or raw pixel size."""
+    import re
+    from pathlib import Path
+
+    gui = Path(theme.__file__).parent.parent
+    banned = re.compile(
+        r"#[0-9A-Fa-f]{6}\b|setStyleSheet\(|QColor\(\d|setFixed(?:Width|Height)\(\d"
+    )
+    hits = [
+        f"{path.relative_to(gui)}:{n}"
+        for path in gui.rglob("*.py")
+        if "theme" not in path.parts
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+        if banned.search(line)
+    ]
+    assert hits == []

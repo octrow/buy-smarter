@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from buysmarter.gui.bridge import CoreRunner, Job
-from buysmarter.gui.theme import SPACE, card_body, set_state
+from buysmarter.gui.theme import PAGE_GAP, SPACE, Prose, card_body, set_state
 from buysmarter.llm import keys
 from buysmarter.services import doctor
 from buysmarter.services.doctor import OZON_BROWSER, STORAGE, STYLE, Check
@@ -105,9 +105,8 @@ class SettingsScreen(QWidget):
 
         self.ozon_button = QPushButton("Пройти проверку Ozon")
         self.ozon_button.clicked.connect(self.pass_ozon)
-        self.ozon_message = QLabel(
-            "Откроется окно браузера: дождитесь результатов поиска Ozon, сессия сохранится.",
-            wordWrap=True,
+        self.ozon_message = Prose(
+            "Откроется окно браузера: дождитесь результатов поиска Ozon, сессия сохранится."
         )
         ozon = QGroupBox("Ozon")
         ozon_layout = card_body(QVBoxLayout(ozon))
@@ -120,7 +119,7 @@ class SettingsScreen(QWidget):
         layout = QVBoxLayout(self)
         # Under the screen heading (app._centered): no top gap of its own.
         layout.setContentsMargins(SPACE["xxl"], SPACE["lg"], SPACE["xxl"], SPACE["xl"])
-        layout.setSpacing(SPACE["lg"])  # between the cards, as on «Категории» and «Стиль»
+        layout.setSpacing(PAGE_GAP)
         layout.addWidget(health)
         layout.addWidget(self._key_group())
         layout.addWidget(ozon)
@@ -136,10 +135,9 @@ class SettingsScreen(QWidget):
         self.save_button.clicked.connect(self.save_key)
         self.clear_button = QPushButton("Удалить ключ")
         self.clear_button.clicked.connect(self.clear_key)
-        self.key_message = QLabel(
+        self.key_message = Prose(
             "Нужен, только если AI работает не через claude CLI. Ключ хранится в системном "
-            "хранилище паролей и больше не показывается.",
-            wordWrap=True,
+            "хранилище паролей и больше не показывается."
         )
         row = QHBoxLayout()
         for widget in (self.provider, self.key_input, self.save_button, self.clear_button):
@@ -212,14 +210,14 @@ class SettingsScreen(QWidget):
             labels = (
                 QLabel(CHECK_LABELS.get(check.name, check.name)),
                 status,
-                QLabel(
-                    (check.app_detail or check.detail) if check.ok else _hint(check), wordWrap=True
-                ),
+                Prose((check.app_detail or check.detail) if check.ok else _hint(check)),
             )
             for col, label in enumerate(labels):
                 self.rows.addWidget(label, row, col, Qt.AlignmentFlag.AlignTop)
             self._row_labels[check.name] = labels
+        # The details grow up to their cap; the spare width past it goes to an empty column.
         self.rows.setColumnStretch(2, 1)
+        self.rows.setColumnStretch(3, 1)
         self.checks_ready.emit(checks)
 
     def _clear_rows(self) -> None:
@@ -231,7 +229,7 @@ class SettingsScreen(QWidget):
     def _checks_failed(self, message: str) -> None:
         self._check_settled()
         self._clear_rows()
-        error = QLabel(message, wordWrap=True)
+        error = Prose(message)
         self.rows.addWidget(error, 0, 0, 1, 3)
         self._row_labels = {"": (error,)}
 

@@ -55,7 +55,7 @@ from buysmarter.gui.progress import Progress
 from buysmarter.gui.screens.clarify import ClarificationBox
 from buysmarter.gui.screens.saved import ListReports
 from buysmarter.gui.tables import FitTableWidget, stretch_column
-from buysmarter.gui.theme import SPACE, bind_icon, set_state
+from buysmarter.gui.theme import CARD_GAP, PAGE_GAP, SPACE, bind_icon, set_state
 from buysmarter.i18n import stage_label
 from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services.auto_learn import NeedsLearning
@@ -278,7 +278,7 @@ class SearchScreen(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(SPACE["xxl"], SPACE["xxl"], SPACE["xxl"], SPACE["xl"])
-        layout.setSpacing(SPACE["lg"])
+        layout.setSpacing(PAGE_GAP)
         layout.addWidget(_named(QLabel(_HERO), "hero"))
         layout.addWidget(_muted(QLabel(_HERO_HINT)))
         layout.addWidget(self._form_card())
@@ -302,7 +302,7 @@ class SearchScreen(QWidget):
         card = _named(QFrame(), "card")
         body = QVBoxLayout(card)
         body.setContentsMargins(SPACE["xl"], SPACE["xl"], SPACE["xl"], SPACE["xl"])
-        body.setSpacing(SPACE["lg"])
+        body.setSpacing(CARD_GAP)
         body.addWidget(self.query)
         where = QHBoxLayout()
         where.setSpacing(SPACE["md"])

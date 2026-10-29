@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QPushButton,
     QVBoxLayout,
@@ -29,7 +28,7 @@ from buysmarter.gui.prefs_fields import (
     source_boxes,
     store_warning,
 )
-from buysmarter.gui.theme import SPACE, card_body, set_state
+from buysmarter.gui.theme import CARD_GAP, PAGE_GAP, SPACE, Prose, card_body, set_state
 from buysmarter.memory import prefs
 
 type Store = Callable[[Mapping[str, Any]], Coroutine[Any, Any, None]]
@@ -54,7 +53,7 @@ class PreferencesScreen(QWidget):
         self.budget = budget_box()
         self.sources = source_boxes()
         self.excluded = QLineEdit(placeholderText="через запятую, например: Noname, Generic")
-        self.message = QLabel(wordWrap=True)
+        self.message = Prose()
         self.store_warning = store_warning()
         self.save_button = QPushButton("Сохранить", default=True)
         set_state(self.save_button, "primary", "true")
@@ -74,8 +73,8 @@ class PreferencesScreen(QWidget):
         layout = QVBoxLayout(self)
         # Under the screen heading (app._centered): no top gap of its own.
         layout.setContentsMargins(SPACE["xxl"], SPACE["lg"], SPACE["xxl"], SPACE["xl"])
-        layout.setSpacing(SPACE["lg"])
-        form.setVerticalSpacing(SPACE["md"])
+        layout.setSpacing(PAGE_GAP)
+        form.setVerticalSpacing(CARD_GAP)
         form.setHorizontalSpacing(SPACE["lg"])
         form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         buttons = QHBoxLayout()
@@ -84,7 +83,6 @@ class PreferencesScreen(QWidget):
         buttons.addWidget(self.message, 1)  # beside the button: an empty row would pad the card
         card = QGroupBox("Для каждого поиска")
         inside = card_body(QVBoxLayout(card))
-        inside.setSpacing(SPACE["lg"])
         inside.addLayout(form)
         inside.addLayout(buttons)
         layout.addWidget(self.store_warning)

@@ -56,7 +56,6 @@ class CapabilityToggles(QGroupBox):
         self.checkboxes: dict[str, QCheckBox] = {}
         self.resets: dict[str, QPushButton] = {}
         layout = card_body(QVBoxLayout(self))
-        layout.setSpacing(SPACE["sm"])
         for name in self._states:
             layout.addWidget(self._build_row(name))
         layout.addLayout(self._build_footer())

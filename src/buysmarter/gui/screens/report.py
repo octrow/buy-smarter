@@ -66,7 +66,7 @@ from buysmarter.gui.screens.alternatives import (
 from buysmarter.gui.screens.search import SearchRun
 from buysmarter.gui.style_votes import StyleVotes
 from buysmarter.gui.tables import FitTableView, FitTableWidget, stretch_column
-from buysmarter.gui.theme import CONTENT_MAX_WIDTH, SPACE, card_body, set_state
+from buysmarter.gui.theme import CONTENT_MAX_WIDTH, PAGE_GAP, SPACE, Prose, card_body, set_state
 from buysmarter.knowledge.generate import learn_category
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import is_barred
@@ -125,7 +125,7 @@ def _category(result: RecommendResult) -> str:
 
 
 def _label(text: str, *, name: str = "", role: str = "", state: str = "") -> QLabel:
-    label = QLabel(text, wordWrap=True)
+    label = QLabel(text, wordWrap=True) if name else Prose(text)  # a heading runs the full width
     if name:
         label.setObjectName(name)
     for prop, value in (("role", role), ("state", state)):
@@ -246,7 +246,7 @@ def _empty_page() -> QWidget:
     page.setMaximumWidth(CONTENT_MAX_WIDTH)
     layout = QVBoxLayout(page)
     layout.setContentsMargins(SPACE["xxl"], SPACE["xxl"], SPACE["xxl"], SPACE["xl"])
-    layout.setSpacing(SPACE["lg"])
+    layout.setSpacing(PAGE_GAP)
     layout.addWidget(_label(_TITLE, name="hero"))
     layout.addWidget(_label(_EMPTY, role="muted"))
     layout.addStretch(1)
@@ -303,7 +303,7 @@ class ReportScreen(QScrollArea):
         page.setMaximumWidth(CONTENT_MAX_WIDTH)
         layout = QVBoxLayout(page)
         layout.setContentsMargins(SPACE["xxl"], SPACE["xxl"], SPACE["xxl"], SPACE["xl"])
-        layout.setSpacing(SPACE["lg"])
+        layout.setSpacing(PAGE_GAP)
         if result.restricted_note:
             layout.addWidget(_label(f"⚠ {result.restricted_note}", state="warning"))
         heading = QVBoxLayout()
@@ -331,7 +331,9 @@ class ReportScreen(QScrollArea):
         if result.knowledge_missing:
             layout.addWidget(self._knowledge_banner(result))
         self._add_used(layout, result, first=True)
-        layout.addWidget(self._best_section(result.recommendation.best))
+        # One primary per screen: while the learn banner shows, «Изучить категорию» is it.
+        primary = not result.knowledge_missing
+        layout.addWidget(self._best_section(result.recommendation.best, primary=primary))
         if result.review_summary is not None and (said := summary_lines(result.review_summary)):
             widgets = [_label(text, state=_SUMMARY_STATE[kind]) for kind, text in said]
             layout.addWidget(_group(SUMMARY_TITLE, *widgets))
@@ -453,7 +455,7 @@ class ReportScreen(QScrollArea):
             return None
         return StyleVotes(self._runner, picked)
 
-    def _best_section(self, best: ScoredCandidate) -> QGroupBox:
+    def _best_section(self, best: ScoredCandidate, *, primary: bool = True) -> QGroupBox:
         cand = best.candidate
         title = clean_title(cand.title)
         title = f"⚠ {title}" if is_barred(best) else title
@@ -465,7 +467,7 @@ class ReportScreen(QScrollArea):
         metrics.addWidget(_metric(kzt(cand.price), "Цена", "bestPrice"))
         if url := cand.url:
             self.open_best = QPushButton("Открыть на маркетплейсе")
-            set_state(self.open_best, "primary", "true")
+            set_state(self.open_best, "primary", "true" if primary else "false")
             self.open_best.clicked.connect(lambda: open_offer(url))
             metrics.addWidget(self.open_best, 0, Qt.AlignmentFlag.AlignBottom)
         metrics.addStretch(1)

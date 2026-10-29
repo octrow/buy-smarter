@@ -24,6 +24,10 @@ Every text/background pair is held to WCAG AA 4.5:1 by `tests/gui/test_theme.py`
 
 **Type:** Inter (bundled as static 400/600/700: Qt renders a variable font's weights as Regular), one family. 12 caption · 14 body · 16 card title ·
 20 product title · 24 score and price · 28 screen heading. **Spacing:** 4px grid (4, 8, 12, 16, 24, 32).
+Between cards 24 (`PAGE_GAP`: never less than a card's own padding, or the cards run together);
+between rows inside a card 12 (`CARD_GAP`, set by `card_body`). **Prose:** a paragraph
+(`theme.Prose`) stops at 560px, about 70 characters, however wide the window; a status beside
+buttons stays a plain label.
 **Radius:** 6 (controls), 8 (cards).
 
 ## Components
@@ -33,7 +37,7 @@ Every text/background pair is held to WCAG AA 4.5:1 by `tests/gui/test_theme.py`
   (Категории, Настройки поиска, Стиль, Состояние и ключи). Group labels are 12/600 muted caps;
   items carry an 18px icon.
 - Search screen: a 28/700 heading with a muted hint, then one form card (`QFrame#card`,
-  radius 10): the 16px query with a search icon, city and budget side by side under 12px
+  radius 10): the query with a search icon (a field like any other), city and budget side by side under 12px
   captions, the marketplaces with their live status, AI on the right, progress and buttons
   at the bottom with Найти last. Under it, up to three recent distinct queries from the saved
   reports, each with a flat accent «Повторить». A clarifying question replaces them: its
@@ -48,7 +52,8 @@ Every text/background pair is held to WCAG AA 4.5:1 by `tests/gui/test_theme.py`
   squeezing its rows.
 - Tables: no vertical grid lines, rows ruled by a 1px border, left-aligned 12/600 headers.
 - One primary button per screen (`primary="true"`): Найти, Сохранить, Показать историю,
-  Открыть на маркетплейсе. Everything else is secondary.
+  Открыть на маркетплейсе (secondary while the «Изучить категорию» banner, the primary then,
+  shows). Everything else is secondary.
 - Statuses are labels with `state` = done/ok (green), running (accent), failed/missing (red),
   skipped/waiting (muted), warning (amber); set with `theme.set_state`.
 - Tables show every row (`gui/tables.py`); the page scrolls, never the table. Headers are
@@ -62,7 +67,8 @@ Every text/background pair is held to WCAG AA 4.5:1 by `tests/gui/test_theme.py`
 - Axis scores pair the CLI's `score/max` text with an 8px bar, 160px wide, on a border-tone
   track (visible on the dark card).
 - Past searches render the saved markdown in the theme (`style_report`): 20/16 bold headings,
-  accent links, ruled tables; `_note_` lines muted, long hashes and URLs wrapped.
+  accent links, ruled tables, body lines at 150% leading; `_note_` lines muted, long hashes and
+  URLs wrapped.
 - Light or dark follows the OS and switches live.
 
 ## Rules
@@ -71,3 +77,9 @@ Every text/background pair is held to WCAG AA 4.5:1 by `tests/gui/test_theme.py`
   and accent when selected; no emoji in chrome. The `⚠` barred marker is a CLI term the report shares.
 - Accent marks action, current selection and the score only, never decoration.
 - Report wording stays the CLI's ("Best pick", "Score", "Alternatives", "Отсеяно").
+- The same rules on every screen: colours, sizes and gaps come only from the theme's tokens;
+  `tests/gui/test_theme.py` fails on a colour literal, an inline style or a raw pixel size
+  outside `gui/theme/`. The general rules behind them (UX laws, typography, grid) are in
+  octrow-skills `plugins/qt-ui/skills/qt-ui/references/ux-rules.md`.
+- Checked at three window sizes: 1280×800, the minimum 960×640 and maximised on a 1440p
+  monitor (2560×1440, content capped at 1200 and centred).

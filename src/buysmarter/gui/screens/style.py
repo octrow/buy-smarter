@@ -52,7 +52,7 @@ from buysmarter.cli.style import (
     phrase_line,
 )
 from buysmarter.gui.bridge import CoreRunner, Job
-from buysmarter.gui.theme import SPACE, card_body, set_state
+from buysmarter.gui.theme import CARD_GAP, PAGE_GAP, SPACE, Prose, card_body, set_state
 from buysmarter.memory.prefs import as_list
 from buysmarter.style import profile, weights
 
@@ -184,7 +184,6 @@ def _row(*widgets: QWidget) -> QHBoxLayout:
 def _card(title: str) -> tuple[QGroupBox, QVBoxLayout]:
     card = QGroupBox(title)
     inside = card_body(QVBoxLayout(card))
-    inside.setSpacing(SPACE["sm"])
     return card, inside
 
 
@@ -204,21 +203,22 @@ class StyleScreen(QWidget):
         self._pick_photos = pick_photos
         self._pick_folder = pick_folder
         self.loaded = False  # the first read of the profile has arrived
-        self.message = QLabel(wordWrap=True)
+        self.message = Prose()
         set_state(self.message, "role", "muted")
         self.message.hide()  # until there is something to say: no empty gap under the heading
         layout = QVBoxLayout(self)
         # Under the screen heading (app._centered): no top gap of its own.
         layout.setContentsMargins(SPACE["xxl"], SPACE["lg"], SPACE["xxl"], SPACE["xl"])
-        layout.setSpacing(SPACE["lg"])
+        layout.setSpacing(PAGE_GAP)
         layout.addWidget(self.message)
         layout.addWidget(self._build_settings())
-        layout.addWidget(self._build_photos(), 1)
+        layout.addWidget(self._build_photos())
         layout.addWidget(self._build_phrases())
+        layout.addStretch(1)  # the photo grid is as tall as its rows: spare height goes below
 
     def _build_photos(self) -> QGroupBox:
         self.photos = _photo_grid()
-        self.no_extra = QLabel(NO_EXTRA, wordWrap=True)
+        self.no_extra = Prose(NO_EXTRA)
         set_state(self.no_extra, "state", "warning")
         self.photo_summary = _caption("")
         card, inside = _card("Образцы")
@@ -305,7 +305,7 @@ class StyleScreen(QWidget):
         self.strength.valueChanged.connect(self._save_strength)
         form = QFormLayout()
         form.setHorizontalSpacing(SPACE["lg"])
-        form.setVerticalSpacing(SPACE["sm"])
+        form.setVerticalSpacing(CARD_GAP)
         form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         form.addRow("Бренды", _row(self.brands, self.save_brands))
         form.addRow("", _caption("По ним ищутся вещи на Kaspi, в этом порядке (до шести)."))

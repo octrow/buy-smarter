@@ -59,7 +59,7 @@ def test_the_style_row_reads_in_russian(qtbot, runner, monkeypatch):
     name = screen._row_labels[doctor.STYLE][0].text()
     assert (name, screen.row_texts()[doctor.STYLE]) == (
         "Стиль одежды",
-        ("ок", "модель скачается при первом добавлении фото (~200 МБ)"),
+        ("ок", "модель скачается при первом добавлении фото (~200\u00a0МБ)"),
     )
 
 

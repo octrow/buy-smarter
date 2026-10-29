@@ -31,7 +31,7 @@ from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.prefs_fields import store_warning
 from buysmarter.gui.progress import Progress
 from buysmarter.gui.screens.report import text_table
-from buysmarter.gui.theme import SPACE, card_body, set_state
+from buysmarter.gui.theme import PAGE_GAP, SPACE, Prose, card_body, set_state
 from buysmarter.services.price_tracking import CategoryRefresh, ProductHistory
 from buysmarter.services.price_tracking import product_history as run_product_history
 from buysmarter.services.price_tracking import refresh_tracked as run_refresh_tracked
@@ -131,7 +131,7 @@ class HistoryScreen(QWidget):
         layout = QVBoxLayout(self)
         # Under the screen heading (app._centered): no top gap of its own.
         layout.setContentsMargins(SPACE["xxl"], SPACE["lg"], SPACE["xxl"], SPACE["xl"])
-        layout.setSpacing(SPACE["md"])
+        layout.setSpacing(PAGE_GAP)
         layout.addWidget(self.store_warning)
         layout.addWidget(find_box)
         layout.addWidget(track_box)
@@ -161,7 +161,7 @@ class HistoryScreen(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         if not entries:
             text = NO_HISTORY.format(term=term) if term else NOTHING_TRACKED
-            empty = QLabel(text, wordWrap=True)
+            empty = Prose(text)
             set_state(empty, "role", "muted")  # as «Прошлые поиски» says it has none
             layout.addWidget(empty)
         elif term:
