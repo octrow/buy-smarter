@@ -94,7 +94,8 @@ def test_photos_are_added_as_samples_and_as_never(qtbot, runner, photo, encoder)
 
     screen.add_no_button.click()
 
-    qtbot.waitUntil(lambda: screen.photos.count() == 2, timeout=WAIT_MS)
+    qtbot.waitUntil(lambda: screen.never_photos.count() == 2, timeout=WAIT_MS)
+    assert screen.photos.count() == 0  # «нравится» and «нет» are separate grids
     assert all(p.disliked for p in _profile().photos)
     assert "0 «нравится», 2 «нет»" in screen.photo_summary.text()
 
@@ -108,6 +109,19 @@ def test_a_selected_photo_is_removed(qtbot, runner, photo, encoder):
 
     qtbot.waitUntil(lambda: screen.photos.count() == 1, timeout=WAIT_MS)
     assert [p.label for p in _profile().photos] == ["b.jpg"]
+
+
+def test_a_selected_never_photo_is_removed_from_its_grid(qtbot, runner, photo, encoder):
+    asyncio.run(profile.add_photos([photo("a.jpg")], disliked=False))
+    asyncio.run(profile.add_photos([photo("b.jpg", "olive")], disliked=True))
+    screen = _screen(qtbot, runner)
+
+    screen.never_photos.item(0).setSelected(True)
+    screen.remove_never_button.click()
+
+    qtbot.waitUntil(lambda: screen.never_photos.count() == 0, timeout=WAIT_MS)
+    assert [p.label for p in _profile().photos] == ["a.jpg"]
+    assert screen.photos.count() == 1
 
 
 def test_a_cancelled_picker_adds_nothing(qtbot, runner, encoder):
@@ -163,7 +177,7 @@ def test_a_folder_goes_into_never_as_style_add_no(qtbot, runner, tmp_path, photo
 
     screen.add_no_folder_button.click()
 
-    qtbot.waitUntil(lambda: screen.photos.count() == 2, timeout=WAIT_MS)
+    qtbot.waitUntil(lambda: screen.never_photos.count() == 2, timeout=WAIT_MS)
     assert all(p.disliked for p in _profile().photos)
 
 
@@ -269,7 +283,7 @@ def test_the_photo_grid_shows_every_row_and_never_scrolls_itself(qtbot):
 
     from buysmarter.gui.screens.style import _photo_grid
 
-    grid = _photo_grid()
+    grid = _photo_grid("Фото")
     qtbot.addWidget(grid)
     grid.resize(500, 100)
     grid.show()

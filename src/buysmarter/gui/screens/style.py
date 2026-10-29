@@ -15,6 +15,7 @@ from PySide6.QtGui import QIcon, QImageReader, QPixmap, QResizeEvent, QShowEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFileDialog,
+    QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -63,7 +64,7 @@ _STRENGTH_HINT = (
 )
 ADDING = "Добавляю фото… В первый раз скачивается модель стиля (~200 МБ)."
 _THUMB_PX = 96
-_PHOTOS_MIN_PX = 240  # about two rows of thumbnails
+_CELL = QSize(_THUMB_PX + SPACE["md"], _THUMB_PX + SPACE["md"])
 _PHRASES_MIN_PX = 96
 _PHOTO_FILTER = "Фото (*.jpg *.jpeg *.png *.webp)"
 _KEY = Qt.ItemDataRole.UserRole  # an item's photo name or phrase text
@@ -153,19 +154,18 @@ class _FitGrid(QListWidget):
         cell = self.gridSize()
         per_row = max(1, self.viewport().width() // cell.width())
         rows = -(-self.count() // per_row)  # ceil
-        self.setFixedHeight(max(_PHOTOS_MIN_PX, rows * cell.height() + 2 * self.frameWidth()))
+        self.setFixedHeight(max(rows, 1) * cell.height() + 2 * self.frameWidth())
 
 
-def _photo_grid() -> QListWidget:
+def _photo_grid(name: str) -> QListWidget:
     grid = _FitGrid()
     grid.setViewMode(QListView.ViewMode.IconMode)
     grid.setIconSize(QSize(_THUMB_PX, _THUMB_PX))
     grid.setResizeMode(QListView.ResizeMode.Adjust)
     grid.setMovement(QListView.Movement.Static)
-    # A fixed cell with room for the «Нет» caption under the photo.
-    grid.setGridSize(QSize(_THUMB_PX + SPACE["md"], _THUMB_PX + SPACE["xl"]))
+    grid.setGridSize(_CELL)
     grid.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-    grid.setAccessibleName("Фото-образцы")
+    grid.setAccessibleName(name)
     return grid
 
 
@@ -219,39 +219,59 @@ class StyleScreen(QWidget):
         layout.addStretch(1)  # the photo grid is as tall as its rows: spare height goes below
 
     def _build_photos(self) -> QGroupBox:
-        self.photos = _photo_grid()
         self.no_extra = Prose(NO_EXTRA)
         set_state(self.no_extra, "state", "warning")
         self.photo_summary = _caption("")
+        self.photos = _photo_grid(f"Фото «{LIKES.lower()}»")
+        self.never_photos = _photo_grid(f"Фото «{NEVERS.lower()}»")
+        self.add_button = QPushButton("Добавить фото…")
+        set_state(self.add_button, "primary", "true")
+        self.add_folder_button = QPushButton("Добавить папку…")
+        self.remove_photo_button = QPushButton("Удалить")
+        self.add_no_button = QPushButton("Добавить фото…")
+        self.add_no_folder_button = QPushButton("Добавить папку…")
+        self.remove_never_button = QPushButton("Удалить")
         card, inside = _card("Образцы")
         inside.addWidget(self.photo_summary)
         inside.addWidget(self.no_extra)
         inside.addLayout(self._build_model_row())
-        inside.addLayout(self._build_photo_buttons())
         inside.addLayout(self._build_progress_row())
-        inside.addWidget(self.photos, 1)
+        liked = self._photo_section(
+            self.photos, self.add_button, self.add_folder_button, self.remove_photo_button, False
+        )
+        never = self._photo_section(
+            self.never_photos,
+            self.add_no_button,
+            self.add_no_folder_button,
+            self.remove_never_button,
+            True,
+        )
+        form = form_rows((LIKES, liked), (NEVERS, never))
+        for row in range(form.rowCount()):  # the label beside the buttons, not mid-grid
+            label = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+            label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        inside.addLayout(form)
         return card
 
-    def _build_photo_buttons(self) -> QVBoxLayout:
-        self.add_button = QPushButton("Добавить фото…")
-        set_state(self.add_button, "primary", "true")
-        self.add_folder_button = QPushButton("Добавить папку…")
-        self.add_no_button = QPushButton(f"Фото в «{NEVERS.lower()}»…")
-        self.add_no_folder_button = QPushButton(f"Папку в «{NEVERS.lower()}»…")
-        self.remove_photo_button = QPushButton("Удалить")
-        self.add_button.clicked.connect(lambda: self._add_photos(disliked=False))
-        self.add_folder_button.clicked.connect(lambda: self._add_folder(disliked=False))
-        self.add_no_button.clicked.connect(lambda: self._add_photos(disliked=True))
-        self.add_no_folder_button.clicked.connect(lambda: self._add_folder(disliked=True))
-        self.remove_photo_button.clicked.connect(self._remove_photos)
-        liked = _row(self.add_button, self.add_folder_button, self.remove_photo_button)
-        never = _row(self.add_no_button, self.add_no_folder_button)
-        buttons = QVBoxLayout()
-        buttons.setSpacing(SPACE["sm"])
-        for row in (liked, never):
-            row.addStretch(1)
-            buttons.addLayout(row)
-        return buttons
+    def _photo_section(
+        self,
+        grid: QListWidget,
+        add: QPushButton,
+        add_folder: QPushButton,
+        remove: QPushButton,
+        disliked: bool,
+    ) -> QVBoxLayout:
+        """One kind of samples: its buttons over its own grid; «Удалить» acts on this grid."""
+        add.clicked.connect(lambda: self._add_photos(disliked))
+        add_folder.clicked.connect(lambda: self._add_folder(disliked))
+        remove.clicked.connect(lambda: self._remove_photos(grid))
+        buttons = _row(add, add_folder, remove)
+        buttons.addStretch(1)
+        section = QVBoxLayout()
+        section.setSpacing(SPACE["sm"])
+        section.addLayout(buttons)
+        section.addWidget(grid)
+        return section
 
     def _build_progress_row(self) -> QHBoxLayout:
         """«N из M» while photos are added, with «Отмена»; hidden otherwise."""
@@ -346,11 +366,12 @@ class StyleScreen(QWidget):
 
     def _fill_photos(self, photos: list[profile.Photo]) -> None:
         self.photos.clear()
+        self.never_photos.clear()
         for photo in photos:
-            item = QListWidgetItem(_thumbnail(photo.path), NEVERS if photo.disliked else "")
+            item = QListWidgetItem(_thumbnail(photo.path), "")
             item.setData(_KEY, photo.name)
             item.setToolTip(photo.label)
-            self.photos.addItem(item)
+            (self.never_photos if photo.disliked else self.photos).addItem(item)
         self.photo_summary.setText(f"{PHOTOS}: {photo_count(photos)}. {_PRIVATE}")
 
     def _save_brands(self) -> None:
@@ -428,8 +449,8 @@ class StyleScreen(QWidget):
         self.model_status.setVisible(line != NO_EXTRA)
         self.download_button.setVisible(line not in (NO_EXTRA, MODEL_READY))
 
-    def _remove_photos(self) -> None:
-        if keys := [item.data(_KEY) for item in self.photos.selectedItems()]:
+    def _remove_photos(self, grid: QListWidget) -> None:
+        if keys := [item.data(_KEY) for item in grid.selectedItems()]:
             self._run(_remove(keys))
 
     def _run(self, work: Coroutine[Any, Any, str], clear: QLineEdit | None = None) -> None:
