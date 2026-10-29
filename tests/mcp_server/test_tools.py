@@ -59,8 +59,8 @@ async def test_recommend_signature_matches_contract() -> None:
         "clarify_round",
         "no_clarify",
     }
-    # LLM parsing must default OFF (the MCP client is the conversational brain).
-    assert params["parse_with_llm"].default is False
+    # The LLM is on by default, as in the CLI and the app (#4); keyless runs fall back.
+    assert params["parse_with_llm"].default is True
 
 
 async def test_tools_have_docstring_descriptions() -> None:
@@ -100,7 +100,7 @@ def _stub_result() -> RecommendResult:
 
 async def test_recommend_tool_returns_markdown_with_sections(monkeypatch) -> None:
     async def fake_recommend(query, **kwargs):
-        assert kwargs["use_llm"] is False  # naive parser by default
+        assert kwargs["use_llm"] is True  # the LLM by default, as the CLI
         assert kwargs["city"] == "Алматы"
         return _stub_result()
 
@@ -372,7 +372,7 @@ async def test_the_condition_gets_the_request_llm_flag(monkeypatch, learn_calls)
     assert seen == {
         "product_type": "соковыжималка",
         "intent": "product",
-        "use_llm": False,
+        "use_llm": True,
         "knowledge_missing": True,
     }
     assert learn_calls == [] and "изучается" not in out

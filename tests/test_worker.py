@@ -58,7 +58,7 @@ async def test_done_job_carries_the_report_and_the_best_offer(
             "query": "ирригатор",
             "city": None,
             "budget": 40000,
-            "use_llm": False,
+            "use_llm": True,  # the default (#4)
             "trusted_only": False,
             "sources": ["kaspi"],
             "answer": None,

@@ -44,7 +44,11 @@ class RecommendRequest(BaseModel):
         description=f"Marketplaces from {', '.join(ALL_SOURCES)}; empty = every enabled one",
     )
     trusted_only: bool = False
-    use_llm: bool = Field(default=False, description="LLM query parsing; needs a provider key")
+    use_llm: bool = Field(
+        default=True,
+        description="Use the LLM: query parsing, relevance, review summaries, composition; "
+        "without a configured route the run goes keyless and the report says so",
+    )
     top: int = Field(default=DEFAULT_TOP, ge=1, le=MAX_TOP)
     answer: str | None = Field(
         default=None,

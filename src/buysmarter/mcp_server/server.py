@@ -117,7 +117,7 @@ async def recommend(
     sources: str = "kaspi,ozon,olx",
     trusted_only: bool = False,
     top: int = 8,
-    parse_with_llm: bool = False,
+    parse_with_llm: bool = True,
     answer: str | None = None,
     clarify_round: int = 0,
     no_clarify: bool = False,
@@ -142,9 +142,9 @@ async def recommend(
         sources: Comma-separated marketplaces to query ("kaspi,ozon,olx").
         trusted_only: Reject products from unknown/untrusted brands.
         top: How many ranked candidates to include in the table.
-        parse_with_llm: Leave ``False`` — you (the MCP client) already pass
-            structured city/budget, so the fast naive parser is used. Set
-            ``True`` only to force server-side LLM parsing of ``query``.
+        parse_with_llm: Use the server's LLM, as the CLI and the app do: query parsing,
+            relevance, review summaries, composition. Without a configured route the run
+            goes keyless and the report says so. ``False`` is faster and asks nothing new.
         answer: The human's answer to a clarification this tool returned: one of
             its options verbatim, or their own words.
         clarify_round: 0 at first; the returned clarification says which to pass next.
