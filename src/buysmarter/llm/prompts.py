@@ -13,6 +13,7 @@ import re
 
 from buysmarter.llm.adapter import generate
 from buysmarter.llm.budget import parse_budget
+from buysmarter.normalize.city import find_city, strip_city
 from buysmarter.ranking.audience import bare_product_type
 from buysmarter.ranking.models import Intent, QueryConstraints
 
@@ -20,18 +21,6 @@ from buysmarter.ranking.models import Intent, QueryConstraints
 # short sentence): the OmniRoute free-stack combo (what the old "haiku" alias
 # resolved to) is enough.
 QUERY_PARSE_MODEL = "free-stack"
-
-# city surface form (lowercased) → canonical name used downstream.
-_CITY_CANON = {
-    "алматы": "Almaty",
-    "almaty": "Almaty",
-    "астана": "Astana",
-    "astana": "Astana",
-    "нур-султан": "Astana",
-    "шымкент": "Shymkent",
-    "shymkent": "Shymkent",
-    "караганда": "Karaganda",
-}
 
 # Leading verbs / connectors that are noise in a search query.
 # A naive phrase with fewer letters than this cannot be read ("???", "1").
@@ -184,18 +173,9 @@ def _condition(query: str) -> str | None:
     return "new" if _NEW_RE.search(query) else None
 
 
-def _extract_city(query: str) -> str | None:
-    low = query.lower()
-    for surface, canon in _CITY_CANON.items():
-        if surface in low:
-            return canon
-    return None
-
-
 def _extract_category(text: str) -> str:
     """The query without its budget (already cut), city and filler words."""
-    for surface in _CITY_CANON:
-        text = re.sub(re.escape(surface), " ", text, flags=re.I)
+    text = strip_city(text)
     # a dot splits words, but not a fraction ("1.8 м")
     words = re.split(r"[\s,;]+|(?<!\d)\.|\.(?!\d)", text)
     return " ".join(w for w in words if w and w.lower() not in _STOPWORDS).strip()
@@ -214,7 +194,7 @@ def parse_query_naive(user_query: str) -> QueryConstraints:
         search_phrase=phrase,
         product_type=bare_product_type(phrase),
         intent="product" if len(re.findall(r"[^\W\d_]", phrase)) >= _MIN_LETTERS else "unclear",
-        city=_extract_city(user_query),
+        city=find_city(user_query),
         budget_max=budget.budget_max,
         budget_min=budget.budget_min,
         budget_note=budget.budget_note,

@@ -55,6 +55,7 @@ from buysmarter.llm.relevance import (
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.memory.prefs import BUDGET, CITY, as_budget
 from buysmarter.normalize.candidate import attach_reference_prices
+from buysmarter.normalize.city import find_city
 from buysmarter.ranking.engine import NoCandidatesPassed, rank
 from buysmarter.ranking.models import (
     Candidate,
@@ -110,6 +111,8 @@ class RecommendResult(BaseModel):
     constraints: QueryConstraints
     used_listings: list[UsedListing] = Field(default_factory=list)
     city_defaulted: bool = False
+    # The city is none the marketplaces know: Kaspi and OLX searched their default (Almaty).
+    city_unsupported: bool = False
     review_summary: ReviewSummary | None = None
     # Why ``review_summary`` is None although summaries ran (few review texts, an LLM error).
     review_summary_note: str | None = None
@@ -198,13 +201,15 @@ async def resolve_city(parsed_city: str | None, override: str | None) -> tuple[s
 
     Returns ``(city, defaulted)`` where ``defaulted`` is True whenever neither
     the query nor ``--city`` named a city, so the CLI can flag it as such.
+    A known city comes back in one form ("в Шымкенте", "Shymkent" → "Шымкент"),
+    an unknown one as given.
     """
     if override:
-        return override, False
+        return find_city(override) or override, False
     if parsed_city:
-        return parsed_city, False
+        return find_city(parsed_city) or parsed_city, False
     pref = await _city_preference()
-    return pref or _DEFAULT_CITY, True
+    return find_city(pref) or pref or _DEFAULT_CITY, True
 
 
 class NoNewPick(ValueError):
@@ -505,6 +510,7 @@ async def recommend(
         constraints=constraints,
         used_listings=used_listings,
         city_defaulted=city_defaulted,
+        city_unsupported=find_city(constraints.city) is None,
         review_summary=review_summary,
         review_summary_note=review_summary_note,
         knowledge_missing=profile.brand_book is None and profile.model_book is None,

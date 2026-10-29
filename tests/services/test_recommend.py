@@ -180,7 +180,7 @@ async def test_city_not_defaulted_when_query_states_it(stub_source: StubKaspiSou
         source=stub_source,
         persist=False,
     )
-    assert result.constraints.city == "Almaty"
+    assert result.constraints.city == "Алматы"
     assert result.city_defaulted is False
 
 
@@ -238,8 +238,27 @@ async def test_city_override_wins_and_is_not_marked_defaulted(
         source=stub_source,
         persist=False,
     )
-    assert result.constraints.city == "Astana"
+    assert result.constraints.city == "Астана"
     assert result.city_defaulted is False
+
+
+async def test_a_city_the_marketplaces_do_not_know_is_kept_and_flagged(
+    stub_source: StubKaspiSource,
+) -> None:
+    result = await recommend(
+        "ирригатор портативный", city="Москва", use_llm=False, source=stub_source, persist=False
+    )
+    assert (result.constraints.city, result.city_unsupported) == ("Москва", True)
+
+
+async def test_a_declined_city_in_the_query_reaches_the_search_in_one_form(
+    stub_source: StubKaspiSource,
+) -> None:
+    result = await recommend(
+        "ирригатор портативный в Шымкенте", use_llm=False, source=stub_source, persist=False
+    )
+    assert (result.constraints.city, result.city_unsupported) == ("Шымкент", False)
+    assert "шымкент" not in result.constraints.search_phrase.lower()
 
 
 async def test_pipeline_produces_recommendation(stub_source: StubKaspiSource) -> None:
@@ -252,7 +271,7 @@ async def test_pipeline_produces_recommendation(stub_source: StubKaspiSource) ->
 
     # Naive parse extracted budget + city, rest became the category.
     assert result.constraints.budget_max == 40000
-    assert result.constraints.city == "Almaty"
+    assert result.constraints.city == "Алматы"
     assert "ирригатор" in result.constraints.search_phrase
 
     rec = result.recommendation

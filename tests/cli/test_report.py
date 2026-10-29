@@ -354,6 +354,19 @@ def test_ozon_skipped_for_lack_of_a_browser_is_noted_with_what_to_do() -> None:
     )
 
 
+def test_a_city_no_marketplace_knows_is_noted_in_the_request() -> None:
+    result = _result()
+    result = result.model_copy(
+        update={
+            "constraints": result.constraints.model_copy(update={"city": "Москва"}),
+            "city_unsupported": True,
+        }
+    )
+    md = render_markdown(result, top=8)
+    section = md.split("## Запрос\n", 1)[1].split("\n## ", 1)[0]
+    assert "Город «Москва» площадкам неизвестен: искали по Алматы." in section
+
+
 def test_a_run_with_llm_has_no_skipped_steps_note() -> None:
     assert "AI не настроен" not in render_markdown(_result(), top=8)
 

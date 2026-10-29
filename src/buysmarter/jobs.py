@@ -150,6 +150,9 @@ class RecommendOutcome(BaseModel):
     constraints: ParsedRequest | None = None
     used_listings: list[UsedListing] = Field(default_factory=list)
     city_defaulted: bool = False
+    city_unsupported: bool = Field(
+        default=False, description="No marketplace knows the city: Kaspi and OLX searched Almaty"
+    )
     reason: str | None = Field(
         default=None,
         description="Why nothing was recommended (no_match); ``needs_clarification`` means "
@@ -191,6 +194,7 @@ class RecommendOutcome(BaseModel):
             constraints=ParsedRequest.model_validate(result.constraints.model_dump()),
             used_listings=result.used_listings,
             city_defaulted=result.city_defaulted,
+            city_unsupported=result.city_unsupported,
             assumed=result.assumed,
             restricted_note=result.restricted_note,
             budget_note=result.constraints.budget_note,

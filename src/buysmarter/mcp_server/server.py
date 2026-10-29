@@ -36,7 +36,6 @@ logger = logging.getLogger(__name__)
 
 mcp: FastMCP = FastMCP("buy-smarter")
 
-_DEFAULT_CITY = "Алматы"
 
 # Learning tasks in flight: a task nobody references can be collected mid-run.
 _LEARNING: set[asyncio.Task[bool]] = set()
@@ -138,7 +137,7 @@ async def recommend(
         query: The shopping need in natural language (RU/EN), e.g.
             "портативный ирригатор IPX7".
         city: City for availability/pricing (e.g. "Алматы"). Falls back to the
-            stored ``city`` preference, then "Алматы".
+            city in the query, the stored ``city`` preference, then "Алматы".
         budget: Maximum price in KZT (hard filter). ``None`` = no cap.
         sources: Comma-separated marketplaces to query ("kaspi,ozon,olx").
         trusted_only: Reject products from unknown/untrusted brands.
@@ -157,7 +156,6 @@ async def recommend(
     returns a clarification, ask the human and call again with ``answer`` and
     ``clarify_round`` as it says.
     """
-    resolved_city = city or await prefs.get("city") or _DEFAULT_CITY
     try:
         selected = select_sources(sources.split(","))
     except ValueError as exc:
@@ -165,7 +163,7 @@ async def recommend(
     try:
         result = await run_recommend(
             query,
-            city=resolved_city,
+            city=city,  # None: the query's city, then the saved one, then Алматы
             budget=budget,
             use_llm=parse_with_llm,
             trusted_only=trusted_only,

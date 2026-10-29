@@ -114,6 +114,21 @@ async def test_recommend_tool_returns_markdown_with_sections(monkeypatch) -> Non
     assert "Waterpik WP-100" in out
 
 
+async def test_recommend_tool_leaves_the_city_to_the_query_when_none_is_given(monkeypatch) -> None:
+    seen = {}
+
+    async def fake_recommend(query, **kwargs):
+        seen["city"] = kwargs["city"]
+        return _stub_result()
+
+    monkeypatch.setattr(server, "run_recommend", fake_recommend)
+
+    tool = await _get_tool("recommend")
+    await tool.fn("ирригатор в Шымкенте")
+
+    assert seen["city"] is None  # recommend() reads the query's city, then the saved one
+
+
 async def test_recommend_tool_saves_the_report_to_past_searches(monkeypatch) -> None:
     async def fake_recommend(query, **kwargs):
         return _stub_result()

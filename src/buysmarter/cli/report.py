@@ -258,13 +258,15 @@ def used_first(result: RecommendResult) -> bool:
 
 
 def request_notes(result: RecommendResult) -> list[str]:
-    """What the run read differently from the words: the assumed option, budget, condition."""
+    """What the run read differently from the words: the assumed option, budget, city, condition."""
     c = result.constraints
     notes = []
     if result.assumed:
         notes.append(f"Искал: {result.assumed} — уточните запрос, если нужно другое.")
     if c.budget_note:
         notes.append(f"{c.budget_note[:1].upper()}{c.budget_note[1:]}.")
+    if result.city_unsupported:
+        notes.append(f"Город «{c.city}» площадкам неизвестен: искали по Алматы.")
     if used_first(result):
         notes.append(USED_CONDITION_NOTE)
     return notes
