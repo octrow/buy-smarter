@@ -34,7 +34,7 @@ from buysmarter.db.repo import (
     upsert_product,
 )
 from buysmarter.knowledge.brands import BrandBook
-from buysmarter.normalize.candidate import to_candidate
+from buysmarter.normalize.candidate import pick_price, to_candidate
 from buysmarter.ranking.models import (
     Candidate,
     PriceHistory,
@@ -637,17 +637,17 @@ async def _safe[T](name: str, coro: Awaitable[T]) -> T | None:
 
 
 def snapshot_values(product: RawProduct, offers: list[RawOffer]) -> tuple[int, int] | None:
-    """Min price seen + offer count for a persist row, or ``None`` if no price.
+    """The candidate's price + offer count for a persist row, or ``None`` if no price.
 
-    Prefers the cheapest live offer, falling back to the search-card price so a
-    source that returns no offers (e.g. Ozon) still records a snapshot.
+    The same price the candidate is ranked at (``pick_price``): the cheapest offer,
+    falling back to the search-card price so a source that returns no offers (e.g.
+    Ozon) still records a snapshot. A cheaper card price must not drag the 30-day
+    average below the price it is compared with.
     """
-    prices = [int(o.price) for o in offers if getattr(o, "price", None) and o.price > 0]
-    if product.price and product.price > 0:
-        prices.append(int(product.price))
-    if not prices:
+    price = pick_price(product, offers)
+    if not price or price <= 0:
         return None
-    return min(prices), len(offers)
+    return int(price), len(offers)
 
 
 async def save_snapshots(rows: list[ProductRow], category: str | None = None) -> None:

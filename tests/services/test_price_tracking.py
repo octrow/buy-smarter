@@ -31,6 +31,13 @@ async def test_a_second_refresh_reports_each_price_move_against_the_last_snapsho
         assert await repo.get_tracked_categories(session) == ["irrigators"]
 
 
+def test_the_snapshot_is_the_candidates_price_not_a_cheaper_card_price() -> None:
+    product, _, offers = _row("a", 7_000, offer_prices=(8_000, 9_000))
+
+    # The candidate is priced at its cheapest offer, so the 30-day average must be too.
+    assert pt.snapshot_values(product, offers) == (8_000, 2)
+
+
 async def test_a_product_without_any_price_gets_no_snapshot() -> None:
     assert await pt._persist_refresh([_row("free", None)], "irrigators") == []
     history = await pt.product_history("free")

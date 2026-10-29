@@ -380,7 +380,7 @@ Decides: what the next run knows.
 Each Kaspi/Ozon product, its offers and one price snapshot are saved; the search phrase is added to the tracked list for `refresh`.
 Always runs: no entry point passes `persist=False`; CLI `--no-save` skips only the markdown report.
 Runs right after collecting (step 11), before ranking: `NoSubstanceMatch` or "no candidates" still saves.
-The snapshot price is min(offers + card price); the candidate price is min(offers).
+The snapshot price is the candidate price: the cheapest offer, else the card price (`normalize/candidate.pick_price`).
 A store failure is logged and ignored.
 Module: `services/collect`, `db/repo`
 

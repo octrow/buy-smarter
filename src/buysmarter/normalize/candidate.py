@@ -72,7 +72,7 @@ def _best_offer(offers: list[RawOffer]) -> RawOffer | None:
     return min(priced, key=lambda o: o.price) if priced else None
 
 
-def _pick_price(product: RawProduct, offers: list[RawOffer]) -> float | None:
+def pick_price(product: RawProduct, offers: list[RawOffer]) -> float | None:
     """Cheapest positive offer price, else the search-card price."""
     best = _best_offer(offers)
     if best is not None:
@@ -168,7 +168,7 @@ def to_candidate(
     """
     specs = specs or {}
     offers = offers or []
-    price = _pick_price(product, offers)
+    price = pick_price(product, offers)
     raw_brand = _raw_brand(specs, product, book)
     brand = _resolve_brand(raw_brand, product.title, book)
     has_price = bool(price and price > 0)
