@@ -81,6 +81,8 @@ _BAR_STEPS = 100
 _LOW_SHARE = 0.4  # an axis bar under this share of its max reads as a weak spot
 _HIGH_SHARE = 0.8
 _TICK_MS = 1000
+_TITLE = "Отчёт"  # the nav title: before the first search the page has no query to head it
+_EMPTY = "Здесь появится отчёт после поиска. Начните с экрана «Поиск»."
 _RERUN_TEXT = "Повторить поиск"
 SELECTED_HINT = "— для выбранной строки"
 _OPEN_HINT = "Двойной клик по строке — открыть предложение на маркетплейсе."
@@ -237,6 +239,20 @@ def _row(*widgets: QWidget, spacing: int = SPACE["md"]) -> QWidget:
     return holder
 
 
+def _empty_page() -> QWidget:
+    """Before the first search: the screen's heading and a hint, laid out as a report page."""
+    page = QWidget()
+    page.setObjectName("page")
+    page.setMaximumWidth(CONTENT_MAX_WIDTH)
+    layout = QVBoxLayout(page)
+    layout.setContentsMargins(SPACE["xxl"], SPACE["xxl"], SPACE["xxl"], SPACE["xl"])
+    layout.setSpacing(SPACE["lg"])
+    layout.addWidget(_label(_TITLE, name="hero"))
+    layout.addWidget(_label(_EMPTY, role="muted"))
+    layout.addStretch(1)
+    return page
+
+
 class ReportScreen(QScrollArea):
     """Shows one ``RecommendResult``; ``show_result`` replaces whatever was shown before.
 
@@ -264,11 +280,7 @@ class ReportScreen(QScrollArea):
         self.learning.settled.connect(self._on_learning_changed)
         self.setWidgetResizable(True)
         self.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        empty = _label(
-            "Здесь появится отчёт после поиска.\nНачните с экрана «Поиск».", role="muted"
-        )
-        empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setWidget(empty)
+        self.setWidget(_empty_page())
 
     def show_result(self, result: RecommendResult, run: SearchRun) -> None:
         # Optional sections: drop handles into the page that setWidget below deletes.
