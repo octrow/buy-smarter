@@ -43,6 +43,7 @@ from buysmarter.llm import keys
 from buysmarter.llm.adapter import LlmError
 from buysmarter.logsetup import new_run_id, setup_logging
 from buysmarter.memory.prefs import search_defaults
+from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services.auto_learn import (
     NeedsLearning,
     limit_note,
@@ -68,7 +69,7 @@ from buysmarter.services.recommend import (
 )
 from buysmarter.services.recommend import parse_request as run_parse_request
 from buysmarter.services.recommend import recommend as run_recommend
-from buysmarter.services.understanding import NeedsClarification, NothingToSearch
+from buysmarter.services.understanding import Clarification, NeedsClarification, NothingToSearch
 
 _DEFAULT_TOP = DEFAULT_TOP
 
@@ -246,9 +247,7 @@ async def recommend_pipeline(
         ask = Clarify(answer, clarify_round, no_clarify)
         try:
             if not budget_asked:
-                _, understood, _ = await understand_request(query, parsed, use_llm, ask)
-                saved = await stored_budget()
-                budget, budget_asked = _resolve_budget(budget, understood.budget_max, saved), True
+                budget, budget_asked = await _budget_once(query, parsed, use_llm, ask, budget), True
             call: dict[str, Any] = {
                 "query": query,
                 "city": city,
@@ -263,9 +262,7 @@ async def recommend_pipeline(
                 "no_clarify": no_clarify,
                 "learn_first": learn_first,
             }
-            if settled is not None:  # for «Повторить поиск»: the same answer, round and budget
-                settled.clear()
-                settled.update(call)
+            _remember(settled, call)
             with stages(console):
                 return await run_recommend(**call)
         except NeedsLearning as exc:
@@ -274,15 +271,41 @@ async def recommend_pipeline(
         except NeedsClarification as exc:
             if not sys.stdin.isatty():
                 raise
-            asked, clarify_round = exc.clarification, clarify_round + 1
-            reply = ask_clarification(console, asked)
-            if reply is None:
-                no_clarify = True
-            elif reply in asked.options and asked.kind != "capability":
-                answer = reply
-            else:
-                query, answer = f"{query} {reply}", None
+            clarify_round += 1
+            reply = ask_clarification(console, exc.clarification)
+            asked_query = query
+            query, answer, no_clarify = _with_reply(
+                reply, exc.clarification, query, answer, no_clarify
+            )
+            if query != asked_query:
                 parsed = with_excluded(await run_parse_request(query, use_llm), excluded)
+
+
+async def _budget_once(
+    query: str, parsed: QueryConstraints, use_llm: bool, ask: Clarify, budget: int | None
+) -> int | None:
+    """The budget for every round: ``--budget``, the query's, the saved one, else asked."""
+    _, understood, _ = await understand_request(query, parsed, use_llm, ask)
+    return _resolve_budget(budget, understood.budget_max, await stored_budget())
+
+
+def _remember(settled: dict[str, Any] | None, call: dict[str, Any]) -> None:
+    """For «Повторить поиск»: the same answer, round and budget."""
+    if settled is not None:
+        settled.clear()
+        settled.update(call)
+
+
+def _with_reply(
+    reply: str | None, asked: Clarification, query: str, answer: str | None, no_clarify: bool
+) -> tuple[str, str | None, bool]:
+    """``(query, answer, no_clarify)`` after a clarification: none means stop asking, an
+    option goes back as the answer, the user's own text joins the query."""
+    if reply is None:
+        return query, answer, True
+    if reply in asked.options and asked.kind != "capability":
+        return query, reply, no_clarify
+    return f"{query} {reply}", None, no_clarify
 
 
 @app.command("learn-category")

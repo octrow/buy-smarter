@@ -241,17 +241,7 @@ async def resolve_and_ask(
     ``None`` when no Jev call was made (phase 3, decision 7).
     """
     slug = _slug(category)
-    own = await load_profile(category)
-    bookless = own if own is not None and not own.is_profile else None
-    if bookless is not None:
-        own = None  # its capabilities lie on top of the profile found below (decision 1)
-    if own is not None and _heal_candidate(own):
-        own = await _heal(own, use_llm)
-    if own is None:
-        own = await _by_synonym(slug)
-    old = _slug(search_phrase) if search_phrase and slug else slug
-    if old != slug:
-        own = await _old_slug(own, slug, old, search_phrase or "")
+    own, bookless = await _stored_own(category, slug, search_phrase, use_llm)
     if own is not None and use_llm and _narrowable(own, slug, search_phrase or ""):
         closer = await _closer_profile(own.slug, slug, search_phrase or "")
         if closer is not None:
@@ -269,6 +259,28 @@ async def resolve_and_ask(
         capabilities = combine_all(resolved.capabilities, bookless.capabilities)
         resolved = resolved.model_copy(update={"capabilities": capabilities})
     return _with_seed_books(resolved, category), answers
+
+
+async def _stored_own(
+    category: str, slug: str, search_phrase: str | None, use_llm: bool
+) -> tuple[CategoryProfile | None, CategoryProfile | None]:
+    """The query's own profile (healed, by synonym or by the old slug) and its bookless record.
+
+    A record without books is not a profile: its capabilities lie on top of the profile
+    found (decision 1).
+    """
+    own = await load_profile(category)
+    bookless = own if own is not None and not own.is_profile else None
+    if bookless is not None:
+        own = None
+    if own is not None and _heal_candidate(own):
+        own = await _heal(own, use_llm)
+    if own is None:
+        own = await _by_synonym(slug)
+    old = _slug(search_phrase) if search_phrase and slug else slug
+    if old != slug:
+        own = await _old_slug(own, slug, old, search_phrase or "")
+    return own, bookless
 
 
 # --- Healing records the pre-phase-1 alias save copied (decision 8) ---------------
