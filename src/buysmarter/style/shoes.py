@@ -36,6 +36,17 @@ def shoe_crop(data: bytes, labels: Labels) -> bytes | None:
     with Image.open(io.BytesIO(data)) as img:
         rgb = ImageOps.exif_transpose(img).convert("RGB")
     mask = np.isin(labels(rgb), SHOE_LABELS)
+    if (box := _shoe_box(mask)) is None:
+        return None
+    y0, y1, x0, x1 = box
+    piece = np.where(mask[..., None], np.asarray(rgb), 255).astype(np.uint8)[y0:y1, x0:x1]
+    out = io.BytesIO()
+    Image.fromarray(piece).save(out, "JPEG", quality=90)
+    return out.getvalue()
+
+
+def _shoe_box(mask: np.ndarray) -> tuple[int, int, int, int] | None:
+    """``(top, bottom, left, right)`` around the shoes with a margin; ``None``: specks, bits."""
     if mask.mean() < MIN_AREA:
         return None
     ys, xs = np.nonzero(mask)
@@ -43,12 +54,8 @@ def shoe_crop(data: bytes, labels: Labels) -> bytes | None:
     if mask[y0:y1, x0:x1].mean() < MIN_FILL:
         return None
     pad = int(_PAD * max(y1 - y0, x1 - x0))
-    y0, x0 = max(0, y0 - pad), max(0, x0 - pad)
-    y1, x1 = min(mask.shape[0], y1 + pad), min(mask.shape[1], x1 + pad)
-    piece = np.where(mask[..., None], np.asarray(rgb), 255).astype(np.uint8)[y0:y1, x0:x1]
-    out = io.BytesIO()
-    Image.fromarray(piece).save(out, "JPEG", quality=90)
-    return out.getvalue()
+    height, width = mask.shape
+    return max(0, y0 - pad), min(height, y1 + pad), max(0, x0 - pad), min(width, x1 + pad)
 
 
 class Segmenter:
@@ -58,9 +65,7 @@ class Segmenter:
         self._session = session
 
     def labels(self, img: Image.Image) -> np.ndarray:
-        x = np.asarray(img.resize((_SIZE, _SIZE), Image.Resampling.BILINEAR), np.float32) / 255
-        x = ((x - _MEAN) / _STD).transpose(2, 0, 1)[None].astype(np.float32)
-        logits = self._session.run(None, {"pixel_values": x})[0][0]
+        logits = self._session.run(None, {"pixel_values": _pixels(img)})[0][0]
         scale = _LABELS_PX / max(img.size)
         size = (max(1, round(img.width * scale)), max(1, round(img.height * scale)))
         # Resize the scores, not the labels: a label map blown up 4x has square edges.
@@ -69,6 +74,12 @@ class Segmenter:
             np.stack([np.asarray(s) for s in scores]).argmax(0).astype(np.uint8)
         )
         return np.asarray(small.resize(img.size, Image.Resampling.NEAREST))
+
+
+def _pixels(img: Image.Image) -> np.ndarray:
+    """The segmenter's input: (1, 3, 512, 512) float32, ImageNet-normalised."""
+    x = np.asarray(img.resize((_SIZE, _SIZE), Image.Resampling.BILINEAR), np.float32) / 255
+    return ((x - _MEAN) / _STD).transpose(2, 0, 1)[None].astype(np.float32)
 
 
 @functools.cache
