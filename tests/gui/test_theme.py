@@ -103,25 +103,30 @@ def test_screens_take_colors_and_sizes_only_from_the_theme():
     assert hits == []
 
 
-def test_a_form_label_sits_on_its_field_centre(qapp):
-    """Qt pins a form label to the row's top, 4px above the field's text."""
+@pytest.fixture
+def themed(qapp):
+    """The app styled as at start-up, unstyled again afterwards."""
     theme.load_font()
     theme.apply_theme(qapp)
-    try:
-        field = QLineEdit("Salomon")
-        boxes = QHBoxLayout()
-        boxes.addWidget(box := QCheckBox("Kaspi"))
-        host = QWidget()
-        form = theme.form_rows(("Бренды", field), ("Маркетплейсы", boxes))
-        host.setLayout(form)
-        host.resize(400, 200)
-        host.show()
-        qapp.processEvents()
-        assert field.height() == theme.CONTROL_PX
-        for widget, label in (
-            (field, form.labelForField(field)),
-            (box, form.itemAt(1, form.ItemRole.LabelRole).widget()),
-        ):
-            assert abs(label.geometry().center().y() - widget.geometry().center().y()) <= 1
-    finally:
-        qapp.setStyleSheet("")
+    yield qapp
+    qapp.setStyleSheet("")
+
+
+def test_a_form_label_sits_on_its_field_centre(themed):
+    """Qt pins a form label to the row's top, 4px above the field's text."""
+    field = QLineEdit("Salomon")
+    boxes = QHBoxLayout()
+    boxes.addWidget(box := QCheckBox("Kaspi"))
+    host = QWidget()
+    form = theme.form_rows(("Бренды", field), ("Маркетплейсы", boxes))
+    host.setLayout(form)
+    host.resize(400, 200)
+    host.show()
+    themed.processEvents()
+
+    assert field.height() == theme.CONTROL_PX
+    for widget, label in (
+        (field, form.labelForField(field)),
+        (box, form.itemAt(1, form.ItemRole.LabelRole).widget()),
+    ):
+        assert abs(label.geometry().center().y() - widget.geometry().center().y()) <= 1
