@@ -30,6 +30,7 @@ from buysmarter.ranking.model_tokens import (
     extract_model_tokens,
     has_model_match,
     has_whole_model,
+    names_model,
 )
 from buysmarter.ranking.models import (
     AxisScore,
@@ -695,9 +696,20 @@ def _model_check(
     passed: list[Candidate], query: str | None, hooks: RankHooks
 ) -> tuple[tuple[str, ...], ModelMatch]:
     """The models a listing should name and how to tell: the caller's whole models (only
-    those some passed listing names), else the query's model codes."""
+    those some passed listing names), else the query's model codes. A code the query names
+    whole ("Galaxy S23") is matched whole once a passed listing names it so: "S23 FE" and
+    "S23 Ultra" are other phones then. A query naming an edition ("S23 Ultra") keeps the
+    substring check."""
     if hooks.model_tokens is None:
-        return tuple(extract_model_tokens(query) if query else ()), has_model_match
+        tokens = tuple(extract_model_tokens(query) if query else ())
+        if (
+            query
+            and tokens
+            and all(names_model(query, t) for t in tokens)
+            and any(has_whole_model(c, tokens) for c in passed)
+        ):
+            return tokens, has_whole_model
+        return tokens, has_model_match
     named = tuple(m for m in hooks.model_tokens if any(has_whole_model(c, (m,)) for c in passed))
     return named, has_whole_model
 

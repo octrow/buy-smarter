@@ -94,3 +94,37 @@ def _market() -> MarketContext:
 
 def test_cyrillic_unit_and_price_tokens_are_not_model_codes() -> None:
     assert extract_model_tokens("телефон 128гб до 40000тг") == []
+
+
+def _misses(titles: list[str], query: str) -> set[str]:
+    """Titles the query's model check marks as another model."""
+    constraints = QueryConstraints(search_phrase="смартфон")
+    candidates = [_candidate(t, source_product_id=t) for t in titles]
+    rec = rank(candidates, constraints, query=query)
+    con = _MODEL_MISMATCH_CON.format(token="s23")
+    return {s.candidate.title for s in rec.ranked if con in s.cons}
+
+
+def test_the_plain_model_asked_for_ranks_its_editions_as_other_models():
+    titles = [
+        "Samsung Galaxy S23 8/256Gb",
+        "Samsung Galaxy S23 FE 8/256Gb",
+        "Galaxy S23 Ultra 12/512",
+    ]
+
+    assert _misses(titles, "смартфон Samsung Galaxy S23") == {
+        "Samsung Galaxy S23 FE 8/256Gb",
+        "Galaxy S23 Ultra 12/512",
+    }
+
+
+def test_editions_stay_in_when_no_listing_has_the_plain_model():
+    titles = ["Samsung Galaxy S23 FE 8/256Gb", "Galaxy S23 Ultra 12/512"]
+
+    assert _misses(titles, "смартфон Samsung Galaxy S23") == set()
+
+
+def test_a_query_naming_an_edition_keeps_the_substring_check():
+    titles = ["Samsung Galaxy S23 8/256Gb", "Galaxy S23 Ultra 12/512"]
+
+    assert _misses(titles, "Samsung Galaxy S23 Ultra") == set()
