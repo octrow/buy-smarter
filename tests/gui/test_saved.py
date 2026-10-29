@@ -37,7 +37,7 @@ def test_a_report_shows_its_whole_query_in_the_list_but_not_in_the_text(qtbot, t
 
     screen.reload()
 
-    assert screen.reports.item(0).text() == "21.10.2026 20:38 — Смартфон до 200 000, Алматы!"
+    assert screen.reports.item(0).text() == "21.10.2026 20:38\nСмартфон до 200 000, Алматы!"
     assert screen.view.toPlainText().strip() == "Смартфон"
 
 

@@ -46,7 +46,7 @@ type ListReports = Callable[[], list[Path]]
 
 def _report_item(path: Path) -> QListWidgetItem:
     label = report_label(path)
-    item = QListWidgetItem(label)
+    item = QListWidgetItem(label.replace(" — ", "\n", 1))
     item.setData(_PATH_ROLE, path)
     item.setToolTip(f"{label}\n{path}")
     return item
@@ -153,7 +153,8 @@ class SavedScreen(QWidget):
         self._list_reports = list_reports
         self.reports = QListWidget()
         self.reports.setFixedWidth(_LIST_WIDTH)
-        # A long query elides; its full label and file are in the tooltip.
+        # Date over query (`_report_item`): the query gets the row's full width; a longer one
+        # still elides, and its full label and file are in the tooltip.
         self.reports.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.reports.setTextElideMode(Qt.TextElideMode.ElideRight)
         self.reports.currentItemChanged.connect(self._show)

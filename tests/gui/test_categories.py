@@ -4,7 +4,7 @@ import asyncio
 from pathlib import Path
 
 from buysmarter.capabilities.provenance import CHANGED_NOTE
-from buysmarter.cli.category import NOTES_TOO_LONG
+from buysmarter.cli.category import NOTES_TOO_LONG, CategoryRow
 from buysmarter.gui.bridge import USER_ERROR
 from buysmarter.gui.learning import LEARN_CANCELLED, CategoryLearning
 from buysmarter.gui.screens import categories as screen_module
@@ -59,6 +59,18 @@ def test_the_list_names_each_category_with_its_books(qtbot, runner) -> None:
 
     qtbot.waitUntil(lambda: _rows(screen) == ["робот-пылесос"], timeout=_WAIT_MS)
     assert screen.table.item(0, 1).text() == "бренды 2, модели 0"
+
+
+def test_the_parent_column_shows_only_when_a_category_has_one(qtbot, runner) -> None:
+    screen = _screen(qtbot, runner)
+    parent = CategoryRow._fields.index("parent")
+    qtbot.waitUntil(lambda: screen.empty.text() == EMPTY, timeout=_WAIT_MS)  # the reload is done
+
+    screen._fill([CategoryRow("кроссовки", "бренды 1", "", "вы, 2026-10-29")])
+    assert screen.table.isColumnHidden(parent)
+
+    screen._fill([CategoryRow("кроссовки-беговые", "бренды 1", "кроссовки", "вы, 2026-10-29")])
+    assert not screen.table.isColumnHidden(parent)
 
 
 def test_a_picked_category_shows_its_summary_and_switches_without_a_rerun(qtbot, runner) -> None:

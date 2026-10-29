@@ -10,12 +10,11 @@ from collections.abc import Callable, Coroutine
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QRect, QSize, Qt, Signal
 from PySide6.QtGui import QIcon, QImageReader, QPixmap, QResizeEvent, QShowEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFileDialog,
-    QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -52,7 +51,7 @@ from buysmarter.cli.style import (
     phrase_line,
 )
 from buysmarter.gui.bridge import CoreRunner, Job
-from buysmarter.gui.theme import CARD_GAP, PAGE_GAP, SPACE, Prose, card_body, set_state
+from buysmarter.gui.theme import PAGE_GAP, SPACE, Prose, card_body, form_rows, set_state
 from buysmarter.memory.prefs import as_list
 from buysmarter.style import profile, weights
 
@@ -126,10 +125,13 @@ async def _brands(text: str) -> str:
 
 
 def _thumbnail(path: Path) -> QIcon:
-    """A small icon, decoded at that size (fast even for a big JPEG)."""
+    """A square tile cut from the photo's centre, decoded at that size (fast for a big JPEG)."""
     reader = QImageReader(str(path))
     if (size := reader.size()).isValid():
-        reader.setScaledSize(size.scaled(_THUMB_PX, _THUMB_PX, Qt.AspectRatioMode.KeepAspectRatio))
+        fill = size.scaled(_THUMB_PX, _THUMB_PX, Qt.AspectRatioMode.KeepAspectRatioByExpanding)
+        reader.setScaledSize(fill)
+        left, top = (fill.width() - _THUMB_PX) // 2, (fill.height() - _THUMB_PX) // 2
+        reader.setScaledClipRect(QRect(left, top, _THUMB_PX, _THUMB_PX))
     return QIcon(QPixmap.fromImage(reader.read()))
 
 
@@ -303,13 +305,11 @@ class StyleScreen(QWidget):
         # QSS horizontal padding does not reach a spin box's text: inset it as budget_box does.
         self.strength.lineEdit().setTextMargins(SPACE["sm"], 0, SPACE["sm"], 0)
         self.strength.valueChanged.connect(self._save_strength)
-        form = QFormLayout()
-        form.setHorizontalSpacing(SPACE["lg"])
-        form.setVerticalSpacing(CARD_GAP)
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        form.addRow("Бренды", _row(self.brands, self.save_brands))
-        form.addRow("", _caption("По ним ищутся вещи на Kaspi, в этом порядке (до шести)."))
-        form.addRow(STRENGTH, _row(self.strength, _caption(_STRENGTH_HINT)))
+        form = form_rows(
+            ("Бренды", _row(self.brands, self.save_brands)),
+            ("", _caption("По ним ищутся вещи на Kaspi, в этом порядке (до шести).")),
+            (STRENGTH, _row(self.strength, _caption(_STRENGTH_HINT))),
+        )
         card, inside = _card("Настройка")
         inside.addLayout(form)
         return card

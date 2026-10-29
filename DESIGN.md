@@ -58,8 +58,11 @@ buttons stays a plain label.
   skipped/waiting (muted), warning (amber); set with `theme.set_state`.
 - Tables show every row (`gui/tables.py`); the page scrolls, never the table. Headers are
   12/600 muted on the sidebar tone, indented so cell text sits under them. A stretched text
-  column (a title) keeps at least 160px; past that the table scrolls sideways. The photo grid
-  on «Стиль» follows the same rule: as tall as its rows.
+  column (a title) keeps at least 160px; past that the table scrolls sideways. A column empty
+  on every row is hidden («Родитель» on «Категории»). The photo grid on «Стиль» follows the
+  same rule, as tall as its rows, with square 96px tiles cut from each photo's centre.
+- Settings forms (`theme.form_rows`) put each label left of its field, centred on the field's
+  first 36px line.
 - The report's best pick shows three figures at 24px with 12px captions on one line: the score
   (700, accent), the confidence and the price (600). «Настроить» under the heading is an inline
   link on the heading's vertical.
@@ -68,7 +71,8 @@ buttons stays a plain label.
   track (visible on the dark card).
 - Past searches render the saved markdown in the theme (`style_report`): 20/16 bold headings,
   accent links, ruled tables, body lines at 150% leading; `_note_` lines muted, long hashes and
-  URLs wrapped.
+  URLs wrapped. The list on the left shows the date over the query, so the query gets the full
+  row.
 - Light or dark follows the OS and switches live.
 
 ## Rules

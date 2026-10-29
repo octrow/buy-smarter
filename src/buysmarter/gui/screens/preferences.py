@@ -3,11 +3,11 @@
 from collections.abc import Callable, Coroutine, Mapping
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
-    QFormLayout,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QPushButton,
     QVBoxLayout,
@@ -28,7 +28,7 @@ from buysmarter.gui.prefs_fields import (
     source_boxes,
     store_warning,
 )
-from buysmarter.gui.theme import CARD_GAP, PAGE_GAP, SPACE, Prose, card_body, set_state
+from buysmarter.gui.theme import PAGE_GAP, SPACE, card_body, form_rows, set_state
 from buysmarter.memory import prefs
 
 type Store = Callable[[Mapping[str, Any]], Coroutine[Any, Any, None]]
@@ -53,7 +53,7 @@ class PreferencesScreen(QWidget):
         self.budget = budget_box()
         self.sources = source_boxes()
         self.excluded = QLineEdit(placeholderText="через запятую, например: Noname, Generic")
-        self.message = Prose()
+        self.message = QLabel(wordWrap=True)  # beside the button: a capped width would stretch it
         self.store_warning = store_warning()
         self.save_button = QPushButton("Сохранить", default=True)
         set_state(self.save_button, "primary", "true")
@@ -65,18 +65,16 @@ class PreferencesScreen(QWidget):
         for box in self.sources.values():
             marketplaces.addWidget(box)
         marketplaces.addStretch(1)
-        form = QFormLayout()
-        form.addRow(LABELS[CITY], self.city)
-        form.addRow(LABELS[BUDGET], self.budget)
-        form.addRow(LABELS[MARKETPLACES], marketplaces)
-        form.addRow(LABELS[EXCLUDED_BRANDS], self.excluded)
+        form = form_rows(
+            (LABELS[CITY], self.city),
+            (LABELS[BUDGET], self.budget),
+            (LABELS[MARKETPLACES], marketplaces),
+            (LABELS[EXCLUDED_BRANDS], self.excluded),
+        )
         layout = QVBoxLayout(self)
         # Under the screen heading (app._centered): no top gap of its own.
         layout.setContentsMargins(SPACE["xxl"], SPACE["lg"], SPACE["xxl"], SPACE["xl"])
         layout.setSpacing(PAGE_GAP)
-        form.setVerticalSpacing(CARD_GAP)
-        form.setHorizontalSpacing(SPACE["lg"])
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         buttons = QHBoxLayout()
         buttons.addWidget(self.save_button)
         buttons.addSpacing(SPACE["md"])

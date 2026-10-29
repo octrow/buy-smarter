@@ -189,6 +189,9 @@ class CategoriesScreen(QWidget):
             if row.name == self._shown:
                 self.table.selectRow(r)
         self.table.blockSignals(False)
+        # an empty column on every row is noise: «Родитель» only once a category has one
+        has_parent = any(row.parent for row in rows)
+        self.table.setColumnHidden(CategoryRow._fields.index("parent"), not has_parent)
         self.table.setVisible(bool(rows))
         self.empty.setText("" if rows else EMPTY)
         self.empty.setVisible(not rows)

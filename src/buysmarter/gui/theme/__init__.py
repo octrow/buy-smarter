@@ -11,7 +11,14 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, Slot
 from PySide6.QtGui import QFontDatabase, QGuiApplication, QIcon
-from PySide6.QtWidgets import QApplication, QLabel, QLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QBoxLayout,
+    QFormLayout,
+    QLabel,
+    QLayout,
+    QWidget,
+)
 
 os.environ.setdefault("QT_API", "pyside6")  # qtawesome loads Qt through qtpy: never another binding
 import qtawesome  # noqa: E402 - needs QT_API first
@@ -41,6 +48,8 @@ RADIUS = 6
 # Field text boxes, sized so a line edit, a combo box and a spin box all come out 36px tall:
 # Fusion adds 3px more frame around a spin box than around a line edit.
 _CONTROL_TEXT_PX = 22
+# What that comes to: a field, and the line a form label is centred on.
+CONTROL_PX = 36
 # A card's title sits inside it (the QGroupBox font styles it; children reset to body):
 # this much top padding holds the 16px title and its gap.
 _CARD_TITLE_BAND_PX = 52
@@ -305,6 +314,28 @@ def card_body[L: QLayout](layout: L) -> L:
     layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(CARD_GAP)
     return layout
+
+
+def form_rows(*rows: tuple[str, QWidget | QLayout]) -> QFormLayout:
+    """A settings form: each label left of its field, centred on the field's first line.
+
+    Qt gives a form label less height than the row and pins it to the top: 4px above the
+    field's text. A label as tall as a field centres like the field's own text.
+    """
+    form = QFormLayout()
+    form.setHorizontalSpacing(SPACE["lg"])
+    form.setVerticalSpacing(CARD_GAP)
+    form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+    for text, field in rows:
+        label = QLabel(text)
+        if text:  # an empty one only indents a caption row: no height of its own
+            label.setMinimumHeight(CONTROL_PX)
+            if isinstance(field, QBoxLayout):  # a row of check boxes centres on the label too
+                field.addStrut(CONTROL_PX)
+        if isinstance(field, QWidget):
+            label.setBuddy(field)
+        form.addRow(label, field)
+    return form
 
 
 def set_state(widget: QWidget, name: str, value: str) -> None:
