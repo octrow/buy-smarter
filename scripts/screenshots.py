@@ -2,6 +2,9 @@
 
     uv run python scripts/screenshots.py OUT_DIR   ->  OUT_DIR/light/*.png, OUT_DIR/dark/*.png
 
+Every screen at the default size and at the window's minimum (`*-960x640.png`), plus the report
+filled from the GUI tests' fixture, rendered full length (`report-full*.png`).
+
 Runs offscreen on the self-test's temp store, with a copy of the saved reports so «Прошлые
 поиски» has content and two sample categories for «Категории»; the user's own files are never
 written. CI uploads the result.
@@ -94,20 +97,48 @@ def _grab_screens(window: object, settle: Callable[[], None], out: Path) -> None
     from buysmarter.gui.app import _SCREEN_ROLE
 
     out.mkdir(parents=True, exist_ok=True)
-    settle()
+    _grab_report(window, settle, out)  # first, so «Отчёт» is filled in both themes
     for row in range(window.sidebar.count()):
         item = window.sidebar.item(row)
         if item.data(_SCREEN_ROLE) is None:
             continue  # a group header
         window.sidebar.setCurrentRow(row)
-        settle()
-        name = f"{row:02d}-{item.text()}.png"
-        window.grab().save(str(out / name))
-        print(name)
+        _scroll_top(window)  # the previous pass may have left it scrolled
+        for suffix, size in (("", _SIZE), ("-960x640", _SMALL)):
+            window.resize(*size)
+            settle()
+            name = f"{row:02d}-{item.text()}{suffix}.png"
+            window.grab().save(str(out / name))
+            print(name)
+        window.resize(*_SIZE)
     _grab_clarification(window, settle, out)
     _grab_learning(window, settle, out)
     _grab_category(window, settle, out)
-    _grab_style_small(window, settle, out)
+
+
+def _scroll_top(window: object) -> None:
+    page = window.stack.currentWidget()
+    if hasattr(page, "verticalScrollBar"):
+        page.verticalScrollBar().setValue(0)
+
+
+def _grab_report(window: object, settle: Callable[[], None], out: Path) -> None:
+    """The report as users see it after a search, full length, at both sizes."""
+    from buysmarter.gui.screens.search import SearchRun
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # the repo root, for tests/
+    from tests.gui.conftest import make_result
+
+    states = {"kaspi": "done", "ozon": "failed", "olx": "done"}
+    window.report.show_result(make_result(), SearchRun("ирригатор до 40000", True, states))
+    window._show_screen(window.report)
+    for suffix, size in (("", _SIZE), ("-960x640", _SMALL)):
+        window.resize(*size)
+        settle()
+        name = f"report-full{suffix}.png"
+        window.report.widget().grab().save(str(out / name))  # the whole page, not the viewport
+        print(name)
+    window.resize(*_SIZE)
 
 
 def _grab_clarification(window: object, settle: Callable[[], None], out: Path) -> None:
@@ -146,6 +177,7 @@ def _grab_learning(window: object, settle: Callable[[], None], out: Path) -> Non
     window.grab().save(str(out / "learning.png"))
     search._learning_for = None
     search._set_running(False)
+    search.query.clear()  # or the dark pass shows «кофемолка» on the search screen
     print("learning.png")
 
 
@@ -215,16 +247,6 @@ async def _seed_style() -> None:
             Image.new("RGB", (300, 400), colour).save(found[-1])
     await profile.add_photos(found[: _STYLE_PHOTOS - 2], disliked=False)
     await profile.add_photos(found[_STYLE_PHOTOS - 2 : _STYLE_PHOTOS], disliked=True)
-
-
-def _grab_style_small(window: object, settle: Callable[[], None], out: Path) -> None:
-    """«Стиль» at the window's minimum size."""
-    window.resize(*_SMALL)
-    window._show_screen(window.style_profile)
-    settle()
-    window.grab().save(str(out / "style-960x640.png"))
-    window.resize(*_SIZE)
-    print("style-960x640.png")
 
 
 def _pump(app: object, runner: object, seconds: float) -> None:

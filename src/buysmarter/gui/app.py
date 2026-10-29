@@ -125,8 +125,15 @@ class MainWindow(QMainWindow):
                 # The report caps its own page, inside its scroll area; the others are capped here.
                 heading = None if screen is self.search else title
                 page = screen if screen is self.report else _centered(screen, heading)
-                # A long question must not squeeze the form, nor a long list the summary.
-                if screen in (self.search, self.categories, self.style_profile):
+                # A long question must not squeeze the form, nor a long list the summary,
+                # nor the minimum height the wrapped health rows (each lost its second line).
+                if screen in (
+                    self.search,
+                    self.categories,
+                    self.style_profile,
+                    self.preferences,
+                    self.settings,
+                ):
                     page = _scrolled(page)
                 index = self.stack.addWidget(page)
                 self.sidebar.addItem(_nav_item(title, icon_name, index))
