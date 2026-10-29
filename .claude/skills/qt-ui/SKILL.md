@@ -1,6 +1,6 @@
 ---
 name: qt-ui
-description: Fast, house-style visual fixes for the buy-smarter PySide6 desktop GUI (src/buysmarter/gui — sidebar, Поиск, Отчёт, Прошлые поиски, История цен, Категории, Стиль, Настройки). Shoots every screen in light and dark, finds the defects, copies the pattern from the neighbour screen that already gets it right, fixes through theme tokens and the generated QSS only, then re-shoots, diffs before/after and runs the theme contrast test plus the affected GUI tests. Use it for ANY visual or UX change in this app - "кривой GUI", "проблемы с визуалом", "поправь вёрстку", "не влезает", "обрезается текст", "съехало", "отступы", "тёмная тема", "сделай как на соседнем экране", a new card, table, field, button or status label, or a review of a screen or screenshot - even when the user does not say "design". In this repo prefer it over generic design skills (frontend-design, impeccable, design-taste, ui-ux-pro-max): those target web CSS and push a new look; here the goal is a screen indistinguishable from its neighbours.
+description: 'Fast, house-style visual fixes for the buy-smarter PySide6 desktop GUI (src/buysmarter/gui — sidebar, Поиск, Отчёт, Прошлые поиски, История цен, Категории, Стиль, Настройки). Shoots every screen in light and dark, finds the defects, copies the pattern from the neighbour screen that already gets it right, fixes through theme tokens and the generated QSS only, then re-shoots, diffs before/after and runs the theme contrast test plus the affected GUI tests. Use it for ANY visual or UX change in this app - "кривой GUI", "проблемы с визуалом", "поправь вёрстку", "не влезает", "обрезается текст", "съехало", "отступы", "тёмная тема", "сделай как на соседнем экране", a new card, table, field, button or status label, or a review of a screen or screenshot - even when the user does not say "design". In this repo prefer it over generic design skills (frontend-design, impeccable, design-taste, ui-ux-pro-max): those target web CSS and push a new look; here the goal is a screen indistinguishable from its neighbours.'
 ---
 
 # Qt UI: как соседи, через токены, проверка снимками
@@ -13,7 +13,7 @@ description: Fast, house-style visual fixes for the buy-smarter PySide6 desktop 
 
 Порядок источников, когда они расходятся:
 **замечание пользователя → соседний экран → `DESIGN.md` → `theme/__init__.py` →
-`~/dev/docs/GUI/qt-desktop-guide.md` → этот скилл → вкус.** Если замечание спорит с
+`qt-desktop-guide.md` (личный гайд автора, не в репо) → этот скилл → вкус.** Если замечание спорит с
 `DESIGN.md` или соседом — назвать конфликт одной строкой и спросить.
 
 **Голый `/qt-ui` без задачи** — не новый полный аудит, а список «Открытые мелочи»
@@ -152,7 +152,7 @@ layout'а из `SPACE`.
 ### Законы UX и правила сетки → что они значат здесь
 
 Полный перевод под Qt — `references/ux-rules.md` в плагине
-`~/dev/octrow-skills/plugins/qt-ui/skills/qt-ui/`. Для этого приложения:
+[octrow-skills/qt-ui](https://github.com/octrow/octrow-skills/tree/main/plugins/qt-ui/skills/qt-ui). Для этого приложения:
 
 | Правило | Здесь |
 |---|---|
@@ -255,4 +255,4 @@ git show --stat HEAD        # в коммите только мои файлы �
 
 «Стиль» и «Прошлые поиски» в эталоны не класть: на них фото и отчёты пользователя.
 Изменение скилла, полезное любому Qt-приложению, перенести в общий плагин
-`~/dev/octrow-skills/plugins/qt-ui/` (там английский и без привязки к проекту).
+[octrow-skills/qt-ui](https://github.com/octrow/octrow-skills/tree/main/plugins/qt-ui) (там английский и без привязки к проекту).

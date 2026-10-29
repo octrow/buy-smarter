@@ -4,10 +4,10 @@
 
 ```
 /compact Сохрани только то, что нужно для следующей задачи — покрытие тестами в buy-smarter:
-- репо /home/octrow/dev/buy-smarter, работа прямо в main, коммит+пуш без вопросов, формат `<type>: <description>` + Co-Authored-By;
+- репо buy-smarter, работа прямо в main, коммит+пуш без вопросов, формат `<type>: <description>` + Co-Authored-By;
 - сделано: code-health закрыт (ruff, vulture, radon/complexipy 0 находок, C90 max 10 + complexipy в CI, mypy strict на весь src), services/ и ranking/ разбиты на модули, все файлы < 800 строк, 668 passed / 6 skipped;
 - CI (.github/workflows/ci.yml, job check): uv sync --locked → alembic → ruff check → ruff format --check → mypy src → complexipy src → pytest -q; dev-зависимости пинуются точной версией в [dependency-groups].dev;
-- правила: экономно по токенам, точечное чтение, только затронутые тесты, полный прогон в конце; короткие отчёты; preflight: python3 /home/octrow/dev/octrow-skills/plugins/repo-ready/skills/repo-code-health/engine/preflight.py . --scenario code-health.
+- правила: экономно по токенам, точечное чтение, только затронутые тесты, полный прогон в конце; короткие отчёты; preflight: python3 octrow-skills/plugins/repo-ready/skills/repo-code-health/engine/preflight.py . --scenario code-health.
 Остальную историю (рефакторинги, ревью, api-autotests/conversation_flow) можно отбросить.
 ```
 

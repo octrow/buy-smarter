@@ -6,7 +6,7 @@ The desktop build (ADR 0003) should not carry Playwright's own ~150 MB Chromium.
 
 ## What Changes
 
-- `market-sources` (`~/dev/pylibs/market-sources`): `PlaywrightSession` accepts an optional `channel` that is passed to `chromium.launch`, for the search session and the visible `ozon-setup` session alike. Released as a new minor version.
+- `market-sources` ([octrow/market-sources](https://github.com/octrow/market-sources)): `PlaywrightSession` accepts an optional `channel` that is passed to `chromium.launch`, for the search session and the visible `ozon-setup` session alike. Released as a new minor version.
 - buy-smarter picks the browser in this order: system Chrome, then Playwright's bundled Chromium, then Ozon off. It records which one it used.
 - `doctor` reports the Ozon browser (system Chrome, bundled Chromium, or none) with a hint for each case.
 - `install.sh` / `install.ps1` stop offering the Chromium download when system Chrome is present.

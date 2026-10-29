@@ -1,7 +1,7 @@
 # План: Dockerfile для buy-smarter
 
 Шаг 1 из цепочки флагмана: **Dockerfile** → compose «всё в одном» → образ в GHCR → Helm-чарт → kind-smoke в CI → OpenTelemetry/Prometheus
-(общий план — `~/dev/jobs/docs/portfolio-priorities.md`). Этот документ — только про Dockerfile и всё, без чего его нельзя проверить.
+(общий план — в личных заметках автора). Этот документ — только про Dockerfile и всё, без чего его нельзя проверить.
 
 ## Что есть сейчас (2026-10-16)
 

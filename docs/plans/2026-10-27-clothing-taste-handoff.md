@@ -3,7 +3,7 @@
 ## Промпт 1 — для `/compact`
 
 ```
-/compact Сохрани для продолжения: проект ~/dev/buy-smarter, ветка main, git — /usr/bin/git, одна простая
+/compact Сохрани для продолжения: проект buy-smarter, ветка main, git — /usr/bin/git, одна простая
 команда на вызов. Идёт план docs/plans/2026-10-27-clothing-taste-mvp.md (возможность `style`). Шаги 1–4 готовы и
 запушены: d132a35 (ядро: extra `style`, ONNX Marqo-FashionSigLIP int8, кэш векторов style_vectors), af47375
 (профиль: style/profile.py — бренды/фразы в user_preferences["style"], фото-копии без EXIF в
@@ -35,7 +35,7 @@ main; TDD; CLI = GUI; карта EN+RU в том же коммите; GUI — с
 и CHANGELOG описывают возможность `style` целиком, отметь шаг 5 в плане. Затем шаг 6 — живой прогон на моём
 профиле (пишет в ~/.local/share/buysmarter, ходит на Kaspi — перед запуском одной строкой скажи, что сделаешь):
 1) `buysmarter style` — проверить, что 124 фото на месте;
-2) бренды из ~/dev/tiktok-lazy-follower/digests/menswear-actions.md (Samba/adidas, New Balance, Salomon, Brooks,
+2) бренды из личного дайджеста автора по menswear (Samba/adidas, New Balance, Salomon, Brooks,
    Helly Hansen, The North Face; Arc'teryx и Stone Island на Kaspi похожи на реплики — спроси, брать ли);
 3) `buysmarter style never "glossy white plastic sole"` (по-английски, без LLM);
 4) если «кроссовки» или «куртка» уже изучены раньше, включить им «Стиль» (`category set …`), иначе Jev спросит сам;

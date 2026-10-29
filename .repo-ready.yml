@@ -1,0 +1,6 @@
+exempt:
+  language_mirrors: user-facing prose (README, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT) has RU mirrors; plans, specs, ADRs, spikes and analogs are internal working notes, kept in their original language
+  private_paths_in_files: only /home/app is left, the container user's home in Dockerfile, compose and helm, not a private path
+  private_paths_in_history: repo is public with forks possible; rewriting history costs more than the leaked local paths (no secrets, no employer names)
+  deps_drift: checked 2026-10-29, market-sources git main equals PyPI 0.5.0; claude-subprocess main is ahead of PyPI 0.1.3 only with direct=True, which buy-smarter does not use
+  internal_files_tracked: .claude/skills/qt-ui is published on purpose, a GUI fix guide for contributors
