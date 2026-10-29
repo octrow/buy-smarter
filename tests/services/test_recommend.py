@@ -2049,6 +2049,36 @@ def test_ram_plus_storage_is_not_a_plus_model() -> None:
     assert len(kept) == 1
 
 
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [
+        ("Samsung Galaxy S23 FE 8/256Gb черный", "Samsung Galaxy S23 8/256Gb черный"),
+        ("Apple iPhone SE 128Gb черный", "Apple iPhone 128Gb черный"),
+        ("Apple MacBook Air 13 M2 8/256Gb серый", "Apple MacBook Air 13 M3 8/256Gb серый"),
+        ("Samsung Galaxy S23 8/256Gb черный", "Samsung Galaxy S24 8/256Gb черный"),
+        ("Xiaomi Redmi Note 13 8/256Gb черный", "Xiaomi Redmi Note 13 12/256Gb черный"),
+        ("Xiaomi Redmi Note 13 8 ГБ/256 ГБ черный", "Xiaomi Redmi Note 13 12+256GB черный"),
+    ],
+)
+def test_another_edition_chip_or_ram_is_another_product(first: str, second: str) -> None:
+    brand = first.split()[0]
+    a = _cand("kaspi", "k1", first, brand, 300000)
+    b = _cand("ozon", "o1", second, brand, 320000)
+
+    kept, _ = dedupe_cross_source([a, b])
+
+    assert len(kept) == 2
+
+
+def test_the_same_ram_written_two_ways_still_merges() -> None:
+    a = _cand("kaspi", "k1", "Xiaomi Redmi Note 13 8 ГБ/256 ГБ черный", "Xiaomi", 110000)
+    b = _cand("ozon", "o1", "Xiaomi Redmi Note 13 8/256GB черный", "Xiaomi", 112000)
+
+    kept, _ = dedupe_cross_source([a, b])
+
+    assert len(kept) == 1
+
+
 def test_two_cards_inside_one_source_are_not_merged() -> None:
     first = _cand("kaspi", "k1", "Vivo TWS Air 3 наушники", "Vivo", 3_208)
     second = _cand("kaspi", "k2", "Vivo TWS Air 3 наушники", "Vivo", 11_186)

@@ -268,7 +268,7 @@ Module: `services/recommend`, `llm/relevance`, `llm/jev`, `capabilities/composit
 Decides: same product → one candidate, the cheaper.
 Only across sources: a listing never joins a group that already holds one from its source, so two Kaspi cards or two items of one official store stay apart; an official-store item still merges with its Kaspi or Ozon copy.
 Same product = same canonical model in the model book, or the same brand string with heavy title overlap (shared tokens / the smaller token set ≥ 0.6).
-A different model number, storage or line word (Pro, Max, Mini, Plus or "+", Ultra, Lite) forbids a merge on either path.
+A different model number (also a one-letter code: S23/S24, chip M2/M3), storage, RAM ("8/256" vs "12/256") or line word (Pro, Max, Mini, Plus or "+", Ultra, Lite, and the editions FE and SE) forbids a merge on either path.
 A merge with a 2x price gap marks the survivor, which bars it from roles (step 18).
 A much pricier copy elsewhere becomes a warning later (step 21 notes).
 Then each candidate gets a reference price: the model's official price, else the brand's cheapest genuine item.
@@ -433,6 +433,6 @@ Module: `services/doctor`
 ## Known gaps
 
 Short list; details and fixes are in the plan (number in brackets).
-- Dedupe still merges FE/SE variants, chip generations (M2/M3) and RAM-only variants; overlap is asymmetric (#13).
+- Dedupe overlap is asymmetric (shared tokens / the smaller set): Jaccard splits real duplicates and breaks OLX (#13).
 - Capabilities are switched on by stored profiles, the Jev classifier on the first sight of a product type (`ensure_profile`) and fallback rules. `recommend()` never learns a category itself; entry points may start learning after the report (Learning a category). Findings #1 and #2 are fixed.
 - Without an LLM there is no intent detection: only an unreadable query and capabilities ask, so a keyless or opted-out run searches "подарок для мамы" as it is (phase 2).

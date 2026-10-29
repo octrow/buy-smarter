@@ -162,15 +162,35 @@ def names_query_model(category: str, title: str) -> bool:
     return bool(wanted) and wanted <= _name_numbers(title).items()
 
 
+# A one-letter model code glued to its number: a chip ("M2") or a line ("S23", "A15").
+_LETTER_CODE = re.compile(r"(?<![^\W_])([a-z])(\d{1,3})(?![^\W_])")
+
+
+def _letter_codes(title: str) -> dict[str, str]:
+    return dict(_LETTER_CODE.findall(title.lower()))
+
+
 def _model_numbers_conflict(a: str, b: str) -> bool:
-    """Both titles number the same name word, differently ("iPhone 12" vs "iPhone 13")."""
-    na, nb = _name_numbers(a), _name_numbers(b)
-    return any(na[name] != nb[name] for name in na.keys() & nb.keys())
+    """The same name word or one-letter code, numbered differently ("iPhone 12"/13, "M2"/"M3")."""
+    return any(
+        na[name] != nb[name]
+        for na, nb in ((_name_numbers(a), _name_numbers(b)), (_letter_codes(a), _letter_codes(b)))
+        for name in na.keys() & nb.keys()
+    )
 
 
 # Storage: "128Gb", "1 ТБ", "4/256". The largest figure is the storage (RAM is the smaller one).
 _STORAGE = re.compile(r"(\d{1,4})\s*(gb|гб|tb|тб)(?![a-zа-я])|\b\d{1,2}/(\d{2,4})(?!\d)")
 _GB_PER_TB = 1024
+
+
+# RAM before the storage: "8/256", "8+256GB", "8 ГБ/256 ГБ", "16/1TB".
+_RAM = re.compile(r"(?<!\d)(\d{1,2})\s*(?:gb|гб)?\s*[/+]\s*(?:\d{2,4}|\d\s*(?:tb|тб))(?!\d)")
+
+
+def _ram_gb(title: str) -> int | None:
+    match = _RAM.search(title.lower())
+    return int(match.group(1)) if match else None
 
 
 def _storage_gb(title: str) -> int | None:
@@ -181,13 +201,15 @@ def _storage_gb(title: str) -> int | None:
     return max(sizes, default=None)
 
 
-# Line words (``LINE_WORDS``) make another model: "S24 Ultra" is not "S24", "Pro+" not "Pro".
+# Line words (``LINE_WORDS``) make another model: "S24 Ultra" is not "S24", "Pro+" not "Pro";
+# so do the editions FE and SE ("S23 FE", "iPhone SE"), which never name a model of their own.
+_DEDUPE_LINE_WORDS = LINE_WORDS | {"fe", "se"}
 _GLUED_PLUS = re.compile(r"(?<=\w)\+(?!\d)")  # "Pro+", "S24+" read as "plus"; "8+256" does not
 
 
 def _line_words(title: str) -> set[str]:
     words = re.findall(r"[a-z]+", _GLUED_PLUS.sub(" plus", title.lower()))
-    return set(words) & LINE_WORDS
+    return set(words) & _DEDUPE_LINE_WORDS
 
 
 def _lines_conflict(a: str, b: str) -> bool:
@@ -196,13 +218,18 @@ def _lines_conflict(a: str, b: str) -> bool:
 
 
 def _variants_conflict(a: str, b: str) -> bool:
-    """Another model number ("iPhone 12" vs "13"), line ("13 Pro" vs "13") or storage."""
-    sa, sb = _storage_gb(a), _storage_gb(b)
+    """Another model number ("iPhone 12" vs "13"), line ("13 Pro" vs "13"), storage or RAM."""
     return (
         _model_numbers_conflict(a, b)
         or _lines_conflict(a, b)
-        or (sa is not None and sb is not None and sa != sb)
+        or _differ(_storage_gb(a), _storage_gb(b))
+        or _differ(_ram_gb(a), _ram_gb(b))
     )
+
+
+def _differ(a: int | None, b: int | None) -> bool:
+    """Both known and unequal: an unknown figure never splits two listings."""
+    return a is not None and b is not None and a != b
 
 
 def _token_overlap(a: str, b: str) -> float:
