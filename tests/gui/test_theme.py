@@ -58,6 +58,8 @@ def test_the_bundled_font_loads(qapp):
 
     theme.load_font()
     assert theme.FONT_FAMILY in QFontDatabase.families()
+    # the QSS asks for 600 and 700: a variable font registered as Regular only rendered 600 as 400
+    assert {"Regular", "SemiBold", "Bold"} <= set(QFontDatabase.styles(theme.FONT_FAMILY))
 
 
 def test_the_app_restyles_when_the_os_switches_between_light_and_dark(qapp):

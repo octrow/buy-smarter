@@ -22,7 +22,7 @@ Screenshots: `docs/screenshots/desktop/`.
 
 Every text/background pair is held to WCAG AA 4.5:1 by `tests/gui/test_theme.py`.
 
-**Type:** Inter (bundled variable font), one family. 12 caption · 14 body · 16 card title ·
+**Type:** Inter (bundled as static 400/600/700: Qt renders a variable font's weights as Regular), one family. 12 caption · 14 body · 16 card title ·
 20 product title · 24 score and price · 28 screen heading. **Spacing:** 4px grid (4, 8, 12, 16, 24, 32).
 **Radius:** 6 (controls), 8 (cards).
 

@@ -19,9 +19,13 @@ import qtawesome  # noqa: E402 - needs QT_API first
 logger = logging.getLogger(__name__)
 
 _ASSETS = Path(__file__).parent
-_FONT_FILE = _ASSETS / "fonts" / "InterVariable.ttf"
+# Static instances of Inter 4.1 cut from InterVariable.ttf (opsz=14): Qt registers a variable
+# font as one Regular style, so font-weight 600 rendered as 400 and 700 as a synthetic bold.
+_FONT_FILES = [
+    _ASSETS / "fonts" / f"Inter-{style}.ttf" for style in ("Regular", "SemiBold", "Bold")
+]
 ICON = _ASSETS / "icon.svg"  # the window, the taskbar and the installers' menu entries
-FONT_FAMILY = "Inter Variable"  # the family name InterVariable.ttf registers
+FONT_FAMILY = "Inter"  # the family name the Inter-*.ttf files register
 
 # Type: one family, ratio ~1.2 from a 14px body (operate UI: fixed px, not fluid).
 TYPE = {"caption": 12, "body": 14, "subhead": 16, "title": 20, "display": 24, "hero": 28}
@@ -117,6 +121,7 @@ QListWidget#sidebar::item:disabled {{ background: transparent; color: {p["text_m
 
 QGroupBox {{ background: {p["surface"]}; border: 1px solid {p["border"]}; border-radius: {r + 4}px; margin-top: 0; padding: {_CARD_TITLE_BAND_PX}px {s["xl"]}px {s["xl"]}px; font-size: {t["subhead"]}px; font-weight: 600; }}
 QGroupBox QWidget {{ font-size: {t["body"]}px; font-weight: 400; }}
+QGroupBox QPushButton {{ font-weight: 600; }}  /* the rule above outranks plain QPushButton */
 QGroupBox::title {{ subcontrol-origin: padding; subcontrol-position: top left; left: {s["xl"] - _CARD_TITLE_INSET_PX}px; top: {s["lg"]}px; padding: 0; color: {p["text"]}; font-size: {t["subhead"]}px; font-weight: 600; }}
 QGroupBox QLabel, QGroupBox QWidget {{ background: transparent; }}
 
@@ -249,8 +254,9 @@ def bind_icon(
 
 def load_font() -> None:
     """Register the bundled Inter; the QSS falls back to the platform sans when it fails."""
-    if QFontDatabase.addApplicationFont(str(_FONT_FILE)) < 0:
-        logger.warning("Could not load the bundled font %s", _FONT_FILE)
+    for path in _FONT_FILES:
+        if QFontDatabase.addApplicationFont(str(path)) < 0:
+            logger.warning("Could not load the bundled font %s", path)
 
 
 def apply_theme(app: QApplication) -> None:

@@ -33,6 +33,7 @@ SOFTWARE.
 
 ## Inter
 
-The desktop app bundles `src/buysmarter/gui/theme/fonts/InterVariable.ttf`, Inter 4.1 by the
+The desktop app bundles `src/buysmarter/gui/theme/fonts/Inter-{Regular,SemiBold,Bold}.ttf`, static
+instances (opsz 14, wght 400/600/700, cut with `fonttools varLib.instancer`) of Inter 4.1 by the
 Inter Project Authors (https://github.com/rsms/inter), under the SIL Open Font License 1.1; the
 full license ships next to it as `OFL.txt`.
