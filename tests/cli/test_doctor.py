@@ -140,7 +140,7 @@ def test_style_row_says_the_model_downloads_on_first_use(monkeypatch, tmp_path):
     monkeypatch.setattr(doctor.style, "available", lambda: True)
     monkeypatch.setattr(doctor.weights, "weights_dir", lambda: tmp_path)
     check = doctor.style_check()
-    assert check[:4] == (doctor.STYLE, True, "", "model downloads on first use (~200 MB)")
+    assert check[:4] == (doctor.STYLE, True, "", "model downloads on first use (~300 MB)")
     assert "МБ" in check.app_detail  # the app says it in Russian
 
 

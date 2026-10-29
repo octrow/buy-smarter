@@ -254,6 +254,17 @@ def photo(tmp_path):
     return make
 
 
+@pytest.fixture(autouse=True)
+def _no_shoe_cropping(monkeypatch):
+    """No segmenter in tests: sample photos are not cut (a test sets its own cropper)."""
+    from buysmarter.style import profile
+
+    async def none():
+        return None
+
+    monkeypatch.setattr(profile, "shoe_cropper", none)
+
+
 @pytest.fixture
 def encoder(monkeypatch):
     """No model download: every photo encodes to the same unit vector."""

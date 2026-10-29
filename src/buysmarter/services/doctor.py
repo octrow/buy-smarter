@@ -136,7 +136,7 @@ def style_check() -> Check:
     if weights.missing():
         app_detail = "модель скачается при первом добавлении фото (~200\u00a0МБ)"  # no lone «МБ)»
         return Check(
-            STYLE, True, "", "model downloads on first use (~200 MB)", app_detail=app_detail
+            STYLE, True, "", "model downloads on first use (~300 MB)", app_detail=app_detail
         )
     where = weights.weights_dir()
     return Check(STYLE, True, "", f"model in {where}", app_detail=f"модель в {where}")

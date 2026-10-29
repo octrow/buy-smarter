@@ -45,10 +45,10 @@ class Encoder:
         import tokenizers
 
         def session(name: str) -> Any:
-            path = str(directory / FILES[name].path)
+            path = str(directory / FILES[name].target)
             return ort.InferenceSession(path, providers=["CPUExecutionProvider"])
 
-        tokenizer = tokenizers.Tokenizer.from_file(str(directory / FILES["tokenizer"].path))
+        tokenizer = tokenizers.Tokenizer.from_file(str(directory / FILES["tokenizer"].target))
         return cls(session("vision"), session("text"), tokenizer)
 
     def images(self, blobs: list[bytes]) -> np.ndarray:

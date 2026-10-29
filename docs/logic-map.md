@@ -307,8 +307,9 @@ Decides: how close each card's main photo is to the user's samples: the nearest 
 Only with sample photos or phrases, the `style` extra and the model downloaded; else nothing (brands only: no axis; no model: no axis data, every card gets half).
 Card photos are fetched 8 at a time and encoded once (vectors kept by URL in `style_vectors`); phrase descriptions are encoded once too (`text`). The whole step stops after 30 s; cards not reached keep no match.
 A photo sample counts only for a card sharing one of its 2 likeliest garments (sneakers, jacket, jeans…, read zero-shot by the text tower, `style/match.GARMENTS`); phrases are always compared. No liked sample of the card's garments: the axis gives half, "нет образцов такого типа".
+A shoe card (its likeliest garment sneakers, boots, dress shoes or sandals) is compared with the shoes cut out of the sample photos instead of the whole photos, when any were cut (`style/shoes`: a clothes segmenter, the shoes on white, cut once per photo after photos or a 👍/👎 are added and after the model download; a photo without shoes is kept as an empty vector and not cut again).
 A photo that cannot be fetched: that card is not compared.
-Module: `capabilities/style`, `style/match`, `style/cache`, `style/encoder`
+Module: `capabilities/style`, `style/match`, `style/cache`, `style/encoder`, `style/shoes`
 
 ### 17. Rank
 
@@ -427,7 +428,7 @@ Module: `services/price_tracking`
 
 ### Doctor
 
-Checks the environment: LLM route, browser for Ozon, store, sources, the clothing-style module (the `style` extra installed? its model downloaded? — about 200 MB on first use, pinned and checked by SHA-256, `style/weights`).
+Checks the environment: LLM route, browser for Ozon, store, sources, the clothing-style module (the `style` extra installed? its model downloaded? — about 300 MB on first use, pinned and checked by SHA-256, `style/weights`).
 Module: `services/doctor`
 
 ## Known gaps

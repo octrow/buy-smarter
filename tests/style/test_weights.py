@@ -55,3 +55,24 @@ async def test_a_file_with_the_wrong_hash_is_not_kept(served, monkeypatch) -> No
 
     assert weights.missing() == ["text"]
     assert not list(weights.weights_dir().rglob("*.part"))
+
+
+async def test_a_file_from_another_repo_is_fetched_at_its_revision_and_kept_by_its_name(
+    served, monkeypatch
+) -> None:
+    transport, requests, contents = served
+    other = weights.WeightFile(
+        "onnx/text.bin",
+        hashlib.sha256(contents["text"]).hexdigest(),
+        repo="someone/clothes",
+        revision="abc123",
+        local="clothes.onnx",
+    )
+    monkeypatch.setattr(weights, "FILES", {"segmenter": other})
+
+    async with httpx.AsyncClient(transport=transport) as client:
+        directory = await weights.download(client)
+
+    assert requests == ["/someone/clothes/resolve/abc123/onnx/text.bin"]
+    assert (directory / "clothes.onnx").read_bytes() == contents["text"]
+    assert weights.missing() == []

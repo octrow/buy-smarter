@@ -62,7 +62,7 @@ _PRIVATE = "Фото остаются на этом компьютере."
 _STRENGTH_HINT = (
     f"вес оси «Стиль» в поиске одежды: {profile.STRENGTH_DEFAULT} — по умолчанию, 0 — выключено"
 )
-ADDING = "Добавляю фото… В первый раз скачивается модель стиля (~200 МБ)."
+ADDING = "Добавляю фото… В первый раз скачивается модель стиля (~300 МБ)."
 _THUMB_PX = 96
 _CELL = QSize(_THUMB_PX + SPACE["md"], _THUMB_PX + SPACE["md"])
 _PHRASES_MIN_PX = 96
@@ -86,7 +86,7 @@ def pick_folder(parent: QWidget) -> str:
 
 async def _download() -> str:
     try:
-        await weights.download()
+        await profile.download_model()
     except weights.WeightsError as exc:
         logger.warning("Style model not downloaded: %r", exc)
         return MODEL_DOWN

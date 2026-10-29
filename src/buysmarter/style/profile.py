@@ -2,12 +2,14 @@
 
 Brands and phrases live in the ``style`` preference; a sample photo is a clean copy under
 ``samples_dir()`` (EXIF dropped, at most 1024 px) whose vector is in ``style_vectors`` under
-``like`` or ``dislike``, keyed by the copy's name. Brands and phrases need only the core;
-adding photos needs the ``style`` extra. The photos never leave the computer: the LLM sees
-only the text of a phrase.
+``like`` or ``dislike``, keyed by the copy's name; its shoes cut out (``style.shoes``) under
+``like_shoes``/``dislike_shoes`` by the same name, an empty vector when it shows none.
+Brands and phrases need only the core; adding photos needs the ``style`` extra. The photos
+never leave the computer: the LLM sees only the text of a phrase.
 """
 
 import asyncio
+import functools
 import hashlib
 import io
 import os
@@ -28,6 +30,7 @@ from buysmarter.memory.prefs import as_list
 
 STYLE = "style"  # the preference key
 LIKE, DISLIKE = "like", "dislike"  # photo vector kinds
+SHOES = {LIKE: "like_shoes", DISLIKE: "dislike_shoes"}  # their shoes cut out, by the same key
 TEXT = "text"  # phrase vectors, keyed by the English description
 # What a card is compared with (``Candidate.style_match`` keys).
 LIKE_PHOTO, LIKE_TEXT, NEVER_PHOTO, NEVER_TEXT = LIKE, "like_text", DISLIKE, "never_text"
@@ -158,7 +161,7 @@ async def add_phrase(text: str, never: bool) -> Phrase:
 async def remove(item: str) -> bool:
     """Drop a photo (by its name) or a phrase (by its text); whether anything matched."""
     async with async_session() as session:
-        dropped = await repo.delete_style_vectors(session, (LIKE, DISLIKE), item)
+        dropped = await repo.delete_style_vectors(session, (LIKE, DISLIKE, *SHOES.values()), item)
     if dropped:
         (samples_dir() / item).unlink(missing_ok=True)
         return True
@@ -188,6 +191,7 @@ async def add_photos(paths: list[Path], disliked: bool, progress: Progress | Non
         skipped += missed
         if progress is not None:
             progress(start + len(batch), len(files))
+    await crop_shoes()
     return Added(added, skipped)
 
 
@@ -205,6 +209,7 @@ async def add_card(image_url: str, title: str, disliked: bool) -> Photo:
     except OSError as exc:
         raise NoCardPhoto(image_url) from exc
     await _keep({name: (title, data)}, disliked)
+    await crop_shoes()
     return Photo(name, title, disliked)
 
 
@@ -244,8 +249,67 @@ async def _keep(copies: dict[str, tuple[str, bytes]], disliked: bool) -> None:
         )
 
 
+async def download_model() -> None:
+    """Download the model files, then cut the shoes out of the photos added before them."""
+    from buysmarter.style import weights
+
+    await weights.download()
+    await crop_shoes()
+
+
+async def crop_shoes() -> None:
+    """Cut the shoes out of every sample photo not cut yet and store their vectors.
+
+    Once per photo: a photo without shoes is kept as an empty vector, so it is not cut again.
+    Nothing without the segmenter (not downloaded yet: ``download_model`` comes back to it).
+    """
+    crop = await shoe_cropper()
+    if crop is None:
+        return
+    todo = await _uncut()
+    for start in range(0, len(todo), _BATCH):
+        await _cut_batch(crop, todo[start : start + _BATCH])
+
+
+async def _cut_batch(crop: Callable[[bytes], bytes | None], batch: list[tuple[str, str]]) -> None:
+    pieces = await asyncio.to_thread(lambda: [_cut(crop, key) for _, key in batch])
+    found = [p for p in pieces if p]
+    encoded = iter(await asyncio.to_thread(await photo_encoder(), found) if found else [])
+    rows: dict[str, dict[str, bytes]] = {}
+    for (kind, key), piece in zip(batch, pieces, strict=True):
+        rows.setdefault(kind, {})[key] = next(encoded).tobytes() if piece else b""
+    async with async_session() as session:
+        for kind, vectors in rows.items():
+            await repo.add_style_vectors(session, kind, vectors)
+
+
+async def _uncut() -> list[tuple[str, str]]:
+    """``(shoes kind, photo name)`` of every sample photo with no cut-out row yet."""
+    async with async_session() as session:
+        rows = await repo.list_style_vectors(session, (LIKE, DISLIKE, *SHOES.values()))
+    done = {(kind, key) for kind, key, _ in rows if kind in SHOES.values()}
+    return [(SHOES[k], key) for k, key, _ in rows if k in SHOES and (SHOES[k], key) not in done]
+
+
+def _cut(crop: Callable[[bytes], bytes | None], name: str) -> bytes | None:
+    try:
+        return crop((samples_dir() / name).read_bytes())
+    except OSError:  # the copy is gone or unreadable: no shoes to compare
+        return None
+
+
+async def shoe_cropper() -> Callable[[bytes], bytes | None] | None:
+    """The real shoe cutter; ``None`` while the segmenter is not downloaded."""
+    from buysmarter.style import shoes, weights
+
+    if "segmenter" in weights.missing():
+        return None
+    segmenter = await asyncio.to_thread(shoes.shared)
+    return functools.partial(shoes.shoe_crop, labels=segmenter.labels)
+
+
 async def photo_encoder() -> Encode:
-    """The real photo encoder; downloads the model the first time (~200 MB)."""
+    """The real photo encoder; downloads the model the first time (~300 MB)."""
     from buysmarter.style import weights
     from buysmarter.style.encoder import shared
 

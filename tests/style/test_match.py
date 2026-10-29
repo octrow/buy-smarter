@@ -104,3 +104,21 @@ async def test_a_profile_of_brands_only_matches_nothing() -> None:
     await match.match_pool([card], await profile.load(), FakeEncoder(), _fetch)
 
     assert card.style_match == {}
+
+
+async def test_a_shoe_card_is_compared_with_the_shoes_cut_out_not_the_whole_photos() -> None:
+    async with async_session() as session:
+        await repo.add_style_vectors(
+            session,
+            profile.LIKE,
+            {"l.jpg": np.float32([1, 0, 0, 0]).tobytes()},
+            {"l.jpg": "look.jpg"},
+        )
+        await repo.add_style_vectors(
+            session, profile.SHOES[profile.LIKE], {"l.jpg": np.float32([0.8, 0, 0, 0.6]).tobytes()}
+        )
+    sneakers = _card("1", "a")  # sneakers: the whole photo is closer (1.0) than its shoes (0.8)
+
+    await match.match_pool([sneakers], await profile.load(), FakeEncoder(), _fetch)
+
+    assert sneakers.style_match[LIKE_PHOTO] == (0.8, "look.jpg")

@@ -53,9 +53,9 @@ STOPPED = "Остановлено. Уже добавленные фото ост
 NOT_FOUND = "В профиле нет такого фото или фразы."
 MODEL_DOWN = "Не удалось скачать модель стиля. Подробности в логе."
 MODEL_READY = "Модель стиля скачана."
-MODEL_MISSING = "Модель стиля не скачана (~200 МБ): скачается при первом добавлении фото."
+MODEL_MISSING = "Модель стиля не скачана (~300 МБ): скачается при первом добавлении фото."
 MODEL = "Модель"
-DOWNLOADING = "Скачиваю модель стиля (~200 МБ, один раз)…"
+DOWNLOADING = "Скачиваю модель стиля (~300 МБ, один раз)…"
 PHRASE_HINT = "Пишите, как выглядит вещь («белая глянцевая подошва»), а не «без …»."
 
 style_app = typer.Typer(
@@ -220,10 +220,10 @@ def _add_linked(url: str, disliked: bool) -> None:
 
 @style_app.command()
 def download() -> None:
-    """Download the style model now (~200 MB, once) instead of on the first photo."""
+    """Download the style model now (~300 MB, once) instead of on the first photo."""
     if weights.missing():
         _say(DOWNLOADING, "dim")
-    _run(weights.download())
+    _run(profile.download_model())
     _say(MODEL_READY, "green")
 
 

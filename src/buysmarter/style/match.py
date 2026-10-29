@@ -8,7 +8,9 @@ A photo sample counts only for a card of its own garment: sneaker photos say not
 jeans (the spike: other-category samples rank at chance). The garment is read zero-shot by
 the text tower: a photo may be any of its ``LIKELIEST`` garments (an outfit shows several, a
 card may be misread: sneakers as sandals), a sample counts when it shares one with the card.
-Phrases are not typed: always compared.
+Phrases are not typed: always compared. A shoe card is compared with the shoes cut out of
+the photos (``style.shoes``) instead of the whole photos, when there are any: on an outfit
+the shoes are a corner, and a whole photo, closer to any card, would always win.
 """
 
 import asyncio
@@ -27,7 +29,9 @@ from buysmarter.style.profile import (
     LIKE_TEXT,
     NEVER_PHOTO,
     NEVER_TEXT,
+    SHOES,
     TEXT,
+    Photo,
     Phrase,
     Profile,
 )
@@ -40,6 +44,7 @@ GARMENTS = (
 # Held out on 125 liked photos against 211 Kaspi cards: 2 ranks as well as no filter, 1 drops
 # coats from 0.71 to 0.59. ponytail: one global k; a garment-cropping model would make it 1.
 LIKELIEST = 2
+_FOOTWEAR = frozenset(GARMENTS.index(g) for g in ("sneakers", "boots", "dress shoes", "sandals"))
 
 Fetch = Callable[[str], Awaitable[bytes | None]]
 
@@ -62,7 +67,7 @@ async def match_pool(pool: list[Candidate], current: Profile, model: Encodes, fe
     sample_garments = {
         kind: _likeliest(vectors, garments)
         for kind, (vectors, _) in kinds.items()
-        if kind in (LIKE_PHOTO, NEVER_PHOTO)
+        if kind not in (LIKE_TEXT, NEVER_TEXT)
     }
     urls = [c.image_url for c in pool if c.image_url]
     cards = await cache.card_vectors(urls, fetch, model.images)
@@ -79,13 +84,17 @@ def _card_match(
     sample_garments: dict[str, np.ndarray],
 ) -> dict[str, tuple[float, str]]:
     """The nearest sample of each kind; a photo kind sharing no garment with the card is out."""
+    shoe_card = int(card_garments[0]) in _FOOTWEAR
     match = {}
-    for kind, samples in kinds.items():
-        typed: Samples | None = samples
-        if kind in sample_garments:
-            typed = _of_garment(samples, sample_garments[kind], card_garments)
-        if typed is not None:
-            match[kind] = _nearest(card, typed)
+    for kind in kinds.keys() - SHOES.values():
+        source = SHOES.get(kind, kind) if shoe_card else kind
+        if source not in kinds:  # no shoes cut out (no segmenter yet): the whole photos
+            source = kind
+        samples: Samples | None = kinds[source]
+        if source in sample_garments and samples is not None:
+            samples = _of_garment(samples, sample_garments[source], card_garments)
+        if samples is not None:
+            match[kind] = _nearest(card, samples)
     return match
 
 
@@ -122,16 +131,22 @@ async def _samples(current: Profile, model: Encodes) -> dict[str, Samples]:
 
 
 async def _photo_samples(current: Profile) -> dict[str, Samples]:
-    """Liked and disliked photos, named by their original file names."""
+    """Liked and disliked photos, and their shoes cut out, named by the original file names."""
     kinds: dict[str, Samples] = {}
-    async with async_session() as session:
-        for kind in (LIKE_PHOTO, NEVER_PHOTO):
-            chosen = [p for p in current.photos if p.disliked == (kind == NEVER_PHOTO)]
-            stored = await repo.get_style_vectors(session, kind, [p.name for p in chosen])
-            if found := [p for p in chosen if p.name in stored]:
-                vectors = np.stack([np.frombuffer(stored[p.name], np.float32) for p in found])
-                kinds[kind] = (vectors, [p.label for p in found])
+    for kind in (LIKE_PHOTO, NEVER_PHOTO, *SHOES.values()):
+        disliked = kind in (NEVER_PHOTO, SHOES[NEVER_PHOTO])
+        chosen = [p for p in current.photos if p.disliked == disliked]
+        if rows := await _stored_rows(kind, chosen):
+            vectors = np.stack([np.frombuffer(blob, np.float32) for blob, _ in rows])
+            kinds[kind] = (vectors, [label for _, label in rows])
     return kinds
+
+
+async def _stored_rows(kind: str, photos: list[Photo]) -> list[tuple[bytes, str]]:
+    """``(vector, label)`` of each photo stored under ``kind`` (an empty vector: no shoes)."""
+    async with async_session() as session:
+        stored = await repo.get_style_vectors(session, kind, [p.name for p in photos])
+    return [(stored[p.name], p.label) for p in photos if stored.get(p.name)]
 
 
 async def _phrase_vectors(phrases: list[Phrase], model: Encodes) -> Samples:

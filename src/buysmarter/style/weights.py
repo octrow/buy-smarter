@@ -1,4 +1,4 @@
-"""The model files: Marqo-FashionSigLIP's own int8 ONNX export, pinned, downloaded once.
+"""The model files: Marqo-FashionSigLIP's own int8 ONNX export and a clothes segmenter, pinned.
 
 The spike (docs/spikes/clothing-taste-spike.md) measured int8 against fp32: cosine 0.988,
 top-10 overlap 8-9 of 10, 82 ms a photo. The files go to the user cache directory under
@@ -22,6 +22,13 @@ _TIMEOUT = httpx.Timeout(30.0, read=120.0)
 class WeightFile:
     path: str  # inside the model repo
     sha256: str
+    repo: str = REPO
+    revision: str = REVISION
+    local: str = ""  # its name under ``weights_dir()``; the repo path when empty
+
+    @property
+    def target(self) -> str:
+        return self.local or self.path
 
 
 FILES = {
@@ -37,6 +44,14 @@ FILES = {
         "tokenizer.json",
         "5bc9b16db0e7adf5c9a2bd57f8f9c8e6ebdaabe75679cc956d007f78036d5b4a",
     ),
+    # Clothes segmentation (SegFormer-B2, 18 labels, 105 MB): cuts the shoes out of a sample.
+    "segmenter": WeightFile(
+        "onnx/model.onnx",
+        "a93a8dac171b5c1fcc53632a8bfc180bfd9759ea69a3e207451bb07f76add54f",
+        repo="mattmdjaga/segformer_b2_clothes",
+        revision="584abc1e1d260e23c0fc627c5217a09b2b461046",
+        local="segformer_b2_clothes.onnx",
+    ),
 }
 
 
@@ -50,11 +65,11 @@ def weights_dir() -> Path:
 
 def missing() -> list[str]:
     """The model files not downloaded yet, by name."""
-    return [name for name, f in FILES.items() if not (weights_dir() / f.path).is_file()]
+    return [name for name, f in FILES.items() if not (weights_dir() / f.target).is_file()]
 
 
 async def download(client: httpx.AsyncClient | None = None) -> Path:
-    """Download the missing files (about 200 MB the first time); the directory holding them."""
+    """Download the missing files (about 300 MB the first time); the directory holding them."""
     directory = weights_dir()
     if not missing():
         return directory
@@ -62,7 +77,7 @@ async def download(client: httpx.AsyncClient | None = None) -> Path:
         async with httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=True) as own:
             return await download(own)
     for name in missing():
-        await _fetch(client, FILES[name], directory / FILES[name].path)
+        await _fetch(client, FILES[name], directory / FILES[name].target)
     return directory
 
 
@@ -70,7 +85,7 @@ async def _fetch(client: httpx.AsyncClient, file: WeightFile, target: Path) -> N
     """Stream one file to ``<target>.part``, hash it on the way, keep it only if it matches."""
     target.parent.mkdir(parents=True, exist_ok=True)
     part = target.with_name(target.name + ".part")
-    url = f"https://huggingface.co/{REPO}/resolve/{REVISION}/{file.path}"
+    url = f"https://huggingface.co/{file.repo}/resolve/{file.revision}/{file.path}"
     try:
         sha256 = await _stream(client, url, part)
     except httpx.HTTPError as exc:
