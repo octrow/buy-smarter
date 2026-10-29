@@ -53,6 +53,12 @@ async def _clear_key(provider: str) -> str:
     return f"Ключ {provider} удалён."
 
 
+def _serialized(checks: Callable[[], list[Check]]) -> list[Check]:
+    # Two Playwright sync instances launching at once in pool threads can crash in greenlet.
+    with _CHECKS_LOCK:
+        return checks()
+
+
 def unavailable_sources(checks: list[Check]) -> dict[str, str]:
     """Marketplaces a failing check turns off, with that check's hint."""
     browser = next((c for c in checks if c.name == OZON_BROWSER), None)
@@ -185,14 +191,11 @@ class SettingsScreen(QWidget):
             return
         self.recheck_button.setEnabled(False)
         # doctor_checks is blocking (asyncio.run, Playwright's sync API): run it off the loop.
-        self._check_job = self._runner.submit(asyncio.to_thread(self._serialized_checks))
+        # Never a bound method: the pool thread drops its call after the result is out, and a
+        # screen freed there would destroy its widgets off the GUI thread (a later segfault).
+        self._check_job = self._runner.submit(asyncio.to_thread(_serialized, self._checks))
         self._check_job.finished.connect(self._show_checks)
         self._check_job.failed.connect(self._checks_failed)
-
-    def _serialized_checks(self) -> list[Check]:
-        # Two Playwright sync instances launching at once in pool threads can crash in greenlet.
-        with _CHECKS_LOCK:
-            return self._checks()
 
     def _check_settled(self) -> None:
         self._check_job = None

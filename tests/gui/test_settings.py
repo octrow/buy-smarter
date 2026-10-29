@@ -1,6 +1,8 @@
 """Settings screen: doctor rows with hints, Ozon availability, the visible Ozon check."""
 
+import gc
 import threading
+import weakref
 
 import keyring
 from keyring.backends.fail import Keyring as NoBackend
@@ -198,6 +200,28 @@ def test_a_recheck_asked_during_a_check_runs_after_it(qtbot, runner):
     screen.recheck()  # e.g. a key saved while the start-up checks run
     release.set()
     qtbot.waitUntil(lambda: len(runs) == 2, timeout=WAIT_MS)
+
+
+def test_a_check_running_in_a_thread_does_not_keep_the_screen_alive(qtbot, runner):
+    # Freed last in the worker thread, the widget tree was destroyed off the GUI thread and
+    # Qt segfaulted later (1 in 3 full runs).
+    started, release = threading.Event(), threading.Event()
+
+    def checks():
+        started.set()
+        release.wait(WAIT_MS / 1000)
+        return []
+
+    screen = SettingsScreen(runner, checks=checks)
+    screen.recheck()
+    assert started.wait(WAIT_MS / 1000)
+    ref = weakref.ref(screen)
+    del screen
+    gc.collect()
+    try:
+        assert ref() is None
+    finally:
+        release.set()
 
 
 def test_ozon_check_without_a_browser_says_so_as_the_cli(qtbot, runner):
