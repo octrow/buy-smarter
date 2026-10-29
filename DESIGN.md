@@ -28,29 +28,41 @@ Every text/background pair is held to WCAG AA 4.5:1 by `tests/gui/test_theme.py`
 
 ## Components
 
-- Sidebar (220px): the app name with its cart icon, then screens in two groups, ПОКУПКИ
-  (Поиск, Отчёт, Прошлые поиски, История цен) and СЕРВИС (Настройки поиска, Состояние и
-  ключи). Group labels are 12/600 muted caps; items carry an 18px icon.
+- Sidebar (220px): the app name with its cart icon (accent, redrawn on a scheme change), then
+  screens in two groups, ПОКУПКИ (Поиск, Отчёт, Прошлые поиски, История цен) and СЕРВИС
+  (Категории, Настройки поиска, Стиль, Состояние и ключи). Group labels are 12/600 muted caps;
+  items carry an 18px icon.
 - Search screen: a 28/700 heading with a muted hint, then one form card (`QFrame#card`,
   radius 10): the 16px query with a search icon, city and budget side by side under 12px
   captions, the marketplaces with their live status, AI on the right, progress and buttons
   at the bottom with Найти last. Under it, up to three recent distinct queries from the saved
-  reports, each with a flat accent «Повторить».
+  reports, each with a flat accent «Повторить». A clarifying question replaces them: its
+  answers are a left-aligned list at regular weight, then the own-answer field.
 - Every field (line edit, combo box, spin box) is 36px tall.
 - Cards are `QGroupBox`es: surface, 1px border, radius 10, the 16/600 title inside the card
   at the top left; a card's own layout has zero margins (the QSS padding frames it).
 - Every screen opens with a 28/700 heading: the search asks «Что ищем?», the report shows the
-  query with the parsed constraints under it, the others show their nav title.
+  query with the parsed constraints under it, the others show their nav title. An empty state
+  keeps the heading and puts one muted line under it.
+- Everything fits the minimum window (960×640): a screen that does not fit scrolls instead of
+  squeezing its rows.
 - Tables: no vertical grid lines, rows ruled by a 1px border, left-aligned 12/600 headers.
 - One primary button per screen (`primary="true"`): Найти, Сохранить, Показать историю,
   Открыть на маркетплейсе. Everything else is secondary.
 - Statuses are labels with `state` = done/ok (green), running (accent), failed/missing (red),
   skipped/waiting (muted), warning (amber); set with `theme.set_state`.
 - Tables show every row (`gui/tables.py`); the page scrolls, never the table. Headers are
-  12/600 muted on the sidebar tone.
-- Axis scores pair the CLI's `score/max` text with an 8px bar, 160px wide.
+  12/600 muted on the sidebar tone, indented so cell text sits under them. A stretched text
+  column (a title) keeps at least 160px; past that the table scrolls sideways. The photo grid
+  on «Стиль» follows the same rule: as tall as its rows.
+- The report's best pick shows three figures at 24px with 12px captions on one line: the score
+  (700, accent), the confidence and the price (600). «Настроить» under the heading is an inline
+  link on the heading's vertical.
+- A category switch offers «Сбросить к автоматическому» only once the user has made a choice.
+- Axis scores pair the CLI's `score/max` text with an 8px bar, 160px wide, on a border-tone
+  track (visible on the dark card).
 - Past searches render the saved markdown in the theme (`style_report`): 20/16 bold headings,
-  accent links, ruled tables.
+  accent links, ruled tables; `_note_` lines muted, long hashes and URLs wrapped.
 - Light or dark follows the OS and switches live.
 
 ## Rules
