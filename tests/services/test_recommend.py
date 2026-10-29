@@ -1645,11 +1645,14 @@ async def test_summarize_top_passes_only_unverified_required_features(monkeypatc
     assert seen == {"k1": ["IPX7", "NFC"]}  # title "product k1" has neither
 
 
-async def test_review_pass_naive_fallback_confirms_feature_without_llm(monkeypatch):
+@pytest.mark.parametrize("use_llm", [False, True])
+async def test_review_pass_stem_checks_required_features_when_no_summary_runs(
+    monkeypatch, use_llm: bool
+):
     from market_sources.base import RawReview
 
     async def _boom(*args, **kwargs):
-        raise AssertionError("no LLM call when use_llm is False")
+        raise AssertionError("no summary call when summaries are off")
 
     monkeypatch.setattr(review_mod, "summarize_reviews", _boom)
     reviews = [
@@ -1662,7 +1665,7 @@ async def test_review_pass_naive_fallback_confirms_feature_without_llm(monkeypat
     out, summary, _note = await review_mod.review_pass(
         recommendation,
         {"kaspi": kaspi},
-        use_llm=False,
+        use_llm=use_llm,  # with LLM: --no-review-summary (finding #21)
         with_review_summary=False,
         required_features=["шумоподавление"],
     )

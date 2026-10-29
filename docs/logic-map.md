@@ -368,8 +368,7 @@ Module: `ranking/selection`
 Decides: whether reviews change the ranking.
 1. Kaspi only, top 6 Kaspi candidates: fetch reviews; discount review axes that look fake; penalize a high share of defect complaints; check counterfeit signals.
 2. With LLM and summaries on: summaries for the top 3 of any source, chosen before penalties. A summary needs at least 5 review texts, else `review_summary_note` says why. The LLM writes the text (pros, cons, complaints, verdict, red flags); Jev decides counterfeit, reliability and the required-feature verdicts (Jev fails → none of them this run). Counterfeit or serious reliability concerns cut the score; review verdicts on required features apply. A best pick the penalties lift from below the top 3 gets its own summary, applied the same way, up to 3 more times (#14); past that `review_summary_note` says it was not among the summarized.
-3. No LLM with required features: stem search over fetched reviews instead.
-With LLM and summaries off (`--no-review-summary`) required features are not checked in reviews at all.
+3. No summaries (no LLM, or `--no-review-summary`) with required features: stem search over fetched reviews instead.
 After each change the roles are picked again (step 18), so the best pick may change.
 With `original_only` the core then hides every candidate barred from roles (`ranking/selection.without_barred`): they leave the ranking, add to `rejected_count` and to the reason "suspected counterfeit" (shown as "подозрение на подделку"), and go to `RecommendResult.hidden`. All of them barred → nothing passed: the run takes the no-new-pick path with the OLX ads (step 21).
 The summary shown is the final best pick's.

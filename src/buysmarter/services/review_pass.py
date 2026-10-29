@@ -376,7 +376,7 @@ async def review_pass(
         outcome = outcomes.get(_candidate_key(recommendation.best), _NOT_SUMMARIZED)
         review_summary = outcome if isinstance(outcome, ReviewSummary) else None
         missing_note = outcome if isinstance(outcome, str) else None
-    if not use_llm and required_features:
+    elif required_features:  # no summaries (no LLM or --no-review-summary): stem checks
         checks_by_id = _naive_checks_by_id(recommendation, reviews_by_id, required_features)
         recommendation = _apply_requirement_checks(recommendation, checks_by_id)
     return recommendation, review_summary, missing_note
