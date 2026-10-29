@@ -39,6 +39,15 @@ Score 66/100 · Confidence 70% · 7,700 ₸
 The report goes on with a review summary, alternatives (best value, best budget), the top N with links and a
 "Used on OLX" section.
 
+The desktop app (`buysmarter gui`) opens the same reports and has a dark theme:
+
+<table>
+  <tr>
+    <td width="50%"><img src="./assets/readme/desktop-report.png" alt="Desktop app, light theme, Past searches screen: four real runs on the left (water flosser under 40,000, smartphone under 150,000, robot vacuum, adapalene cream); on the right the water flosser report, best pick Xiaomi Mijia Electric Flusher 2 MEO705 on Kaspi, 62 of 100, 15,562 tenge, with a table of axis scores and the reason for each."></td>
+    <td width="50%"><img src="./assets/readme/desktop-search-dark.png" alt="Desktop app, dark theme, Search screen: a query field, city and budget, marketplace checkboxes Kaspi, Ozon (unavailable without Chrome) and OLX, options for AI query parsing, review summary and known brands only, and the recent searches with a Repeat button."></td>
+  </tr>
+</table>
+
 ## Why not just ask a chatbot or sort by rating?
 
 - **Kazakh marketplaces.** General assistants (ChatGPT shopping, Perplexity, Google AI Mode) barely see Kaspi
