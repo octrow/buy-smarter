@@ -80,11 +80,11 @@ def test_the_group_is_on_every_report(qtbot, runner, result):
     assert screen.toggles.title() == "Как оцениваем эту категорию"
 
 
-def test_reset_is_disabled_without_a_user_choice(qtbot, runner, result):
-    screen = _screen(qtbot, runner, _result(result))
+def test_reset_is_absent_without_a_user_choice(qtbot, runner, result):
+    screen = _screen(qtbot, runner, _result(result))  # five rows of a greyed reset read as noise
 
     assert screen.toggles.resets["composition"].text() == RESET_TEXT
-    assert not screen.toggles.resets["composition"].isEnabled()
+    assert screen.toggles.resets["composition"].isHidden()
 
 
 def test_switching_off_writes_the_users_choice_and_offers_a_rerun(qtbot, runner, result):
@@ -98,6 +98,7 @@ def test_switching_off_writes_the_users_choice_and_offers_a_rerun(qtbot, runner,
     assert not box.isChecked()
     assert box.text() == "Состав — выключено вами"
     assert screen.toggles.resets["composition"].isEnabled()
+    assert not screen.toggles.resets["composition"].isHidden()
     stored = _stored(qtbot, runner, _CATEGORY)
     assert stored["capabilities"]["composition"]["user"] is False
     with qtbot.waitSignal(screen.rerun_requested, timeout=_WAIT_MS):
@@ -114,7 +115,7 @@ def test_reset_returns_to_the_automatic_value(qtbot, runner, result):
     box = screen.toggles.checkboxes["composition"]
     assert box.isChecked()
     assert box.text() == "Состав — включено обучением"
-    assert not reset.isEnabled()
+    assert reset.isHidden()  # back to automatic: nothing left to reset
 
 
 @pytest.mark.parametrize("found", [_PARENT])

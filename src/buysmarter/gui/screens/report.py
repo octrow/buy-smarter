@@ -139,7 +139,7 @@ def _metric(value: str, caption: str, name: str, hint: str = "") -> QWidget:
     box.setToolTip(hint)
     column = QVBoxLayout(box)
     column.setContentsMargins(0, 0, 0, 0)
-    column.setSpacing(SPACE["xs"] // 2)
+    column.setSpacing(SPACE["xs"])
     column.addWidget(_label(value, name=name))
     column.addWidget(_label(caption, role="caption"))
     return box
@@ -316,6 +316,7 @@ class ReportScreen(QScrollArea):
         # The switches close the page; this link at the top leads there.
         self.configure_link = QPushButton("Настроить")
         set_state(self.configure_link, "flat", "true")
+        self.configure_link.setObjectName("inlineLink")
         self.configure_link.setAccessibleName(f"Настроить: {TOGGLES_TITLE}")
         self.configure_link.clicked.connect(self._show_switches)
         assessed = QHBoxLayout()

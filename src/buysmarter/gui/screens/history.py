@@ -161,7 +161,9 @@ class HistoryScreen(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         if not entries:
             text = NO_HISTORY.format(term=term) if term else NOTHING_TRACKED
-            layout.addWidget(QLabel(text, wordWrap=True))
+            empty = QLabel(text, wordWrap=True)
+            set_state(empty, "role", "muted")  # as «Прошлые поиски» says it has none
+            layout.addWidget(empty)
         elif term:
             for entry in entries:
                 layout.addWidget(_history_group(entry))

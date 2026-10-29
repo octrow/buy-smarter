@@ -80,6 +80,9 @@ class CapabilityToggles(QGroupBox):
 
     def _build_row(self, name: str) -> QWidget:
         box, reset = QCheckBox(), QPushButton(RESET_TEXT)
+        keep = reset.sizePolicy()
+        keep.setRetainSizeWhenHidden(True)  # the row keeps its height when the reset appears
+        reset.setSizePolicy(keep)
         box.clicked.connect(lambda checked, n=name: self._write(n, checked))
         reset.clicked.connect(lambda _=False, n=name: self._write(n, None))
         self.checkboxes[name], self.resets[name] = box, reset
@@ -100,7 +103,8 @@ class CapabilityToggles(QGroupBox):
         reset.setAccessibleName(f"{RESET_TEXT}: {state.label}")
         enabled = self._runner is not None
         box.setEnabled(enabled)
-        reset.setEnabled(enabled and state.user is not None)
+        reset.setEnabled(enabled)
+        reset.setVisible(state.user is not None)  # absent, not greyed: nothing to reset yet
         if not enabled:
             box.setToolTip(NO_RUNNER_HINT)
 

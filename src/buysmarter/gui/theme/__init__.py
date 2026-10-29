@@ -43,6 +43,8 @@ _CARD_TITLE_INSET_PX = 2
 _SPIN_TEXT_PX = 19
 # A hint in a spin box reads as a line edit's placeholder: the text at half alpha (Qt's #AARRGGBB).
 _PLACEHOLDER_ALPHA = "80"
+# The item delegate insets cell text this far past the QSS padding; headers add it to line up.
+_CELL_TEXT_INSET_PX = 3
 # Pages stop growing here: on a wide monitor a line of text or a table row stays readable.
 CONTENT_MAX_WIDTH = 1200
 
@@ -136,11 +138,13 @@ QFrame#recent:hover {{ border-color: {p["accent"]}; }}
 QFrame#recent QLabel {{ background: transparent; }}
 QPushButton[flat="true"] {{ background: transparent; border: 1px solid transparent; color: {p["accent"]}; }}
 QPushButton[flat="true"]:hover {{ background: {p["accent_soft"]}; }}
+QPushButton#inlineLink {{ padding-left: 0; padding-right: 0; }}  /* starts on the text's vertical */
+QPushButton#inlineLink:hover {{ background: transparent; text-decoration: underline; }}
 QLabel[role="muted"] {{ color: {p["text_muted"]}; }}
 QLabel[role="caption"] {{ color: {p["text_muted"]}; font-size: {t["caption"]}px; }}
 QLabel#bestTitle {{ font-size: {t["title"]}px; font-weight: 600; }}
 QLabel#bestScore {{ font-size: {t["display"]}px; font-weight: 700; color: {p["accent"]}; }}
-QLabel#bestPrice {{ font-size: {t["display"]}px; font-weight: 600; }}
+QLabel#bestPrice, QLabel#bestConfidence {{ font-size: {t["display"]}px; font-weight: 600; }}
 QLabel[state="done"], QLabel[state="ok"] {{ color: {p["ok"]}; font-weight: 600; }}
 QLabel[state="running"] {{ color: {p["accent"]}; font-weight: 600; }}
 QLabel[state="failed"], QLabel[state="missing"] {{ color: {p["danger"]}; font-weight: 600; }}
@@ -179,13 +183,13 @@ QCheckBox:focus {{ color: {p["accent"]}; }}
 QTableView {{ background: {p["surface"]}; alternate-background-color: {p["window"]}; border: 1px solid {p["border"]}; border-radius: {r}px; selection-background-color: {p["accent_soft"]}; selection-color: {p["text"]}; outline: 0; }}
 QTableView::item {{ padding: {s["sm"]}px {s["md"]}px; border-bottom: 1px solid {p["border"]}; }}
 QTableView::item:hover {{ background: {p["sidebar"]}; }}
-QHeaderView::section {{ background: {p["sidebar"]}; color: {p["text_muted"]}; border: none; border-bottom: 1px solid {p["border"]}; padding: {s["sm"]}px {s["md"]}px; font-size: {t["caption"]}px; font-weight: 600; }}
+QHeaderView::section {{ background: {p["sidebar"]}; color: {p["text_muted"]}; border: none; border-bottom: 1px solid {p["border"]}; padding: {s["sm"]}px {s["md"]}px {s["sm"]}px {s["md"] + _CELL_TEXT_INSET_PX}px; font-size: {t["caption"]}px; font-weight: 600; }}
 QTableCornerButton::section {{ background: {p["sidebar"]}; border: none; }}
 /* Fusion draws the descending ("down-arrow") indicator as ▲; people read ▲ as ascending. */
 QHeaderView::up-arrow {{ image: url("{(_ASSETS / "arrow-up.svg").as_posix()}"); width: 10px; height: 10px; }}
 QHeaderView::down-arrow {{ image: url("{(_ASSETS / "arrow-down.svg").as_posix()}"); width: 10px; height: 10px; }}
 
-QProgressBar {{ background: {p["sidebar"]}; border: none; border-radius: 4px; height: 8px; max-height: 8px; text-align: right; }}
+QProgressBar {{ background: {p["border"]}; border: none; border-radius: 4px; height: 8px; max-height: 8px; text-align: right; }}
 QProgressBar::chunk {{ background: {p["accent"]}; border-radius: 4px; }}
 QProgressBar[level="low"]::chunk {{ background: {p["warning"]}; }}
 QProgressBar[level="high"]::chunk {{ background: {p["ok"]}; }}
