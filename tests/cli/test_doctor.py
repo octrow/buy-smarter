@@ -139,9 +139,9 @@ def test_style_row_names_the_extra_when_it_is_missing(monkeypatch):
 def test_style_row_says_the_model_downloads_on_first_use(monkeypatch, tmp_path):
     monkeypatch.setattr(doctor.style, "available", lambda: True)
     monkeypatch.setattr(doctor.weights, "weights_dir", lambda: tmp_path)
-    assert doctor.style_check() == Check(
-        doctor.STYLE, True, "", "model downloads on first use (~200 MB)"
-    )
+    check = doctor.style_check()
+    assert check[:4] == (doctor.STYLE, True, "", "model downloads on first use (~200 MB)")
+    assert "МБ" in check.app_detail  # the app says it in Russian
 
 
 def test_style_row_shows_where_the_model_is(monkeypatch, tmp_path):

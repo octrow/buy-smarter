@@ -5,9 +5,11 @@ import signal
 import subprocess
 
 from PySide6.QtCore import QObject, Qt, QTimer
-from PySide6.QtWidgets import QApplication, QGroupBox
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtWidgets import QApplication, QGroupBox, QLabel
 
 from buysmarter.gui import app as gui_app
+from buysmarter.gui import theme
 from buysmarter.gui.bridge import USER_ERROR
 from buysmarter.gui.screens.search import SearchRun
 from tests.gui.conftest import WAIT_MS
@@ -222,6 +224,22 @@ def test_each_nav_item_has_an_icon_and_opens_its_screen(qtbot, runner, monkeypat
         assert not item.icon().isNull()
         window.sidebar.setCurrentItem(item)
         assert window.stack.currentIndex() == screens.index(item)
+
+
+def _colors(label: QLabel) -> set[str]:
+    image = label.pixmap().toImage()
+    pixels = (image.pixelColor(x, y) for x in range(image.width()) for y in range(image.height()))
+    return {c.name().upper() for c in pixels if c.alpha() == 255}
+
+
+def test_the_logo_follows_the_os_scheme(qtbot, runner, monkeypatch):
+    monkeypatch.setattr(gui_app.prefs, "get_all", _no_prefs)
+    window = gui_app.MainWindow(runner)
+    qtbot.addWidget(window)
+    logo = window.findChild(QLabel, "logo")
+    monkeypatch.setattr(theme, "current_palette", lambda: theme.DARK)
+    QGuiApplication.styleHints().colorSchemeChanged.emit(Qt.ColorScheme.Dark)
+    assert theme.DARK["accent"].upper() in _colors(logo)
 
 
 def test_opening_a_screen_selects_its_nav_item(qtbot, runner, monkeypatch, result):

@@ -98,3 +98,32 @@ def test_without_a_browser_ozon_is_left_out_and_the_rest_still_run():
 def test_an_injected_ozon_source_needs_no_browser():
     injected = object()
     assert collect.resolve_sources(["ozon"], None, injected, None) == {"ozon": injected}
+
+
+class _Ozon:
+    def __init__(self, titles: list[str] | None = None) -> None:
+        self.titles, self.closed = titles, False
+
+    async def search(self, query: str, budget: int | None = None):
+        from market_sources.base import RawProduct
+        from market_sources.ozon.browser import OzonSessionExpired
+
+        if self.titles is None:
+            raise OzonSessionExpired(403, "https://ozon.kz/api")
+        return [RawProduct(source="ozon", product_id=t, title=t, price=1000) for t in self.titles]
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+
+async def test_an_expired_session_is_set_aside_and_the_search_runs_anonymously(monkeypatch):
+    state = ozon_state_path()
+    state.write_text("{}")
+    anonymous = _Ozon(["Наушники Sony"])
+    monkeypatch.setattr(collect, "_ozon_source", lambda base_url: anonymous)
+
+    candidates, _rows = await collect._collect_ozon(_Ozon(), "наушники", None, None)
+
+    assert [c.title for c in candidates] == ["Наушники Sony"]
+    assert not state.exists() and state.with_name(f"{state.name}.expired").exists()
+    assert anonymous.closed

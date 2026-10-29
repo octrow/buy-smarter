@@ -124,13 +124,20 @@ def _scroll_top(window: object) -> None:
 
 def _grab_report(window: object, settle: Callable[[], None], out: Path) -> None:
     """The report as users see it after a search, full length, at both sizes."""
+    from buysmarter.capabilities import REGISTRY
+    from buysmarter.capabilities.provenance import capability_states
     from buysmarter.gui.screens.search import SearchRun
+    from buysmarter.knowledge.profile import ResolvedProfile
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # the repo root, for tests/
     from tests.gui.conftest import make_result
 
+    result = make_result()  # the fixture has no switches; a real search always has them
+    profile = ResolvedProfile(slug="irrigator")
+    switches = capability_states(REGISTRY, profile, result.constraints)
+    result = result.model_copy(update={"capabilities": switches})
     states = {"kaspi": "done", "ozon": "failed", "olx": "done"}
-    window.report.show_result(make_result(), SearchRun("ирригатор до 40000", True, states))
+    window.report.show_result(result, SearchRun("ирригатор до 40000", True, states))
     window._show_screen(window.report)
     for suffix, size in (("", _SIZE), ("-960x640", _SMALL)):
         window.resize(*size)

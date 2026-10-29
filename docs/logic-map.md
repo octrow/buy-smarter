@@ -167,6 +167,7 @@ Decides: which marketplaces this run queries.
 Branches:
 - The caller's list (default Kaspi) goes through every capability's `sources` hook, after the profile is known: used_only adds OLX to a used query ("б/у ноутбук"), once; used_market takes OLX out when the category switched the used market off (the user's choice outranks learning), unless the query is a used one. A source a capability took out is not "unavailable".
 - Ozon needs a real browser; none found → Ozon is left out and listed in `unavailable_sources`.
+- A saved Ozon session Ozon rejects (403, `OzonSessionExpired`) is renamed to `*.expired` and the search runs again without it on the bundled Chromium; with only Chrome installed Ozon fails and `ozon-setup` is needed.
 - Kaspi may go through a proxy (`kaspi_proxy`).
 Module: `services/collect`, `services/ozon_browser`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/flow`
 

@@ -18,6 +18,7 @@ from PySide6.QtGui import (
     QTextFormat,
     QTextFrameFormat,
     QTextLength,
+    QTextOption,
     QTextTable,
 )
 from PySide6.QtWidgets import (
@@ -52,7 +53,7 @@ def _report_item(path: Path) -> QListWidgetItem:
 
 
 # Markdown heading level -> (px, weight): h1 is the report's title, h2 its sections.
-# Bold, not DemiBold: rich text draws the variable Inter at 600 as regular.
+# Bold: DESIGN.md's past-search headings (20/16 bold).
 _HEADINGS = {1: (TYPE["title"], QFont.Weight.Bold), 2: (TYPE["subhead"], QFont.Weight.Bold)}
 _HEADING_DEFAULT = (TYPE["body"], QFont.Weight.Bold)
 
@@ -68,6 +69,7 @@ def style_report(doc: QTextDocument, p: dict[str, str]) -> None:
         if level := block.blockFormat().headingLevel():
             _style_heading(block, *_HEADINGS.get(level, _HEADING_DEFAULT))
         _recolor_links(block, p["accent"])
+        _mute_notes(block, p["text_muted"])
         if (table := QTextCursor(block).currentTable()) is not None:
             _style_table(table, p)
         block = block.next()
@@ -103,6 +105,25 @@ def _recolor_links(block: QTextBlock, color: str) -> None:
         it += 1
 
 
+def _mute_notes(block: QTextBlock, color: str) -> None:
+    """``_note_`` lines: Qt's markdown draws them underlined, like a link; show them muted,
+    as the report screen does (and there is no bundled italic to slant them with)."""
+    it = block.begin()
+    while not it.atEnd():
+        frag = it.fragment()
+        fmt = frag.charFormat()
+        if frag.isValid() and not fmt.isAnchor() and (fmt.fontUnderline() or fmt.fontItalic()):
+            cursor = QTextCursor(block.document())
+            cursor.setPosition(frag.position())
+            cursor.setPosition(frag.position() + frag.length(), QTextCursor.MoveMode.KeepAnchor)
+            muted = QTextCharFormat()
+            muted.setForeground(QColor(color))
+            muted.setFontUnderline(False)
+            muted.setFontItalic(False)
+            cursor.mergeCharFormat(muted)
+        it += 1
+
+
 def _style_table(table: QTextTable, p: dict[str, str]) -> None:
     fmt = table.format()
     fmt.setBorderBrush(QColor(p["border"]))
@@ -126,6 +147,10 @@ class SavedScreen(QWidget):
         self.reports.setTextElideMode(Qt.TextElideMode.ElideRight)
         self.reports.currentItemChanged.connect(self._show)
         self.view = QTextBrowser(openExternalLinks=True)
+        # A file hash or a long URL in a cell would push the page wider than the card; wrapped
+        # anywhere, only a 100%-wide table's 1px border is left over, not worth a scroll bar.
+        self.view.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
+        self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.empty = QLabel(_EMPTY, wordWrap=True)
         set_state(self.empty, "role", "muted")
         self.folder_button = QPushButton("Открыть папку")

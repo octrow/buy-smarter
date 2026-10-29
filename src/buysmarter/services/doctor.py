@@ -64,7 +64,8 @@ class Check(NamedTuple):
     """One ``doctor`` row: ``hint`` says what to do when it fails, ``detail`` is shown when ok.
 
     ``hint`` is for the terminal; ``app_hint`` says the same in Russian for the desktop app, with
-    what to click there instead of a command to type.
+    what to click there instead of a command to type. ``app_detail`` is ``detail`` in Russian,
+    for a detail that is prose rather than a path or a name.
     """
 
     name: str
@@ -72,6 +73,7 @@ class Check(NamedTuple):
     hint: str
     detail: str = ""
     app_hint: str = ""
+    app_detail: str = ""
 
 
 def _storage_check(url: str) -> Check:
@@ -132,8 +134,12 @@ def style_check() -> Check:
         app_hint = "Подбор одежды по вкусу выключен: в этой установке нет модуля стиля."
         return Check(STYLE, False, hint, app_hint=app_hint)
     if weights.missing():
-        return Check(STYLE, True, "", "model downloads on first use (~200 MB)")
-    return Check(STYLE, True, "", f"model in {weights.weights_dir()}")
+        app_detail = "модель скачается при первом добавлении фото (~200 МБ)"
+        return Check(
+            STYLE, True, "", "model downloads on first use (~200 MB)", app_detail=app_detail
+        )
+    where = weights.weights_dir()
+    return Check(STYLE, True, "", f"model in {where}", app_detail=f"модель в {where}")
 
 
 def doctor_checks() -> list[Check]:

@@ -261,3 +261,20 @@ def test_cancel_stops_after_the_current_batch_and_keeps_it(
     assert 16 <= kept < 40
     qtbot.waitUntil(lambda: screen.photos.count() == kept, timeout=WAIT_MS)
     assert not screen.progress.isVisible()
+
+
+def test_the_photo_grid_shows_every_row_and_never_scrolls_itself(qtbot):
+    from PySide6.QtGui import QIcon, QPixmap
+    from PySide6.QtWidgets import QListWidgetItem
+
+    from buysmarter.gui.screens.style import _photo_grid
+
+    grid = _photo_grid()
+    qtbot.addWidget(grid)
+    grid.resize(500, 100)
+    grid.show()
+    pixmap = QPixmap(96, 96)
+    for _ in range(14):  # several rows at this width
+        grid.addItem(QListWidgetItem(QIcon(pixmap), ""))
+    qtbot.waitUntil(lambda: grid.verticalScrollBar().maximum() == 0)
+    assert grid.height() > grid.gridSize().height() * 3

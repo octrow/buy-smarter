@@ -18,7 +18,7 @@ from market_sources.cities import kaspi_city_id, olx_city_id
 from market_sources.kaspi.client import KaspiClient
 from market_sources.kaspi.source import KaspiSource
 from market_sources.olx.source import OlxSource
-from market_sources.ozon.browser import OzonBrowser
+from market_sources.ozon.browser import OzonBrowser, OzonSessionExpired, ozon_state_path
 from market_sources.ozon.source import OzonSource
 
 from buysmarter import telemetry
@@ -421,6 +421,33 @@ async def _collect_kaspi(
 
 
 async def _collect_ozon(
+    source: ProductSource, category: str, book: BrandBook | None, budget: int | None
+) -> tuple[list[Candidate], list[ProductRow]]:
+    """``_ozon_pool``; a saved session Ozon rejects is set aside and the search runs again
+    anonymously on the bundled Chromium, which passes without one (gate run of 2026-10-21)."""
+    try:
+        return await _ozon_pool(source, category, book, budget)
+    except OzonSessionExpired:
+        _set_aside_ozon_session()
+        fresh = _ozon_source(get_settings().ozon_base_url)
+        if fresh is None:  # only Chrome, which needs a session: run `ozon-setup`
+            raise
+        logger.warning("ozon: saved session expired; set aside, searching without it")
+        try:
+            return await _ozon_pool(fresh, category, book, budget)
+        finally:
+            await aclose(fresh)
+
+
+def _set_aside_ozon_session() -> None:
+    """Rename the saved session (and its user-agent file) to ``*.expired``: kept, not used."""
+    state = ozon_state_path()
+    for path in (state, state.with_name(f"{state.name}.ua.json")):
+        if path.exists():
+            path.replace(path.with_name(f"{path.name}.expired"))
+
+
+async def _ozon_pool(
     source: ProductSource, category: str, book: BrandBook | None, budget: int | None
 ) -> tuple[list[Candidate], list[ProductRow]]:
     """Ozon: main search only, price-capped at ``budget`` (an uncapped

@@ -45,6 +45,7 @@ from buysmarter.gui.theme import (
     SPACE,
     TYPE,
     apply_theme,
+    bind_icon,
     icon,
 )
 from buysmarter.logsetup import new_run_id, setup_logging
@@ -302,8 +303,10 @@ def _side_panel(nav: QListWidget) -> QFrame:
 
 
 def _brand_row() -> QHBoxLayout:
-    logo = QLabel()
-    logo.setPixmap(icon(_LOGO_ICON, "accent").pixmap(_LOGO_PX, _LOGO_PX))
+    logo = _named(QLabel(), "logo")
+    bind_icon(
+        logo, lambda drawn: logo.setPixmap(drawn.pixmap(_LOGO_PX, _LOGO_PX)), _LOGO_ICON, "accent"
+    )
     row = QHBoxLayout()
     row.setContentsMargins(SPACE["lg"], 0, SPACE["lg"], SPACE["sm"])
     row.setSpacing(SPACE["sm"])

@@ -67,3 +67,17 @@ def test_a_rendered_report_takes_the_theme_sizes_and_link_color(qapp):
     assert title.intProperty(QTextFormat.Property.FontPixelSize) == TYPE["title"]
     assert section.intProperty(QTextFormat.Property.FontPixelSize) == TYPE["subhead"]
     assert link.isAnchor() and link.foreground().color().name().upper() == DARK["accent"].upper()
+
+
+def test_a_report_note_reads_muted_not_underlined_like_a_link(qapp):
+    from PySide6.QtGui import QTextDocument
+
+    from buysmarter.gui.screens.saved import style_report
+    from buysmarter.gui.theme import DARK
+
+    doc = QTextDocument()
+    doc.setMarkdown("_Ozon: ошибка — его предложений нет в отчёте._\n")
+    style_report(doc, DARK)
+    note = doc.begin().begin().fragment().charFormat()
+    assert not note.fontUnderline() and not note.fontItalic()
+    assert note.foreground().color().name().upper() == DARK["text_muted"].upper()

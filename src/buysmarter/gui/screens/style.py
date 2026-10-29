@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtGui import QIcon, QImageReader, QPixmap, QShowEvent
+from PySide6.QtGui import QIcon, QImageReader, QPixmap, QResizeEvent, QShowEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFileDialog,
@@ -133,8 +133,29 @@ def _thumbnail(path: Path) -> QIcon:
     return QIcon(QPixmap.fromImage(reader.read()))
 
 
+class _FitGrid(QListWidget):
+    """Tall enough for every row of photos: the page scrolls, never the grid (as tables.py)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        model = self.model()
+        for signal in (model.rowsInserted, model.rowsRemoved, model.modelReset):
+            signal.connect(self._fit)
+
+    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802 - Qt's name
+        super().resizeEvent(event)
+        self._fit()
+
+    def _fit(self) -> None:
+        cell = self.gridSize()
+        per_row = max(1, self.viewport().width() // cell.width())
+        rows = -(-self.count() // per_row)  # ceil
+        self.setFixedHeight(max(_PHOTOS_MIN_PX, rows * cell.height() + 2 * self.frameWidth()))
+
+
 def _photo_grid() -> QListWidget:
-    grid = QListWidget()
+    grid = _FitGrid()
     grid.setViewMode(QListView.ViewMode.IconMode)
     grid.setIconSize(QSize(_THUMB_PX, _THUMB_PX))
     grid.setResizeMode(QListView.ResizeMode.Adjust)
@@ -142,7 +163,6 @@ def _photo_grid() -> QListWidget:
     # A fixed cell with room for the «Нет» caption under the photo.
     grid.setGridSize(QSize(_THUMB_PX + SPACE["md"], _THUMB_PX + SPACE["xl"]))
     grid.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-    grid.setMinimumHeight(_PHOTOS_MIN_PX)
     grid.setAccessibleName("Фото-образцы")
     return grid
 

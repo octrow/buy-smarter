@@ -18,6 +18,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - «мужские кроссовки» kept only unisex and unmarked cards: the LLM parse wrote the audience as «мужской», and the filter, comparing it with «male», dropped every card marked for men. The parse's word is now mapped to men / women / kids.
 - Clothing profiles learned before `style` existed never got it: Jev asks a stored profile, once, about a capability added after it was classified.
 - The six style-brand searches went to the first six brands for any clothing, so sneaker brands crowded out jacket ones; the category's own brands now go first and other categories' last.
+- An expired saved Ozon session left Ozon out of every search (403) until `ozon-setup` was run again; it is now set aside (`*.expired`) and the search goes on without it in the bundled Chromium.
 - Official-store cards (adidas.kz, puma.kz) had no photo and got half of «Стиль»; their main photo is now read from the store page.
 
 ## [0.9.1] - 2026-10-27

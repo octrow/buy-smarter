@@ -22,7 +22,7 @@ from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.theme import SPACE, card_body, set_state
 from buysmarter.llm import keys
 from buysmarter.services import doctor
-from buysmarter.services.doctor import OZON_BROWSER, STORAGE, Check
+from buysmarter.services.doctor import OZON_BROWSER, STORAGE, STYLE, Check
 
 _CHECKS_LOCK = threading.Lock()
 CHECK_LABELS = {
@@ -30,6 +30,7 @@ CHECK_LABELS = {
     "LLM": "AI",
     OZON_BROWSER: "Браузер Ozon",
     "Ozon session": "Сессия Ozon",
+    STYLE: "Стиль одежды",
 }
 
 type OzonCheck = Callable[[], Coroutine[Any, Any, str]]
@@ -211,7 +212,9 @@ class SettingsScreen(QWidget):
             labels = (
                 QLabel(CHECK_LABELS.get(check.name, check.name)),
                 status,
-                QLabel(check.detail if check.ok else _hint(check), wordWrap=True),
+                QLabel(
+                    (check.app_detail or check.detail) if check.ok else _hint(check), wordWrap=True
+                ),
             )
             for col, label in enumerate(labels):
                 self.rows.addWidget(label, row, col, Qt.AlignmentFlag.AlignTop)

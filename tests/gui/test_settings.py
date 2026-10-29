@@ -48,6 +48,21 @@ def test_a_failing_row_shows_its_in_app_hint_when_it_has_one(qtbot, runner):
     assert screen.row_texts()["LLM"] == ("нет", "Добавьте ключ ниже")
 
 
+def test_the_style_row_reads_in_russian(qtbot, runner, monkeypatch):
+    monkeypatch.setattr(doctor.style, "available", lambda: True)
+    monkeypatch.setattr(doctor.weights, "missing", lambda: True)
+    checks = [doctor.style_check()]
+    screen = SettingsScreen(runner, checks=lambda: checks)
+    qtbot.addWidget(screen)
+    with qtbot.waitSignal(screen.checks_ready, timeout=WAIT_MS):
+        screen.recheck()
+    name = screen._row_labels[doctor.STYLE][0].text()
+    assert (name, screen.row_texts()[doctor.STYLE]) == (
+        "Стиль одежды",
+        ("ок", "модель скачается при первом добавлении фото (~200 МБ)"),
+    )
+
+
 def test_missing_ozon_browser_turns_ozon_off_in_search(qtbot, runner, monkeypatch):
     monkeypatch.setattr(doctor, "doctor_checks", lambda: _NO_BROWSER)
     window = gui_app.MainWindow(runner)
