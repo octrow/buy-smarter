@@ -121,7 +121,7 @@ def test_unchecked_composition_gets_partial_credit_and_con() -> None:
     axis = _axis(scored, "ingredient")
     assert axis.score == round(COMPOSITION_WEIGHTS["ingredient"] * 0.3, 2)
     assert "не проверен" in axis.explanation
-    assert any("состав не проверен: адапален?" == c for c in scored.cons)
+    assert any(c == "состав не проверен: адапален?" for c in scored.cons)
     assert "weak ingredient" not in scored.cons
 
 
