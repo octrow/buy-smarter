@@ -1,7 +1,7 @@
 """Category profile: one stored knowledge record read as books, capabilities and a parent.
 
 A profile lives in the same ``category_knowledge.schema_json`` as before (ADR-0005,
-docs/plans/2026-10-22-capabilities-phase1.md decision 1). New keys: ``capabilities``
+docs/plans.md, 2026-10-22-capabilities-phase1 decision 1). New keys: ``capabilities``
 (``{name: {enabled, params, set_by, user}}``), ``synonyms``, ``parent``, ``updated_by``,
 ``heal_checked``. Old records are read through an adapter: ``category_type ==
 composition_driven`` becomes the composition capability with the ingredient book as its
