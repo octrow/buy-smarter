@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-30
+
 ### Added
 
 - Desktop builds for Intel Macs (`…-macos-x64.dmg`) and ARM Linux (`buysmarter_<version>_arm64.deb`, `…-linux-arm64.tar.gz`, Ubuntu 24.04 or newer); Windows on ARM runs the x64 setup.
@@ -19,6 +21,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - A phone Kimovil does not know no longer outranks a known mediocre one: it counts as the weakest known index in the pool when that is below 50 («модели нет в рейтинге — как у худшей известной»); a model past the lookup cap or with a failed lookup stays neutral (#20).
 - Dedupe no longer merges another edition (S23 FE and S23, iPhone SE), another one-letter model or chip (S23 and S24, MacBook M2 and M3) or another RAM («8/256» and «12/256») across marketplaces (#13).
 - A query for a plain model («Samsung Galaxy S23») no longer ranks its editions (S23 FE, S23 Ultra) as the model asked for when the plain one is on sale; they get «другая модель». A query naming the edition is unchanged.
+- The settings screen's background check no longer holds the screen, so it is never freed off the GUI thread (a rare crash).
+
+### Security
+
+- CodeQL scans the Python code on every push; `SECURITY.md` names the disclosure steps and timelines.
 
 ## [0.10.0] - 2026-10-29
 
