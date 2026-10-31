@@ -36,6 +36,10 @@ _Avoid_: global capability, query feature
 Goods whose sale or delivery is limited (prescription medicines, alcohol, tobacco and vapes, weapons). The assistant still searches and warns before the results that buying or delivery may be restricted; it does not refuse.
 _Avoid_: banned, forbidden
 
+**Update channel**:
+Where updates come from: `code` takes every new commit on GitHub's main branch, `releases` only tagged releases. A git checkout follows `code` by default, every other install `releases`; the frozen desktop build can follow only releases.
+_Avoid_: branch (that is git's word), update source
+
 **Request intent**:
 What kind of request the user made, decided before any search. **Product**: names the goods ("мужские кроссовки 42"). **Need**: names a problem the goods solve ("шампунь от перхоти"); the need is passed on to capabilities. **Open**: names no goods ("подарок для мамы") and needs a clarification. **Multi**: names several goods to compare or buy together ("iPhone 15 или S24", "всё для новорождённого"); in v1 the user picks one to start with. **Service**: asks for a service, not goods ("ремонт телефона"); no search. **Unclear**: cannot be read; the user is asked to rephrase. Whether the goods are a restricted category is a separate flag, not an intent.
 _Avoid_: query type, mode

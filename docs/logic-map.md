@@ -430,6 +430,15 @@ Module: `services/price_tracking`
 Checks the environment: LLM route, browser for Ozon, store, sources, the clothing-style module (the `style` extra installed? its model downloaded? — about 300 MB on first use, pinned and checked by SHA-256, `style/weights`).
 Module: `services/doctor`
 
+### Updates
+
+`update` (CLI) and «О программе» (GUI) check GitHub and take what is newer, on one of two update channels: `code` (every commit on main) or `releases` (tagged releases). Settings live in `~/.config/buysmarter/update.json` (`BUYSMARTER_UPDATE_FILE`).
+- A git checkout (`uv run` from a clone, the default channel `code`): `git fetch`, then `git merge --ff-only` to `origin/main` or to the release tag. Held, with the reason shown, on a branch other than main, with uncommitted changes, or with unpushed commits.
+- A `uv tool` install (install.sh, default `releases`): `uv tool install --reinstall` with install.sh's spec (the release wheel, or main's tarball at the commit; that commit is saved, since the version number does not move). On Windows, or without `uv` on PATH, it only says to re-run the installer.
+- The frozen desktop build and a pip install: releases only, and only a link to the release page.
+- The GUI checks 5 s after start and every 6 hours when auto-update is on, and applies what it finds; the new code runs after «Перезапустить» (a checkout restarts through `uv run`, which syncs new dependencies). Without the network it says so and changes nothing.
+Module: `services/update`, `cli/update`, `gui/screens/about`
+
 ## Known gaps
 
 Short list; details and fixes are in the plan (number in brackets).

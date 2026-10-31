@@ -39,6 +39,7 @@ from buysmarter import local_store
 from buysmarter.cli.report import DEFAULT_TOP, save_report
 from buysmarter.gui.bridge import USER_ERROR, CoreRunner
 from buysmarter.gui.learning import CategoryLearning
+from buysmarter.gui.screens.about import AboutScreen
 from buysmarter.gui.screens.categories import CategoriesScreen
 from buysmarter.gui.screens.history import HistoryScreen
 from buysmarter.gui.screens.preferences import PreferencesScreen
@@ -65,6 +66,7 @@ from buysmarter.services.recommend import RecommendResult
 logger = logging.getLogger(__name__)
 
 _TITLE = "buy-smarter"
+_UPDATE_READY_NAV = "О программе •"  # the tooltip says: restart
 DESKTOP_ENTRY = "buysmarter"  # packaging/linux/buysmarter.desktop
 _MIN_SIZE = (960, 640)
 _SIDEBAR_WIDTH = 220
@@ -121,6 +123,8 @@ class MainWindow(QMainWindow):
         self.history = HistoryScreen(runner)
         self.saved = SavedScreen()
         self.settings = SettingsScreen(runner)
+        self.about = AboutScreen(runner)
+        self.about.update_ready.connect(self._mark_update_ready)
         self.settings.checks_ready.connect(self._apply_checks)
         self.search.report_ready.connect(self._show_report)
         self.search.open_report.connect(lambda: self._show_screen(self.report))
@@ -146,7 +150,10 @@ class MainWindow(QMainWindow):
                 ):
                     page = _scrolled(page)
                 index = self.stack.addWidget(page)
-                self.sidebar.addItem(_nav_item(title, icon_name, index))
+                item = _nav_item(title, icon_name, index)
+                self.sidebar.addItem(item)
+                if screen is self.about:
+                    self._about_item = item
         self.sidebar.currentItemChanged.connect(self._open_nav_item)
         self._show_screen(self.search)
         QGuiApplication.styleHints().colorSchemeChanged.connect(self._paint_nav_icons)
@@ -180,9 +187,15 @@ class MainWindow(QMainWindow):
                     ("Настройки поиска", "mdi6.tune-variant", self.preferences),
                     ("Стиль", "mdi6.hanger", self.style_profile),
                     ("Состояние и ключи", "mdi6.key-outline", self.settings),
+                    ("О программе", "mdi6.information-outline", self.about),
                 ),
             ),
         )
+
+    def _mark_update_ready(self, message: str) -> None:
+        """The new code runs after a restart: say so where it is seen from any screen."""
+        self._about_item.setText(_UPDATE_READY_NAV)
+        self._about_item.setToolTip(message)
 
     def _apply_checks(self, checks: list[Check]) -> None:
         self.search.set_unavailable(unavailable_sources(checks))
@@ -465,6 +478,7 @@ def run(argv: list[str] | None = None) -> int:
     previous_hook = install_excepthook(window)
     restore_sigint = quit_from_terminal(app)
     window.show()
+    window.about.start_auto()
     try:
         return app.exec()
     finally:

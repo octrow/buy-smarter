@@ -19,6 +19,7 @@ os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB}"
 os.environ["BUYSMARTER_PREFS_FILE"] = str(_TEST_ROOT / "legacy" / "prefs.json")
 os.environ["BUYSMARTER_KNOWLEDGE_DIR"] = str(_TEST_ROOT / "legacy" / "knowledge")
 os.environ["BUYSMARTER_STYLE_DIR"] = str(_TEST_ROOT / "style")
+os.environ["BUYSMARTER_UPDATE_FILE"] = str(_TEST_ROOT / "update.json")
 # The GUI tests run headless.
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 

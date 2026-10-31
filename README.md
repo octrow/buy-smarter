@@ -141,7 +141,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/oct
 
 The installer gets [uv](https://docs.astral.sh/uv/) (it brings its own Python), installs the latest release
 with the desktop app (`buysmarter gui`), offers the browser for Ozon and runs `buysmarter doctor`, which says what is missing and what that turns off.
-Re-run it to update; `sh -s -- --uninstall` removes it. Prefer to read it first? Download `install.sh`, read it,
+Update with `buysmarter update` (or the app's «О программе»: releases or every commit on main, auto-update on or off); `sh -s -- --uninstall` removes it. Prefer to read it first? Download `install.sh`, read it,
 then run `sh install.sh`. API keys and a proxy go in `~/.config/buysmarter/.env` (see [.env.example](.env.example)).
 
 **Desktop app without the terminal:** each release has a `.deb` for Ubuntu and ready-made builds for Windows, macOS and Linux.
