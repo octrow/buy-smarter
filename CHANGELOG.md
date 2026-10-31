@@ -4,6 +4,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-31
+
+### Added
+
+- «О программе» in the desktop app: the version, the install kind and links to GitHub; updates from the main branch (every commit) or from releases, switchable, automatic (at start and every 6 hours) or by hand, then «Перезапустить». A git clone fast-forwards and waits while it has uncommitted changes, unpushed commits or another branch open; a `uv tool` install reinstalls; the desktop builds link to the release page.
+- `buysmarter update`: the same from the terminal, with `--check`, `--channel code|releases` and `--auto/--no-auto`.
+- Any text in the desktop app can be selected and copied: labels select with the mouse (Ctrl+C or the right-click menu, in Russian), tables copy the selected cells as tab-separated rows that paste into a spreadsheet as a table.
+
 ## [0.11.1] - 2026-10-31
 
 ### Fixed
