@@ -256,9 +256,9 @@ Module: `services/collect`, `ranking/velocity`, `db/repo`
 Decides: which candidates are the product at all (drops a battery in a robot-vacuum search).
 It judges the search phrase without excluded-substance phrases ("шампунь", not "шампунь без сульфатов"); the same for OLX ads (step 14).
 1. Protected: candidates a capability's `relevance` hook names skip the filter (composition: a title naming a required substance).
-2. Heuristic: accessory markers in the title → drop.
+2. Heuristic: accessory markers in the title → drop. Goods for the category ("Таблетки для посудомоечных машин": the goods' word only after "для", in the title or Kaspi's leaf category) → drop (`for_the_category`).
 3. LLM pass (only with LLM and more left than the floor still needs): a title naming the queried model skips it (`names_query_model`); Jev scores each other title; below 0.25 → drop. If Jev fails, a fallback LLM returns a plain keep list with no threshold; if that fails too, everything stays.
-4. Floor: if fewer than 3 remain, protected ones included, the best-rated dropped ones come back.
+4. Floor: if fewer than 3 remain, protected ones included, the best-rated dropped ones come back; goods for the category never do.
 Every drop and restore is logged with its reason.
 Fails: fully fail-open.
 Module: `services/recommend`, `llm/relevance`, `llm/jev`, `capabilities/composition`, `capabilities/flow`

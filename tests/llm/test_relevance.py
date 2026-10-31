@@ -8,6 +8,7 @@ from buysmarter.llm.relevance import (
     accessory_reason,
     filter_relevant,
     filter_relevant_prompt,
+    for_the_category,
     relevance_questions,
 )
 
@@ -231,3 +232,23 @@ async def test_fail_closed_drops_all_on_out_of_range(monkeypatch) -> None:
     monkeypatch.setattr(rel, "generate", _fake_generate)
 
     assert await filter_relevant("робот пылесос", ["a", "b"], fail_open=False) == [False, False]
+
+
+# --- Goods FOR the category ("X для <category>"), keyless --------------------
+
+
+def test_goods_for_the_category_are_not_the_category() -> None:
+    category = "посудомойка 50 см высотой"
+    assert for_the_category(category, "Таблетки для посудомоечных машин Synergetic 100 шт")
+    # A title without "для": Kaspi's leaf category says what it is.
+    assert for_the_category(category, "Средства для посудомоечных машин")
+    assert not for_the_category(category, "Midea MDWT-617LWW белый")
+    assert not for_the_category(category, "Посудомоечные машины")
+    assert not for_the_category(category, "Посудомоечная машина для дачи")
+
+
+def test_only_the_categorys_product_words_count() -> None:
+    # "кошек" is who the food is for, not the goods: cat food "для кошек" stays.
+    assert not for_the_category("корм для кошек", "Royal Canin для стерилизованных кошек")
+    assert for_the_category("корм для кошек", "Миска для корма")
+    assert not for_the_category("чехол для iPhone 15", "Чехол для iPhone 15 силиконовый")

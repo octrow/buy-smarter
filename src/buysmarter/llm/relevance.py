@@ -137,6 +137,34 @@ def _wanted_markers(category_lower: str) -> set[str]:
     return carried.union(*(kind for kind in _SAME_KIND if kind & carried))
 
 
+_FOR = re.compile(r"(?<!\w)для(?!\w)")
+_STEM_TAIL = 3  # letters an inflection may change: "посудомойка" / "посудомоечных"
+FOR_THE_CATEGORY = "для"  # the drop reason; such goods are never restored to fill the pool
+
+
+def _product_stems(category: str) -> list[str]:
+    """Stems of the goods' own words: before the category's "для" ("корм для кошек": корм)."""
+    lowered = category.lower()
+    goods = lowered[: m.start()] if (m := _FOR.search(lowered)) else lowered
+    words = [w for w in re.findall(r"[^\W\d_]+", goods) if len(w) >= _CATEGORY_TOKEN_MIN]
+    return [w[: max(_CATEGORY_TOKEN_MIN, len(w) - _STEM_TAIL)] for w in words]
+
+
+def for_the_category(category: str, text: str) -> bool:
+    """``text`` (a title or a store's leaf category) names goods FOR the category, not it.
+
+    "Таблетки для посудомоечных машин" for "посудомойка": the goods' word comes only after
+    "для". Keyless: without AI a colloquial query finds only such consumables on Kaspi.
+    """
+    lowered = text.lower()
+    m = _FOR.search(lowered)
+    if m is None:
+        return False
+    stems = _product_stems(category)
+    before, after = lowered[: m.start()], lowered[m.end() :]
+    return any(s in after for s in stems) and not any(s in before for s in stems)
+
+
 def accessory_reason(category: str, title: str) -> str | None:
     """Return the accessory marker disqualifying ``title``, or None if it looks real.
 

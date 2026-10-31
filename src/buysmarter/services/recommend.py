@@ -47,10 +47,12 @@ from buysmarter.knowledge.profile import ResolvedProfile
 from buysmarter.llm.adapter import LlmConfigError, LlmError, current_route
 from buysmarter.llm.prompts import parse_query, parse_query_naive
 from buysmarter.llm.relevance import (
+    FOR_THE_CATEGORY,
     KEEP_THRESHOLD,
     USED_KEEP_THRESHOLD,
     accessory_reason,
     filter_relevant,
+    for_the_category,
 )
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.memory.prefs import BUDGET, CITY, as_budget
@@ -678,7 +680,12 @@ def _accessory_drops(
     kept: list[Candidate] = []
     dropped: list[Drop] = []
     for cand in candidates:
-        reason = accessory_reason(category, cand.title)
+        leaf = cand.category_path[-1] if cand.category_path else ""
+        reason = accessory_reason(category, cand.title) or (
+            FOR_THE_CATEGORY
+            if for_the_category(category, cand.title) or for_the_category(category, leaf)
+            else None
+        )
         if reason is None:
             kept.append(cand)
         else:
@@ -777,6 +784,8 @@ async def _filter_relevant_candidates(
     if use_llm and len(kept) > floor:
         kept, llm_dropped = await _llm_drops(kept, category, keep_threshold, fail_open=min_keep > 0)
         dropped.extend(llm_dropped)
-    pool, restored = _restore_min(kept, dropped, floor)
+    # Goods for the category are sure, not a guess: an empty pool beats a detergent pick.
+    restorable = [d for d in dropped if d[1] != FOR_THE_CATEGORY]
+    pool, restored = _restore_min(kept, restorable, floor)
     _log_drop_summary(dropped, restored, len(pool))
     return protected + pool

@@ -8,8 +8,35 @@ from buysmarter.ranking.models import Candidate
 from buysmarter.services import recommend as svc
 
 
-def _cand(pid: str, title: str, price: int = 20000, rating: float | None = None) -> Candidate:
-    return Candidate(source="kaspi", source_product_id=pid, title=title, price=price, rating=rating)
+def _cand(
+    pid: str,
+    title: str,
+    price: int = 20000,
+    rating: float | None = None,
+    path: list[str] | None = None,
+) -> Candidate:
+    return Candidate(
+        source="kaspi",
+        source_product_id=pid,
+        title=title,
+        price=price,
+        rating=rating,
+        category_path=path or [],
+    )
+
+
+async def test_goods_for_the_category_are_never_restored_to_fill_the_pool() -> None:
+    """Without AI "посудомойка" finds only detergents on Kaspi: none may become the pick."""
+    detergents = ["Бытовая химия", "Средства для посудомоечных машин"]
+    pool = [
+        _cand("1", "Таблетки для посудомоечных машин Synergetic", 2640, 4.9),
+        _cand("2", "Таблетки Finish Power 100 шт", 14200, 4.9, detergents),
+        _cand("3", "Капсулы для посудомоечных машин Fairy", 12796, 4.8),
+    ]
+
+    kept = await svc._filter_relevant_candidates(pool, "посудомойка 50 см высотой", use_llm=False)
+
+    assert kept == []
 
 
 async def test_heuristic_runs_without_llm() -> None:

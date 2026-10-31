@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 - "посудомоечная машина высотой до 50 см" searched full-size machines: a size limit only one form of the goods meets now puts that form in the search ("настольная посудомоечная машина").
 - No new product in budget and an unlearned category showed no OLX ads at all; the three cheapest relevant ads within budget now show.
+- Without AI "посудомойка до 50 см высотой" picked dishwasher tablets: goods for the category ("X для <category>", in the title or Kaspi's category) are dropped and never restored to fill the pool.
 
 ## [0.11.0] - 2026-10-30
 
