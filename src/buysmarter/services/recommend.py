@@ -87,6 +87,7 @@ from buysmarter.services.matching import (
     used_market_without_pick,
 )
 from buysmarter.services.review_pass import review_pass
+from buysmarter.services.size_search import size_limits
 from buysmarter.services.understanding import (
     NeedsClarification,
     NothingToSearch,
@@ -374,6 +375,7 @@ async def _collect(run: _Run, active: dict[str, ProductSource]) -> _Pool:
             book,
             constraints.budget_max,
             capabilities.searches(),
+            size_limits(constraints.required_features),
         )
     new_candidates, persist_rows = merge_new_goods(collected)
     with stage("official stores"):

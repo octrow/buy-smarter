@@ -194,7 +194,11 @@ async def test_new_and_used_relevance_passes_run_at_the_same_time(monkeypatch) -
     )
     run = SimpleNamespace(
         constraints=SimpleNamespace(
-            search_phrase="пылесос", city="almaty", budget_max=None, exclude_substances=[]
+            search_phrase="пылесос",
+            city="almaty",
+            budget_max=None,
+            exclude_substances=[],
+            required_features=[],
         ),
         profile=SimpleNamespace(brand_book=None, model_book=None),
         capabilities=capabilities,

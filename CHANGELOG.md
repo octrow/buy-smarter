@@ -4,7 +4,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Changed
+
+- A request with a size limit ("высотой до 50 см") collects a wider pool: Kaspi is searched again with its own size facet ("Высота: менее 75 см"), both pages it serves (24 cards instead of 12), and every Ozon card gets its specs, so no card wins only because it was never checked. "посудомойка высотой до 50 см" now passes 23 compact machines instead of 2.
+- The report says how many goods «Только известные бренды» dropped and that their brands are missing from the category's brand book.
+
 ### Fixed
+
+- Ozon's combined size spec ("Размер (ДхШхВ), см": "50х55х43,8") counts for a size limit.
 
 - "посудомоечная машина высотой до 50 см" rejected every card whose specs were read, the 44 cm cubes too, and kept only the unchecked ones: a size limit among the required features ("высотой до 50 см", "глубина не более 440 мм") is now compared as a number with the spec of that side, not looked up as text.
 

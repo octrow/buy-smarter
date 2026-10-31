@@ -53,6 +53,7 @@ DEFAULT_TOP = 8  # ranked candidates in a report's table (``search --top``)
 # aggregation, not display. Translate at render time only — an unknown key
 # (a reason shape this map hasn't caught up with yet) passes through as-is
 # rather than disappearing.
+_TRUSTED_ONLY_REASON = "unknown brand (trusted-brands-only)"
 _REASON_LABELS_RU = {
     "price exceeds budget": "дороже бюджета",
     "not available": "нет в наличии",
@@ -233,6 +234,17 @@ def brands_missing_note(result: RecommendResult) -> str | None:
     )
 
 
+def trusted_only_note(result: RecommendResult) -> str | None:
+    """How many goods «Только известные бренды» dropped: a narrow brand book hides real options."""
+    dropped = result.recommendation.rejected_reasons.get(_TRUSTED_ONLY_REASON, 0)
+    if not dropped:
+        return None
+    return (
+        f"«Только известные бренды» отсеяла {dropped}: их брендов нет в книге брендов категории. "
+        "Снимите галочку, чтобы увидеть их."
+    )
+
+
 def report_notes(result: RecommendResult, *, use_llm: bool, summary: bool) -> list[str]:
     """The notes under the request, in the console, the markdown report and the app alike."""
     notes = (
@@ -244,6 +256,7 @@ def report_notes(result: RecommendResult, *, use_llm: bool, summary: bool) -> li
         summary_note(result, use_llm=use_llm, asked=summary),
         ingredients_unchecked_note(result),
         brands_missing_note(result),
+        trusted_only_note(result),
     )
     return [note for note in notes if note]
 

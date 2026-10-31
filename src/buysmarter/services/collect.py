@@ -49,6 +49,7 @@ from buysmarter.services.matching import (
     title_matches_category,
 )
 from buysmarter.services.ozon_browser import channel, search_browser
+from buysmarter.services.size_search import SizeLimits, sized_kaspi_search
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,7 @@ ProductRow = tuple[RawProduct, dict[str, str], list[RawOffer]]
 # (main search + up to ~6 brand searches), so the top-N budgets are bumped a
 # little to give the new brand axis real candidates without going wild.
 _MAX_CARDS = 16  # Kaspi search hits to consider
+_MAX_CARDS_SIZED = 24  # with a size limit: both pages of the size-narrowed search
 _OFFERS_FOR = 8  # fetch Kaspi seller offers only for the top N (be gentle)
 _KASPI_DETAIL_CONCURRENCY = 4  # parallel per-product specs+offers fetches
 _BRAND_SEARCH_TOP_N = 2  # top cards per brand+alias search that actually match that brand
@@ -71,6 +73,9 @@ _BEST_VALUE_C_TIER_BRAND = "Xiaomi"  # always searched even though it's tier C
 # the top few cards, and only pay for spec pages on the very top handful.
 _OZON_MAX_CARDS = 8
 _OZON_SPECS_FOR = 4
+# A size limit is checked against specs, and a card without specs skips the check:
+# with one, every card gets its spec page, so unchecked cards do not win by default.
+_OZON_SPECS_FOR_SIZED = _OZON_MAX_CARDS
 
 # OLX is classifieds (one ad == one offer); used listings are interleaved among
 # many new ones across the whole ~50-result pool, and OlxSource serves specs
@@ -326,11 +331,20 @@ async def _kaspi_search_pool(
     city_id: str | None,
     book: BrandBook | None,
     extra_searches: list[tuple[str, list[str]]] | None,
+    limits: SizeLimits = (),
 ) -> tuple[list[RawProduct], list[RawProduct]]:
-    """Targeted (substance, then brand) hits and the rest of the main search, deduped."""
+    """Targeted (substance, then brand) hits and the rest of the main search, deduped.
+
+    With a size limit the size-narrowed pages lead the main search (``size_search``).
+    """
     stripped = strip_latin_tokens(category, book)
     products = await source.search(category, city=city_id)
     search_count = 1
+    if limits:
+        products = _dedupe_products(
+            await sized_kaspi_search(source, category, city_id, limits) + products
+        )
+        search_count += 1
     if stripped is not None:
         # Full-text search ANDs terms; a jargon token ("TWS") that never
         # appears in listing titles can zero out the main search entirely
@@ -361,7 +375,7 @@ async def _kaspi_search_pool(
     logger.info(
         "kaspi: %d searches issued (main+stripped+substance+brand), %d candidates gathered",
         search_count,
-        len(targeted) + len(rest[:_MAX_CARDS]),
+        len(targeted) + len(rest[: _MAX_CARDS_SIZED if limits else _MAX_CARDS]),
     )
     return targeted, rest
 
@@ -372,10 +386,13 @@ async def _collect_kaspi(
     city_id: str | None,
     book: BrandBook | None,
     extra_searches: list[tuple[str, list[str]]] | None = None,
+    limits: SizeLimits = (),
 ) -> tuple[list[Candidate], list[ProductRow]]:
     """Kaspi: brand/substance-targeted + main search, specs for all, offers for top N."""
-    targeted, rest = await _kaspi_search_pool(source, category, city_id, book, extra_searches)
-    main = rest[:_MAX_CARDS]
+    targeted, rest = await _kaspi_search_pool(
+        source, category, city_id, book, extra_searches, limits
+    )
+    main = rest[: _MAX_CARDS_SIZED if limits else _MAX_CARDS]
     top = targeted + main
     # Offer fetch (a real HTTP call each) is split evenly across the two
     # sub-pools instead of "first _OFFERS_FOR of the combined list": targeted
@@ -421,12 +438,16 @@ async def _collect_kaspi(
 
 
 async def _collect_ozon(
-    source: ProductSource, category: str, book: BrandBook | None, budget: int | None
+    source: ProductSource,
+    category: str,
+    book: BrandBook | None,
+    budget: int | None,
+    specs_for: int = _OZON_SPECS_FOR,
 ) -> tuple[list[Candidate], list[ProductRow]]:
     """``_ozon_pool``; a saved session Ozon rejects is set aside and the search runs again
     anonymously on the bundled Chromium, which passes without one (gate run of 2026-10-21)."""
     try:
-        return await _ozon_pool(source, category, book, budget)
+        return await _ozon_pool(source, category, book, budget, specs_for)
     except OzonSessionExpired:
         _set_aside_ozon_session()
         fresh = _ozon_source(get_settings().ozon_base_url)
@@ -434,7 +455,7 @@ async def _collect_ozon(
             raise
         logger.warning("ozon: saved session expired; set aside, searching without it")
         try:
-            return await _ozon_pool(fresh, category, book, budget)
+            return await _ozon_pool(fresh, category, book, budget, specs_for)
         finally:
             await aclose(fresh)
 
@@ -448,7 +469,11 @@ def _set_aside_ozon_session() -> None:
 
 
 async def _ozon_pool(
-    source: ProductSource, category: str, book: BrandBook | None, budget: int | None
+    source: ProductSource,
+    category: str,
+    book: BrandBook | None,
+    budget: int | None,
+    specs_for: int = _OZON_SPECS_FOR,
 ) -> tuple[list[Candidate], list[ProductRow]]:
     """Ozon: main search only, price-capped at ``budget`` (an uncapped
     relevance-ranked first page can sit entirely above it); specs (a browser
@@ -462,7 +487,7 @@ async def _ozon_pool(
     for index, product in enumerate(top):
         # Per-item guard: one browser hiccup must not discard the whole Ozon pool.
         specs: dict[str, str] = {}
-        if index < _OZON_SPECS_FOR:
+        if index < specs_for:
             specs, _ok = await _safe_specs(source, product.product_id)
         candidates.append(to_candidate(product, specs, [], book))
         rows.append((product, specs, []))
@@ -735,17 +760,22 @@ async def gather_sources(
     book: BrandBook | None,
     budget: int | None,
     extra_searches: list[tuple[str, list[str]]] | None = None,
+    limits: SizeLimits = (),
 ) -> dict[str, object]:
     """Run every active source's collector concurrently, isolating failures.
 
     ``city`` is a name; an unknown one searches the site's default (Almaty). Ozon gets no city.
+    ``limits``: the request's size limits, which widen Kaspi and give every Ozon card its specs.
     """
     coros: dict[str, Awaitable[object]] = {}
     if "kaspi" in active:
         kaspi_city = kaspi_city_id(city)
-        coros["kaspi"] = _collect_kaspi(active["kaspi"], category, kaspi_city, book, extra_searches)
+        coros["kaspi"] = _collect_kaspi(
+            active["kaspi"], category, kaspi_city, book, extra_searches, limits
+        )
     if "ozon" in active:
-        coros["ozon"] = _collect_ozon(active["ozon"], category, book, budget)
+        specs_for = _OZON_SPECS_FOR_SIZED if limits else _OZON_SPECS_FOR
+        coros["ozon"] = _collect_ozon(active["ozon"], category, book, budget, specs_for)
     if "olx" in active:
         coros["olx"] = _collect_olx(active["olx"], category, book, budget, olx_city_id(city))
     names = list(coros)

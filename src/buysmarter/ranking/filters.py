@@ -24,26 +24,59 @@ _DIM_LIMIT_RE = re.compile(
     re.IGNORECASE,
 )
 _NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)?")
+# Ozon gives every side in one spec: "Размер (ДхШхВ), см": "50х55х43,8".
+_COMBINED_KEY_RE = re.compile(r"\(([а-яё](?:\s*[хx×*]\s*[а-яё])+)\)", re.IGNORECASE)
+_TIMES_RE = re.compile(r"\s*[хx×*]\s*", re.IGNORECASE)
+_SIDE_LETTERS = {"высот": "в", "ширин": "ш", "глубин": "гд"}  # Д (длина) is the depth there
 _TO_CM = {"мм": 0.1, "см": 1.0, "м": 100.0}
+
+
+def size_limit(feature: str) -> tuple[str, float] | None:
+    """A size limit in a required feature: (side stem "высот"/"ширин"/"глубин", limit in cm)."""
+    match = _DIM_LIMIT_RE.search(feature)
+    if match is None:
+        return None
+    side, limit, unit = match.groups()
+    return side.lower(), to_cm(limit, unit or "см")
+
+
+def to_cm(number: str, unit: str) -> float:
+    """``number`` ("43,8") in ``unit`` ("мм", "см", "м") as centimetres."""
+    return float(number.replace(",", ".")) * _TO_CM[unit.lower()]
 
 
 def _dim_limit_met(feature: str, specs: dict[str, str]) -> bool | None:
     """Whether the side's spec is within the limit; None when the feature is no size limit
     or no spec gives that side (packaging sizes never count)."""
-    match = _DIM_LIMIT_RE.search(feature)
-    if match is None:
+    limit = size_limit(feature)
+    if limit is None:
         return None
-    side, limit, unit = match.groups()
-    limit_cm = float(limit.replace(",", ".")) * _TO_CM[(unit or "см").lower()]
+    side, limit_cm = limit
     for key, value in specs.items():
-        low_key = key.lower()
-        if not low_key.startswith(side.lower()) or "упаков" in low_key:
-            continue
+        size = _spec_side_cm(key.lower(), value.lower(), side)
+        if size is not None:
+            return size <= limit_cm
+    return None
+
+
+def _spec_side_cm(key: str, value: str, side: str) -> float | None:
+    """The size of ``side`` this spec gives, in cm: its own spec or a "(ДхШхВ)" one."""
+    if "упаков" in key:
+        return None
+    unit = next((u for u in ("мм", "см") if u in f"{key} {value}"), "см")
+    if key.startswith(side):
         number = _NUMBER_RE.search(value)
-        if number is None:
-            continue
-        spec_unit = next((u for u in ("мм", "см") if u in f"{low_key} {value.lower()}"), "см")
-        return float(number.group().replace(",", ".")) * _TO_CM[spec_unit] <= limit_cm
+        return to_cm(number.group(), unit) if number else None
+    combined = _COMBINED_KEY_RE.search(key)
+    if combined is None:
+        return None
+    letters = _TIMES_RE.split(combined.group(1))
+    numbers = _NUMBER_RE.findall(value)
+    if len(numbers) != len(letters):
+        return None
+    for letter, number in zip(letters, numbers, strict=True):
+        if letter in _SIDE_LETTERS.get(side, ""):
+            return to_cm(number, unit)
     return None
 
 

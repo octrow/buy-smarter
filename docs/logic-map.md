@@ -211,6 +211,7 @@ All sources run in parallel; one source failing returns nothing for it and the r
 
 **Kaspi**
 - main search by the search phrase; plus a search without Latin jargon if the phrase has it;
+- a size limit among the required features ("высотой до 50 см"): the search runs again with Kaspi's own size facet rows that fit the limit ("Высота: менее 75 см"), both pages Kaspi serves without a login; those cards lead the main ones and the card limit is 24 instead of 16; no facet that narrows → the plain second page;
 - extra searches (step 7) first, then brand searches from the brand book (tier A first);
 - targeted hits are kept apart from the main search and are not cut by its card limit;
 - specs for every card except apparel variant cards (no spec page); seller offers for 8 cards, 4 targeted + 4 main, a pool short of its half leaves the rest to the other;
@@ -219,13 +220,13 @@ All sources run in parallel; one source failing returns nothing for it and the r
 **Ozon**
 - one search with the budget as a server-side price cap;
 - no city;
-- only cards whose title matches the category; specs for the top 4 of 8.
+- only cards whose title matches the category; specs for the top 4 of 8, for all 8 with a size limit (a card without specs skips the check and would pass unchecked).
 
 **OLX**
 - search by category, by the jargon-free variant and by the head noun, in the query's city;
 - keep only cards that match the category, read as used, and are not "for parts".
 
-Module: `services/collect`, `services/matching`, `ranking/used_defects`
+Module: `services/collect`, `services/size_search`, `services/matching`, `ranking/used_defects`
 
 ### 9. Normalize
 
@@ -318,7 +319,7 @@ Pure: no DB, no LLM, no network.
 
 **Hard filters** (first failing check names the reason):
 over budget → excluded brand → unknown brand when trusted-only → not available → capability listing checks (other audience, another size in the title) → missing required feature (as capabilities adjust the list: composition drops a bare concentration) → capability content checks (required substance proven absent; an excluded substance named in the composition text; the size specs — width, length, profile, diameter, never "Размер упаковки" — say another size).
-Required features are checked only when the candidate has specs. A feature is matched as text in the title and spec values, except a size limit ("высотой до 50 см", "глубина не более 440 мм"): it is compared as a number with the spec of that side ("Высота": "43.8 см", "Высота, мм": "438"; packaging sizes never count); no spec for that side means the feature is missing. Ozon cards past the top 4, official-store candidates and apparel variant cards skip the check (they get an "unverified" con). Benchmark (step 15) fills specs for phones, which turns the check on.
+Required features are checked only when the candidate has specs. A feature is matched as text in the title and spec values, except a size limit ("высотой до 50 см", "глубина не более 440 мм"): it is compared as a number with the spec of that side ("Высота": "43.8 см", "Высота, мм": "438", Ozon's "Размер (ДхШхВ), см": "50х55х43,8" with Д as the depth; packaging sizes never count); no spec for that side means the feature is missing. Ozon cards past the top 4, official-store candidates and apparel variant cards skip the check (they get an "unverified" con). Benchmark (step 15) fills specs for phones, which turns the check on.
 "Proven absent" is decided per candidate: checked, the substance not detected, and a composition text present. Unchecked or no composition text is a data gap, not a rejection.
 Ingredient axis: substance present 25 (0.7 of it with an unknown or other concentration); unchecked 0.3 × 25 = 7.5 for every candidate, with the con "состав не проверен: <substance>?"; checked and absent 0.
 Style axis («Стиль»): the card's percentile in the pool by its nearest liked photo or «нравится» phrase (ties share a rank), less 0.15 for every standard deviation its nearest «нет» sample is closer than the pool's average, clamped to 0–1; no photo compared: half, "нет фото — не сравнивали". Its reason is the offer's own, so every row says it: the console and markdown «Оси» cell in brackets, the app's score tooltip (`cli/report.ROW_REASONS`).

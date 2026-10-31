@@ -835,6 +835,8 @@ def test_feature_present_compares_a_size_limit_with_the_side_spec():
     full_size = _candidate(specs={"Высота": "85 см"})
     in_mm = _candidate(specs={"Высота, мм": "438"})
     no_height = _candidate(specs={"Ширина": "42 см"})
+    ozon_combined = _candidate(specs={"Размер (ДхШхВ), см": "50 х 55 х 43,8"})
+    ozon_tall = _candidate(specs={"Размер (ДхШхВ), см": "50х55х59.5"})
 
     assert _feature_present("высотой до 50 см", kaspi_cube)
     assert _feature_present("высота не более 500 мм", ozon_cube)
@@ -842,6 +844,10 @@ def test_feature_present_compares_a_size_limit_with_the_side_spec():
     assert not _feature_present("высотой до 50 см", full_size)
     assert not _feature_present("высотой до 50 см", no_height)
     assert not _feature_present("шириной до 40 см", kaspi_cube)
+    assert _feature_present("высотой до 50 см", ozon_combined)
+    assert _feature_present("глубиной до 50 см", ozon_combined)
+    assert not _feature_present("шириной до 50 см", ozon_combined)
+    assert not _feature_present("высотой до 50 см", ozon_tall)
 
 
 def test_feature_present_waterproof_synonym_bridge():

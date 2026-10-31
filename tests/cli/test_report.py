@@ -653,6 +653,21 @@ def test_no_brand_knowledge_is_explained_in_the_markdown_and_the_console_as_the_
     assert brands_missing_note(_result()) is None
 
 
+def test_goods_dropped_by_trusted_only_are_counted_in_the_notes() -> None:
+    from buysmarter.cli.report import trusted_only_note
+
+    result = _result()
+    rec = result.recommendation.model_copy(
+        update={"rejected_reasons": {"unknown brand (trusted-brands-only)": 7}}
+    )
+    result = result.model_copy(update={"recommendation": rec})
+
+    note = trusted_only_note(result)
+    assert note is not None and "отсеяла 7" in note
+    assert note in " ".join(render_markdown(result, top=3).split())
+    assert trusted_only_note(_result()) is None
+
+
 def test_the_markdown_says_why_there_is_no_review_summary_as_the_app() -> None:
     md = render_markdown(_result(), top=3, use_llm=False)
 
