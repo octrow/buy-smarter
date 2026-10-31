@@ -4,6 +4,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Fixed
+
+- "посудомоечная машина высотой до 50 см" searched full-size machines: a size limit only one form of the goods meets now puts that form in the search ("настольная посудомоечная машина").
+- No new product in budget and an unlearned category showed no OLX ads at all; the three cheapest relevant ads within budget now show.
+
 ## [0.11.0] - 2026-10-30
 
 ### Added

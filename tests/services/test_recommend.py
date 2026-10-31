@@ -23,6 +23,7 @@ from buysmarter.services.matching import (
     notable_used_listings,
     strip_latin_tokens,
     unbranded_used_listings,
+    used_market_without_pick,
 )
 from buysmarter.services.recommend import NoNewPick, _filter_used, recommend
 
@@ -1443,6 +1444,28 @@ def test_notable_used_listings_skips_entirely_without_budget():
     )
 
     assert listings == []
+
+
+async def test_no_pick_and_no_brand_book_still_shows_the_cheapest_ads_in_budget():
+    """An unlearned category: no tiers to judge ads by, so the cheapest ads in budget show.
+
+    The ads come relevance-filtered (``_filter_used``), as in a run.
+    """
+    ads = [
+        _used_cand("olx", "u1", "Посудомоечная машина Hansa", 60000),
+        _used_cand("olx", "u2", "Посудомоечная машина настольная", 40000),
+        _used_cand("olx", "u3", "Посудомоечная машина Bosch", 120000),  # over budget
+        _used_cand("olx", "u4", "Посудомоечная машина Midea", 0),  # no price
+    ]
+    constraints = QueryConstraints(search_phrase="посудомоечная машина", budget_max=90000)
+
+    listings = await used_market_without_pick([], ads, constraints, None, None, use_llm=False)
+
+    assert [(listing.title, listing.price) for listing in listings] == [
+        ("Посудомоечная машина настольная", 40000),
+        ("Посудомоечная машина Hansa", 60000),
+    ]
+    assert all(listing.standalone for listing in listings)
 
 
 def test_notable_used_listings_excludes_off_category_junk():

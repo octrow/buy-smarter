@@ -794,7 +794,35 @@ async def used_market_without_pick(
     knowledge = (book, model_book, model_owner)
     listings = await _used_listings(refs, None, used_candidates, constraints, knowledge, use_llm)
     budget = constraints.budget_max
-    return [listing for listing in listings if budget is None or listing.price <= budget]
+    within = [listing for listing in listings if budget is None or listing.price <= budget]
+    if within or book is not None or budget is None:
+        return within
+    # An unlearned category has no tiers to pick notable ads by: without this an OLX full of
+    # relevant ads in budget showed nothing ("посудомоечная машина" under 90 000).
+    return cheapest_used_listings(used_candidates, budget, constraints.search_phrase)
+
+
+def cheapest_used_listings(used: list[Candidate], budget: int, category: str) -> list[UsedListing]:
+    """The cheapest on-category ads within ``budget``, capped at ``_NOTABLE_USED_TOP_N``."""
+    fitting = sorted(
+        (
+            u
+            for u in used
+            if 0 < u.price <= budget and matches_category_or_stripped(u.title, category)
+        ),
+        key=lambda u: u.price,
+    )
+    return [
+        UsedListing(
+            title=u.title,
+            price=u.price,
+            city=u.specs.get("city"),
+            url=u.url,
+            con=_used_con(u),
+            standalone=True,
+        )
+        for u in fitting[:_NOTABLE_USED_TOP_N]
+    ]
 
 
 async def _used_listings(
