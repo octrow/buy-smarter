@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-31
+
 ### Fixed
 
 - "посудомоечная машина высотой до 50 см" searched full-size machines: a size limit only one form of the goods meets now puts that form in the search ("настольная посудомоечная машина").
