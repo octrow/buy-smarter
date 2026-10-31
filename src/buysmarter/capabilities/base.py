@@ -4,7 +4,7 @@ A capability is one optional way of judging offers (CONTEXT.md "Capability"): co
 benchmark, audience, size. Category capabilities are switched on by the category profile,
 request capabilities by the query. Every hook below is optional: the base class makes it
 neutral, and the core calls only the hooks a capability overrides
-(docs/plans.md, 2026-10-22-capabilities-phase1, "Хуки и точки вызова").
+(docs/PLAN.md, 2026-10-22-capabilities-phase1, "Хуки и точки вызова").
 
 ``ranking/`` never imports this package: the flow turns the active capabilities into
 plain weights, predicates and functions and passes those to ``rank()``.

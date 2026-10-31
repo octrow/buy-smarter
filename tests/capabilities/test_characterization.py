@@ -5,7 +5,7 @@ phase-1 change (``characterization.json``). Phase 1 moves today's category branc
 capabilities; with an exact category match the ranking must stay the same: order, scores,
 roles, rejection reasons, the best pick's pros and cons, axis explanations, used listings
 and flags. The expected values are never edited to make a refactor pass: a failure means the
-code changed behaviour (docs/plans.md, 2026-10-22-capabilities-phase1, step 1). A deliberate fix
+code changed behaviour (docs/PLAN.md, 2026-10-22-capabilities-phase1, step 1). A deliberate fix
 re-records only the entries it changes and names them in its commit (the dedupe fix #13
 re-recorded ``sneakers_official_store``: Puma RS-X is no longer merged into Smash).
 

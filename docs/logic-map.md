@@ -5,7 +5,7 @@ The map describes the code as it is today, step by step.
 Each step says what it decides, where the flow branches, and which module does it.
 
 Read `CONTEXT.md` first for the terms.
-Known gaps and open work are in `docs/plans.md`.
+Known gaps and open work are in `docs/PLAN.md`.
 
 Rule: if you change a step or a branch, update this file in the same commit.
 `tests/test_logic_map.py` checks that every `Module:` line points to a real module.

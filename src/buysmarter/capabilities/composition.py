@@ -5,7 +5,7 @@ the query names, protects title hits from the relevance filter, reads the compos
 (title first, then one LLM extraction over the pool), refuses a pool proven to lack the
 substance (``NoSubstanceMatch``), rejects products whose composition proves it absent,
 scores the ingredient axis and names generic equivalents (docs/PLAN.md "Composition-driven
-категории", docs/plans.md, 2026-10-22-composition-fixes).
+категории", docs/PLAN.md, 2026-10-22-composition-fixes).
 """
 
 import re

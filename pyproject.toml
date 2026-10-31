@@ -48,7 +48,7 @@ gui = [
     "qtawesome>=1.4.2",
 ]
 
-# Clothing taste (docs/plans.md, 2026-10-27-clothing-taste-mvp): an ONNX fashion model on the CPU.
+# Clothing taste (docs/PLAN.md, 2026-10-27-clothing-taste-mvp): an ONNX fashion model on the CPU.
 style = [
     "onnxruntime>=1.20",
     "tokenizers>=0.20",
