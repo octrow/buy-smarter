@@ -1,5 +1,6 @@
 """Fit tables: a stretched text column shares the spare width but never collapses."""
 
+from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import QTableWidgetItem
 
 from buysmarter.gui.tables import TEXT_FLOOR_PX, FitTableWidget, stretch_column
@@ -32,3 +33,18 @@ def test_a_narrow_table_scrolls_sideways_instead_of_collapsing_the_title(qtbot):
     qtbot.waitUntil(lambda: table.horizontalScrollBar().maximum() > 0)
     assert table.horizontalHeader().sectionSize(0) == TEXT_FLOOR_PX
     assert table.horizontalScrollBar().maximum() > 0
+
+
+def test_ctrl_c_copies_the_selected_cells_as_tab_separated_rows(qtbot, qapp):
+    table = FitTableWidget(2, 2)
+    for row, column, text in [(0, 0, "a"), (0, 1, "b"), (1, 0, "c"), (1, 1, "d")]:
+        table.setItem(row, column, QTableWidgetItem(text))
+    qtbot.addWidget(table)
+    table.show()
+    qtbot.waitExposed(table)
+    table.selectAll()
+    table.activateWindow()
+    table.setFocus()
+    qtbot.waitUntil(table.hasFocus)
+    qtbot.keySequence(table, QKeySequence.StandardKey.Copy)
+    assert qapp.clipboard().text() == "a\tb\nc\td"

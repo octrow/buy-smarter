@@ -14,6 +14,7 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
 )
+from PySide6.QtGui import QAction, QGuiApplication, QKeySequence
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
@@ -56,7 +57,26 @@ def _fit_hint(view: QTableView, base: QSize) -> QSize:
     return QSize(base.width(), header + rows + scroll + 2 * view.frameWidth())
 
 
+def _copy_selection(view: QTableView) -> None:
+    """The selected cells as tab-separated rows: pastes into a spreadsheet as a table."""
+    rows: dict[int, list[str]] = {}
+    for index in sorted(view.selectedIndexes(), key=lambda i: (i.row(), i.column())):
+        rows.setdefault(index.row(), []).append(str(index.data() or ""))
+    QGuiApplication.clipboard().setText("\n".join("\t".join(cells) for cells in rows.values()))
+
+
+def _add_copy(view: QTableView) -> None:
+    # Qt's own Ctrl+C copies the current cell only; this copies the whole selection.
+    copy = QAction("Копировать", view)
+    copy.setShortcut(QKeySequence.StandardKey.Copy)
+    copy.setShortcutContext(Qt.ShortcutContext.WidgetShortcut)
+    copy.triggered.connect(lambda: _copy_selection(view))
+    view.addAction(copy)
+    view.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+
+
 def _configure(view: QTableView) -> None:
+    _add_copy(view)
     view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
     view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
     view.setWordWrap(True)

@@ -294,3 +294,17 @@ def test_a_long_question_scrolls_instead_of_squeezing_at_the_minimum_window_size
     for button in window.search.clarify.option_buttons:
         assert button.height() >= button.minimumSizeHint().height()
     assert window.search.query.height() >= window.search.query.minimumSizeHint().height()
+
+
+def test_every_label_can_be_selected_and_a_link_still_opens(qtbot, qapp):
+    gui_app.make_text_copyable(qapp)
+    plain, link = QLabel("Цена 1 000 ₽"), QLabel('<a href="https://x">ozon</a>')
+    link.setOpenExternalLinks(True)
+    for label in (plain, link):
+        qtbot.addWidget(label)
+        label.show()
+        qtbot.waitExposed(label)
+    selectable = Qt.TextInteractionFlag.TextSelectableByMouse
+    assert plain.textInteractionFlags() & selectable
+    assert link.textInteractionFlags() & selectable
+    assert link.textInteractionFlags() & Qt.TextInteractionFlag.LinksAccessibleByMouse

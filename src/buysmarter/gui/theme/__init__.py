@@ -167,6 +167,7 @@ QLabel[state="warning"] {{ color: {p["warning"]}; font-weight: 600; }}
 QLabel[state="error"] {{ color: {p["danger"]}; }}
 
 QLineEdit, QSpinBox, QComboBox {{ background: {p["surface"]}; border: 1px solid {p["border_strong"]}; border-radius: {r}px; padding: {s["sm"] - 2}px {s["sm"]}px; selection-background-color: {p["accent_soft"]}; selection-color: {p["text"]}; min-height: {_CONTROL_TEXT_PX}px; }}
+QLabel {{ selection-background-color: {p["accent_soft"]}; selection-color: {p["text"]}; }}
 QLineEdit:hover, QSpinBox:hover, QComboBox:hover {{ border-color: {p["text_muted"]}; }}
 QLineEdit:focus, QSpinBox:focus, QComboBox:focus {{ border: 2px solid {p["accent"]}; padding: {s["sm"] - 3}px {s["sm"] - 1}px; }}
 QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled {{ color: {p["disabled"]}; background: {p["window"]}; border-color: {p["border"]}; }}

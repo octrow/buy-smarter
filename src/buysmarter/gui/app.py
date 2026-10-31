@@ -9,7 +9,16 @@ from collections.abc import Callable, Mapping
 from types import TracebackType
 from typing import Any, cast
 
-from PySide6.QtCore import QSize, QSocketNotifier, Qt, QTimer
+from PySide6.QtCore import (
+    QEvent,
+    QLibraryInfo,
+    QObject,
+    QSize,
+    QSocketNotifier,
+    Qt,
+    QTimer,
+    QTranslator,
+)
 from PySide6.QtGui import QCloseEvent, QFont, QGuiApplication, QIcon
 from PySide6.QtWidgets import (
     QApplication,
@@ -419,6 +428,28 @@ def quit_from_terminal(app: QApplication) -> Callable[[], None]:
     return undo
 
 
+class _SelectableLabels(QObject):
+    """Every label, built now or later, selects with the mouse; its links still open."""
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802 - Qt's name
+        if event.type() == QEvent.Type.Polish and isinstance(watched, QLabel):
+            flags = watched.textInteractionFlags() | Qt.TextInteractionFlag.TextSelectableByMouse
+            watched.setTextInteractionFlags(flags)
+        return False
+
+
+def make_text_copyable(app: QApplication) -> None:
+    """Any text on screen can be selected and copied: Ctrl+C or the right-click menu.
+
+    Tables copy their selection themselves (``tables.FitTableView``); fields already do.
+    """
+    app.installEventFilter(_SelectableLabels(app))
+    # The right-click menu of a label ("Копировать", "Выделить всё") is Qt's own: in Russian.
+    translator = QTranslator(app)
+    if translator.load("qtbase_ru", QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)):
+        app.installTranslator(translator)
+
+
 def run(argv: list[str] | None = None) -> int:
     """Show the main window and run the Qt event loop until it closes; returns the exit code."""
     app = cast(
@@ -428,6 +459,7 @@ def run(argv: list[str] | None = None) -> int:
     app.setDesktopFileName(DESKTOP_ENTRY)
     app.setWindowIcon(QIcon(str(ICON)))
     apply_theme(app)
+    make_text_copyable(app)
     runner = CoreRunner()
     window = MainWindow(runner)
     previous_hook = install_excepthook(window)
