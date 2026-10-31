@@ -16,6 +16,36 @@ from buysmarter.ranking.models import (
 _WATERPROOF_SYNONYMS = ("влагозащит", "водонепрониц", "waterproof")
 _IPX_FEATURE_RE = re.compile(r"^ipx\d$")
 
+# "высотой до 50 см", "глубина не более 440 мм": a size limit, checked against the
+# spec of that side ("Высота": "43.8 см", "Высота, см": "43.8"), not as a substring.
+_DIM_LIMIT_RE = re.compile(
+    r"(высот|ширин|глубин)\w*\s*(?:до|не более|не больше|максимум|max|≤|<=)\s*"
+    r"(\d+(?:[.,]\d+)?)\s*(см|мм|м)?\b",
+    re.IGNORECASE,
+)
+_NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)?")
+_TO_CM = {"мм": 0.1, "см": 1.0, "м": 100.0}
+
+
+def _dim_limit_met(feature: str, specs: dict[str, str]) -> bool | None:
+    """Whether the side's spec is within the limit; None when the feature is no size limit
+    or no spec gives that side (packaging sizes never count)."""
+    match = _DIM_LIMIT_RE.search(feature)
+    if match is None:
+        return None
+    side, limit, unit = match.groups()
+    limit_cm = float(limit.replace(",", ".")) * _TO_CM[(unit or "см").lower()]
+    for key, value in specs.items():
+        low_key = key.lower()
+        if not low_key.startswith(side.lower()) or "упаков" in low_key:
+            continue
+        number = _NUMBER_RE.search(value)
+        if number is None:
+            continue
+        spec_unit = next((u for u in ("мм", "см") if u in f"{low_key} {value.lower()}"), "см")
+        return float(number.group().replace(",", ".")) * _TO_CM[spec_unit] <= limit_cm
+    return None
+
 
 def _normalize_for_match(text: str) -> str:
     """Lowercase and drop hyphens/spaces so "IPX-7" / "IPX 7" / "ipx7" align."""
@@ -32,6 +62,9 @@ def _feature_present(feature: str, candidate: Candidate) -> bool:
     matching, not semantic. Upgrade path is LLM/embedding-based feature
     matching once this becomes the bottleneck.
     """
+    dim_met = _dim_limit_met(feature, candidate.specs)
+    if dim_met is not None:
+        return dim_met
     needle = _normalize_for_match(feature)
     haystacks = [candidate.title, *candidate.specs.values()]
     if any(needle in _normalize_for_match(h) for h in haystacks):

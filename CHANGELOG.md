@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Fixed
+
+- "посудомоечная машина высотой до 50 см" rejected every card whose specs were read, the 44 cm cubes too, and kept only the unchecked ones: a size limit among the required features ("высотой до 50 см", "глубина не более 440 мм") is now compared as a number with the spec of that side, not looked up as text.
+
 ## [0.12.0] - 2026-10-31
 
 ### Added

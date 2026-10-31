@@ -829,6 +829,21 @@ def test_feature_present_normalizes_hyphens_and_spaces():
     assert _feature_present("IPX7", spaced)
 
 
+def test_feature_present_compares_a_size_limit_with_the_side_spec():
+    kaspi_cube = _candidate(specs={"Высота": "44 см", "Ширина": "42 см"})
+    ozon_cube = _candidate(specs={"Высота, см": "43.8", "Высота упаковки, см": "60"})
+    full_size = _candidate(specs={"Высота": "85 см"})
+    in_mm = _candidate(specs={"Высота, мм": "438"})
+    no_height = _candidate(specs={"Ширина": "42 см"})
+
+    assert _feature_present("высотой до 50 см", kaspi_cube)
+    assert _feature_present("высота не более 500 мм", ozon_cube)
+    assert _feature_present("высотой до 50 см", in_mm)
+    assert not _feature_present("высотой до 50 см", full_size)
+    assert not _feature_present("высотой до 50 см", no_height)
+    assert not _feature_present("шириной до 40 см", kaspi_cube)
+
+
 def test_feature_present_waterproof_synonym_bridge():
     russian_synonym = _candidate(specs={"защита": "Влагозащита IPX 7"}, title="Xiaomi F300")
     no_digits_synonym = _candidate(
