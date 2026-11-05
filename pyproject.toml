@@ -67,7 +67,7 @@ dev = [
     "pytest-asyncio",
     "fakeredis>=2.40.0",
     "mypy==2.4.0",
-    "complexipy==8.0.1",
+    "complexipy==8.1.0",
     "pytest-cov==7.1.0",
     "pytest-qt>=4.5.0",
 ]
