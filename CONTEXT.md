@@ -29,7 +29,7 @@ One optional way of judging offers, switched on either by the category profile (
 _Avoid_: module (that word means a code module), plugin, trait, feature (that word means a required product property)
 
 **Category capability** / **Request capability**:
-The two levels of capabilities. A category capability belongs to the category profile and holds for every query in that category (composition, benchmark, counterfeit checks, official stores, used market). Official stores and the used market are on until learning or the user switches them off; a used query ("б/у ноутбук") keeps OLX whatever the used market switch says. A request capability comes from one query's own words and holds only for it (audience, size and dimensions, compatibility with a device, excluded substances, original only, used only, delivery deadline, country of origin). Both plug into the core the same way.
+The two levels of capabilities. A category capability belongs to the category profile and holds for every query in that category (composition, benchmark, counterfeit checks, official stores, used market, cross-market comparison). Official stores and the used market are on until learning or the user switches them off; a used query ("б/у ноутбук") keeps OLX whatever the used market switch says. A request capability comes from one query's own words and holds only for it (audience, size and dimensions, compatibility with a device, excluded substances, original only, used only, delivery deadline, country of origin). Both plug into the core the same way.
 _Avoid_: global capability, query feature
 
 **Restricted category**:
@@ -59,3 +59,31 @@ _Avoid_: category string, search query
 **Parent profile**:
 A broader category profile that a narrower one inherits from ("крем от акне" → "косметика"): books and capabilities come from the parent unless the child sets its own. Knowledge learned while using inherited books is saved to the profile that owns them.
 _Avoid_: related category, fallback category
+
+**Delivery route**:
+How an offer reaches the user: the marketplace's courier or parcel locker, a marketplace pickup point, direct international shipping, or cargo (a forwarder with a Chinese address, priced per kilogram or by volume). Each route has its own cost, time and effort. One offer can have several routes; it is shown with the route that gives the lowest landed cost, the others in the breakdown.
+_Avoid_: shipping method, delivery difficulty (effort is a property of the route)
+
+**Landed cost**:
+What the user actually pays to get an offer to the door: price plus delivery, import VAT or duty, marketplace fee and currency conversion loss, shown with each part. Computed per delivery route.
+_Avoid_: total price, final price
+
+**Authenticity level**:
+How sure the assistant is that an offer is the genuine product: **certainly original** (the brand's own site, in any country, or its flagship store on a marketplace), **likely original** (an authorized or official seller, or a low-counterfeit-risk brand, with no counterfeit signal), **unclear** (no counterfeit signal and no proof either way), **likely fake** (any counterfeit signal). A likely fake gets no role; "original only" hides likely fakes and nothing else.
+_Avoid_: suspected fake flag (the old yes/no), genuine score
+
+**Brand counterfeit risk**:
+How often a brand is faked on marketplaces: high (Adidas, Nike, Levi's), normal, or low (small brands nobody copies). Part of the brand book, learned with the category and overridable by the user. Low risk lifts an offer with no counterfeit signal to likely original; high risk turns a small gap below the original's price into likely fake.
+_Avoid_: brand tier (that is brand quality, not how often it is faked)
+
+**Cross-market comparison**:
+A category capability that also looks beyond Kaspi, Ozon and OLX (Wildberries, brands' own sites in China and elsewhere, Taobao, Tmall, Pinduoduo) and compares offers by landed cost, delivery route and authenticity level. Learning switches it on for clothes and shoes; for other categories the query's words switch it on ("где дешевле", "сравни площадки", "из Китая").
+_Avoid_: multi-market search, China mode
+
+**Body measurements**:
+The user's height, weight and chest, waist and inside-leg measurements, kept in the local store only. Used to fill seller questions; never shown in a report or written anywhere else.
+_Avoid_: size profile (a size is the label on the goods, not the body)
+
+**Seller question**:
+A ready message in Chinese and English to send a seller before buying from a Chinese source, filled with the user's body measurements: the size chart in centimetres, the parcel weight, proof of authenticity. Shown only when the size, weight or authenticity of a Chinese offer is not settled by its page.
+_Avoid_: seller template, chat script
