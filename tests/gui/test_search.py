@@ -44,7 +44,12 @@ def test_search_runs_with_progress_and_hands_the_result_to_the_report(qtbot, run
 
     got, run = blocker.args
     assert got is result
-    assert dict(run.source_states) == {"kaspi": "done", "ozon": "failed", "olx": "skipped"}
+    assert dict(run.source_states) == {
+        "kaspi": "done",
+        "ozon": "failed",
+        "olx": "skipped",
+        "wb": "skipped",
+    }
     assert screen.status["ozon"].text() == STATE_LABELS["failed"]
     assert calls == [
         (
@@ -128,6 +133,7 @@ def test_saved_city_and_budget_are_hints_so_the_query_still_wins(qtbot, runner, 
         "kaspi": True,
         "ozon": False,
         "olx": True,
+        "wb": False,
     }
 
 
@@ -267,7 +273,8 @@ def test_unknown_stored_marketplaces_leave_the_boxes_ticked(qtbot, runner):
     screen = SearchScreen(runner)
     qtbot.addWidget(screen)
     screen.apply_prefs({"marketplaces": "wildberries"})
-    assert all(box.isChecked() for box in screen.sources.values())
+    ticked = {name for name, box in screen.sources.items() if box.isChecked()}
+    assert ticked == {"kaspi", "ozon", "olx"}  # WB waits for the user's Chrome
 
 
 def test_a_typed_city_is_not_overwritten_by_preferences_arriving_later(qtbot, runner):

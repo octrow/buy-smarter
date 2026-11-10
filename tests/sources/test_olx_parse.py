@@ -83,7 +83,6 @@ def test_parse_offer_empty_when_no_price():
 def test_parse_specs_extracts_condition_new(detail_offer):
     specs = parse_specs(detail_offer)
     assert specs["condition"] == "Новый"
-    assert specs["seller_type"] == "private"
     assert specs["city"] == "Каргалы"
 
 
@@ -91,12 +90,12 @@ def test_parse_specs_used_and_business(search_payload):
     by_id = {o["id"]: o for o in search_payload["data"]}
     used = parse_specs(by_id[398822791])
     assert used["condition"] == "Б/у"
-    assert used["seller_type"] == "private"
 
     business = parse_specs(by_id[397121329])
     assert business["seller_type"] == "business"
     assert "condition" not in business  # service ad, no state param
 
 
-def test_parse_specs_always_has_seller_type():
-    assert parse_specs({"id": 1})["seller_type"] == "private"
+def test_parse_specs_names_a_seller_type_only_when_the_ad_says_it():
+    # market-sources 0.6.3: an unknown seller type is left out, not guessed as "private"
+    assert "seller_type" not in parse_specs({"id": 1})

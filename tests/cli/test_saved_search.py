@@ -8,7 +8,7 @@ from typer.testing import CliRunner
 from buysmarter.cli import main
 from buysmarter.memory import prefs
 from buysmarter.ranking.models import QueryConstraints
-from buysmarter.services.collect import ALL_SOURCES
+from buysmarter.services.collect import DEFAULT_SOURCES
 from buysmarter.services.recommend import RecommendResult
 
 runner = CliRunner()
@@ -57,12 +57,12 @@ def test_the_flag_beats_the_saved_marketplaces(calls, monkeypatch) -> None:
     assert calls[0]["sources"] == ["olx"]
 
 
-def test_with_nothing_saved_every_marketplace_is_searched(calls, monkeypatch) -> None:
+def test_with_nothing_saved_the_default_marketplaces_are_searched(calls, monkeypatch) -> None:
     _saved(monkeypatch)
 
     _recommend()
 
-    assert calls[0]["sources"] == list(ALL_SOURCES)
+    assert calls[0]["sources"] == list(DEFAULT_SOURCES)
 
 
 def test_the_saved_excluded_brands_join_the_query_s_own(calls, monkeypatch) -> None:

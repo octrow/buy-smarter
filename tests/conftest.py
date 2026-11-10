@@ -20,6 +20,8 @@ os.environ["BUYSMARTER_PREFS_FILE"] = str(_TEST_ROOT / "legacy" / "prefs.json")
 os.environ["BUYSMARTER_KNOWLEDGE_DIR"] = str(_TEST_ROOT / "legacy" / "knowledge")
 os.environ["BUYSMARTER_STYLE_DIR"] = str(_TEST_ROOT / "style")
 os.environ["BUYSMARTER_UPDATE_FILE"] = str(_TEST_ROOT / "update.json")
+# Never the developer's own Chrome: a WB the comparison adds finds nothing listening here.
+os.environ["WB_CDP_URL"] = "http://127.0.0.1:9"
 # The GUI tests run headless.
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 

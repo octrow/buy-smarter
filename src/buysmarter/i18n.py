@@ -15,7 +15,13 @@ from buysmarter.ranking.models import Candidate
 if TYPE_CHECKING:  # services.matching formats its notes with ``kzt``: no runtime import back
     from buysmarter.services.matching import UsedListing
 
-SOURCE_LABELS = {"kaspi": "Kaspi", "ozon": "Ozon", "olx": "OLX", "official": "Офиц. магазин"}
+SOURCE_LABELS = {
+    "kaspi": "Kaspi",
+    "ozon": "Ozon",
+    "olx": "OLX",
+    "official": "Офиц. магазин",
+    "wb": "WB",
+}
 USED_SECTION = "На OLX (частники)"
 TAG_CHECK_HINT = "попросите фото бирки и чек"
 _CHECKED_TIERS = frozenset({"A", "B"})  # brands worth faking: ask the seller for proof

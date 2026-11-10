@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import httpx
+from market_sources.wb.browser import START_HINT as WB_START_HINT
 
 from buysmarter.capabilities.provenance import assessed_entries, assessed_line
 from buysmarter.capabilities.used_only import USED
@@ -279,6 +280,7 @@ def failed_source_notes(result: RecommendResult) -> list[str]:
     """A line per marketplace whose search failed, as the app's «Не удалось проверить»."""
     return [
         f"{source_label(name)}: ошибка — его предложений нет в отчёте (подробности в логе)."
+        + (f" {WB_START_HINT}." if name == "wb" else "")
         for name in result.failed_sources
     ]
 

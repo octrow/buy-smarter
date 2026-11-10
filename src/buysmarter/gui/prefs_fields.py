@@ -17,7 +17,7 @@ from buysmarter.memory.prefs import EXCLUDED_BRANDS as EXCLUDED_BRANDS
 from buysmarter.memory.prefs import MARKETPLACES as MARKETPLACES
 from buysmarter.memory.prefs import as_budget as as_budget
 from buysmarter.memory.prefs import as_list as as_list
-from buysmarter.services.collect import ALL_SOURCES
+from buysmarter.services.collect import ALL_SOURCES, DEFAULT_SOURCES
 
 # Russian digit grouping, "40 000 ₸" (a no-break space), as ``i18n.kzt`` writes prices.
 MONEY_LOCALE = QLocale(QLocale.Language.Russian, QLocale.Country.Kazakhstan)
@@ -56,7 +56,10 @@ def checked_box(text: str) -> QCheckBox:
 
 
 def source_boxes() -> dict[str, QCheckBox]:
-    return {name: checked_box(SOURCE_LABELS[name]) for name in ALL_SOURCES}
+    boxes = {name: checked_box(SOURCE_LABELS[name]) for name in ALL_SOURCES}
+    for name in set(ALL_SOURCES) - set(DEFAULT_SOURCES):
+        boxes[name].setChecked(False)
+    return boxes
 
 
 def check_sources(boxes: dict[str, QCheckBox], stored: Any) -> None:

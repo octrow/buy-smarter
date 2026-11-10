@@ -20,6 +20,7 @@ from market_sources.kaspi.source import KaspiSource
 from market_sources.olx.source import OlxSource
 from market_sources.ozon.browser import OzonBrowser, OzonSessionExpired, ozon_state_path
 from market_sources.ozon.source import OzonSource
+from market_sources.wb.source import WbSource
 
 from buysmarter import telemetry
 from buysmarter.config import get_settings
@@ -73,6 +74,7 @@ _BEST_VALUE_C_TIER_BRAND = "Xiaomi"  # always searched even though it's tier C
 # Ozon uses a real browser (slow navigation) so the budgets are tighter: take
 # the top few cards, and only pay for spec pages on the very top handful.
 _OZON_MAX_CARDS = 8
+_WB_MAX_CARDS = 10  # a search page holds 100; keep the pool balanced with Ozon
 _OZON_SPECS_FOR = 4
 # A size limit is checked against specs, and a card without specs skips the check:
 # with one, every card gets its spec page, so unchecked cards do not win by default.
@@ -83,7 +85,10 @@ _OZON_SPECS_FOR_SIZED = _OZON_MAX_CARDS
 # from its search cache (no per-listing HTTP), so we scan the full pool.
 _OLX_MAX_CARDS = 400  # the relevance searches, then the cheapest-first pages
 
-ALL_SOURCES = ("kaspi", "ozon", "olx")
+ALL_SOURCES = ("kaspi", "ozon", "olx", "wb")
+# What a search asks when nothing is chosen: WB needs the user's Chrome running (the
+# cross-market comparison adds it, or the user ticks it).
+DEFAULT_SOURCES = ("kaspi", "ozon", "olx")
 
 
 def select_sources(names: Iterable[str], allowed: Sequence[str] = ALL_SOURCES) -> list[str]:
@@ -494,6 +499,21 @@ async def _ozon_pool(
     return candidates, rows
 
 
+async def _collect_wb(
+    source: ProductSource, category: str, book: BrandBook | None
+) -> tuple[list[Candidate], list[ProductRow]]:
+    """WB: one search through the user's Chrome; each card's offer comes with it (no extra nav)."""
+    products = await source.search(category)
+    on_category = [p for p in products if matches_category_or_stripped(p.title, category, book)]
+    candidates: list[Candidate] = []
+    rows: list[ProductRow] = []
+    for product in on_category[:_WB_MAX_CARDS]:
+        offers = await source.offers(product.product_id)
+        candidates.append(to_candidate(product, {}, offers, book))
+        rows.append((product, {}, offers))
+    return candidates, rows
+
+
 async def _budget_search(
     source: ProductSource,
     query: str,
@@ -600,6 +620,7 @@ def resolve_sources(
         "kaspi": lambda: kaspi or KaspiSource(KaspiClient(proxy=settings.kaspi_proxy)),
         "ozon": lambda: ozon or _ozon_source(settings.ozon_base_url),
         "olx": lambda: olx or OlxSource(),
+        "wb": WbSource,  # connects to the user's Chrome on its first search only
     }
     built = {name: factories[name]() for name in names if name in factories}
     return {name: source for name, source in built.items() if source is not None}
@@ -749,6 +770,8 @@ async def gather_sources(
     if "ozon" in active:
         specs_for = _OZON_SPECS_FOR_SIZED if limits else _OZON_SPECS_FOR
         coros["ozon"] = _collect_ozon(active["ozon"], category, book, budget, specs_for)
+    if "wb" in active:
+        coros["wb"] = _collect_wb(active["wb"], category, book)
     if "olx" in active:
         coros["olx"] = _collect_olx(
             active["olx"], category, book, budget, olx_city_id(city), product_type
@@ -759,10 +782,10 @@ async def gather_sources(
 
 
 def merge_new_goods(collected: dict[str, object]) -> tuple[list[Candidate], list[ProductRow]]:
-    """Combine Kaspi + Ozon collector output into one ranking pool + persist rows."""
+    """Combine Kaspi, Ozon and WB collector output into one ranking pool + persist rows."""
     candidates: list[Candidate] = []
     rows: list[ProductRow] = []
-    for name in ("kaspi", "ozon"):
+    for name in ("kaspi", "ozon", "wb"):
         result = collected.get(name)
         if not result:
             continue

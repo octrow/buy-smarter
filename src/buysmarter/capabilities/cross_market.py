@@ -13,6 +13,7 @@ from buysmarter.knowledge.profile import CapabilitySetting, ResolvedProfile
 from buysmarter.ranking.models import QueryConstraints
 
 CROSS_MARKET = "cross_market"
+WB = "wb"
 _WORDS_RE = re.compile(
     r"(?<!\w)(?:где\s+дешевле|сравни(?:ть)?\s+площадки|из\s+китая)(?!\w)", re.IGNORECASE
 )
@@ -32,6 +33,12 @@ class CrossMarket(Capability):
         if constraints.cross_market:  # the request outranks the category, as "б/у" does
             return CapabilitySetting(set_by="fallback")
         return profile.enabled(self.name)
+
+    def sources(self, ctx: CapabilityContext, selected: list[str]) -> list[str]:
+        """WB joins the marketplaces while the comparison is on."""
+        if self.setting(ctx.profile, ctx.constraints) and WB not in selected:
+            return [*selected, WB]
+        return selected
 
     def query(self, ctx: CapabilityContext, constraints: QueryConstraints) -> QueryConstraints:
         """On by the query's words; the words leave the search phrase and the product type."""

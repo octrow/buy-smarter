@@ -195,6 +195,7 @@ def to_candidate(
         category_path=list(getattr(product, "category_path", None) or []),
         delivery_date=best.delivery_date if best else None,
         delivery_cost=best.delivery_cost if best else None,
+        currency=product.currency or "KZT",
     )
 
 

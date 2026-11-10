@@ -1,6 +1,6 @@
 # buy-smarter
 
-An explainable shopping assistant for Kazakhstan: it ranks offers from Kaspi, Ozon and OLX for one user's budget, city and must-haves, and says what it could not verify.
+An explainable shopping assistant for Kazakhstan: it ranks offers from Kaspi, Ozon, OLX and Wildberries for one user's budget, city and must-haves, and says what it could not verify.
 
 ## Language
 

@@ -39,17 +39,33 @@ def _source(name: str, *prices: int) -> FakeSource:
     return FakeSource(name, cards)
 
 
-async def test_the_report_compares_each_marketplace_cheapest_to_the_door_first():
+async def test_the_report_compares_each_marketplace_cheapest_to_the_door_first(monkeypatch):
+    wb = _source("wb", 21_000)
+    monkeypatch.setattr("buysmarter.services.collect.WbSource", lambda: wb)
     result = await recommend(
         "худи где дешевле", use_llm=False, source=_source("kaspi", 25_000, 30_000), persist=False
     )
 
-    assert [(r.offer.candidate.source, r.cost.total) for r in result.markets] == [
-        ("kaspi", result.markets[0].offer.candidate.price)
-    ]
+    assert wb.searched  # the comparison brought WB in
+    assert [r.offer.candidate.source for r in result.markets] == ["wb", "kaspi"]
+    assert [r.cost.total for r in result.markets] == sorted(r.cost.total for r in result.markets)
 
 
 async def test_without_the_capability_there_is_no_comparison():
     result = await recommend("худи", use_llm=False, source=_source("kaspi", 25_000), persist=False)
 
     assert result.markets == []
+
+
+def test_wb_joins_the_marketplaces_only_while_the_comparison_is_on():
+    from buysmarter.capabilities.flow import pick_sources
+    from buysmarter.knowledge.profile import ResolvedProfile
+
+    profile = ResolvedProfile(slug="худи")
+    on = read_query(
+        REGISTRY, parse_query_naive("худи где дешевле"), query="худи где дешевле", use_llm=False
+    )
+    off = read_query(REGISTRY, parse_query_naive("худи"), query="худи", use_llm=False)
+
+    assert pick_sources(REGISTRY, profile, on, ["kaspi", "ozon"]) == ["kaspi", "ozon", "wb"]
+    assert pick_sources(REGISTRY, profile, off, ["kaspi", "ozon"]) == ["kaspi", "ozon"]

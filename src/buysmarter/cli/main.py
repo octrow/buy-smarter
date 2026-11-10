@@ -51,7 +51,7 @@ from buysmarter.services.auto_learn import (
     limit_note,
     over_limit,
 )
-from buysmarter.services.collect import ALL_SOURCES, select_sources
+from buysmarter.services.collect import DEFAULT_SOURCES, select_sources
 from buysmarter.services.doctor import (
     OZON_SAVED,
     doctor_checks,
@@ -241,7 +241,7 @@ async def recommend_pipeline(
     the search that ran, so a repeat asks nothing again.
     """
     saved_sources, excluded = await search_defaults()
-    sources = sources or saved_sources or list(ALL_SOURCES)
+    sources = sources or saved_sources or list(DEFAULT_SOURCES)
     parsed = with_excluded(await run_parse_request(query, use_llm), excluded)
     answer, clarify_round, budget_asked = None, 0, False
     learn_first = learn or _on_terminal()

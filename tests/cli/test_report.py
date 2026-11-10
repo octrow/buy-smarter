@@ -771,3 +771,15 @@ def test_the_cross_market_comparison_shows_each_marketplace_to_the_door() -> Non
     assert "## Сравнение площадок" in md
     assert "| Ozon | [Ирригатор 1](https://kaspi.kz/p/1) | 29 500 ₸ |" in md.replace(" ", " ")
     assert "цена 29 000 ₸ + доставка 500 ₸" in md.replace(" ", " ")
+
+
+def test_a_failed_wb_says_how_to_start_its_chrome() -> None:
+    from buysmarter.cli.report import failed_source_notes
+
+    result = _result(n_ranked=1)
+    result.failed_sources = ["wb", "ozon"]
+
+    wb, ozon = failed_source_notes(result)
+
+    assert "--remote-debugging-port=9222" in wb
+    assert "remote-debugging" not in ozon

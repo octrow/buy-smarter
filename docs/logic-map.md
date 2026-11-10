@@ -21,7 +21,7 @@ query text
   ├─ 2a clarify .............. ambiguous request → a question instead of a ranking
   ├─ 3  city ................. override > query > stored preference > Алматы
   ├─ 4  clean constraints .... capabilities read the query (audience, size, fit, dims, exclude, original_only); implied features out
-  ├─ 5  sources .............. Kaspi / Ozon (needs a browser) / OLX
+  ├─ 5  sources .............. Kaspi / Ozon (needs a browser) / OLX / WB (the user's Chrome; only when chosen or added by cross_market)
   ├─ 6  category profile ..... books, capabilities, who owns each; capabilities switched on;
   │                            a capability may ask (runs before step 5: no browser for a question)
   ├─ 7  extra searches ....... from capabilities (composition: substances)
@@ -222,6 +222,11 @@ All sources run in parallel; one source failing returns nothing for it and the r
 - one search with the budget as a server-side price cap;
 - no city;
 - only cards whose title matches the category; specs for the top 4 of 8, for all 8 with a size limit (a card without specs skips the check and would pass unchecked).
+
+**WB**
+- only when the user ticks it or `cross_market` adds it (`DEFAULT_SOURCES` leaves it out): it reads the site through the user's own Chrome over CDP (`market_sources.wb`, `$WB_CDP_URL`), which WB lets through where scripted HTTP and Playwright-launched browsers are refused;
+- one search; only cards whose title matches the category, the top 10; each card's offer (seller, price, delivery day) comes from the same search, no extra page;
+- prices in the currency the browser's region asks (`curr=kzt` for a KZ region); no Chrome listening → the source fails and the report says how to start it.
 
 **OLX**
 - search by category, by the product type when it differs ("посудомоечная машина" for "настольная посудомоечная машина": sellers seldom write the form), by the jargon-free variant and by the head noun, over the city's whole region (OLX `region_id`: Алматы with Алматинская область, so Коксай and Есик too; the city column says where); then up to 300 ads cheapest first (`search_cheapest`, free ones skipped) within the OLX category the category's and the product type's own hits share (a head noun's hits do not vote: "машина" brings washers): a broad query around a city has hundreds of ads and the relevance order shows ~50; the cards keep the order precise hits, cheapest pages, head-noun hits, and the first 400 stay;
