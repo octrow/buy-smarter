@@ -17,6 +17,10 @@ Intent = Literal["product", "need", "open", "multi", "service", "unclear"]
 Restricted = Literal["rx", "alcohol", "tobacco", "weapon"]
 
 
+# The source of offers read from a brand's own site (``services.official_stores``).
+OFFICIAL_SOURCE = "official"
+
+
 class QueryConstraints(BaseModel):
     """Hard + soft constraints extracted from a user request (CONTEXT.md "Request intent").
 
@@ -139,6 +143,8 @@ class Candidate(BaseModel):
     reference_price: int | None = None
     reference_kind: str | None = None  # "model" | "brand"
     # Sold by the brand itself or its official distributor/partner.
+    # The brand book's counterfeit risk for this brand: "high" | "normal" | "low" | None.
+    counterfeit_risk: str | None = None
     official_seller: bool = False
     # The marketplace's own category path ("Обувь > Мужская обувь > ..."), if any.
     category_path: list[str] = Field(default_factory=list)

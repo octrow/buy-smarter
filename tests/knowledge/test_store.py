@@ -555,3 +555,12 @@ async def test_a_switch_on_a_related_profile_binds_no_other_query_to_it(monkeypa
     assert acne.capabilities["used_market"].user is False
     assert hands.ingredient_book is None
     assert hands.capabilities["used_market"].user is False
+
+
+def test_merge_brand_books_takes_the_notes_counterfeit_risk() -> None:
+    base = BrandBook(tiers={"Adidas": "A"}, counterfeit_risk={"Adidas": "normal", "Puma": "high"})
+    overlay = BrandBook(counterfeit_risk={"adidas": "high"})
+
+    merged = merge_brand_books(base, overlay)
+
+    assert merged.counterfeit_risk == {"Adidas": "high", "Puma": "high"}

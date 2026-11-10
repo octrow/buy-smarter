@@ -19,6 +19,7 @@ from redis.asyncio import Redis
 
 from buysmarter.capabilities.provenance import assessed_entries
 from buysmarter.config import get_settings
+from buysmarter.ranking.authenticity import authenticity
 from buysmarter.ranking.models import ScoredCandidate
 from buysmarter.services.collect import ALL_SOURCES
 from buysmarter.services.matching import UsedListing
@@ -123,6 +124,7 @@ class Offer(BaseModel):
     pros: list[str]
     cons: list[str]
     axes: list[Axis]
+    authenticity: str  # CONTEXT.md "Authenticity level", in the report's words
 
     @classmethod
     def from_scored(cls, scored: ScoredCandidate) -> "Offer":
@@ -138,6 +140,7 @@ class Offer(BaseModel):
             confidence=scored.confidence,
             pros=scored.pros,
             cons=scored.cons,
+            authenticity=authenticity(scored).value,
             axes=[Axis(**a.model_dump()) for a in scored.axes],
         )
 

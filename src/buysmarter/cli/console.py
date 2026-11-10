@@ -46,6 +46,7 @@ from buysmarter.i18n import (
     source_label,
 )
 from buysmarter.llm.review_summary import ReviewSummary
+from buysmarter.ranking.authenticity import authenticity
 from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.matching import UsedListing
@@ -81,7 +82,8 @@ def _render_best(best: ScoredCandidate) -> None:
         f"🥇 [bold]{escape(title)}[/bold]  [dim]\\[{source_label(cand.source)}][/dim]\n"
         f"Баллы: [bold]{best.total_score:.0f}[/bold]/100   "
         f"Уверенность: [bold]{best.confidence:.0%}[/bold]\n"
-        f"Цена: [bold]{kzt(cand.price)}[/bold]"
+        f"Цена: [bold]{kzt(cand.price)}[/bold]\n"
+        f"Подлинность: {authenticity(best).value}"
     )
     if barred:
         header += "\n[bold red]все кандидаты под подозрением — проверьте вручную[/bold red]"
@@ -171,6 +173,7 @@ def _render_top(scored: list[ScoredCandidate], top: int) -> None:
     table.add_column("Баллы", justify="right")
     table.add_column("Оси")
     table.add_column("Бренд")
+    table.add_column("Подлинность")
     for i, s in enumerate(ranked, start=1):
         c = s.candidate
         # A barred candidate (suspicious price, dup-price-gap, mimicry, or a
@@ -186,6 +189,7 @@ def _render_top(scored: list[ScoredCandidate], top: int) -> None:
             f"{s.total_score:.0f}",
             axes_cell(s),
             escape(tier_cell(c)),
+            authenticity(s).value,
         )
     console.print(table)
     console.print(f"[dim]{axes_legend(ranked)}[/dim]")

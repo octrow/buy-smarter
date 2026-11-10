@@ -16,6 +16,8 @@ from collections.abc import Iterator
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 
 Tier = str  # "A" | "B" | "C"
+# How often a brand is faked on marketplaces (CONTEXT.md "Brand counterfeit risk").
+COUNTERFEIT_RISKS = frozenset({"high", "normal", "low"})
 
 
 class BrandBook(BaseModel):
@@ -32,6 +34,14 @@ class BrandBook(BaseModel):
     # Each canonical brand's official KZ store page listing this category
     # (``services.official_stores`` reads its JSON-LD for prices and products).
     official_stores: dict[str, str] = Field(default_factory=dict)
+    # Each canonical brand's counterfeit risk: "high" | "normal" | "low".
+    counterfeit_risk: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("counterfeit_risk")
+    @classmethod
+    def _known_risks_only(cls, risks: dict[str, str]) -> dict[str, str]:
+        """Risks come from LLM output: drop a value outside the three levels."""
+        return {b: r for b, r in risks.items() if r in COUNTERFEIT_RISKS}
 
     @field_validator("official_stores")
     @classmethod

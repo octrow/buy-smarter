@@ -73,7 +73,7 @@ How sure the assistant is that an offer is the genuine product: **certainly orig
 _Avoid_: suspected fake flag (the old yes/no), genuine score
 
 **Brand counterfeit risk**:
-How often a brand is faked on marketplaces: high (Adidas, Nike, Levi's), normal, or low (small brands nobody copies). Part of the brand book, learned with the category and overridable by the user. Low risk lifts an offer with no counterfeit signal to likely original; high risk turns a small gap below the original's price into likely fake.
+How often a brand is faked on marketplaces: high (Adidas, Nike, Levi's), normal, or low (small brands nobody copies). Part of the brand book, learned with the category and overridable by the user. Low risk lifts an offer with no counterfeit signal to likely original; high risk warns on every offer the brand does not sell itself and lets no outlet or sale word excuse a deep gap below the original's price. Price alone is weak evidence: outlets, sales, clearance and other markets sell genuine goods cheap.
 _Avoid_: brand tier (that is brand quality, not how often it is faked)
 
 **Cross-market comparison**:

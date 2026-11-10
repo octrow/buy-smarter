@@ -145,7 +145,10 @@ _SCHEMA_GUIDE = (
     "- `official_stores`: canonical brand -> URL of the brand's official KZ store "
     "catalog page for this category (omit when the brand has no KZ store);\n"
     "- `official_sellers`: canonical brand -> seller/shop names of the brand's "
-    "own store or official distributors on Kaspi.kz / Ozon.kz (omit if unknown).\n\n"
+    "own store or official distributors on Kaspi.kz / Ozon.kz (omit if unknown);\n"
+    "- `counterfeit_risk`: canonical brand -> how often it is faked on marketplaces: "
+    '"high" (widely faked, e.g. Adidas, Nike, Levi\'s), "low" (small or niche brands '
+    'nobody copies), "normal" otherwise; omit when unsure.\n\n'
     "`model_book`:\n"
     "- `entries`: a list of well-known model lines, each with:\n"
     "  - `canonical`: the clean product/model name;\n"

@@ -3,7 +3,7 @@
 from buysmarter.ranking.engine import rank
 from buysmarter.ranking.flags import SUSPICIOUS_PRICE_CON
 from buysmarter.ranking.models import Candidate, MarketContext, QueryConstraints
-from buysmarter.ranking.price_risk import Risk, price_risk
+from buysmarter.ranking.price_risk import HIGH_RISK_CON, Risk, price_risk, risk_cons
 from buysmarter.ranking.selection import is_barred
 
 _MARKET = MarketContext(
@@ -131,3 +131,28 @@ def test_an_unnamed_listing_takes_no_role_while_named_products_compete():
 
     roles = [result.best, *result.alternatives.values()]
     assert all(s.candidate.source_product_id != "2" for s in roles)
+
+
+def test_a_high_risk_brand_gets_no_harsher_price_verdict_but_a_warning():
+    sale = _FAKE_ADIDAS.model_copy(update={"price": 13_000, "counterfeit_risk": "high"})
+
+    assert price_risk(sale, _MARKET)[0] is Risk.LOW
+    assert HIGH_RISK_CON in risk_cons(sale)
+    assert risk_cons(sale.model_copy(update={"official_seller": True})) == []
+    assert risk_cons(_FAKE_ADIDAS) == []
+
+
+def test_an_outlet_or_sale_softens_a_deep_gap_to_low_risk():
+    outlet = _FAKE_ADIDAS.model_copy(update={"title": "Adidas Samba OUTLET"})
+    liquidation = _FAKE_ADIDAS.model_copy(update={"best_seller": "Ликвидация склада"})
+
+    assert price_risk(outlet, _MARKET)[0] is Risk.LOW
+    assert price_risk(liquidation, _MARKET)[0] is Risk.LOW
+
+
+def test_a_sale_word_does_not_soften_a_high_risk_brand():
+    fake_sale = _FAKE_ADIDAS.model_copy(
+        update={"title": "Adidas Yeezy sale", "counterfeit_risk": "high"}
+    )
+
+    assert price_risk(fake_sale, _MARKET)[0] is Risk.SUSPICIOUS

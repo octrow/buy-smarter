@@ -42,7 +42,13 @@ from buysmarter.ranking.models import (
     Recommendation,
     ScoredCandidate,
 )
-from buysmarter.ranking.price_risk import LOW_CONFIDENCE_CAP, Risk, gap_con, price_risk
+from buysmarter.ranking.price_risk import (
+    LOW_CONFIDENCE_CAP,
+    Risk,
+    gap_con,
+    price_risk,
+    risk_cons,
+)
 from buysmarter.ranking.selection import assemble_recommendation
 from buysmarter.ranking.spec_conflicts import spec_conflicts
 
@@ -608,7 +614,8 @@ def _verdict_pros_cons(
 def _price_gap_cons(candidate: Candidate, market: MarketContext) -> list[str]:
     """How far under the genuine item's price a suspiciously cheap listing is."""
     risk, ratio = price_risk(candidate, market)
-    return [gap_con(candidate, ratio)] if risk is Risk.LOW and ratio is not None else []
+    gap = [gap_con(candidate, ratio)] if risk is Risk.LOW and ratio is not None else []
+    return gap + risk_cons(candidate)
 
 
 def _fast_delivery_pros(candidate: Candidate, today: date) -> list[str]:

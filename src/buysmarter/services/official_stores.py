@@ -29,11 +29,11 @@ from pydantic import BaseModel
 
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.ranking.audience import other_audience, query_audience
-from buysmarter.ranking.models import Candidate, QueryConstraints
+from buysmarter.ranking.models import OFFICIAL_SOURCE, Candidate, QueryConstraints
 
 logger = logging.getLogger(__name__)
 
-SOURCE = "official"
+SOURCE = OFFICIAL_SOURCE
 _HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -303,6 +303,7 @@ def _to_candidate(offer: StoreOffer, brand: str, book: BrandBook) -> Candidate:
         url=offer.url,
         image_url=offer.image_url,
         official_seller=True,
+        counterfeit_risk=book.counterfeit_risk.get(brand),
         reference_price=book.price_floors.get(brand),
         reference_kind="brand" if brand in book.price_floors else None,
     )

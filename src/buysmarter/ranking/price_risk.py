@@ -4,9 +4,12 @@ A marketplace may sell a genuine item a little below the official store (sales,
 seller promos), so "cheaper than official" alone proves nothing. The bigger the
 gap, the likelier a fake: mild gaps lower confidence, deep ones bar the listing
 from every role (docs/review/2026-10-21-2354/img_10-review.md, item 2). Used
-marketplaces (OLX) are exempt: a private seller's price can be anything.
+marketplaces (OLX) are exempt: a private seller's price can be anything. An outlet
+or clearance word softens a deep gap to a mild one, except for a brand faked en
+masse, which instead carries a warning on every listing not sold by the brand.
 """
 
+import re
 from enum import Enum
 
 from buysmarter.ranking.models import Candidate, MarketContext
@@ -22,6 +25,10 @@ LOW_CONFIDENCE_CAP = 0.6
 # Sources whose prices are private sellers' asks, not shop prices.
 _PRIVATE_SOURCES = frozenset({"olx"})
 
+HIGH_RISK_CON = "бренд часто подделывают — проверьте продавца"
+_CLEARANCE_RE = re.compile(
+    r"(?<!\w)(?:outlet|аутлет|распродаж\w*|ликвидаци\w*|sale)(?!\w)", re.IGNORECASE
+)
 GAP_CON = "цена {ratio:.0%} от цены оригинала ({kind}) — проверьте продавца"
 _KIND_LABELS = {"model": "эта модель", "brand": "самый дешёвый оригинал бренда"}
 
@@ -47,7 +54,7 @@ def price_risk(candidate: Candidate, market: MarketContext) -> tuple[Risk, float
         return Risk.NONE, None
     if candidate.reference_price:
         ratio = candidate.price / candidate.reference_price
-        if ratio < SUSPICIOUS_RATIO:
+        if ratio < SUSPICIOUS_RATIO and not _clearance(candidate):
             return Risk.SUSPICIOUS, ratio
         return (Risk.LOW, ratio) if ratio < LOW_RATIO else (Risk.NONE, ratio)
     median = market.trusted_median_price
@@ -56,6 +63,25 @@ def price_risk(candidate: Candidate, market: MarketContext) -> tuple[Risk, float
         if ratio < MEDIAN_SUSPICIOUS_RATIO:
             return Risk.SUSPICIOUS, ratio
     return Risk.NONE, None
+
+
+def _clearance(candidate: Candidate) -> bool:
+    """An outlet or clearance sale says why a genuine item is deeply cheap.
+
+    Not for a brand faked en masse: its fakes put "sale" in the title too.
+    """
+    # ponytail: words only; a seller's real outlet status needs the brand book.
+    if candidate.counterfeit_risk == "high":
+        return False
+    text = f"{candidate.title} {candidate.best_seller or ''}"
+    return _CLEARANCE_RE.search(text) is not None
+
+
+def risk_cons(candidate: Candidate) -> list[str]:
+    """The warning a widely faked brand carries on any listing not sold by the brand."""
+    if candidate.counterfeit_risk == "high" and not candidate.official_seller:
+        return [HIGH_RISK_CON]
+    return []
 
 
 def gap_con(candidate: Candidate, ratio: float) -> str:

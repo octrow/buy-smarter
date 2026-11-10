@@ -69,6 +69,7 @@ from buysmarter.gui.style_votes import StyleVotes
 from buysmarter.gui.tables import FitTableView, FitTableWidget, stretch_column
 from buysmarter.gui.theme import CONTENT_MAX_WIDTH, PAGE_GAP, SPACE, Prose, card_body, set_state
 from buysmarter.knowledge.generate import learn_category
+from buysmarter.ranking.authenticity import authenticity
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import is_barred
 from buysmarter.services.auto_learn import limit_note, over_limit
@@ -114,6 +115,7 @@ def best_notes(best: ScoredCandidate) -> list[tuple[str, str]]:
     notes = []
     if is_barred(best):
         notes.append(("warning", "все кандидаты под подозрением — проверьте вручную"))
+    notes.append(("", f"Подлинность: {authenticity(best).value}"))
     if best.review_penalty > 0:
         notes.append(("warning", f"Штраф по отзывам: −{best.review_penalty:.0f}"))
     if best.candidate.best_seller:

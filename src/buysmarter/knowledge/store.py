@@ -766,6 +766,8 @@ def merge_brand_books(base: BrandBook, overlay: BrandBook, rated: Iterable[str] 
         price_floors=merged(base.price_floors, overlay.price_floors),
         official_sellers=merged(base.official_sellers, overlay.official_sellers),
         official_stores=merged(base.official_stores, overlay.official_stores),
+        # The notes state a brand's fakes only when they judge it: theirs wins.
+        counterfeit_risk=merged(overlay.counterfeit_risk, base.counterfeit_risk),
     )
 
 

@@ -36,6 +36,7 @@ from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import IngredientBook
 from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.llm.review_summary import ReviewSummary
+from buysmarter.ranking.authenticity import Authenticity, authenticity
 from buysmarter.ranking.models import AxisScore, Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.collect import ALL_SOURCES
@@ -141,6 +142,15 @@ def hidden_note(result: RecommendResult) -> str | None:
     if not result.hidden:
         return None
     return f"Скрыто подозрительных предложений (только оригинал): {len(result.hidden)}."
+
+
+def unclear_authenticity_note(result: RecommendResult) -> str | None:
+    """Under "только оригинал": how many shown offers neither signal a fake nor prove genuine."""
+    if not result.constraints.original_only:
+        return None
+    ranked = result.recommendation.ranked
+    unclear = sum(authenticity(s) is Authenticity.UNCLEAR for s in ranked)
+    return f"Подлинность не ясна у предложений: {unclear}." if unclear else None
 
 
 def _hidden_md(result: RecommendResult) -> list[str]:
@@ -257,6 +267,7 @@ def report_notes(result: RecommendResult, *, use_llm: bool, summary: bool) -> li
         ingredients_unchecked_note(result),
         brands_missing_note(result),
         trusted_only_note(result),
+        unclear_authenticity_note(result),
     )
     return [note for note in notes if note]
 
@@ -334,6 +345,7 @@ def _best_md(result: RecommendResult) -> list[str]:
         f"- **Баллы:** {best.total_score:.0f}/100",
         f"- **Уверенность:** {best.confidence:.0%}",
         f"- **Цена:** {_fmt_price(cand.price)}",
+        f"- **Подлинность:** {authenticity(best).value}",
     ]
     if barred:
         lines.append("- **⚠ все кандидаты под подозрением — проверьте вручную**")
@@ -458,8 +470,8 @@ def _top_md(result: RecommendResult, top: int) -> list[str]:
         "",
         f"## Лучшие предложения (топ {len(ranked)})",
         "",
-        "| # | Маркетплейс | Товар | Цена | Баллы | Оси | Бренд |",
-        "| ---: | --- | --- | ---: | ---: | --- | --- |",
+        "| # | Маркетплейс | Товар | Цена | Баллы | Оси | Бренд | Подлинность |",
+        "| ---: | --- | --- | ---: | ---: | --- | --- | --- |",
     ]
     for i, scored in enumerate(ranked, start=1):
         c = scored.candidate
@@ -471,7 +483,8 @@ def _top_md(result: RecommendResult, top: int) -> list[str]:
         lines.append(
             f"| {i} | {source_label(c.source)} | {_md_link(title_text, c.url)} | "
             f"{_fmt_price(c.price)} | "
-            f"{scored.total_score:.0f} | {axes_cell(scored)} | {tier_cell(c)} |"
+            f"{scored.total_score:.0f} | {axes_cell(scored)} | {tier_cell(c)} | "
+            f"{authenticity(scored).value} |"
         )
     return [*lines, "", f"_{axes_legend(ranked)}_"]
 

@@ -345,7 +345,7 @@ Reviews and popularity are trusted less for unknown brands.
 
 **Adjustments**
 - price history: a real dip is rewarded;
-- suspicious price (far under the genuine item) → penalty and a con;
+- suspicious price (far under the genuine item) → penalty and a con; an outlet or clearance word ("outlet", "аутлет", "распродажа", "ликвидация", "sale") in the title or seller softens a deep gap to a mild one, except for a brand with high counterfeit risk, which instead gets the con "бренд часто подделывают" on every listing not from an official seller;
 - model code in the query ("F300") missing from the title → score cut; a code the query names whole ("Galaxy S23") must be named whole once a passed listing does, so "S23 FE" and "S23 Ultra" are cut ("S23 Ultra" in the query keeps the plain check); with a fit the device replaces the codes and must be named whole ("iPhone 15" is not in "iPhone 15 Pro", is in "iPhone 15/15 Pro"); a device no passed listing names cuts nothing;
 - low confidence for a brand read only from the title, a risky price, or a pool with fewer than 3 tiered prices.
 
@@ -375,8 +375,9 @@ Decides: whether reviews change the ranking.
 3. No summaries (no LLM, or `--no-review-summary`) with required features: stem search over fetched reviews instead.
 After each change the roles are picked again (step 18), so the best pick may change.
 With `original_only` the core then hides every candidate barred from roles (`ranking/selection.without_barred`): they leave the ranking, add to `rejected_count` and to the reason "suspected counterfeit" (shown as "подозрение на подделку"), and go to `RecommendResult.hidden`. All of them barred → nothing passed: the run takes the no-new-pick path with the OLX ads (step 21).
+Every render then shows each offer's authenticity level (`ranking/authenticity`): barred → likely fake; the brand's own site → certainly original; an official seller or a low-counterfeit-risk brand → likely original; else unclear. With `original_only` the notes count the unclear ones.
 The summary shown is the final best pick's.
-Module: `services/review_pass`, `services/recommend`, `ranking/selection`, `capabilities/original_only`, `ranking/review_trust`, `ranking/review_requirements`, `ranking/penalties`, `llm/review_summary`
+Module: `services/review_pass`, `services/recommend`, `ranking/selection`, `ranking/authenticity`, `capabilities/original_only`, `ranking/review_trust`, `ranking/review_requirements`, `ranking/penalties`, `llm/review_summary`
 
 ### 20. Persist
 

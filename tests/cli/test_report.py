@@ -739,3 +739,20 @@ def test_a_rows_style_cell_says_why_not_only_the_best_picks() -> None:
     )
 
     assert axes_cell(scored) == "Ц 25.0 · Ст 13.4 (похоже на «a.jpg»)"
+
+
+def test_every_offer_shows_its_authenticity_level() -> None:
+    md = render_markdown(_result(n_ranked=2), top=8)
+
+    assert "- **Подлинность:** не ясно" in md
+    assert all(row.endswith("| не ясно |") for row in _top_rows(md))
+
+
+def test_original_only_counts_the_offers_whose_authenticity_is_unclear() -> None:
+    result = _result(n_ranked=3)
+    result.recommendation.ranked[0].candidate.official_seller = True
+    result.constraints.original_only = True
+
+    md = render_markdown(result, top=8)
+
+    assert "Подлинность не ясна у предложений: 2." in md

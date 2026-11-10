@@ -191,6 +191,7 @@ def to_candidate(
         best_seller=_pick_best_seller(offers),
         mimic_brand=_mimic_brand(book, product.title, raw_brand, brand),
         official_seller=_is_official_seller(product, offers, brand.name, book),
+        counterfeit_risk=book.counterfeit_risk.get(brand.name) if book and brand.name else None,
         category_path=list(getattr(product, "category_path", None) or []),
         delivery_date=best.delivery_date if best else None,
         delivery_cost=best.delivery_cost if best else None,
