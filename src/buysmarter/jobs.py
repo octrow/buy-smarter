@@ -20,6 +20,7 @@ from redis.asyncio import Redis
 from buysmarter.capabilities.provenance import assessed_entries
 from buysmarter.config import get_settings
 from buysmarter.ranking.authenticity import authenticity
+from buysmarter.ranking.landed_cost import MarketRow
 from buysmarter.ranking.models import ScoredCandidate
 from buysmarter.services.collect import ALL_SOURCES
 from buysmarter.services.matching import UsedListing
@@ -110,6 +111,33 @@ class Axis(BaseModel):
     explanation: str
 
 
+class MarketOffer(BaseModel):
+    """One marketplace of the cross-market comparison, as the API shows it."""
+
+    offer: "Offer"
+    landed_cost: int
+    parts: dict[str, int]  # label -> KZT, as the report's «Из чего» column
+    weight_estimated: bool
+    route: str
+    days: tuple[int, int]
+    alternative_route: str | None
+    alternative_cost: int | None
+
+    @classmethod
+    def from_row(cls, row: MarketRow) -> "MarketOffer":
+        cost, alt = row.cost, row.cost.alternative
+        return cls(
+            offer=Offer.from_scored(row.offer),
+            landed_cost=cost.total,
+            parts={p.label: p.kzt for p in cost.parts},
+            weight_estimated=cost.weight_estimated,
+            route=cost.route.label,
+            days=cost.route.days,
+            alternative_route=alt.route.label if alt else None,
+            alternative_cost=alt.total if alt else None,
+        )
+
+
 class Offer(BaseModel):
     """One ranked product, as the API shows it."""
 
@@ -185,6 +213,11 @@ class RecommendOutcome(BaseModel):
         description="Suspected fakes hidden from the ranking by «только оригинал» (the "
         "report lists them too)",
     )
+    markets: list[MarketOffer] = Field(
+        default_factory=list,
+        description="Cross-market comparison: each marketplace's best offer, cheapest to "
+        "the door first; empty when the comparison is off",
+    )
     assessed_by: list[str] = Field(
         default_factory=list,
         description="How the run assessed: each active capability and who decided "
@@ -206,6 +239,7 @@ class RecommendOutcome(BaseModel):
             restricted_note=result.restricted_note,
             budget_note=result.constraints.budget_note,
             hidden=[Offer.from_scored(s) for s in result.hidden],
+            markets=[MarketOffer.from_row(row) for row in result.markets],
             assessed_by=assessed_entries(result.capabilities),
         )
 

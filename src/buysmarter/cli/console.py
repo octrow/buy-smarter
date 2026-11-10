@@ -6,6 +6,8 @@ from rich.panel import Panel
 from rich.table import Table
 
 from buysmarter.cli.report import (
+    MARKET_HEADERS,
+    MARKET_SECTION,
     NO_SUBSTANCE_HEADERS,
     NO_SUBSTANCE_TITLE,
     SUBSTANCE_HEADERS,
@@ -22,6 +24,7 @@ from buysmarter.cli.report import (
     found_line,
     hidden_note,
     knowledge_line,
+    market_cells,
     no_substance_cells,
     rejected_line,
     report_notes,
@@ -211,6 +214,20 @@ def render_used(used: list[UsedListing], ranked: list[ScoredCandidate]) -> None:
     console.print(table)
 
 
+def _render_markets(result: RecommendResult) -> None:
+    """The cross-market comparison: each marketplace's best offer, cheapest to the door."""
+    if not result.markets:
+        return
+    table = Table(title=MARKET_SECTION, show_header=True, header_style="bold")
+    for header in MARKET_HEADERS:
+        money = header == "Цена до двери"
+        table.add_column(header, justify="right" if money else "left", no_wrap=money)
+    for row in result.markets:
+        source, title, *rest = market_cells(row)
+        table.add_row(source, _product_cell(title, row.offer.candidate.url), *map(escape, rest))
+    console.print(table)
+
+
 def _render_hidden(result: RecommendResult) -> None:
     """The suspected fakes "только оригинал" hid, so a wrongly hidden product can be found."""
     if note := hidden_note(result):
@@ -235,6 +252,7 @@ def render(
     _render_best(result.recommendation.best)
     _render_review_summary(result.review_summary)
     _render_alternatives(result.recommendation.alternatives)
+    _render_markets(result)
     _render_top(result.recommendation.ranked, top)
     if not used_first(result):
         render_used(*used)

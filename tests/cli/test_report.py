@@ -756,3 +756,18 @@ def test_original_only_counts_the_offers_whose_authenticity_is_unclear() -> None
     md = render_markdown(result, top=8)
 
     assert "Подлинность не ясна у предложений: 2." in md
+
+
+def test_the_cross_market_comparison_shows_each_marketplace_to_the_door() -> None:
+    from buysmarter.ranking.landed_cost import market_rows
+
+    result = _result(n_ranked=2)
+    result.recommendation.ranked[1].candidate.source = "ozon"
+    result.recommendation.ranked[1].candidate.delivery_cost = 500
+    result.markets = market_rows(result.recommendation.ranked, "ирригатор", {})
+
+    md = render_markdown(result, top=8)
+
+    assert "## Сравнение площадок" in md
+    assert "| Ozon | [Ирригатор 1](https://kaspi.kz/p/1) | 29 500 ₸ |" in md.replace(" ", " ")
+    assert "цена 29 000 ₸ + доставка 500 ₸" in md.replace(" ", " ")

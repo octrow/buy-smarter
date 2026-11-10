@@ -58,6 +58,7 @@ def test_only_category_level_capabilities_are_listed_with_their_source(qtbot, ru
         "composition",
         "used_market",
         "official_stores",
+        "cross_market",
         "style",
     }
     market = screen.toggles.checkboxes["used_market"]

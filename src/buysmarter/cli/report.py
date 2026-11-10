@@ -10,7 +10,7 @@ same ``buysmarter.i18n`` tables the GUI shows.
 
 import re
 from collections import Counter
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import NamedTuple
 
@@ -34,9 +34,11 @@ from buysmarter.i18n import (
 )
 from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import IngredientBook
+from buysmarter.knowledge.landed_cost_rules import stale_rules
 from buysmarter.knowledge.models_book import ModelBook
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.ranking.authenticity import Authenticity, authenticity
+from buysmarter.ranking.landed_cost import MarketRow
 from buysmarter.ranking.models import AxisScore, Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import distinct_variants, is_barred
 from buysmarter.services.collect import ALL_SOURCES
@@ -151,6 +153,71 @@ def unclear_authenticity_note(result: RecommendResult) -> str | None:
     ranked = result.recommendation.ranked
     unclear = sum(authenticity(s) is Authenticity.UNCLEAR for s in ranked)
     return f"Подлинность не ясна у предложений: {unclear}." if unclear else None
+
+
+_RULE_ROUTES = frozenset({"direct", "cargo"})
+
+
+def stale_rules_note(result: RecommendResult, today: date | None = None) -> str | None:
+    """When a compared offer's cost leans on a duty or tariff rule checked too long ago."""
+    if not any(row.cost.route.key in _RULE_ROUTES for row in result.markets):
+        return None
+    if not (stale := stale_rules(today or date.today())):
+        return None
+    names = ", ".join(rule.name for rule in stale)
+    return f"Правила пошлин и тарифов давно не проверяли ({names}): цена до двери может устареть."
+
+
+MARKET_SECTION = "Сравнение площадок"
+MARKET_HEADERS = [
+    "Площадка",
+    "Товар",
+    "Цена до двери",
+    "Из чего",
+    "Доставка",
+    "Срок",
+    "Подлинность",
+]
+
+
+def market_cells(row: MarketRow) -> list[str]:
+    """A marketplace's row of the comparison, one cell per ``MARKET_HEADERS`` column."""
+    cost, offer = row.cost, row.offer
+    paid = [p for p in cost.parts if p.kzt]
+    # The price alone needs no breakdown: it is the total.
+    parts = " + ".join(f"{p.label} {kzt(p.kzt)}" for p in paid) if len(paid) > 1 else "—"
+    if cost.weight_estimated:
+        parts += " (вес оценён)"
+    route = cost.route.label
+    if cost.alternative is not None:
+        route += f" (или {cost.alternative.route.label}: {kzt(cost.alternative.total)})"
+    low, high = cost.route.days
+    return [
+        source_label(offer.candidate.source),
+        clean_title(offer.candidate.title),
+        kzt(cost.total),
+        parts,
+        route,
+        f"{low}–{high} дн.",
+        authenticity(offer).value,
+    ]
+
+
+def _markets_md(result: RecommendResult) -> list[str]:
+    if not result.markets:
+        return []
+    lines = [
+        "",
+        f"## {MARKET_SECTION}",
+        "",
+        "| " + " | ".join(MARKET_HEADERS) + " |",
+        "| --- | --- | ---: | --- | --- | --- | --- |",
+    ]
+    for row in result.markets:
+        source, title, *rest = market_cells(row)
+        title = _md_link(title, row.offer.candidate.url)
+        lines.append("| " + " | ".join([source, title, *rest]) + " |")
+    return lines
 
 
 def _hidden_md(result: RecommendResult) -> list[str]:
@@ -268,6 +335,7 @@ def report_notes(result: RecommendResult, *, use_llm: bool, summary: bool) -> li
         brands_missing_note(result),
         trusted_only_note(result),
         unclear_authenticity_note(result),
+        stale_rules_note(result),
     )
     return [note for note in notes if note]
 
@@ -544,6 +612,7 @@ def render_markdown(
     parts += _best_md(result)
     parts += _review_summary_md(result)
     parts += _alternatives_md(result)
+    parts += _markets_md(result)
     parts += _top_md(result, top)
     if not used_first(result):
         parts += _used_md(result)

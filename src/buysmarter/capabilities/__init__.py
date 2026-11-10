@@ -7,6 +7,7 @@ from buysmarter.capabilities.audience import Audience
 from buysmarter.capabilities.base import Capability
 from buysmarter.capabilities.benchmark import Benchmark
 from buysmarter.capabilities.composition import Composition
+from buysmarter.capabilities.cross_market import CrossMarket
 from buysmarter.capabilities.dims import Dims
 from buysmarter.capabilities.exclude import Exclude
 from buysmarter.capabilities.fit import Fit
@@ -29,6 +30,7 @@ REGISTRY: dict[str, Capability] = {
         UsedOnly(),
         UsedMarket(),
         OfficialStores(),
+        CrossMarket(),
         Benchmark(),
         Composition(),
         Style(),

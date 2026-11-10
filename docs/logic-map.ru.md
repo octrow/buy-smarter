@@ -48,7 +48,7 @@ OLX в рейтинг не попадает, только в раздел б/у.
 ## Возможности
 
 Основной поток один для всех категорий. Различаются возможности (CONTEXT.md):
-необязательные хуки, которые ядро вызывает в фиксированных точках в порядке реестра (audience, size, fit, dims, exclude, original_only, used_only, used_market, official_stores, benchmark, composition, style).
+необязательные хуки, которые ядро вызывает в фиксированных точках в порядке реестра (audience, size, fit, dims, exclude, original_only, used_only, used_market, official_stores, cross_market, benchmark, composition, style).
 Хук, которого у возможности нет, не вызывается. До включения возможностей `prime` даёт возможности прочитать то, что нужно её синхронным хукам (style: профиль пользователя, `flow.prime`).
 `ranking/` не импортирует возможности: поток отдаёт `rank()` готовые веса, предикаты и функции (`RankHooks`).
 
@@ -63,6 +63,7 @@ OLX в рейтинг не попадает, только в раздел б/у.
 | used_only | запросная | `constraints.condition == "used"`: разбор или слово состояния среди обязательных свойств («б/у», «бу», «used») (шаг 4) | `sources` (5: добавляет OLX к площадкам до их открытия, если его нет); отчёт показывает раздел б/у первым: в CLI, приложении, markdown и MCP (21) |
 | used_market | категорийная | включена, пока профиль не скажет «выключить»: нет записи = включена (`set_by: fallback`); выключают обучение или переключатель пользователя | `sources` (5: убирает OLX из площадок, когда выключена; запрос про б/у его оставляет). Сбор, фильтр и оба раздела б/у остаются в ядре |
 | official_stores | категорийная | включена, пока профиль не скажет «выключить» (нет записи = включена, `set_by: fallback`) | `candidates` (10: `official_candidates` с общим `reject_listing`, поэтому каждый запросный отказ доходит до предложений магазинов) |
+| cross_market | категорийная | Jev (`jev_question`: одежда, обувь или аксессуар) или переключатель пользователя; в любой категории — слова запроса «где дешевле», «сравни площадки», «из Китая» (шаг 4) | `query` (4: слова уходят из поисковой фразы и типа товара); дальше ядро строит `RecommendResult.markets` (шаг 19) |
 | benchmark | категорийная | профиль, только с провайдером из `BENCHMARK_PROVIDERS` (его параметр, иначе провайдер, чьё правило берёт тип товара); без записи в профиле — правило провайдеров (`set_by: fallback`) | `enrich` (15: характеристики Kimovil и `benchmark_index`) |
 | style | категорийная | профиль (Jev спрашивает про одежду, обувь и аксессуары; переключатель пользователя), и только при профиле стиля с силой выше 0 (`style/profile`); без него — «включено, но нет данных» | `prime` (6: читает профиль), `searches` (7: до 6 брендов), `enrich` (16a: фото карточек против образцов), `prepare` + `axis` (17: «Стиль», вес — сила пользователя, по умолчанию 20; 0, если в профиле только бренды) |
 | composition | категорийная | профиль: возможность composition с книгой ингредиентов (старые записи: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, может остановить поиск), `prepare` + `axis` + `notes` (17), `section` («Результат») |
@@ -78,7 +79,7 @@ Composition даёт ровно прежнюю таблицу (ингредие�
 - «мужские кроссовки» со включённым style и профилем стиля → поиски Kaspi «кроссовки <бренд>», ось «Стиль» по фото и фразам-образцам.
 - Категория без профиля → категорийных возможностей нет, все бренды «неизвестные».
 
-Модули: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/official_stores`, `capabilities/benchmark`, `capabilities/composition`, `capabilities/style`
+Модули: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/official_stores`, `capabilities/cross_market`, `capabilities/benchmark`, `capabilities/composition`, `capabilities/style`
 
 ## Входы
 
@@ -372,7 +373,8 @@ Style: по одному поиску «<тип товара> <бренд>» н�
 С `original_only` ядро затем скрывает всех кандидатов, закрытых для ролей (`ranking/selection.without_barred`): они уходят из рейтинга, прибавляются к `rejected_count` и к причине «suspected counterfeit» (показывается как «подозрение на подделку») и попадают в `RecommendResult.hidden`. Закрыты все → ничего не прошло: запуск идёт по пути «нового нет» с объявлениями OLX (шаг 21).
 Каждый отчёт затем показывает уровень подлинности предложения (`ranking/authenticity`): закрыт для ролей → вероятно подделка; сайт самого бренда → точно оригинал; официальный продавец или бренд с низким риском подделки → вероятно оригинал; иначе не ясно. С `original_only` заметки считают «не ясно».
 Показывается сводка итогового лучшего.
-Модули: `services/review_pass`, `services/recommend`, `ranking/selection`, `ranking/authenticity`, `capabilities/original_only`, `ranking/review_trust`, `ranking/review_requirements`, `ranking/penalties`, `llm/review_summary`
+С включённой `cross_market` ядро строит сравнение (`ranking/landed_cost.market_rows`): лучший по рейтингу товар каждой площадки с ценой до двери по самому дешёвому способу доставки (`knowledge/landed_cost_rules`: пошлина, НДС, карго, типовой вес; у каждого правила источник и дата проверки), от дешёвого к дорогому. Каждый отчёт показывает его как «Сравнение площадок»; правило старше 90 дней даёт заметку, если строка на него опирается.
+Модули: `services/review_pass`, `services/recommend`, `ranking/selection`, `ranking/authenticity`, `ranking/landed_cost`, `knowledge/landed_cost_rules`, `capabilities/original_only`, `ranking/review_trust`, `ranking/review_requirements`, `ranking/penalties`, `llm/review_summary`
 
 ### 20. Сохранение
 

@@ -62,6 +62,8 @@ class QueryConstraints(BaseModel):
     dims: dict[str, str] = Field(default_factory=dict)
     exclude_substances: list[str] = Field(default_factory=list)
     original_only: bool = False
+    # "где дешевле" / "сравни площадки": compare marketplaces by landed cost.
+    cross_market: bool = False
 
     @field_validator("gender")
     @classmethod
@@ -128,6 +130,10 @@ class Candidate(BaseModel):
     # Asia/Almaty and fee in KZT. None == unknown (e.g. Ozon, no offers fetched).
     delivery_date: str | None = None
     delivery_cost: float | None = None
+    # The currency of ``price`` (ISO code); every marketplace so far sells in tenge.
+    currency: str = "KZT"
+    # The parcel weight the page states, kg; None == not stated.
+    weight_kg: float | None = None
     # A performance index for this model (0-100), averaged into the specs axis, and the
     # source that gave it ("Kimovil" for phones). None == no index for this model.
     benchmark_index: float | None = None

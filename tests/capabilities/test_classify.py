@@ -131,7 +131,12 @@ async def test_without_an_llm_jev_is_never_called(monkeypatch) -> None:
 
 
 def test_only_category_capabilities_with_a_question_are_asked() -> None:
-    assert set(capability_questions()) == {"cap_composition", "cap_style", "bench_kimovil"}
+    assert set(capability_questions()) == {
+        "cap_composition",
+        "cap_style",
+        "cap_cross_market",
+        "bench_kimovil",
+    }
 
 
 @pytest.mark.parametrize(("noul", "on"), [(0.58, False), (0.53, False), (0.76, True)])
@@ -153,6 +158,6 @@ async def test_a_learned_profile_is_asked_only_about_a_capability_added_later(mo
     profile = await ensure_profile("кроссовки", use_llm=True)
     await ensure_profile("кроссовки", use_llm=True)
 
-    assert jev.calls == [{"cap_style"}]
+    assert jev.calls == [{"cap_style", "cap_cross_market"}]
     assert (await _caps("кроссовки"))["style"]["enabled"] is True
     assert profile.enabled("style") is not None

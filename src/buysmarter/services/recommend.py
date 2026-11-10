@@ -29,6 +29,7 @@ from buysmarter.capabilities import REGISTRY
 from buysmarter.capabilities.classify import ensure_profile
 from buysmarter.capabilities.composition import INGREDIENTS_UNCHECKED
 from buysmarter.capabilities.composition import NoSubstanceMatch as NoSubstanceMatch  # re-export
+from buysmarter.capabilities.cross_market import CROSS_MARKET
 from buysmarter.capabilities.exclude import strip_exclusions
 from buysmarter.capabilities.flow import (
     ActiveCapabilities,
@@ -59,6 +60,7 @@ from buysmarter.memory.prefs import BUDGET, CITY, as_budget
 from buysmarter.normalize.candidate import attach_reference_prices
 from buysmarter.normalize.city import find_city
 from buysmarter.ranking.engine import NoCandidatesPassed, rank
+from buysmarter.ranking.landed_cost import MarketRow, market_rows
 from buysmarter.ranking.models import (
     Candidate,
     QueryConstraints,
@@ -149,6 +151,8 @@ class RecommendResult(BaseModel):
     profile_found: str | None = None
     # Suspected fakes hidden from the ranking ("только оригинал"), listed in the report.
     hidden: list[ScoredCandidate] = Field(default_factory=list)
+    # Cross-market comparison (CONTEXT.md): one row per marketplace, cheapest to the door.
+    markets: list[MarketRow] = Field(default_factory=list)
 
 
 def _no_llm_route() -> bool:
@@ -566,7 +570,17 @@ async def recommend(
         capabilities=capability_states(REGISTRY, profile, constraints),
         profile_found=profile.found,
         hidden=hidden,
+        markets=_markets(run, recommendation),
     )
+
+
+def _markets(run: _Run, recommendation: Recommendation) -> list[MarketRow]:
+    """The cross-market comparison when its capability is on, else nothing."""
+    if not any(cap.name == CROSS_MARKET for cap, _ in run.capabilities.items):
+        return []
+    # ponytail: no rates yet, every source sells in tenge; the National Bank's rates come
+    # with the first foreign source (docs/tasks/2026-11-09-clothes-cross-market.md, step 4).
+    return market_rows(recommendation.ranked, run.constraints.product_type, {})
 
 
 def _hide_suspects(

@@ -49,7 +49,7 @@ OLX never enters the ranking; it only feeds the used-market section.
 ## Capabilities
 
 The core flow is the same for every category. What differs are capabilities (CONTEXT.md):
-optional hooks the core calls at fixed points, in registry order (audience, size, fit, dims, exclude, original_only, used_only, used_market, official_stores, benchmark, composition, style).
+optional hooks the core calls at fixed points, in registry order (audience, size, fit, dims, exclude, original_only, used_only, used_market, official_stores, cross_market, benchmark, composition, style).
 A hook a capability does not implement is not called. Before anything is switched on, `prime` lets a capability read what its synchronous hooks need (style: the user's profile, `flow.prime`).
 `ranking/` never imports capabilities: the flow hands `rank()` plain weights, predicates and functions (`RankHooks`).
 
@@ -64,6 +64,7 @@ A hook a capability does not implement is not called. Before anything is switche
 | used_only | request | `constraints.condition == "used"`: the parser or a condition word in the required features ("б/у", "бу", "used") (step 4) | `sources` (5: adds OLX to the marketplaces, before they are opened, unless it is there); the report shows the used section first, in the CLI, the desktop app, markdown and MCP (21) |
 | used_market | category | on unless the profile says off: no entry means on (`set_by: fallback`); learning or the user's switch turns it off | `sources` (5: takes OLX out of the marketplaces when off; a used query keeps it). Collecting, filtering and both used sections stay in the core |
 | official_stores | category | on unless the profile says off (no entry means on, `set_by: fallback`) | `candidates` (10: `official_candidates` with the shared `reject_listing`, so every request rejection reaches the store offers) |
+| cross_market | category | Jev (`jev_question`: clothing, footwear or a fashion accessory) or the user's switch; for any category the query's words "где дешевле", "сравни площадки", "из Китая" (step 4) | `query` (4: the words leave the search phrase and the product type); the core then builds `RecommendResult.markets` (step 19) |
 | benchmark | category | the profile, only with a provider from `BENCHMARK_PROVIDERS` (its parameter, else the provider whose rule takes the product type); without a profile setting, the providers' rule (`set_by: fallback`) | `enrich` (15: Kimovil specs and `benchmark_index`) |
 | style | category | the profile (Jev asks for clothing, footwear and accessories; the user's switch), and only with a style profile of strength above 0 (`style/profile`); without one: "включено, но нет данных" | `prime` (6: reads the profile), `searches` (7: up to 6 brands), `enrich` (16a: card photos against the samples), `prepare` + `axis` (17: «Стиль», weight = the user's strength, default 20, 0 with brands only) |
 | composition | category | the profile: the composition capability with an ingredient book (old records: `category_type: composition_driven`) | `searches` (7), `relevance` (12), `hard_features`, `reject_content` (17), `enrich` (16, may stop the run), `prepare` + `axis` + `notes` (17), `section` (Output) |
@@ -79,7 +80,7 @@ Examples:
 - "мужские кроссовки" with style on and a style profile → Kaspi searches "кроссовки <brand>", the «Стиль» axis by the sample photos and phrases.
 - A category with no profile at all → no category capability, every brand scores as unknown.
 
-Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/official_stores`, `capabilities/benchmark`, `capabilities/composition`, `capabilities/style`
+Module: `capabilities/base`, `capabilities/flow`, `capabilities/weights`, `capabilities/audience`, `capabilities/size`, `capabilities/fit`, `capabilities/dims`, `capabilities/exclude`, `capabilities/original_only`, `capabilities/used_only`, `capabilities/used_market`, `capabilities/official_stores`, `capabilities/cross_market`, `capabilities/benchmark`, `capabilities/composition`, `capabilities/style`
 
 ## Entry points
 
@@ -377,7 +378,8 @@ After each change the roles are picked again (step 18), so the best pick may cha
 With `original_only` the core then hides every candidate barred from roles (`ranking/selection.without_barred`): they leave the ranking, add to `rejected_count` and to the reason "suspected counterfeit" (shown as "подозрение на подделку"), and go to `RecommendResult.hidden`. All of them barred → nothing passed: the run takes the no-new-pick path with the OLX ads (step 21).
 Every render then shows each offer's authenticity level (`ranking/authenticity`): barred → likely fake; the brand's own site → certainly original; an official seller or a low-counterfeit-risk brand → likely original; else unclear. With `original_only` the notes count the unclear ones.
 The summary shown is the final best pick's.
-Module: `services/review_pass`, `services/recommend`, `ranking/selection`, `ranking/authenticity`, `capabilities/original_only`, `ranking/review_trust`, `ranking/review_requirements`, `ranking/penalties`, `llm/review_summary`
+With `cross_market` on, the core builds the comparison (`ranking/landed_cost.market_rows`): the best-ranked offer of each marketplace, priced to the door by its cheapest delivery route (`knowledge/landed_cost_rules`: duty, VAT, cargo, typical weights, each rule with its source and check date), cheapest first. Every render shows it as «Сравнение площадок»; a rule checked over 90 days ago adds a note when a row leans on it.
+Module: `services/review_pass`, `services/recommend`, `ranking/selection`, `ranking/authenticity`, `ranking/landed_cost`, `knowledge/landed_cost_rules`, `capabilities/original_only`, `ranking/review_trust`, `ranking/review_requirements`, `ranking/penalties`, `llm/review_summary`
 
 ### 20. Persist
 

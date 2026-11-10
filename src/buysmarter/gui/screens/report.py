@@ -24,6 +24,8 @@ from PySide6.QtWidgets import (
 
 from buysmarter.cli.report import (
     COMPARED_HEADER,
+    MARKET_HEADERS,
+    MARKET_SECTION,
     NO_LLM_TEXT,
     SUMMARY_TITLE,
     USED_HEADERS,
@@ -32,6 +34,7 @@ from buysmarter.cli.report import (
     budget_text,
     hidden_note,
     ingredients_unchecked_note,
+    market_cells,
     rejected_line,
     request_notes,
     summary_lines,
@@ -311,6 +314,7 @@ class ReportScreen(QScrollArea):
         # Optional sections: drop handles into the page that setWidget below deletes.
         self.open_best: QPushButton | None = None
         self.used: QTableWidget | None = None
+        self.markets: QTableWidget | None = None
         self.learn_button: QPushButton | None = None
         self.rejected: QGroupBox | None = None
         self.toggles: CapabilityToggles | None = None
@@ -342,6 +346,8 @@ class ReportScreen(QScrollArea):
         if summary := _summary_section(result):
             layout.addWidget(summary)
         layout.addWidget(self._alternatives_section(result))
+        if result.markets:
+            layout.addWidget(self._markets_section(result))
         if result.recommendation.rejected_count:
             self.rejected = _group("Отсеяно", _label(rejected_line(result), role="muted"))
             layout.addWidget(self.rejected)
@@ -542,6 +548,14 @@ class ReportScreen(QScrollArea):
     @staticmethod
     def _sources(result: RecommendResult) -> set[str]:
         return {s.candidate.source for s in result.recommendation.ranked}
+
+    def _markets_section(self, result: RecommendResult) -> QGroupBox:
+        rows = result.markets
+        table = text_table(MARKET_HEADERS, [market_cells(r) for r in rows], stretch=0)
+        stretch_column(table, MARKET_HEADERS.index("Товар"))
+        table.cellDoubleClicked.connect(lambda row, _col: open_offer(rows[row].offer.candidate.url))
+        self.markets = table
+        return _group(MARKET_SECTION, table)
 
     def _used_section(self, result: RecommendResult) -> QGroupBox:
         used = result.used_listings
