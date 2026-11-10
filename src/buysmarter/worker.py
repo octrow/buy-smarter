@@ -56,7 +56,7 @@ _IDLE_TIMEOUT_FACTOR = 2
 _CLAIM_LOCK_S = 60
 QUEUE = "buysmarter:recommend"
 
-# A category learn: its own time limit (an opus run with web search), and a Redis slot that keeps
+# A category learn: its own time limit (a Sonnet 5.5 run with web search), and a Redis slot that keeps
 # the same category from being queued again while one is queued or running (the slot outlives
 # the limit, then a dead worker's slot expires by itself).
 LEARN_TIMEOUT_S = 600

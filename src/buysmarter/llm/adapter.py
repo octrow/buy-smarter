@@ -47,7 +47,7 @@ _FALLBACK_COMBO_ENV = "BUYSMARTER_CLI_FALLBACK_COMBO"
 _FALLBACK_COMBOS = {"haiku": "sub-first", "sonnet": "sub-first", "opus": "sub-first"}
 _DEFAULT_FALLBACK_COMBO = "sub-first"
 # OmniRoute combos a caller may name as the model; they reach `--model` as-is.
-CLI_COMBOS = frozenset({"sub-first", "free-stack", "hard"})
+CLI_COMBOS = frozenset({"sub-first", "free-stack", "hard", "sonnet-sub"})
 
 # Model policy (per docs/PLAN.md "LLM-слой") — every call site must pick its
 # model consciously, no accidental defaults:
@@ -59,6 +59,8 @@ CLI_COMBOS = frozenset({"sub-first", "free-stack", "hard"})
 #             needs real reasoning over noisy/ambiguous input)
 # haiku and sonnet both resolve to the OmniRoute free-stack combo, so cheap call
 # sites name "free-stack" directly; classifications go to Jev first (llm/jev.py).
+# Real Sonnet 5.5 (the subscription, web search) is the "sonnet-sub" combo; opus is
+# not used: category learning moved to sonnet-sub (2026-11-11, cost).
 
 
 class LlmError(Exception):

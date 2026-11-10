@@ -5,8 +5,8 @@ Two entry points, both routed through the mandatory LLM cache (``llm.adapter``):
 * ``generate_category_knowledge`` — builds knowledge for ANY category from the
   model's own knowledge. This is a deep-knowledge task (real reasoning over the
   brand landscape of an arbitrary category, incl. CIS-region brands on
-  Kaspi/Wildberries), so it consciously uses ``opus`` per the model policy in
-  ``llm/adapter.py``.
+  Kaspi/Wildberries), so it uses real Sonnet 5.5 (the ``sonnet-sub`` combo) per the
+  model policy in ``llm/adapter.py``.
 * ``extract_category_knowledge`` — pulls the same two books out of the user's own
   research notes (a markdown file). This is a mechanical extraction from supplied
   text, so it uses ``sonnet``.
@@ -44,9 +44,9 @@ from buysmarter.knowledge.store import (
 from buysmarter.llm.adapter import generate
 from buysmarter.services.official_stores import verify_store_floors
 
-# Deep-knowledge task (reason over an arbitrary category's brand landscape) —
-# opus is a conscious choice per the model policy documented in llm/adapter.py.
-GENERATE_KNOWLEDGE_MODEL = "opus"
+# Deep-knowledge task with web search: Sonnet 5.5 through the OmniRoute "sonnet-sub"
+# combo (the "sonnet" alias is the free stack), per the model policy in llm/adapter.py.
+GENERATE_KNOWLEDGE_MODEL = "sonnet-sub"
 # Extraction from user-supplied notes is mechanical — sonnet is enough.
 EXTRACT_KNOWLEDGE_MODEL = "sonnet"
 
@@ -246,9 +246,9 @@ _WEB_SEARCH_TIMEOUT = 600
 async def generate_category_knowledge(
     category: str, *, web_search: bool = True
 ) -> CategoryKnowledge:
-    """Generate books + type + ingredients for any category (opus, cached).
+    """Generate books + type + ingredients for any category (Sonnet 5.5, cached).
 
-    One opus call classifies the category and, for composition-driven ones,
+    One call classifies the category and, for composition-driven ones,
     returns the ingredient book too — no extra LLM call (docs/PLAN.md).
 
     ``web_search`` (default True) grounds the call in current (2026) market
