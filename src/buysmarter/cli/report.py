@@ -37,6 +37,7 @@ from buysmarter.knowledge.brands import BrandBook
 from buysmarter.knowledge.ingredients import IngredientBook
 from buysmarter.knowledge.landed_cost_rules import stale_rules
 from buysmarter.knowledge.models_book import ModelBook
+from buysmarter.knowledge.seller_questions import Body, Topic, seller_message, seller_topics
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.ranking.authenticity import Authenticity, authenticity
 from buysmarter.ranking.landed_cost import MarketRow
@@ -226,6 +227,59 @@ def _markets_md(result: RecommendResult) -> list[str]:
         source, title, *rest = market_cells(row)
         title = _md_link(title, row.offer.candidate.url)
         lines.append("| " + " | ".join([source, title, *rest]) + " |")
+    return lines
+
+
+SELLER_SECTION = "Вопросы продавцу"
+SELLER_BLANKS = (
+    "Мерки тела подставляются только в терминале и в приложении, в файл они не пишутся: "
+    "buysmarter prefs set height_cm 180."
+)
+
+
+class SellerQuestion(NamedTuple):
+    """A ready message to one Chinese seller, in Chinese and in English."""
+
+    row: MarketRow
+    topics: tuple[Topic, ...]
+    zh: str
+    en: str
+
+
+def seller_questions(result: RecommendResult, body: Body | None) -> list[SellerQuestion]:
+    """A message for every compared Chinese offer whose page leaves something open.
+
+    ``body`` is the user's measurements: the terminal and the app pass them, a file, MCP and
+    the HTTP API pass ``None`` and get blanks.
+    """
+    questions = []
+    for row in result.markets:
+        if topics := seller_topics(row):
+            questions.append(SellerQuestion(row, topics, *seller_message(topics, body)))
+    return questions
+
+
+def seller_heading(question: SellerQuestion) -> str:
+    """«Taobao · Худи — спросить: размер, вес»."""
+    offer = question.row.offer.candidate
+    asked = ", ".join(topic.value for topic in question.topics)
+    return f"{source_label(offer.source)} · {clean_title(offer.title)} — спросить: {asked}"
+
+
+def _sellers_md(result: RecommendResult) -> list[str]:
+    questions = seller_questions(result, None)
+    if not questions:
+        return []
+    lines = ["", f"## {SELLER_SECTION}", "", f"_{SELLER_BLANKS}_"]
+    for question in questions:
+        lines += [
+            "",
+            f"**{seller_heading(question)}**",
+            "",
+            f"> {question.zh}",
+            ">",
+            f"> {question.en}",
+        ]
     return lines
 
 
@@ -624,6 +678,7 @@ def render_markdown(
     parts += _review_summary_md(result)
     parts += _alternatives_md(result)
     parts += _markets_md(result)
+    parts += _sellers_md(result)
     parts += _top_md(result, top)
     if not used_first(result):
         parts += _used_md(result)

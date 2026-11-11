@@ -39,6 +39,8 @@ def test_nothing_saved_shows_every_setting_in_russian_with_its_default() -> None
         ("excluded_brands", "Noname,  Generic ,", ["Noname", "Generic"], "Noname, Generic"),
         ("bank_margin", "2,5", 2.5, "2.5"),
         ("cargo_usd_per_kg", "4", 4.0, "4"),
+        ("height_cm", "180", 180, "180"),
+        ("inseam_cm", "81,6", 82, "82"),
     ],
 )
 def test_set_stores_what_the_app_stores_and_shows_it(key, value, stored, shown) -> None:
@@ -58,6 +60,7 @@ def test_set_stores_what_the_app_stores_and_shows_it(key, value, stored, shown) 
         ("marketplaces", " , ", prefs_cli.NO_SOURCE),
         ("bank_margin", "30", "от 0 до 20"),
         ("cargo_usd_per_kg", "дёшево", "от 0 до 50"),
+        ("height_cm", "300", "от 0 до 250"),
     ],
 )
 def test_a_wrong_value_is_refused_with_the_reason_and_nothing_is_stored(key, value, reason) -> None:

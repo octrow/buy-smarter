@@ -19,6 +19,7 @@ from redis.asyncio import Redis
 
 from buysmarter.capabilities.provenance import assessed_entries
 from buysmarter.config import get_settings
+from buysmarter.knowledge.seller_questions import seller_topics
 from buysmarter.ranking.authenticity import authenticity
 from buysmarter.ranking.landed_cost import MarketRow
 from buysmarter.ranking.models import ScoredCandidate
@@ -122,6 +123,9 @@ class MarketOffer(BaseModel):
     days: tuple[int, int]
     alternative_route: str | None
     alternative_cost: int | None
+    # What to ask the Chinese seller (размер, вес, подлинность); the message itself carries the
+    # user's measurements, so only the terminal and the app write it.
+    seller_topics: list[str] = Field(default_factory=list)
 
     @classmethod
     def from_row(cls, row: MarketRow) -> "MarketOffer":
@@ -135,6 +139,7 @@ class MarketOffer(BaseModel):
             days=cost.route.days,
             alternative_route=alt.route.label if alt else None,
             alternative_cost=alt.total if alt else None,
+            seller_topics=[topic.value for topic in seller_topics(row)],
         )
 
 

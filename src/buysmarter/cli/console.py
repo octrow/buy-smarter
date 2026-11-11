@@ -10,6 +10,8 @@ from buysmarter.cli.report import (
     MARKET_SECTION,
     NO_SUBSTANCE_HEADERS,
     NO_SUBSTANCE_TITLE,
+    SELLER_BLANKS,
+    SELLER_SECTION,
     SUBSTANCE_HEADERS,
     SUBSTANCES_TITLE,
     SUMMARY_TITLE,
@@ -28,6 +30,8 @@ from buysmarter.cli.report import (
     no_substance_cells,
     rejected_line,
     report_notes,
+    seller_heading,
+    seller_questions,
     substance_cells,
     summary_lines,
     tier_cell,
@@ -48,6 +52,7 @@ from buysmarter.i18n import (
     pro_con,
     source_label,
 )
+from buysmarter.knowledge.seller_questions import Body
 from buysmarter.llm.review_summary import ReviewSummary
 from buysmarter.ranking.authenticity import authenticity
 from buysmarter.ranking.models import QueryConstraints, ScoredCandidate
@@ -228,6 +233,19 @@ def _render_markets(result: RecommendResult) -> None:
     console.print(table)
 
 
+def _render_sellers(result: RecommendResult, body: Body | None) -> None:
+    """Ready messages to Chinese sellers, filled with the user's measurements (screen only)."""
+    questions = seller_questions(result, body)
+    if not questions:
+        return
+    console.print(f"[bold]{SELLER_SECTION}[/bold]")
+    if body is None or not any(body.model_dump().values()):
+        console.print(f"[dim]{escape(SELLER_BLANKS)}[/dim]")
+    for question in questions:
+        text = f"{escape(question.zh)}\n\n{escape(question.en)}"
+        console.print(Panel(text, title=escape(seller_heading(question)), title_align="left"))
+
+
 def _render_hidden(result: RecommendResult) -> None:
     """The suspected fakes "только оригинал" hid, so a wrongly hidden product can be found."""
     if note := hidden_note(result):
@@ -237,9 +255,17 @@ def _render_hidden(result: RecommendResult) -> None:
 
 
 def render(
-    result: RecommendResult, top: int, *, use_llm: bool = True, summary: bool = True
+    result: RecommendResult,
+    top: int,
+    *,
+    use_llm: bool = True,
+    summary: bool = True,
+    body: Body | None = None,
 ) -> None:
-    """The report in the terminal; ``use_llm``/``summary`` say why a review summary is missing."""
+    """The report in the terminal; ``use_llm``/``summary`` say why a review summary is missing.
+
+    ``body`` (the user's measurements) fills the seller questions; it never leaves the screen.
+    """
     if result.restricted_note:  # always the first line
         console.print(f"[bold yellow]⚠ {escape(result.restricted_note)}[/bold yellow]")
     console.print(found_line(found_counts(result)))
@@ -253,6 +279,7 @@ def render(
     _render_review_summary(result.review_summary)
     _render_alternatives(result.recommendation.alternatives)
     _render_markets(result)
+    _render_sellers(result, body)
     _render_top(result.recommendation.ranked, top)
     if not used_first(result):
         render_used(*used)

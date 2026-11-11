@@ -794,3 +794,38 @@ def test_a_failed_wb_says_how_to_start_its_chrome() -> None:
 
     assert "--remote-debugging-port=9222" in wb
     assert "remote-debugging" not in ozon
+
+
+def _chinese_market(result: RecommendResult) -> RecommendResult:
+    from buysmarter.ranking.landed_cost import market_rows
+
+    offer = result.recommendation.ranked[0].candidate
+    offer.source, offer.currency, offer.price = "taobao", "CNY", 300
+    rates = {"CNY": 70.0, "USD": 500.0, "EUR": 600.0}
+    result.markets = market_rows(result.recommendation.ranked, "худи", rates)
+    return result
+
+
+def test_a_chinese_offer_gets_a_seller_question_with_blanks_in_the_file() -> None:
+    result = _chinese_market(_result(n_ranked=1))
+
+    md = render_markdown(result, top=8)
+
+    assert "## Вопросы продавцу" in md
+    assert "спросить: размер, подлинность" in md  # no cargo route for taobao before step 6
+    assert "身高___厘米" in md and "height ___ cm" in md
+
+
+def test_the_terminal_fills_the_seller_question_with_the_users_measurements(monkeypatch) -> None:
+    from buysmarter.cli import console as console_mod
+    from buysmarter.knowledge.seller_questions import Body
+
+    result = _chinese_market(_result(n_ranked=1))
+    monkeypatch.setattr(console_mod.console, "width", 400)
+
+    with console_mod.console.capture() as captured:
+        console_mod._render_sellers(result, Body(height_cm=180, chest_cm=100))
+
+    shown = captured.get()
+    assert "身高180厘米" in shown and "height 180 cm" in shown
+    assert "___" not in shown

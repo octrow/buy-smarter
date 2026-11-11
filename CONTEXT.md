@@ -81,7 +81,7 @@ A category capability that also looks beyond Kaspi, Ozon and OLX (Wildberries, b
 _Avoid_: multi-market search, China mode
 
 **Body measurements**:
-The user's height, weight and chest, waist and inside-leg measurements, kept in the local store only. Used to fill seller questions; never shown in a report or written anywhere else.
+The user's height, weight and chest, waist and inside-leg measurements, kept in the local store only. Used to fill seller questions on the user's own screen (the terminal, the app); a saved report, MCP and the HTTP API show blanks in their place.
 _Avoid_: size profile (a size is the label on the goods, not the body)
 
 **Seller question**:

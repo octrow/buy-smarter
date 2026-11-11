@@ -315,3 +315,24 @@ def test_a_rows_style_reason_is_in_its_score_tooltip_as_in_the_cli(qtbot, result
     tip = AlternativesModel._tooltip(scored, SCORE_COLUMN) or ""
 
     assert "Стиль: 13.4/20 — похоже на «look.jpg»" in tip
+
+
+def test_a_chinese_offer_gets_a_seller_question_filled_with_the_measurements(qtbot, result):
+    from PySide6.QtWidgets import QApplication, QPushButton
+
+    from buysmarter.ranking.landed_cost import market_rows
+
+    offer = result.recommendation.ranked[0].candidate
+    offer.source, offer.currency, offer.price = "taobao", "CNY", 300
+    result.markets = market_rows(result.recommendation.ranked, "худи", {"CNY": 70.0})
+    screen = ReportScreen()
+    qtbot.addWidget(screen)
+    screen.apply_prefs({"height_cm": 180, "chest_cm": 100})
+
+    screen.show_result(result, _ALL_RAN)
+
+    texts = _texts(screen)
+    assert "Вопросы продавцу" in texts and "身高180厘米" in texts and "height 180 cm" in texts
+    copy = next(b for b in screen.widget().findChildren(QPushButton) if b.text() == "Скопировать")
+    copy.click()
+    assert "胸围100厘米" in QApplication.clipboard().text()

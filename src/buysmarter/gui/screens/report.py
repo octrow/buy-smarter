@@ -1,9 +1,10 @@
 """Report screen: the explainable result of one search, in the CLI report's terms."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from typing import Any
 
 from PySide6.QtCore import Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QDesktopServices, QGuiApplication
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -27,8 +28,11 @@ from buysmarter.cli.report import (
     MARKET_HEADERS,
     MARKET_SECTION,
     NO_LLM_TEXT,
+    SELLER_BLANKS,
+    SELLER_SECTION,
     SUMMARY_TITLE,
     USED_HEADERS,
+    SellerQuestion,
     assessed_note,
     brands_missing_note,
     budget_text,
@@ -37,6 +41,8 @@ from buysmarter.cli.report import (
     market_cells,
     rejected_line,
     request_notes,
+    seller_heading,
+    seller_questions,
     summary_lines,
     summary_note,
     used_cells,
@@ -57,7 +63,7 @@ from buysmarter.gui.labels import (
     source_label,
 )
 from buysmarter.gui.learning import CategoryLearning, Learn
-from buysmarter.gui.prefs_fields import kzt
+from buysmarter.gui.prefs_fields import body_of, kzt
 from buysmarter.gui.screens.alternatives import (
     AXES_START,
     CANDIDATE_ROLE,
@@ -72,6 +78,7 @@ from buysmarter.gui.style_votes import StyleVotes
 from buysmarter.gui.tables import FitTableView, FitTableWidget, stretch_column
 from buysmarter.gui.theme import CONTENT_MAX_WIDTH, PAGE_GAP, SPACE, Prose, card_body, set_state
 from buysmarter.knowledge.generate import learn_category
+from buysmarter.knowledge.seller_questions import Body
 from buysmarter.ranking.authenticity import authenticity
 from buysmarter.ranking.models import Candidate, QueryConstraints, ScoredCandidate
 from buysmarter.ranking.selection import is_barred
@@ -277,6 +284,7 @@ class ReportScreen(QScrollArea):
         self._category: str | None = None  # the on-screen report's, when it lacks knowledge
         self._learn_blocked = False
         self._rerun_offered = False
+        self._body: Body | None = None  # the seller questions' measurements, from the prefs
         self._ticker = QTimer(self, interval=_TICK_MS)
         self._ticker.timeout.connect(self._render_learning)
         self.learning.started.connect(self._on_learning_changed)
@@ -284,6 +292,10 @@ class ReportScreen(QScrollArea):
         self.setWidgetResizable(True)
         self.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         self.setWidget(_empty_page())
+
+    def apply_prefs(self, stored: Mapping[str, Any]) -> None:
+        """Keep the user's measurements for the next report's seller questions."""
+        self._body = body_of(stored)
 
     def _heading(self, result: RecommendResult, run: SearchRun) -> tuple[QVBoxLayout, QPushButton]:
         """The query, its constraints and notes, how it was assessed and the «Настроить» link."""
@@ -348,6 +360,8 @@ class ReportScreen(QScrollArea):
         layout.addWidget(self._alternatives_section(result))
         if result.markets:
             layout.addWidget(self._markets_section(result))
+        if questions := seller_questions(result, self._body):
+            layout.addWidget(self._sellers_section(questions))
         if result.recommendation.rejected_count:
             self.rejected = _group("Отсеяно", _label(rejected_line(result), role="muted"))
             layout.addWidget(self.rejected)
@@ -556,6 +570,26 @@ class ReportScreen(QScrollArea):
         table.cellDoubleClicked.connect(lambda row, _col: open_offer(rows[row].offer.candidate.url))
         self.markets = table
         return _group(MARKET_SECTION, table)
+
+    def _sellers_section(self, questions: list[SellerQuestion]) -> QGroupBox:
+        """Ready messages to Chinese sellers, each with a button that copies it."""
+        widgets: list[QWidget] = []
+        if self._body is None or not any(self._body.model_dump().values()):
+            widgets.append(_label(SELLER_BLANKS, role="caption"))
+        for question in questions:
+            text = f"{question.zh}\n\n{question.en}"
+            message = _label(text)
+            message.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            copy = QPushButton("Скопировать")
+            copy.clicked.connect(lambda _=False, t=text: QGuiApplication.clipboard().setText(t))
+            row = QHBoxLayout()
+            row.addWidget(_label(seller_heading(question), role="muted"), 1)
+            row.addWidget(copy)
+            holder = QWidget()
+            holder.setLayout(row)
+            row.setContentsMargins(0, 0, 0, 0)
+            widgets += [holder, message]
+        return _group(SELLER_SECTION, *widgets)
 
     def _used_section(self, result: RecommendResult) -> QGroupBox:
         used = result.used_listings

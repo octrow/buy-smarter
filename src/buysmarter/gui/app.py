@@ -130,6 +130,7 @@ class MainWindow(QMainWindow):
         self.search.open_report.connect(lambda: self._show_screen(self.report))
         self.report.rerun_requested.connect(self._rerun)
         self.preferences.saved.connect(self.search.apply_prefs)
+        self.preferences.saved.connect(self.report.apply_prefs)
 
         self.stack = QStackedWidget()
         self.sidebar = QListWidget()
@@ -214,6 +215,7 @@ class MainWindow(QMainWindow):
             return
         self.search.apply_prefs(stored)
         self.preferences.apply_prefs(stored)
+        self.report.apply_prefs(stored)
 
     def _show_report(self, result: RecommendResult, run: SearchRun) -> None:
         self.report.show_result(result, run)

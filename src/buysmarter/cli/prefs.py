@@ -19,12 +19,18 @@ from buysmarter.memory import prefs
 from buysmarter.memory.prefs import (
     BANK_MARGIN,
     BANK_MARGIN_MAX,
+    BODY_TOPS,
+    BODY_WEIGHT,
     BUDGET,
     CARGO_RATE,
     CARGO_RATE_MAX,
+    CHEST,
     CITY,
     EXCLUDED_BRANDS,
+    HEIGHT,
+    INSEAM,
     MARKETPLACES,
+    WAIST,
     as_budget,
     as_list,
     as_number,
@@ -40,12 +46,21 @@ LABELS = {
     EXCLUDED_BRANDS: "Исключить бренды",
     BANK_MARGIN: "Наценка банка, %",
     CARGO_RATE: "Своё карго, $/кг",
+    HEIGHT: "Рост, см",
+    BODY_WEIGHT: "Вес, кг",
+    CHEST: "Обхват груди, см",
+    WAIST: "Обхват талии, см",
+    INSEAM: "Длина по внутреннему шву, см",
 }
+# Body measurements fill seller questions on this screen and in the terminal only.
+BODY_NOTE = "Мерки тела хранятся только на этом компьютере и подставляются в вопросы продавцу."
+
 # The upper bound of each number setting, as the app's spin boxes have it.
-NUMBER_TOPS = {BANK_MARGIN: BANK_MARGIN_MAX, CARGO_RATE: CARGO_RATE_MAX}
+NUMBER_TOPS = {BANK_MARGIN: BANK_MARGIN_MAX, CARGO_RATE: CARGO_RATE_MAX, **BODY_TOPS}
 NUMBER_HINTS = {
     BANK_MARGIN: "от 0 до 20 % — наценка банка к курсу Нацбанка при оплате в валюте",
     CARGO_RATE: "от 0 до 50 $ за кг — ставка вашего карго",
+    **{key: f"от 0 до {top} — целое число" for key, top in BODY_TOPS.items()},
 }
 SAVED = "Сохранено. Новые значения применятся к следующему поиску."
 STORE_DOWN = "Не удалось сохранить: хранилище недоступно. Подробности в логе."
@@ -57,6 +72,7 @@ _CLEARED: dict[str, Any] = {
     EXCLUDED_BRANDS: [],
     BANK_MARGIN: None,
     CARGO_RATE: None,
+    **dict.fromkeys(BODY_TOPS),
 }
 
 Key = StrEnum("Key", {key: key for key in LABELS})  # type: ignore[misc]
@@ -79,6 +95,7 @@ def show(ctx: typer.Context) -> None:
     for key, label in LABELS.items():
         table.add_row(label, escape(_shown(key, stored.get(key))), f"[dim]{key}[/dim]")
     console.print(table)
+    console.print(f"[dim]{BODY_NOTE}[/dim]")
 
 
 _KeyArg = Annotated[Key, typer.Argument(help=", ".join(LABELS) + ".")]
@@ -126,11 +143,14 @@ def _parsed(key: str, raw: str) -> Any:
     if key in NUMBER_TOPS:
         if (number := as_number(raw, NUMBER_TOPS[key])) is None:
             raise typer.BadParameter(NUMBER_HINTS[key])
-        return number
+        return round(number) if key in BODY_TOPS else number
     return raw.strip()
 
 
 def _number_shown(key: str, value: Any) -> str:
+    if key in BODY_TOPS:
+        number = as_number(value, NUMBER_TOPS[key])
+        return f"{round(number)}" if number else "не задано"
     tariffs = tariffs_of({key: value})
     number = tariffs.bank_margin * 100 if key == BANK_MARGIN else tariffs.cargo_usd_per_kg
     unset = as_number(value, NUMBER_TOPS[key]) is None

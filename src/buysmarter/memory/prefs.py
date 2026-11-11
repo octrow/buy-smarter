@@ -16,6 +16,7 @@ from typing import Any
 
 from buysmarter.db import repo
 from buysmarter.db.base import async_session
+from buysmarter.knowledge.seller_questions import Body
 from buysmarter.local_store import set_aside
 from buysmarter.ranking.landed_cost import DEFAULT_TARIFFS, Tariffs
 from buysmarter.services.collect import ALL_SOURCES
@@ -30,6 +31,15 @@ EXCLUDED_BRANDS = "excluded_brands"
 # The user's own costs for the landed cost of a foreign offer (``ranking.landed_cost.Tariffs``).
 BANK_MARGIN = "bank_margin"  # the bank's mark-up over the National Bank rate, in percent
 CARGO_RATE = "cargo_usd_per_kg"  # the user's cargo, USD per kg
+# The user's body measurements (CONTEXT.md "Body measurements"): only the terminal and the app
+# read them, to fill seller questions; never the core, a report file, MCP or the HTTP API.
+HEIGHT = "height_cm"
+BODY_WEIGHT = "weight_kg"
+CHEST = "chest_cm"
+WAIST = "waist_cm"
+INSEAM = "inseam_cm"
+# Each measurement's upper bound; 0 or unset means "not given".
+BODY_TOPS = {HEIGHT: 250, BODY_WEIGHT: 300, CHEST: 200, WAIST: 200, INSEAM: 150}
 BUDGET_MAX = 100_000_000
 BANK_MARGIN_MAX = 20.0
 CARGO_RATE_MAX = 50.0
@@ -80,6 +90,12 @@ def tariffs_of(stored: Mapping[str, Any]) -> Tariffs:
         bank_margin=DEFAULT_TARIFFS.bank_margin if margin is None else margin / 100,
         cargo_usd_per_kg=DEFAULT_TARIFFS.cargo_usd_per_kg if cargo is None else cargo,
     )
+
+
+def body_of(stored: Mapping[str, Any]) -> Body:
+    """The saved measurements, a missing or out-of-range one left out."""
+    values = {key: as_number(stored.get(key), top) for key, top in BODY_TOPS.items()}
+    return Body(**{key: round(v) for key, v in values.items() if v})
 
 
 async def search_defaults() -> tuple[list[str], list[str]]:

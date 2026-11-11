@@ -10,6 +10,8 @@ from buysmarter.i18n import SOURCE_LABELS
 from buysmarter.i18n import kzt as kzt  # re-exported: the screens format prices through here
 from buysmarter.memory.prefs import BANK_MARGIN as BANK_MARGIN
 from buysmarter.memory.prefs import BANK_MARGIN_MAX as BANK_MARGIN_MAX
+from buysmarter.memory.prefs import BODY_TOPS as BODY_TOPS
+from buysmarter.memory.prefs import BODY_WEIGHT as BODY_WEIGHT
 
 # The keys and their parsing live with the store (the CLI reads them too); re-exported here.
 from buysmarter.memory.prefs import BUDGET as BUDGET
@@ -21,6 +23,7 @@ from buysmarter.memory.prefs import EXCLUDED_BRANDS as EXCLUDED_BRANDS
 from buysmarter.memory.prefs import MARKETPLACES as MARKETPLACES
 from buysmarter.memory.prefs import as_budget as as_budget
 from buysmarter.memory.prefs import as_list as as_list
+from buysmarter.memory.prefs import body_of as body_of
 from buysmarter.memory.prefs import tariffs_of as tariffs_of
 from buysmarter.services.collect import ALL_SOURCES, DEFAULT_SOURCES
 
@@ -51,6 +54,17 @@ def number_box(top: float, suffix: str) -> QDoubleSpinBox:
     box = QDoubleSpinBox(maximum=top, singleStep=0.1, decimals=1, suffix=suffix)
     box.setLocale(MONEY_LOCALE)
     box.lineEdit().setTextMargins(SPACE["sm"], 0, SPACE["sm"], 0)  # as ``budget_box``
+    return box
+
+
+def measure_box(key: str) -> QSpinBox:
+    """A body measurement: 0 is «не задано», muted like the budget's «без лимита»."""
+    unit = " кг" if key == BODY_WEIGHT else " см"
+    box = QSpinBox(maximum=BODY_TOPS[key], suffix=unit)
+    box.setSpecialValueText("не задано")
+    box.lineEdit().setTextMargins(SPACE["sm"], 0, SPACE["sm"], 0)  # as ``budget_box``
+    box.valueChanged.connect(lambda value: set_state(box, "state", "" if value else "hint"))
+    set_state(box, "state", "hint")
     return box
 
 

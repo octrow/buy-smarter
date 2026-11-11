@@ -14,11 +14,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from buysmarter.cli.prefs import LABELS, NO_SOURCE, SAVED, STORE_DOWN
+from buysmarter.cli.prefs import BODY_NOTE, LABELS, NO_SOURCE, SAVED, STORE_DOWN
 from buysmarter.gui.bridge import CoreRunner, Job
 from buysmarter.gui.prefs_fields import (
     BANK_MARGIN,
     BANK_MARGIN_MAX,
+    BODY_TOPS,
     BUDGET,
     CARGO_RATE,
     CARGO_RATE_MAX,
@@ -27,8 +28,10 @@ from buysmarter.gui.prefs_fields import (
     MARKETPLACES,
     as_budget,
     as_list,
+    body_of,
     budget_box,
     check_sources,
+    measure_box,
     number_box,
     source_boxes,
     store_warning,
@@ -62,6 +65,7 @@ class PreferencesScreen(QWidget):
         self.bank_margin = number_box(BANK_MARGIN_MAX, " %")
         self.cargo_rate = number_box(CARGO_RATE_MAX, " $")
         self._show_tariffs({})  # not 0 before the saved values arrive: saving then keeps them
+        self.body = {key: measure_box(key) for key in BODY_TOPS}
         self.message = QLabel(wordWrap=True)  # beside the button: a capped width would stretch it
         self.store_warning = store_warning()
         self.save_button = QPushButton("Сохранить", default=True)
@@ -81,7 +85,10 @@ class PreferencesScreen(QWidget):
             (LABELS[EXCLUDED_BRANDS], self.excluded),
             (LABELS[BANK_MARGIN], self.bank_margin),
             (LABELS[CARGO_RATE], self.cargo_rate),
+            *((LABELS[key], box) for key, box in self.body.items()),
         )
+        body_note = QLabel(BODY_NOTE, wordWrap=True)
+        set_state(body_note, "role", "caption")
         layout = QVBoxLayout(self)
         # Under the screen heading (app._centered): no top gap of its own.
         layout.setContentsMargins(SPACE["xxl"], SPACE["lg"], SPACE["xxl"], SPACE["xl"])
@@ -93,6 +100,7 @@ class PreferencesScreen(QWidget):
         card = QGroupBox("Для каждого поиска")
         inside = card_body(QVBoxLayout(card))
         inside.addLayout(form)
+        inside.addWidget(body_note)
         inside.addLayout(buttons)
         layout.addWidget(self.store_warning)
         layout.addWidget(card)
@@ -106,6 +114,9 @@ class PreferencesScreen(QWidget):
         check_sources(self.sources, stored.get(MARKETPLACES))
         self.excluded.setText(", ".join(as_list(stored.get(EXCLUDED_BRANDS))))
         self._show_tariffs(stored)
+        body = body_of(stored)
+        for key, box in self.body.items():
+            box.setValue(getattr(body, key) or 0)
 
     def _show_tariffs(self, stored: Mapping[str, Any]) -> None:
         tariffs = tariffs_of(stored)  # unset shows the default the landed cost uses
@@ -120,6 +131,7 @@ class PreferencesScreen(QWidget):
             EXCLUDED_BRANDS: as_list(self.excluded.text()),
             BANK_MARGIN: round(self.bank_margin.value(), 1),
             CARGO_RATE: round(self.cargo_rate.value(), 1),
+            **{key: box.value() or None for key, box in self.body.items()},
         }
 
     def save(self) -> None:

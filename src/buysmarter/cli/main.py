@@ -44,7 +44,8 @@ from buysmarter.knowledge.generate import learn_category as learn_category_knowl
 from buysmarter.llm import keys
 from buysmarter.llm.adapter import LlmError
 from buysmarter.logsetup import new_run_id, setup_logging
-from buysmarter.memory.prefs import search_defaults
+from buysmarter.memory import prefs
+from buysmarter.memory.prefs import body_of, search_defaults
 from buysmarter.ranking.models import QueryConstraints
 from buysmarter.services.auto_learn import (
     NeedsLearning,
@@ -145,8 +146,10 @@ def recommend(
         no_clarify=no_clarify,
     )
 
+    body = body_of(asyncio.run(prefs.get_all()))  # the seller questions' measurements
+
     def show(result: RecommendResult) -> None:
-        render(result, top, use_llm=use_llm, summary=not no_review_summary)
+        render(result, top, use_llm=use_llm, summary=not no_review_summary, body=body)
         if save_path or not no_save:
             path = save_report(
                 result, query, top, save_path, use_llm=use_llm, summary=not no_review_summary
