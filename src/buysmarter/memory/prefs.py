@@ -17,6 +17,7 @@ from typing import Any
 from buysmarter.db import repo
 from buysmarter.db.base import async_session
 from buysmarter.local_store import set_aside
+from buysmarter.ranking.landed_cost import DEFAULT_TARIFFS, Tariffs
 from buysmarter.services.collect import ALL_SOURCES
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,12 @@ CITY = "city"  # the core reads this one too (services.recommend.resolve_city)
 BUDGET = "budget"  # and this one (services.recommend.stored_budget)
 MARKETPLACES = "marketplaces"
 EXCLUDED_BRANDS = "excluded_brands"
+# The user's own costs for the landed cost of a foreign offer (``ranking.landed_cost.Tariffs``).
+BANK_MARGIN = "bank_margin"  # the bank's mark-up over the National Bank rate, in percent
+CARGO_RATE = "cargo_usd_per_kg"  # the user's cargo, USD per kg
 BUDGET_MAX = 100_000_000
+BANK_MARGIN_MAX = 20.0
+CARGO_RATE_MAX = 50.0
 
 _DEFAULT_PREFS_FILE = Path.home() / ".config" / "buysmarter" / "prefs.json"
 
@@ -55,6 +61,25 @@ def as_sources(value: Any) -> list[str]:
     """The known marketplaces of a stored list, once each, in the stored order; ``[]`` if none."""
     names = dict.fromkeys(name.lower() for name in as_list(value))
     return [name for name in names if name in ALL_SOURCES]
+
+
+def as_number(value: Any, top: float) -> float | None:
+    """A stored number ("2,5" too) within 0..``top``; ``None`` when unset or out of range."""
+    try:
+        number = float(str(value).replace(",", ".").strip())
+    except ValueError:
+        return None
+    return number if 0 <= number <= top else None
+
+
+def tariffs_of(stored: Mapping[str, Any]) -> Tariffs:
+    """The saved bank mark-up and cargo rate, each falling back to the default when unset."""
+    margin = as_number(stored.get(BANK_MARGIN), BANK_MARGIN_MAX)
+    cargo = as_number(stored.get(CARGO_RATE), CARGO_RATE_MAX)
+    return Tariffs(
+        bank_margin=DEFAULT_TARIFFS.bank_margin if margin is None else margin / 100,
+        cargo_usd_per_kg=DEFAULT_TARIFFS.cargo_usd_per_kg if cargo is None else cargo,
+    )
 
 
 async def search_defaults() -> tuple[list[str], list[str]]:

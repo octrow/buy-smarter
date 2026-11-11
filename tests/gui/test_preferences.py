@@ -13,6 +13,9 @@ def test_saved_prefs_reach_search_after_recreating_the_window(qtbot, runner):
     page.budget.setValue(50000)
     page.sources["olx"].setChecked(False)
     page.excluded.setText("Noname,  Generic ,")
+    assert page.cargo_rate.value() == 3.8  # nothing saved: the default the landed cost uses
+    page.bank_margin.setValue(2.5)
+    page.cargo_rate.setValue(4.2)
     with qtbot.waitSignal(page.saved, timeout=WAIT_MS):
         page.save()
     assert "Шымкент" in first.search.city.placeholderText()  # the open window's next search too
@@ -23,6 +26,10 @@ def test_saved_prefs_reach_search_after_recreating_the_window(qtbot, runner):
     assert "50\xa0000" in second.search.budget.specialValueText()
     assert not second.search.sources["olx"].isChecked()
     assert second.preferences.excluded.text() == "Noname, Generic"
+    assert (second.preferences.bank_margin.value(), second.preferences.cargo_rate.value()) == (
+        2.5,
+        4.2,
+    )
 
 
 def test_a_store_that_cannot_be_written_says_so(qtbot, runner):

@@ -24,9 +24,10 @@ def test_nothing_saved_shows_every_setting_in_russian_with_its_default() -> None
     result = _prefs()
 
     assert result.exit_code == 0
-    for label in ("Город по умолчанию", "Бюджет", "Маркетплейсы", "Исключить бренды"):
+    for label in prefs_cli.LABELS.values():
         assert label in result.stdout
     assert "без лимита" in result.stdout and "все" in result.stdout
+    assert "3.8 (по умолчанию)" in result.stdout
 
 
 @pytest.mark.parametrize(
@@ -36,6 +37,8 @@ def test_nothing_saved_shows_every_setting_in_russian_with_its_default() -> None
         ("budget", "40 000", 40000, "40\xa0000 ₸"),
         ("marketplaces", "Kaspi, olx", ["kaspi", "olx"], "Kaspi, OLX"),
         ("excluded_brands", "Noname,  Generic ,", ["Noname", "Generic"], "Noname, Generic"),
+        ("bank_margin", "2,5", 2.5, "2.5"),
+        ("cargo_usd_per_kg", "4", 4.0, "4"),
     ],
 )
 def test_set_stores_what_the_app_stores_and_shows_it(key, value, stored, shown) -> None:
@@ -53,6 +56,8 @@ def test_set_stores_what_the_app_stores_and_shows_it(key, value, stored, shown) 
         ("budget", "сорок тысяч", "число"),
         ("marketplaces", "kaspi, avito", "avito"),
         ("marketplaces", " , ", prefs_cli.NO_SOURCE),
+        ("bank_margin", "30", "от 0 до 20"),
+        ("cargo_usd_per_kg", "дёшево", "от 0 до 50"),
     ],
 )
 def test_a_wrong_value_is_refused_with_the_reason_and_nothing_is_stored(key, value, reason) -> None:

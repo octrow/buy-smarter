@@ -3,20 +3,25 @@
 from typing import Any
 
 from PySide6.QtCore import QLocale
-from PySide6.QtWidgets import QCheckBox, QLabel, QSpinBox
+from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QLabel, QSpinBox
 
 from buysmarter.gui.theme import SPACE, Prose, set_state
 from buysmarter.i18n import SOURCE_LABELS
 from buysmarter.i18n import kzt as kzt  # re-exported: the screens format prices through here
+from buysmarter.memory.prefs import BANK_MARGIN as BANK_MARGIN
+from buysmarter.memory.prefs import BANK_MARGIN_MAX as BANK_MARGIN_MAX
 
 # The keys and their parsing live with the store (the CLI reads them too); re-exported here.
 from buysmarter.memory.prefs import BUDGET as BUDGET
 from buysmarter.memory.prefs import BUDGET_MAX, as_sources
+from buysmarter.memory.prefs import CARGO_RATE as CARGO_RATE
+from buysmarter.memory.prefs import CARGO_RATE_MAX as CARGO_RATE_MAX
 from buysmarter.memory.prefs import CITY as CITY
 from buysmarter.memory.prefs import EXCLUDED_BRANDS as EXCLUDED_BRANDS
 from buysmarter.memory.prefs import MARKETPLACES as MARKETPLACES
 from buysmarter.memory.prefs import as_budget as as_budget
 from buysmarter.memory.prefs import as_list as as_list
+from buysmarter.memory.prefs import tariffs_of as tariffs_of
 from buysmarter.services.collect import ALL_SOURCES, DEFAULT_SOURCES
 
 # Russian digit grouping, "40 000 ₸" (a no-break space), as ``i18n.kzt`` writes prices.
@@ -38,6 +43,14 @@ def budget_box() -> QSpinBox:
     # 0 shows the special text ("без лимита", a hint): muted, as a line edit's placeholder.
     box.valueChanged.connect(lambda value: set_state(box, "state", "" if value else "hint"))
     set_state(box, "state", "hint")
+    return box
+
+
+def number_box(top: float, suffix: str) -> QDoubleSpinBox:
+    """A tariff setting (bank mark-up, cargo rate): 0..``top`` in tenths, as the CLI accepts."""
+    box = QDoubleSpinBox(maximum=top, singleStep=0.1, decimals=1, suffix=suffix)
+    box.setLocale(MONEY_LOCALE)
+    box.lineEdit().setTextMargins(SPACE["sm"], 0, SPACE["sm"], 0)  # as ``budget_box``
     return box
 
 

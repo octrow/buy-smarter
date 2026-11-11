@@ -169,6 +169,14 @@ def stale_rules_note(result: RecommendResult, today: date | None = None) -> str 
     return f"Правила пошлин и тарифов давно не проверяли ({names}): цена до двери может устареть."
 
 
+def rates_note(result: RecommendResult) -> str | None:
+    """The day of the National Bank rates a compared foreign offer was converted at."""
+    if result.rates_day is None:
+        return None
+    day = f"{result.rates_day:%d.%m.%Y}"
+    return f"Валюта пересчитана по курсу Нацбанка на {day} плюс наценка банка."
+
+
 MARKET_SECTION = "Сравнение площадок"
 MARKET_HEADERS = [
     "Площадка",
@@ -338,6 +346,7 @@ def report_notes(result: RecommendResult, *, use_llm: bool, summary: bool) -> li
         trusted_only_note(result),
         unclear_authenticity_note(result),
         stale_rules_note(result),
+        rates_note(result),
     )
     return [note for note in notes if note]
 

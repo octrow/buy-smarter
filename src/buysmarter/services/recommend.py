@@ -19,6 +19,7 @@ import time
 from collections import Counter
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import date
 from typing import Any, cast
 
 from market_sources.base import ProductSource
@@ -56,11 +57,11 @@ from buysmarter.llm.relevance import (
     for_the_category,
 )
 from buysmarter.llm.review_summary import ReviewSummary
-from buysmarter.memory.prefs import BUDGET, CITY, as_budget
+from buysmarter.memory.prefs import BANK_MARGIN, BUDGET, CARGO_RATE, CITY, as_budget, tariffs_of
 from buysmarter.normalize.candidate import attach_reference_prices
 from buysmarter.normalize.city import find_city
 from buysmarter.ranking.engine import NoCandidatesPassed, rank
-from buysmarter.ranking.landed_cost import MarketRow, market_rows
+from buysmarter.ranking.landed_cost import KZT, MarketRow, market_rows
 from buysmarter.ranking.models import (
     Candidate,
     QueryConstraints,
@@ -68,6 +69,7 @@ from buysmarter.ranking.models import (
     ScoredCandidate,
 )
 from buysmarter.ranking.selection import SUSPECTED_COUNTERFEIT, without_barred
+from buysmarter.services import fx
 from buysmarter.services.auto_learn import NeedsLearning, check_learn_first
 from buysmarter.services.collect import (
     ProductRow,
@@ -153,6 +155,8 @@ class RecommendResult(BaseModel):
     hidden: list[ScoredCandidate] = Field(default_factory=list)
     # Cross-market comparison (CONTEXT.md): one row per marketplace, cheapest to the door.
     markets: list[MarketRow] = Field(default_factory=list)
+    # The day of the National Bank rates a foreign row was converted at; None: none needed.
+    rates_day: date | None = None
 
 
 def _no_llm_route() -> bool:
@@ -551,6 +555,7 @@ async def recommend(
 
     apply_cross_notes(recommendation, pool.notes)
     used_listings = await _used_listings(run, pool, recommendation, fits)
+    markets, rates_day = await _markets(run, recommendation)
     logger.info("stage %s took %.2fs", "total", time.perf_counter() - total_start)
     return RecommendResult(
         recommendation=recommendation,
@@ -570,17 +575,29 @@ async def recommend(
         capabilities=capability_states(REGISTRY, profile, constraints),
         profile_found=profile.found,
         hidden=hidden,
-        markets=_markets(run, recommendation),
+        markets=markets,
+        rates_day=rates_day,
     )
 
 
-def _markets(run: _Run, recommendation: Recommendation) -> list[MarketRow]:
-    """The cross-market comparison when its capability is on, else nothing."""
+async def _markets(
+    run: _Run, recommendation: Recommendation
+) -> tuple[list[MarketRow], date | None]:
+    """The cross-market comparison when its capability is on, and the day of its rates.
+
+    The National Bank's rates are fetched only when an offer is priced in another currency;
+    the bank mark-up and the cargo rate are the user's settings.
+    """
     if not any(cap.name == CROSS_MARKET for cap, _ in run.capabilities.items):
-        return []
-    # ponytail: no rates yet, every source sells in tenge; the National Bank's rates come
-    # with the first foreign source (docs/tasks/2026-11-09-clothes-cross-market.md, step 4).
-    return market_rows(recommendation.ranked, run.constraints.product_type, {})
+        return [], None
+    ranked = recommendation.ranked
+    rates = None
+    if any(s.candidate.currency != KZT for s in ranked):
+        rates = await fx.current_rates(date.today())
+    tariffs = tariffs_of({key: await _preference(key) for key in (BANK_MARGIN, CARGO_RATE)})
+    rows = market_rows(ranked, run.constraints.product_type, rates.kzt if rates else {}, tariffs)
+    converted = any(row.offer.candidate.currency != KZT for row in rows)
+    return rows, rates.day if rates and converted else None
 
 
 def _hide_suspects(

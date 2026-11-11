@@ -1,7 +1,8 @@
 """Landed cost of an offer: what reaching the door costs, part by part (CONTEXT.md "Landed cost").
 
-Pure: the rates (KZT per unit of a currency, the National Bank's) come in. Every route an
-offer has is priced; the cheapest is the answer, the next one its alternative.
+Pure: the rates (KZT per unit of a currency, the National Bank's) and the user's own tariffs
+come in. Every route an offer has is priced; the cheapest is the answer, the next one its
+alternative.
 """
 
 from collections.abc import Mapping
@@ -35,6 +36,16 @@ class Part(BaseModel, frozen=True):
     kzt: int
 
 
+class Tariffs(BaseModel, frozen=True):
+    """The user's own costs (settings): the bank's mark-up and their cargo's rate."""
+
+    bank_margin: float = BANK_MARGIN
+    cargo_usd_per_kg: float = CARGO_USD_PER_KG.value
+
+
+DEFAULT_TARIFFS = Tariffs()
+
+
 class LandedCost(BaseModel, frozen=True):
     """An offer's cost to the door by one route; ``alternative`` is the next cheapest route."""
 
@@ -60,21 +71,25 @@ def billable_kg(actual_kg: float, dims_cm: tuple[float, float, float] | None) ->
     return max(actual_kg, length * width * height / VOLUMETRIC_DIVISOR.value)
 
 
-def _price_parts(candidate: Candidate, rates: Mapping[str, float]) -> list[Part]:
+def _price_parts(candidate: Candidate, rates: Mapping[str, float], tariffs: Tariffs) -> list[Part]:
     """The price in tenge, plus the bank's mark-up when paid in another currency."""
     if candidate.currency == KZT:
         return [Part(label="цена", kzt=candidate.price)]
     price = round(candidate.price * rates[candidate.currency])
     return [
         Part(label="цена", kzt=price),
-        Part(label="конвертация", kzt=round(price * BANK_MARGIN)),
+        Part(label="конвертация", kzt=round(price * tariffs.bank_margin)),
     ]
 
 
 def _route_cost(
-    candidate: Candidate, route: Route, product_type: str, rates: Mapping[str, float]
+    candidate: Candidate,
+    route: Route,
+    product_type: str,
+    rates: Mapping[str, float],
+    tariffs: Tariffs,
 ) -> LandedCost:
-    parts = _price_parts(candidate, rates)
+    parts = _price_parts(candidate, rates, tariffs)
     goods = sum(p.kzt for p in parts)
     estimated = False
     if route.key in {"direct", "cargo"}:
@@ -84,7 +99,7 @@ def _route_cost(
         if route.key == "direct":
             parts.append(Part(label="НДС", kzt=round(goods * DIRECT_VAT.value)))
         else:
-            cargo = kg * CARGO_USD_PER_KG.value * rates["USD"]
+            cargo = kg * tariffs.cargo_usd_per_kg * rates["USD"]
             parts.append(Part(label="карго", kzt=round(cargo)))
         if duty := duty_eur(goods / rates["EUR"], kg):
             parts.append(Part(label="пошлина", kzt=round(duty * rates["EUR"])))
@@ -99,11 +114,13 @@ def landed_cost(
     product_type: str,
     rates: Mapping[str, float],
     routes: tuple[Route, ...] | None = None,
+    tariffs: Tariffs = DEFAULT_TARIFFS,
 ) -> LandedCost:
     """The offer's cheapest landed cost, with the next cheapest route as its alternative."""
     options = routes or SOURCE_ROUTES.get(candidate.source, (MARKETPLACE,))
     costs = sorted(
-        (_route_cost(candidate, r, product_type, rates) for r in options), key=lambda c: c.total
+        (_route_cost(candidate, r, product_type, rates, tariffs) for r in options),
+        key=lambda c: c.total,
     )
     best = costs[0]
     return best.model_copy(update={"alternative": costs[1]}) if len(costs) > 1 else best
@@ -117,7 +134,10 @@ class MarketRow(BaseModel, frozen=True):
 
 
 def market_rows(
-    ranked: list[ScoredCandidate], product_type: str, rates: Mapping[str, float]
+    ranked: list[ScoredCandidate],
+    product_type: str,
+    rates: Mapping[str, float],
+    tariffs: Tariffs = DEFAULT_TARIFFS,
 ) -> list[MarketRow]:
     """The best-ranked offer of every marketplace, cheapest to the door first.
 
@@ -129,7 +149,7 @@ def market_rows(
         if scored.candidate.price > 0 and (currency == KZT or currency in rates):
             firsts.setdefault(scored.candidate.source, scored)
     rows = [
-        MarketRow(offer=s, cost=landed_cost(s.candidate, product_type, rates))
+        MarketRow(offer=s, cost=landed_cost(s.candidate, product_type, rates, tariffs=tariffs))
         for s in firsts.values()
     ]
     return sorted(rows, key=lambda row: row.cost.total)

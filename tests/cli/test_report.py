@@ -773,6 +773,17 @@ def test_the_cross_market_comparison_shows_each_marketplace_to_the_door() -> Non
     assert "цена 29 000 ₸ + доставка 500 ₸" in md.replace(" ", " ")
 
 
+def test_a_converted_offer_names_the_day_of_the_national_bank_rates() -> None:
+    from datetime import date
+
+    result = _result(n_ranked=1)
+    assert "курсу Нацбанка" not in render_markdown(result, top=8)
+
+    result.rates_day = date(2026, 11, 11)
+
+    assert "по курсу Нацбанка на 11.11.2026" in render_markdown(result, top=8)
+
+
 def test_a_failed_wb_says_how_to_start_its_chrome() -> None:
     from buysmarter.cli.report import failed_source_notes
 

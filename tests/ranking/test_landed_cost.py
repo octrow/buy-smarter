@@ -100,3 +100,24 @@ def test_the_comparison_takes_each_marketplaces_best_offer_cheapest_first():
         ("o1", 21_000),
         ("k1", 25_000),
     ]
+
+
+def test_the_users_own_bank_margin_and_cargo_rate_replace_the_defaults():
+    from buysmarter.ranking.landed_cost import Tariffs
+
+    light = _offer(source="taobao", price=300, currency="CNY", weight_kg=1.0)
+
+    cost = landed_cost(
+        light,
+        "худи",
+        _RATES,
+        routes=(CARGO,),
+        tariffs=Tariffs(bank_margin=0.05, cargo_usd_per_kg=2.0),
+    )
+
+    # 300 CNY = 21 000 ₸ + 5 % = 1 050; cargo 1 kg × $2 × 500 = 1 000
+    assert [(p.label, p.kzt) for p in cost.parts] == [
+        ("цена", 21_000),
+        ("конвертация", 1_050),
+        ("карго", 1_000),
+    ]

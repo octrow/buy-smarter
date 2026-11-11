@@ -17,13 +17,19 @@ from rich.table import Table
 from buysmarter.i18n import kzt, source_label
 from buysmarter.memory import prefs
 from buysmarter.memory.prefs import (
+    BANK_MARGIN,
+    BANK_MARGIN_MAX,
     BUDGET,
+    CARGO_RATE,
+    CARGO_RATE_MAX,
     CITY,
     EXCLUDED_BRANDS,
     MARKETPLACES,
     as_budget,
     as_list,
+    as_number,
     as_sources,
+    tariffs_of,
 )
 from buysmarter.services.collect import ALL_SOURCES
 
@@ -32,11 +38,26 @@ LABELS = {
     BUDGET: "Бюджет",
     MARKETPLACES: "Маркетплейсы",
     EXCLUDED_BRANDS: "Исключить бренды",
+    BANK_MARGIN: "Наценка банка, %",
+    CARGO_RATE: "Своё карго, $/кг",
+}
+# The upper bound of each number setting, as the app's spin boxes have it.
+NUMBER_TOPS = {BANK_MARGIN: BANK_MARGIN_MAX, CARGO_RATE: CARGO_RATE_MAX}
+NUMBER_HINTS = {
+    BANK_MARGIN: "от 0 до 20 % — наценка банка к курсу Нацбанка при оплате в валюте",
+    CARGO_RATE: "от 0 до 50 $ за кг — ставка вашего карго",
 }
 SAVED = "Сохранено. Новые значения применятся к следующему поиску."
 STORE_DOWN = "Не удалось сохранить: хранилище недоступно. Подробности в логе."
 NO_SOURCE = "Выберите хотя бы один маркетплейс."
-_CLEARED: dict[str, Any] = {CITY: "", BUDGET: 0, MARKETPLACES: [], EXCLUDED_BRANDS: []}
+_CLEARED: dict[str, Any] = {
+    CITY: "",
+    BUDGET: 0,
+    MARKETPLACES: [],
+    EXCLUDED_BRANDS: [],
+    BANK_MARGIN: None,
+    CARGO_RATE: None,
+}
 
 Key = StrEnum("Key", {key: key for key in LABELS})  # type: ignore[misc]
 
@@ -60,14 +81,14 @@ def show(ctx: typer.Context) -> None:
     console.print(table)
 
 
-_KeyArg = Annotated[Key, typer.Argument(help="city, budget, marketplaces or excluded_brands.")]
+_KeyArg = Annotated[Key, typer.Argument(help=", ".join(LABELS) + ".")]
 
 
 @prefs_app.command("set")
 def set_(
     key: _KeyArg,
     value: Annotated[
-        str, typer.Argument(help='e.g. "Астана", 40000, kaspi,olx, "Noname, Generic"')
+        str, typer.Argument(help='e.g. "Астана", 40000, kaspi,olx, "Noname, Generic", 2.5')
     ],
 ) -> None:
     """Save one search setting."""
@@ -89,6 +110,8 @@ def _shown(key: str, value: Any) -> str:
         return ", ".join(map(source_label, names)) if names else "все"
     if key == EXCLUDED_BRANDS:
         return ", ".join(as_list(value)) or "—"
+    if key in NUMBER_TOPS:
+        return _number_shown(key, value)
     return str(value or "") or "из запроса, иначе Алматы"
 
 
@@ -100,7 +123,18 @@ def _parsed(key: str, raw: str) -> Any:
         return _marketplaces(raw)
     if key == EXCLUDED_BRANDS:
         return as_list(raw)
+    if key in NUMBER_TOPS:
+        if (number := as_number(raw, NUMBER_TOPS[key])) is None:
+            raise typer.BadParameter(NUMBER_HINTS[key])
+        return number
     return raw.strip()
+
+
+def _number_shown(key: str, value: Any) -> str:
+    tariffs = tariffs_of({key: value})
+    number = tariffs.bank_margin * 100 if key == BANK_MARGIN else tariffs.cargo_usd_per_kg
+    unset = as_number(value, NUMBER_TOPS[key]) is None
+    return f"{number:g}" + (" (по умолчанию)" if unset else "")
 
 
 def _budget(raw: str) -> int:

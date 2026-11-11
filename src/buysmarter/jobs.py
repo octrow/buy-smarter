@@ -9,7 +9,7 @@ import json
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from functools import lru_cache
 from typing import Any, cast
@@ -218,6 +218,11 @@ class RecommendOutcome(BaseModel):
         description="Cross-market comparison: each marketplace's best offer, cheapest to "
         "the door first; empty when the comparison is off",
     )
+    rates_day: date | None = Field(
+        None,
+        description="Day of the National Bank rates a foreign offer was converted at; "
+        "null when no offer needed converting",
+    )
     assessed_by: list[str] = Field(
         default_factory=list,
         description="How the run assessed: each active capability and who decided "
@@ -240,6 +245,7 @@ class RecommendOutcome(BaseModel):
             budget_note=result.constraints.budget_note,
             hidden=[Offer.from_scored(s) for s in result.hidden],
             markets=[MarketOffer.from_row(row) for row in result.markets],
+            rates_day=result.rates_day,
             assessed_by=assessed_entries(result.capabilities),
         )
 
