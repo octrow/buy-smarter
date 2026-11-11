@@ -1,0 +1,104 @@
+{
+ "success": true,
+ "resp": [
+  [],
+  [
+   {
+    "productCode": "u0000000077316",
+    "code": "489935",
+    "name4zhCN": "宽松卫衣/长袖",
+    "productName4zhCN": "男装/男女同款 宽松卫衣/长袖 489935  限时特优 新作商品 门店自提 4XL,3XL,S,XS,XL,XXL,M,L 灰色,黑色,藏青色,",
+    "sex4zhCN": "男装/男女同款",
+    "originPrice": 199.0,
+    "minPrice": 149.0,
+    "maxPrice": 149.0,
+    "stock": "Y",
+    "mainPic": "/hmall/test/u0000000077316/main/first/561/1.jpg",
+    "minSize4zhCN": "XS",
+    "maxSize4zhCN": "4XL",
+    "identity": [
+     "time_doptimal",
+     "new_product",
+     "pickUp"
+    ]
+   },
+   {
+    "productCode": "u0000000064604",
+    "code": "481040",
+    "name4zhCN": "宽松卫衣/长袖",
+    "productName4zhCN": "男装/男女同款 宽松卫衣/长袖 481040  限时特优 门店自提 XS,XL,S,3XL,L,XXL,M,4XL 深灰色,棕黑色,蓝色,藏青色,黑色,灰色,黑色,灰色,米色,米色,藏青色,灰色,藏青色,黑色,",
+    "sex4zhCN": "男装/男女同款",
+    "originPrice": 199.0,
+    "minPrice": 149.0,
+    "maxPrice": 149.0,
+    "stock": "Y",
+    "mainPic": "/hmall/test/u0000000064604/main/first/561/1.jpg",
+    "minSize4zhCN": "XS",
+    "maxSize4zhCN": "4XL",
+    "identity": [
+     "time_doptimal",
+     "pickUp"
+    ]
+   },
+   {
+    "productCode": "u0000000076081",
+    "code": "486296",
+    "name4zhCN": "UT KAWS卫衣/长袖",
+    "productName4zhCN": "男装/男女同款 UT KAWS卫衣/长袖 486296  新作商品 门店自提 L,XL,XXL,S,XS,M 黑色,",
+    "sex4zhCN": "男装/男女同款",
+    "originPrice": 199.0,
+    "minPrice": 199.0,
+    "maxPrice": 199.0,
+    "stock": "Y",
+    "mainPic": "/hmall/test/u0000000076081/main/first/561/1.jpg",
+    "minSize4zhCN": "XS",
+    "maxSize4zhCN": "XXL",
+    "identity": [
+     "new_product",
+     "pickUp"
+    ]
+   },
+   {
+    "productCode": "u0000000076082",
+    "code": "492991",
+    "name4zhCN": "UT KAWS卫衣/长袖",
+    "productName4zhCN": "童装男童女童 UT KAWS卫衣/长袖 492991  新作商品 门店自提 130cm,150cm,140cm,110cm,120cm,160cm 黑色,",
+    "sex4zhCN": "童装男童女童",
+    "originPrice": 129.0,
+    "minPrice": 129.0,
+    "maxPrice": 129.0,
+    "stock": "Y",
+    "mainPic": "/hmall/test/u0000000076082/main/first/561/1.jpg",
+    "minSize4zhCN": "110cm",
+    "maxSize4zhCN": "160cm",
+    "identity": [
+     "new_product",
+     "pickUp"
+    ]
+   },
+   {
+    "productCode": "u0000000076097",
+    "code": "492992",
+    "name4zhCN": "UT KAWS卫衣/长袖",
+    "productName4zhCN": "童装男童女童 UT KAWS卫衣/长袖 492992  新作商品 门店自提 140cm,160cm,110cm,120cm,130cm,150cm 浅灰色,",
+    "sex4zhCN": "童装男童女童",
+    "originPrice": 129.0,
+    "minPrice": 129.0,
+    "maxPrice": 129.0,
+    "stock": "Y",
+    "mainPic": "/hmall/test/u0000000076097/main/first/561/1.jpg",
+    "minSize4zhCN": "110cm",
+    "maxSize4zhCN": "160cm",
+    "identity": [
+     "new_product",
+     "pickUp"
+    ]
+   }
+  ],
+  {
+   "productSum": 77,
+   "pageSize": 5,
+   "rootTag": "null"
+  }
+ ]
+}

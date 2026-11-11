@@ -25,11 +25,11 @@ def _run(on: bool = True) -> SimpleNamespace:
     items = [(CrossMarket(), None)] if on else []
     return SimpleNamespace(
         capabilities=SimpleNamespace(items=items),
-        constraints=SimpleNamespace(product_type="худи"),
+        constraints=SimpleNamespace(product_type="худи", search_phrase="худи"),
     )
 
 
-def _wire(monkeypatch, stored: dict, fetched: list) -> None:
+def _wire(monkeypatch, stored: dict, fetched: list, chinese: list | None = None) -> None:
     async def rates(today):
         fetched.append(today)
         return fx.Rates(day=date(2026, 11, 11), kzt={"CNY": 70.0, "USD": 500.0, "EUR": 600.0})
@@ -37,6 +37,10 @@ def _wire(monkeypatch, stored: dict, fetched: list) -> None:
     async def preference(key):
         return stored.get(key)
 
+    async def cn_offers(constraints):
+        return chinese or []
+
+    monkeypatch.setattr(rec, "cn_store_candidates", cn_offers)
     monkeypatch.setattr(fx, "current_rates", rates)
     monkeypatch.setattr(rec, "_preference", preference)
 
@@ -67,3 +71,19 @@ def test_the_comparison_off_gives_nothing(monkeypatch):
     _wire(monkeypatch, {}, [])
 
     assert asyncio.run(rec._markets(_run(on=False), _ranking(_scored("kaspi", 1)))) == ([], None)
+
+
+def test_a_chinese_brand_site_joins_the_comparison_by_cargo_not_the_ranking(monkeypatch):
+    from buysmarter.ranking.authenticity import Authenticity, authenticity
+
+    site = _scored("official_cn", 149, "CNY").candidate.model_copy(update={"official_seller": True})
+    _wire(monkeypatch, {}, [], chinese=[site])
+    ranking = _ranking(_scored("kaspi", 20_000))
+
+    rows, day = asyncio.run(rec._markets(_run(), ranking))
+
+    china = next(row for row in rows if row.offer.candidate.source == "official_cn")
+    assert china.cost.route.key == "cargo" and china.cost.weight_estimated
+    assert authenticity(china.offer) is Authenticity.CERTAIN
+    assert day == date(2026, 11, 11)
+    assert len(ranking.ranked) == 1  # the ranking itself is untouched

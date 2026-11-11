@@ -71,6 +71,7 @@ from buysmarter.ranking.models import (
 from buysmarter.ranking.selection import SUSPECTED_COUNTERFEIT, without_barred
 from buysmarter.services import fx
 from buysmarter.services.auto_learn import NeedsLearning, check_learn_first
+from buysmarter.services.cn_stores import cn_store_candidates
 from buysmarter.services.collect import (
     ProductRow,
     aclose,
@@ -590,7 +591,9 @@ async def _markets(
     """
     if not any(cap.name == CROSS_MARKET for cap, _ in run.capabilities.items):
         return [], None
-    ranked = recommendation.ranked
+    # Chinese brand sites price in yuan: compared, never ranked against tenge prices.
+    foreign = [_unranked(c) for c in await cn_store_candidates(run.constraints)]
+    ranked = [*recommendation.ranked, *foreign]
     rates = None
     if any(s.candidate.currency != KZT for s in ranked):
         rates = await fx.current_rates(date.today())
@@ -598,6 +601,11 @@ async def _markets(
     rows = market_rows(ranked, run.constraints.product_type, rates.kzt if rates else {}, tariffs)
     converted = any(row.offer.candidate.currency != KZT for row in rows)
     return rows, rates.day if rates and converted else None
+
+
+def _unranked(candidate: Candidate) -> ScoredCandidate:
+    """An offer shown in the comparison only: no score, no role."""
+    return ScoredCandidate(candidate=candidate, total_score=0, confidence=0, axes=[])
 
 
 def _hide_suspects(

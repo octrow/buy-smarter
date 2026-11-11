@@ -86,7 +86,8 @@ DIRECT = Route(key="direct", label="прямая международная", da
 CARGO = Route(key="cargo", label="карго", days=(14, 21), effort=3)
 
 # Which routes each source offers; a source not named here delivers like a marketplace.
-SOURCE_ROUTES: dict[str, tuple[Route, ...]] = {"olx": (PRIVATE,)}
+# A brand's Chinese site ships inside China only: a cargo forwarder brings the parcel over.
+SOURCE_ROUTES: dict[str, tuple[Route, ...]] = {"olx": (PRIVATE,), "official_cn": (CARGO,)}
 
 
 def stale_rules(today: date) -> list[Rule]:

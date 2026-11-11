@@ -20,6 +20,7 @@ SOURCE_LABELS = {
     "ozon": "Ozon",
     "olx": "OLX",
     "official": "Офиц. магазин",
+    "official_cn": "Сайт бренда, Китай",
     "wb": "WB",
 }
 USED_SECTION = "На OLX (частники)"

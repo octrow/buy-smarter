@@ -7,7 +7,7 @@ nobody copies is likely original; everything else is unclear.
 
 from enum import Enum
 
-from buysmarter.ranking.models import OFFICIAL_SOURCE, ScoredCandidate
+from buysmarter.ranking.models import OFFICIAL_SOURCES, ScoredCandidate
 from buysmarter.ranking.selection import is_barred
 
 
@@ -23,7 +23,7 @@ def authenticity(scored: ScoredCandidate) -> Authenticity:
     if is_barred(scored):
         return Authenticity.FAKE
     candidate = scored.candidate
-    if candidate.source == OFFICIAL_SOURCE:
+    if candidate.source in OFFICIAL_SOURCES:
         return Authenticity.CERTAIN
     if candidate.official_seller or candidate.counterfeit_risk == "low":
         return Authenticity.LIKELY

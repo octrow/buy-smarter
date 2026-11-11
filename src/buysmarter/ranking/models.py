@@ -19,6 +19,9 @@ Restricted = Literal["rx", "alcohol", "tobacco", "weapon"]
 
 # The source of offers read from a brand's own site (``services.official_stores``).
 OFFICIAL_SOURCE = "official"
+# Offers from a brand's own site in China (``services.cn_stores``), priced in yuan.
+OFFICIAL_CN_SOURCE = "official_cn"
+OFFICIAL_SOURCES = frozenset({OFFICIAL_SOURCE, OFFICIAL_CN_SOURCE})
 
 
 class QueryConstraints(BaseModel):
