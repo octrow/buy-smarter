@@ -110,6 +110,23 @@ def _feature_present(feature: str, candidate: Candidate) -> bool:
 # Public name for services that check required features against a candidate.
 feature_present = _feature_present
 
+# A clothing fit ("relaxed", "оверсайз", "slim fit") is how the user wants the cut to sit: few
+# cards name it, so as a requirement it drops nearly every listing. It stays a wish the specs
+# axis ranks by (a title that names it scores higher), never a filter.
+# ponytail: a word list; add a word when a fit word filters again.
+_FIT_WISH_RE = re.compile(
+    r"^(?:relaxed|oversized?|оверсайз|loose|slim|skinny|regular|straight|wide|baggy|boxy)"
+    r"(?:[\s-]*fit)?$"
+    r"|^(?:свободн|прям|зауженн|приталенн|широк)\w*(?:\s+(?:кроя|крой|посадки|посадка))?$",
+    re.IGNORECASE,
+)
+
+
+def is_fit_wish(feature: str) -> bool:
+    """A clothing fit word, which ranks listings but never drops one."""
+    return _FIT_WISH_RE.match(feature.strip()) is not None
+
+
 _NO_HOOKS = RankHooks()
 
 
@@ -126,7 +143,7 @@ def apply_hard_filters(
     failing check wins the reason.
     """
     excluded_brands = {b.lower() for b in constraints.excluded_brands}
-    hard_features = list(constraints.required_features)
+    hard_features = [f for f in constraints.required_features if not is_fit_wish(f)]
     for adjust in hooks.hard_features:
         hard_features = adjust(hard_features)
     passed: list[Candidate] = []
